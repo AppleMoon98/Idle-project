@@ -92,6 +92,15 @@ Domain systems (Combat, Stage, War, Equipment, ...) depend on `Core`; `Core` nev
 - `CharacterMover` (`ITickable`) — moves toward a `Target` transform at `Stats.MoveSpeed`; registers with `GameTicker` in `OnEnable`. Doesn't know about "Player" — the target is assigned by whichever system spawns it (Stage/Monster spawner, later).
 - `Character/Events/CharacterHealthChangedEvent.cs`, `CharacterDiedEvent.cs` — `readonly struct` events other systems (Stage, Combat, UI) subscribe to; `Health` never references those systems directly.
 
+Note: `CharacterStatsSO`/`RuntimeStats` also carry `AttackRange` (added for Combat).
+
+### F. Combat (implemented)
+`Assets/02. Script/Combat/` — 2D physics-based auto-combat, built only on `Health`/`RuntimeStats`/`GameTicker`; never references Stage/Rank/Loot:
+- `Attacker` (`ITickable`) — range-scan attacker. Accumulates `deltaTime`; every `Stats.AttackInterval`, runs `Physics2D.OverlapCircleAll(position, Stats.AttackRange, targetLayerMask)`, picks the nearest live `Health`, calls `TakeDamage(Stats.AttackPower)`. Used by Player to auto-attack Monsters.
+- `ContactAttacker` (`ITickable`) — trigger-based attacker. Tracks the `Health` currently overlapping via `OnTriggerEnter2D`/`OnTriggerExit2D` (2D triggers — this is a 2D mobile game, no 3D physics), attacks it every `Stats.AttackInterval` while in contact. Used by Monsters to damage the Player on contact.
+- Neither component publishes its own events or knows about factions by name — target filtering is purely via `LayerMask` set per-prefab in the Inspector (Player prefab targets the Monster layer, Monster prefab targets the Player layer), so adding Soldier/War later needs no Combat code changes.
+- Damage application and death/health events remain owned by `Character.Health` — Combat only decides *who* and *when* to hit.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
