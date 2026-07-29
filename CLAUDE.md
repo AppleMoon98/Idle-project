@@ -101,6 +101,16 @@ Note: `CharacterStatsSO`/`RuntimeStats` also carry `AttackRange` (added for Comb
 - Neither component publishes its own events or knows about factions by name — target filtering is purely via `LayerMask` set per-prefab in the Inspector (Player prefab targets the Monster layer, Monster prefab targets the Player layer), so adding Soldier/War later needs no Combat code changes.
 - Damage application and death/health events remain owned by `Character.Health` — Combat only decides *who* and *when* to hit.
 
+### G. Stage (implemented)
+`Assets/02. Script/Stage/` — runs a single stage (e.g. "1-1") and detects clear; knows nothing about Rank/Loot/UI:
+- `StageSO` — data asset: `Chapter`, `StageNumber`, `SpawnEntries` (`MonsterSpawnEntry[]`).
+- `MonsterSpawnEntry` (`[Serializable]`, not a SO) — one spawn wave: `MonsterPrefab`, `Count`, `SpawnInterval`.
+- `MonsterSpawner` (`ITickable`) — walks `SpawnEntries` in order, spawns via `PoolManager.Get`, sets the spawned `CharacterMover.Target` to the player, and calls `StageProgressTracker.RegisterSpawned` for each instance. Off-screen placement is a scene/spawn-point concern, not code — `spawnPoints` are Inspector-assigned `Transform`s.
+- `StageProgressTracker` — tracks exactly the monsters it was told about via `RegisterSpawned` (a `HashSet<GameObject>`, not tag/string based) against `CharacterDiedEvent`; when the registered count all die, publishes `StageClearedEvent` and unsubscribes itself (`Dispose`).
+- `Stage/Events/StageClearedEvent.cs` — `readonly struct` carrying the cleared `StageSO`; Rank/progression-advance systems will subscribe to this later.
+- `StageController` (MonoBehaviour, composition root for one stage) — `LoadStage(stageSO)` calls `PoolManager.EnsurePool` per monster prefab (idempotent — see below), builds `StageProgressTracker` + `MonsterSpawner`, registers the spawner with `GameTicker`. Tears down the previous stage's spawner/tracker first.
+- **`PoolManager.EnsurePool(prefab, defaultCapacity, maxSize)`** (added to `Managers/PoolManager.cs`) — registers a pool only if one doesn't already exist for that prefab; needed because multiple stages reuse the same monster prefabs and `RegisterPool` throws on duplicate registration.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
