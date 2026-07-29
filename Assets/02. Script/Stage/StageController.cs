@@ -16,8 +16,19 @@ namespace Stage
         [SerializeField]
         private Transform playerTarget;
 
+        [SerializeField]
+        private StageSO stageToLoadOnStart;
+
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
+
+        private void Start()
+        {
+            if (stageToLoadOnStart != null)
+            {
+                LoadStage(stageToLoadOnStart);
+            }
+        }
 
         /// <summary>
         /// 지정한 스테이지를 로드해 몬스터 스폰을 시작한다. 진행 중이던 스테이지가 있다면 먼저 정리한다.
@@ -43,7 +54,11 @@ namespace Stage
         {
             if (_spawner != null)
             {
-                GameBootstrapper.Services.Get<GameTicker>().Unregister(_spawner);
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
+                {
+                    ticker.Unregister(_spawner);
+                }
+
                 _spawner = null;
             }
 
