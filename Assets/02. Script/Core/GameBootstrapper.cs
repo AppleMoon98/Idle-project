@@ -1,9 +1,10 @@
+using Managers;
 using UnityEngine;
 
 namespace Core
 {
     /// <summary>
-    /// 씬 진입점. ServiceLocator/EventBus/GameTicker를 초기화하고
+    /// 씬 진입점. ServiceLocator/EventBus/GameTicker/PoolManager를 초기화하고
     /// 이후 모든 시스템이 조회할 수 있는 단일 접근점(composition root)을 제공한다.
     /// </summary>
     [RequireComponent(typeof(GameTicker))]
@@ -26,10 +27,19 @@ namespace Core
 
             Services.Register(Events);
             Services.Register(GetComponent<GameTicker>());
+
+            var poolManager = new PoolManager();
+            poolManager.Initialize();
+            Services.Register(poolManager);
         }
 
         private void OnDestroy()
         {
+            if (Services != null && Services.TryGet(out PoolManager poolManager))
+            {
+                poolManager.Shutdown();
+            }
+
             Services?.Clear();
             Events?.Clear();
 
