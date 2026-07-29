@@ -17,6 +17,11 @@ namespace Character
         public float AttackPower { get; set; }
 
         /// <summary>
+        /// 공격 사거리.
+        /// </summary>
+        public float AttackRange { get; set; }
+
+        /// <summary>
         /// 이동 속도.
         /// </summary>
         public float MoveSpeed { get; set; }
@@ -33,6 +38,7 @@ namespace Character
         {
             MaxHealth = source.MaxHealth;
             AttackPower = source.AttackPower;
+            AttackRange = source.AttackRange;
             MoveSpeed = source.MoveSpeed;
             AttackInterval = source.AttackInterval;
         }

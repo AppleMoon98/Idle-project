@@ -16,6 +16,9 @@ namespace Character
         private float attackPower;
 
         [SerializeField]
+        private float attackRange;
+
+        [SerializeField]
         private float moveSpeed;
 
         [SerializeField]
@@ -30,6 +33,11 @@ namespace Character
         /// 공격력.
         /// </summary>
         public float AttackPower => attackPower;
+
+        /// <summary>
+        /// 공격 사거리.
+        /// </summary>
+        public float AttackRange => attackRange;
 
         /// <summary>
         /// 이동 속도.
