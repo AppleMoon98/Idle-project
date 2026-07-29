@@ -71,9 +71,17 @@ Assets/
 - `ServiceLocator` — type-keyed instance registry (`Register<T>`/`Get<T>`/`TryGet<T>`/`Unregister<T>`). Replaces scattered static singletons.
 - `EventBus` — typed pub/sub (`Subscribe<T>`/`Unsubscribe<T>`/`Publish<T>`) for decoupled cross-system communication.
 - `GameTicker` — the one `MonoBehaviour` allowed to own an `Update()`; ticks all registered `ITickable`s, with safe register/unregister during iteration.
-- `GameBootstrapper` — scene entry point (composition root). `Awake()` creates `ServiceLocator`/`EventBus`, registers `EventBus` and `GameTicker` into the locator, exposes `static Services`/`static Events` as the single intentional global access point.
+- `GameBootstrapper` — scene entry point (composition root). `Awake()` creates `ServiceLocator`/`EventBus`, registers `EventBus`, `GameTicker`, and `PoolManager` into the locator, exposes `static Services`/`static Events` as the single intentional global access point.
 
 Domain systems (Combat, Stage, War, Equipment, ...) depend on `Core`; `Core` never depends on them. Domain systems talk to each other only via `EventBus`, never by direct reference.
+
+### D. Object Pooling (implemented)
+`Assets/02. Script/Core/Pooling/` + `Assets/02. Script/Managers/PoolManager.cs`:
+- `IPoolable` — optional `OnSpawned()`/`OnDespawned()` hooks for pooled components.
+- `PooledInstance` — internal tag component recording a spawned instance's source prefab, so callers can `Release(instance)` without remembering which pool it came from.
+- `ObjectPool<T>` — generic `Stack<T>`-based pool; create/get/release/destroy are all caller-supplied callbacks, capacity/max size are constructor params (no magic numbers).
+- `PoolManager` (`IManager`, `IService`) — keeps one `ObjectPool<GameObject>` per registered prefab. `RegisterPool(prefab, defaultCapacity, maxSize)`, `Get(prefab, position, rotation)`, `Release(instance)`. Registered into `GameBootstrapper.Services` at startup.
+- Any system that repeatedly spawns/destroys GameObjects (monsters, projectiles, damage numbers, soldiers, VFX) must go through `PoolManager` instead of `Instantiate`/`Destroy` directly.
 
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
