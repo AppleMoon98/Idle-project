@@ -14,11 +14,13 @@ namespace Combat
         private LayerMask targetLayerMask;
 
         private CharacterStatsProvider _statsProvider;
+        private IAttackBehavior _attackBehavior;
         private float _elapsed;
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _attackBehavior = GetComponent<IAttackBehavior>();
         }
 
         private void OnEnable()
@@ -52,9 +54,9 @@ namespace Combat
 
             Health target = FindNearestTarget(stats.AttackRange);
 
-            if (target != null)
+            if (target != null && _attackBehavior != null)
             {
-                target.TakeDamage(stats.AttackPower);
+                _attackBehavior.Execute(transform, target, stats.AttackPower);
             }
         }
 

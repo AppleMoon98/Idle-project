@@ -69,6 +69,10 @@ crashlytics-build.properties
 # Only Assets/ is tracked in this repo
 /ProjectSettings/
 /Packages/
+
+# MCP-driven editor screenshots (debug captures, not project assets)
+/Assets/Screenshots/
+/Assets/Screenshots.meta
 Library/AnnotationManager
 Library/ArtifactDB
 Library/ArtifactDB-lock
