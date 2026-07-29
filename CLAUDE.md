@@ -83,6 +83,15 @@ Domain systems (Combat, Stage, War, Equipment, ...) depend on `Core`; `Core` nev
 - `PoolManager` (`IManager`, `IService`) — keeps one `ObjectPool<GameObject>` per registered prefab. `RegisterPool(prefab, defaultCapacity, maxSize)`, `Get(prefab, position, rotation)`, `Release(instance)`. Registered into `GameBootstrapper.Services` at startup.
 - Any system that repeatedly spawns/destroys GameObjects (monsters, projectiles, damage numbers, soldiers, VFX) must go through `PoolManager` instead of `Instantiate`/`Destroy` directly.
 
+### E. Character Foundation (implemented)
+`Assets/02. Script/Character/` — the shared component set Player and Monster are both composed from (no inheritance hierarchy):
+- `CharacterStatsSO` — data asset (`MaxHealth`/`AttackPower`/`MoveSpeed`/`AttackInterval`), read-only, never mutated at runtime.
+- `RuntimeStats` — plain C# copy of a `CharacterStatsSO`'s values with settable properties, so buffs/equipment can modify it later without touching the source asset.
+- `CharacterStatsProvider` — holds the `CharacterStatsSO` reference and lazily builds/exposes `RuntimeStats` via `Stats` (lazy so it doesn't depend on component `Awake()` order).
+- `Health` (`IPoolable`) — `TakeDamage`/`Heal`, clamps to `[0, MaxHealth]`, publishes `CharacterHealthChangedEvent` on change and `CharacterDiedEvent` on death via `GameBootstrapper.Events`. `OnSpawned()` resets current health and `IsDead` for pooled reuse.
+- `CharacterMover` (`ITickable`) — moves toward a `Target` transform at `Stats.MoveSpeed`; registers with `GameTicker` in `OnEnable`. Doesn't know about "Player" — the target is assigned by whichever system spawns it (Stage/Monster spawner, later).
+- `Character/Events/CharacterHealthChangedEvent.cs`, `CharacterDiedEvent.cs` — `readonly struct` events other systems (Stage, Combat, UI) subscribe to; `Health` never references those systems directly.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
