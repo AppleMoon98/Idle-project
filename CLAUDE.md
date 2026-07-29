@@ -111,6 +111,17 @@ Note: `CharacterStatsSO`/`RuntimeStats` also carry `AttackRange` (added for Comb
 - `StageController` (MonoBehaviour, composition root for one stage) — `LoadStage(stageSO)` calls `PoolManager.EnsurePool` per monster prefab (idempotent — see below), builds `StageProgressTracker` + `MonsterSpawner`, registers the spawner with `GameTicker`. Tears down the previous stage's spawner/tracker first.
 - **`PoolManager.EnsurePool(prefab, defaultCapacity, maxSize)`** (added to `Managers/PoolManager.cs`) — registers a pool only if one doesn't already exist for that prefab; needed because multiple stages reuse the same monster prefabs and `RegisterPool` throws on duplicate registration.
 
+### H. Attack Behaviors: Melee / Ranged (implemented)
+`Assets/02. Script/Combat/` — pluggable "what happens on hit" strategies for `Attacker`, swapped by composition (attach the desired behavior component, no subclassing):
+- `IAttackBehavior` — `Execute(origin, target, attackPower)`. `Attacker.Awake()` caches `GetComponent<IAttackBehavior>()` and calls it instead of applying damage directly; if none is attached, the attack silently no-ops.
+- `WeaponSwing` (`ITickable`) — attached to a "weapon socket" child transform (e.g. `Player/WeaponAnchor`). `Play()` rotates the socket 0→`swingAngle`→0 over `swingDuration` via a sine curve, ticking only while actively swinging. This anchor is where the future Equipment system will parent the equipped weapon's visual — swinging the socket swings whatever is attached to it, without Combat needing to know about Equipment.
+- `MeleeAttackBehavior` — applies damage immediately (hit detection stays in `Attacker`'s range scan) and calls `WeaponSwing.Play()` for the visual. The swing is purely cosmetic and does not gate the hit.
+- `Projectile` (`ITickable`) — spawned by `RangedAttackBehavior`, homes toward a captured `Health` target each tick, applies damage and self-releases to the pool on arrival (`hitDistance`) or if the target dies/vanishes first (fake-null-safe).
+- `RangedAttackBehavior` — spawns/launches a `Projectile` from `PoolManager` instead of dealing damage directly; damage lands only when the projectile arrives.
+- Both `Character/Monster` test prefabs demonstrate this: Player currently has `MeleeAttackBehavior` wired to `WeaponAnchor`'s `WeaponSwing`; `RangedAttackBehavior` + `Assets/04. Prefab/Projectile.prefab` were verified working the same way (swap the attached behavior component to switch).
+
+**Known gotcha — Script Execution Order:** Unity processes `Awake`→`OnEnable` per-GameObject in scene order, not as two separate global passes. Any component that reads `GameBootstrapper.Services`/`Events` in `OnEnable` (a one-shot check) can silently and permanently fail to acquire it if that GameObject initializes before `GameBootstrapper`'s GameObject does (this actually happened with `RangedAttackBehavior` failing to get `PoolManager`). Fix applied: `GameBootstrapper`'s script execution order is set to `-1000` (stored in `Core/GameBootstrapper.cs.meta`, committed) so its `Awake()` always runs first. Keep this in mind if new components read `GameBootstrapper.Services`/`Events` in `OnEnable`/`Awake`.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
