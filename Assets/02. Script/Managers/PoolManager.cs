@@ -58,6 +58,20 @@ namespace Managers
         }
 
         /// <summary>
+        /// 프리팹에 대한 풀이 아직 등록되어 있지 않은 경우에만 등록한다.
+        /// 여러 스테이지에서 같은 몬스터 프리팹을 재사용할 때 중복 등록 예외를 피하기 위함이다.
+        /// </summary>
+        public void EnsurePool(GameObject prefab, int defaultCapacity, int maxSize)
+        {
+            if (_pools.ContainsKey(prefab))
+            {
+                return;
+            }
+
+            RegisterPool(prefab, defaultCapacity, maxSize);
+        }
+
+        /// <summary>
         /// 등록된 풀에서 인스턴스를 꺼내 지정한 위치/회전으로 배치한다.
         /// </summary>
         public GameObject Get(GameObject prefab, Vector3 position, Quaternion rotation)
