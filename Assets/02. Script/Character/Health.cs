@@ -62,10 +62,19 @@ namespace Character
             SetCurrent(_current + amount);
         }
 
-        void IPoolable.OnSpawned()
+        /// <summary>
+        /// 사망 상태를 풀고 체력을 최대치로 되돌린다. 풀링되지 않는 캐릭터(Player 등)가
+        /// 죽은 뒤 다시 전투에 나설 수 있도록 하는 명시적 API — OnSpawned는 PoolManager만 호출한다.
+        /// </summary>
+        public void Revive()
         {
             IsDead = false;
             SetCurrent(_statsProvider.Stats.MaxHealth);
+        }
+
+        void IPoolable.OnSpawned()
+        {
+            Revive();
         }
 
         void IPoolable.OnDespawned()

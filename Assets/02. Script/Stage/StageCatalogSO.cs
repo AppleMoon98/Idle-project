@@ -59,5 +59,40 @@ namespace Stage
 
             return null;
         }
+
+        /// <summary>
+        /// stage가 목록에서 몇 번째(0부터)인지 반환한다. null이거나 목록에 없으면 -1.
+        /// StageProgression이 "현재/최고 기록" 위치를 정수 인덱스로 비교·연산할 때 사용한다.
+        /// </summary>
+        public int IndexOf(StageSO stage)
+        {
+            if (stages == null || stage == null)
+            {
+                return -1;
+            }
+
+            for (int i = 0; i < stages.Length; i++)
+            {
+                if (stages[i] == stage)
+                {
+                    return i;
+                }
+            }
+
+            return -1;
+        }
+
+        /// <summary>
+        /// index 위치의 스테이지를 반환한다. 범위를 벗어나면 null.
+        /// </summary>
+        public StageSO GetAt(int index)
+        {
+            if (stages == null || index < 0 || index >= stages.Length)
+            {
+                return null;
+            }
+
+            return stages[index];
+        }
     }
 }

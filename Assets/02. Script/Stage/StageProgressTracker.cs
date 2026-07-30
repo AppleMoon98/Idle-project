@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Character.Events;
 using Core;
+using Managers;
 using Stage.Events;
 using UnityEngine;
 
@@ -40,6 +41,23 @@ namespace Stage
         public void Dispose()
         {
             _events.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+        }
+
+        /// <summary>
+        /// 아직 살아있는(=클리어에 실패하고 스테이지가 전환된) 몬스터를 보상 없이 풀로 반납한다.
+        /// 정상적으로 클리어된 경우엔 이미 전부 죽어있어 사실상 아무 일도 하지 않는다.
+        /// </summary>
+        public void ReleaseRemaining(PoolManager pool)
+        {
+            foreach (GameObject monster in _aliveMonsters)
+            {
+                if (monster != null)
+                {
+                    pool.Release(monster);
+                }
+            }
+
+            _aliveMonsters.Clear();
         }
 
         private void OnCharacterDied(CharacterDiedEvent evt)

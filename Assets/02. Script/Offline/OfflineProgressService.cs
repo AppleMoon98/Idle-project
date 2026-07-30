@@ -68,7 +68,8 @@ namespace Offline
                 return;
             }
 
-            StageSO currentStage = _catalog.Find(save.Chapter, save.StageNumber);
+            StageSO highestStage = _catalog.Find(save.HighestClearedChapter, save.HighestClearedStageNumber);
+            StageSO currentStage = ResolveStartStage(highestStage);
 
             if (currentStage == null)
             {
@@ -115,14 +116,16 @@ namespace Offline
                 }
 
                 stagesCleared++;
+                highestStage = currentStage;
+
                 StageSO next = _catalog.GetNext(currentStage);
 
-                if (next == null)
+                if (next != null)
                 {
-                    break;
+                    currentStage = next;
                 }
 
-                currentStage = next;
+                // next가 없으면(마지막 스테이지) currentStage를 그대로 두어 남은 시간만큼 계속 반복한다.
             }
 
             if (totalGold > 0)
@@ -135,9 +138,14 @@ namespace Offline
                 _events.Publish(new ItemDroppedEvent(equipment));
             }
 
-            // SaveService가 이 이벤트를 구독해 즉시 저장하므로, StageController가 곧이어
-            // Start()에서 SaveService.Load()를 읽을 때 오프라인 중 진행된 스테이지를 그대로 이어받는다.
+            // SaveService가 이 이벤트들을 구독해 즉시 저장하므로, StageController가 곧이어
+            // Start()에서 SaveService.Load()를 읽을 때 오프라인 중 진행된 결과를 그대로 이어받는다.
             _events.Publish(new StageChangedEvent(currentStage.Chapter, currentStage.StageNumber));
+
+            if (highestStage != null)
+            {
+                _events.Publish(new HighestStageClearedEvent(highestStage.Chapter, highestStage.StageNumber));
+            }
 
             _events.Publish(new OfflineProgressCalculatedEvent(
                 Mathf.Min(elapsedSeconds, _maxOfflineSeconds),
@@ -147,6 +155,20 @@ namespace Offline
                 stagesCleared,
                 currentStage.Chapter,
                 currentStage.StageNumber));
+        }
+
+        /// <summary>
+        /// 오프라인 시뮬레이션을 시작할 스테이지를 정한다. 역대 최고 기록의 다음 스테이지(=돌파 프론티어),
+        /// 다음이 없으면(마지막 스테이지) 그 자리를 반복, 기록이 아예 없으면(최초 실행) 첫 스테이지부터.
+        /// </summary>
+        private StageSO ResolveStartStage(StageSO highestStage)
+        {
+            if (highestStage == null)
+            {
+                return _catalog.Stages != null && _catalog.Stages.Length > 0 ? _catalog.Stages[0] : null;
+            }
+
+            return _catalog.GetNext(highestStage) ?? highestStage;
         }
 
         /// <summary>

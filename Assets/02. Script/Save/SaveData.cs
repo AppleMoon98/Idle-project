@@ -12,25 +12,43 @@ namespace Save
         public int Gold { get; }
 
         /// <summary>
-        /// 마지막으로 저장된 챕터 번호.
+        /// 마지막으로 저장된, 현재 진행 중인(도전/반복 대상) 챕터 번호.
         /// </summary>
         public int Chapter { get; }
 
         /// <summary>
-        /// 마지막으로 저장된 챕터 내 스테이지 번호.
+        /// 마지막으로 저장된, 현재 진행 중인(도전/반복 대상) 챕터 내 스테이지 번호.
         /// </summary>
         public int StageNumber { get; }
+
+        /// <summary>
+        /// 역대 최고로 클리어한 챕터 번호. 사망으로 후퇴해도 낮아지지 않는다. 기록이 없으면 0.
+        /// </summary>
+        public int HighestClearedChapter { get; }
+
+        /// <summary>
+        /// 역대 최고로 클리어한 챕터 내 스테이지 번호. 기록이 없으면 0.
+        /// </summary>
+        public int HighestClearedStageNumber { get; }
 
         /// <summary>
         /// 마지막 저장 시각(UTC 유닉스 타임, 초). 저장 기록이 없으면 0.
         /// </summary>
         public long LastActiveUnixTime { get; }
 
-        public SaveData(int gold, int chapter, int stageNumber, long lastActiveUnixTime)
+        public SaveData(
+            int gold,
+            int chapter,
+            int stageNumber,
+            int highestClearedChapter,
+            int highestClearedStageNumber,
+            long lastActiveUnixTime)
         {
             Gold = gold;
             Chapter = chapter;
             StageNumber = stageNumber;
+            HighestClearedChapter = highestClearedChapter;
+            HighestClearedStageNumber = highestClearedStageNumber;
             LastActiveUnixTime = lastActiveUnixTime;
         }
     }

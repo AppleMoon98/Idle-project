@@ -1507,6 +1507,7 @@ GameObject:
   - component: {fileID: 762544246}
   - component: {fileID: 762544245}
   - component: {fileID: 762544247}
+  - component: {fileID: 762544248}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -1758,6 +1759,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: bc90d9e3dfd8f384da6e611a526bc46c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.PlayerTargetMarker
+--- !u!114 &762544248
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 66d3c98790fbbc94d85e55c154f9ad22, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerReviveOnStageChanged
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -3250,6 +3263,7 @@ MonoBehaviour:
   playerNearTopViewportThreshold: 0.5
   stageToLoadOnStart: {fileID: 11400000, guid: 598922ab6c9ab1040bd7ef8aeb7461ad, type: 2}
   catalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
+  maxRegressionDistance: 20
 --- !u!4 &1663688276
 Transform:
   m_ObjectHideFlags: 0

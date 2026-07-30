@@ -30,18 +30,30 @@ namespace Stage
         [SerializeField]
         private StageCatalogSO catalog;
 
+        [SerializeField]
+        private int maxRegressionDistance = 20;
+
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
         private StageProgression _progression;
 
         private void Start()
         {
+            SaveData save = LoadSave();
+            StageSO initialStage = ResolveInitialStage(save);
+
             if (catalog != null)
             {
-                _progression = new StageProgression(catalog, this, GameBootstrapper.Events);
+                StageSO initialHighestStage = catalog.Find(save.HighestClearedChapter, save.HighestClearedStageNumber);
+                _progression = new StageProgression(
+                    catalog,
+                    this,
+                    GameBootstrapper.Events,
+                    playerTarget,
+                    maxRegressionDistance,
+                    initialStage,
+                    initialHighestStage);
             }
-
-            StageSO initialStage = ResolveInitialStage();
 
             if (initialStage != null)
             {
@@ -49,23 +61,28 @@ namespace Stage
             }
         }
 
-        /// <summary>
-        /// 저장된 진행(스테이지)이 있으면 그것을, 없으면(최초 실행) stageToLoadOnStart를 반환한다.
-        /// </summary>
-        private StageSO ResolveInitialStage()
+        private static SaveData LoadSave()
         {
-            if (catalog != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SaveService saveService))
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SaveService saveService))
             {
-                SaveData save = saveService.Load();
+                return saveService.Load();
+            }
 
-                if (save.LastActiveUnixTime > 0)
+            return default;
+        }
+
+        /// <summary>
+        /// 저장된 진행(현재 스테이지)이 있으면 그것을, 없으면(최초 실행) stageToLoadOnStart를 반환한다.
+        /// </summary>
+        private StageSO ResolveInitialStage(SaveData save)
+        {
+            if (catalog != null && save.LastActiveUnixTime > 0)
+            {
+                StageSO savedStage = catalog.Find(save.Chapter, save.StageNumber);
+
+                if (savedStage != null)
                 {
-                    StageSO savedStage = catalog.Find(save.Chapter, save.StageNumber);
-
-                    if (savedStage != null)
-                    {
-                        return savedStage;
-                    }
+                    return savedStage;
                 }
             }
 
@@ -106,8 +123,16 @@ namespace Stage
                 _spawner = null;
             }
 
-            _tracker?.Dispose();
-            _tracker = null;
+            if (_tracker != null)
+            {
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PoolManager pool))
+                {
+                    _tracker.ReleaseRemaining(pool);
+                }
+
+                _tracker.Dispose();
+                _tracker = null;
+            }
         }
 
         private void OnDestroy()
