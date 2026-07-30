@@ -159,6 +159,11 @@ Note: `CharacterStatsSO`/`RuntimeStats` also carry `AttackRange` (added for Comb
 - **Gotcha (new Input System projects):** UI `Button` clicks need an `EventSystem` + an input module in the scene. This project has `activeInputHandler: 1` (new Input System only, old Input Manager disabled), so the module must be `InputSystemUIInputModule`, not the legacy `StandaloneInputModule` — the legacy one silently fails to deliver clicks with the old Input Manager off.
 - **Gotcha (teardown order):** any UI `MonoBehaviour` that touches `GameBootstrapper.Events`/`Services` in `OnDisable`/`OnDestroy` must null-conditional it (`GameBootstrapper.Events?.Unsubscribe(...)`). On exiting Play Mode, `GameBootstrapper.OnDestroy` can run and null out `Events` before a UI GameObject's own `OnDisable` fires, since the two aren't in the same teardown chain — this caused a real `NullReferenceException` in `GoldDisplayUI.OnDisable` during testing.
 
+### N. Soldier (first pass, implemented)
+`Assets/02. Script/Soldier/` — stationary auxiliary attackers that fight alongside the Player; deliberately minimal for now:
+- `SoldierSpawner` (MonoBehaviour) — on `Start()`, `PoolManager.EnsurePool`s the assigned `soldierPrefab` and spawns one at each inspector-assigned `spawnPoints` transform. No Rank-gating yet (the Rank & Progression System from section 2.B isn't implemented) — right now soldiers just always exist once the spawner's GameObject is active. When Rank exists, it will own enabling/disabling this component rather than `Soldier` code changing.
+- `Soldier.prefab` — reuses existing `Character`/`Combat` components by composition, the same way Player/Monster do: `CharacterStatsProvider` (new `SoldierStats.asset`, weaker than `PlayerStats`), `Health`, `Attacker` (targets the Monster layer, same as Player), `MeleeAttackBehavior`. No `CharacterMover` (soldiers hold their spawn position) and no `Collider2D` (soldiers only need to be *detected* by other `Attacker`s' `OverlapCircleAll` scans if something targets them later — with no collider they currently can't be hit by anything, so they take no damage from monsters by construction, not by a special-case check).
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
