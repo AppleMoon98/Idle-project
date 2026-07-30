@@ -41,6 +41,21 @@ namespace Loot
             _events.Publish(new GoldChangedEvent(_currentGold));
         }
 
+        /// <summary>
+        /// 골드 소비를 시도한다. 잔액이 부족하면 아무 변화 없이 false를 반환한다.
+        /// </summary>
+        public bool TrySpendGold(int amount)
+        {
+            if (amount > _currentGold)
+            {
+                return false;
+            }
+
+            _currentGold -= amount;
+            _events.Publish(new GoldChangedEvent(_currentGold));
+            return true;
+        }
+
         private void OnGoldEarned(GoldEarnedEvent evt)
         {
             AddGold(evt.Amount);

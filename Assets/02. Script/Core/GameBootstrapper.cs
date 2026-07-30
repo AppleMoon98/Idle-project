@@ -1,3 +1,4 @@
+using Enhancement;
 using Inventory;
 using Loot;
 using Managers;
@@ -22,6 +23,9 @@ namespace Core
         /// </summary>
         public static EventBus Events { get; private set; }
 
+        [SerializeField]
+        private EnhancementConfigSO[] enhancementConfigs;
+
         private LootDropper _lootDropper;
 
         private void Awake()
@@ -44,6 +48,10 @@ namespace Core
             inventoryService.Initialize();
             Services.Register(inventoryService);
 
+            var enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
+            enhancementService.Initialize();
+            Services.Register(enhancementService);
+
             _lootDropper = new LootDropper(Events);
         }
 
@@ -65,6 +73,11 @@ namespace Core
             if (Services != null && Services.TryGet(out InventoryService inventoryService))
             {
                 inventoryService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EnhancementService enhancementService))
+            {
+                enhancementService.Shutdown();
             }
 
             Services?.Clear();
