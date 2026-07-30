@@ -24,6 +24,7 @@ namespace Combat
         private CharacterStatsProvider _statsProvider;
         private CharacterMover _mover;
         private ITargetFilter _targetFilter;
+        private Camera _camera;
         private float _elapsed;
 
         private void Awake()
@@ -31,6 +32,7 @@ namespace Combat
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _mover = GetComponent<CharacterMover>();
             _targetFilter = GetComponent<ITargetFilter>();
+            _camera = Camera.main;
         }
 
         private void OnEnable()
@@ -89,6 +91,11 @@ namespace Combat
                     continue;
                 }
 
+                if (!IsVisibleToCamera(candidate.transform.position))
+                {
+                    continue;
+                }
+
                 float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
 
                 if (sqrDistance < nearestAnySqrDistance)
@@ -110,6 +117,24 @@ namespace Combat
             }
 
             return nearestPreferred != null ? nearestPreferred : nearestAny;
+        }
+
+        /// <summary>
+        /// 화면(카메라 뷰포트) 안에 실제로 들어와 있는지 확인한다. 카메라를 찾을 수 없으면
+        /// 화면 판정을 생략하고 항상 보이는 것으로 취급한다(기존 동작으로 안전하게 폴백).
+        /// </summary>
+        private bool IsVisibleToCamera(Vector3 worldPosition)
+        {
+            if (_camera == null)
+            {
+                return true;
+            }
+
+            Vector3 viewportPoint = _camera.WorldToViewportPoint(worldPosition);
+
+            return viewportPoint.z > 0f
+                && viewportPoint.x >= 0f && viewportPoint.x <= 1f
+                && viewportPoint.y >= 0f && viewportPoint.y <= 1f;
         }
     }
 }
