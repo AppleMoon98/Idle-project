@@ -16,6 +16,11 @@ namespace Enhancement
         private readonly Dictionary<EnhancementStatType, EnhancementConfigSO> _configs = new();
         private readonly Dictionary<EnhancementStatType, int> _levels = new();
 
+        /// <summary>
+        /// 현재 설정된(강화 가능한) 능력치 종류 목록. UI가 표시할 행을 결정할 때 사용한다.
+        /// </summary>
+        public IEnumerable<EnhancementStatType> StatTypes => _configs.Keys;
+
         public EnhancementService(EventBus events, CurrencyService currency, EnhancementConfigSO[] configs)
         {
             _events = events;
