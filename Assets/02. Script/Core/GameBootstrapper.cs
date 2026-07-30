@@ -90,6 +90,10 @@ namespace Core
             inventoryService.Initialize();
             Services.Register(inventoryService);
 
+            var equippedGearService = new EquippedGearService(Events);
+            equippedGearService.Initialize();
+            Services.Register(equippedGearService);
+
             var enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
             enhancementService.Initialize();
             Services.Register(enhancementService);
@@ -119,7 +123,7 @@ namespace Core
                 soldierCount,
                 maxOfflineHours * 3600f);
 
-            _lootDropper = new LootDropper(Events);
+            _lootDropper = new LootDropper(Events, stageCatalog);
         }
 
         private void Start()
@@ -168,6 +172,11 @@ namespace Core
             if (Services != null && Services.TryGet(out InventoryService inventoryService))
             {
                 inventoryService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EquippedGearService equippedGearService))
+            {
+                equippedGearService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out EnhancementService enhancementService))

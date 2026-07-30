@@ -199,8 +199,8 @@ namespace Offline
         }
 
         /// <summary>
-        /// 스테이지의 스폰 엔트리 비율대로 monstersKilled마리를 배분해, 각 몬스터 종류의
-        /// MonsterLootSO를 실제 처치와 동일한 확률로 굴려 골드/장비를 누적한다.
+        /// 스테이지의 스폰 엔트리 비율대로 monstersKilled마리를 배분해, 골드는 각 몬스터 종류의
+        /// MonsterLootSO로, 장비는 스테이지의 드롭 테이블로 실제 처치와 동일한 확률로 굴려 누적한다.
         /// </summary>
         private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, ref int totalGold, List<EquipmentSO> equipmentEarned)
         {
@@ -222,7 +222,7 @@ namespace Offline
                         totalGold += gold.Value;
                     }
 
-                    equipmentEarned.AddRange(LootRoller.RollEquipment(provider.Loot));
+                    equipmentEarned.AddRange(LootRoller.RollEquipment(stage.EquipmentDrops));
                 }
             }
         }

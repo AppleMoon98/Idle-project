@@ -2,22 +2,30 @@ using Character.Events;
 using Core;
 using Equipment;
 using Loot.Events;
+using Stage;
+using Stage.Events;
 using UnityEngine;
 
 namespace Loot
 {
     /// <summary>
     /// 캐릭터 사망 이벤트를 구독해, 죽은 대상이 몬스터(MonsterLootProvider 보유)이면
-    /// 드롭 데이터에 따라 골드 획득 이벤트를 발행한다.
+    /// 골드는 그 몬스터의 드롭 데이터로, 장비는 현재 스테이지의 드롭 테이블로 판정해 발행한다.
+    /// 현재 스테이지는 StageChangedEvent를 구독해 추적한다(StageController를 직접 참조하지 않는다).
     /// </summary>
     public sealed class LootDropper
     {
         private readonly EventBus _events;
+        private readonly StageCatalogSO _stageCatalog;
+        private StageSO _currentStage;
 
-        public LootDropper(EventBus events)
+        public LootDropper(EventBus events, StageCatalogSO stageCatalog)
         {
             _events = events;
+            _stageCatalog = stageCatalog;
+
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
+            _events.Subscribe<StageChangedEvent>(OnStageChanged);
         }
 
         /// <summary>
@@ -26,6 +34,12 @@ namespace Loot
         public void Dispose()
         {
             _events.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+            _events.Unsubscribe<StageChangedEvent>(OnStageChanged);
+        }
+
+        private void OnStageChanged(StageChangedEvent evt)
+        {
+            _currentStage = _stageCatalog != null ? _stageCatalog.Find(evt.Chapter, evt.StageNumber) : null;
         }
 
         private void OnCharacterDied(CharacterDiedEvent evt)
@@ -37,13 +51,12 @@ namespace Loot
 
             MonsterLootSO loot = provider.Loot;
 
-            if (loot == null)
+            if (loot != null)
             {
-                return;
+                DropGold(loot);
             }
 
-            DropGold(loot);
-            DropEquipment(loot);
+            DropEquipment();
         }
 
         private void DropGold(MonsterLootSO loot)
@@ -56,9 +69,14 @@ namespace Loot
             }
         }
 
-        private void DropEquipment(MonsterLootSO loot)
+        private void DropEquipment()
         {
-            foreach (EquipmentSO equipment in LootRoller.RollEquipment(loot))
+            if (_currentStage == null)
+            {
+                return;
+            }
+
+            foreach (EquipmentSO equipment in LootRoller.RollEquipment(_currentStage.EquipmentDrops))
             {
                 _events.Publish(new ItemDroppedEvent(equipment));
             }

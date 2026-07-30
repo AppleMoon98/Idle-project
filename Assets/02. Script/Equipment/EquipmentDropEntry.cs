@@ -1,11 +1,10 @@
 using System;
-using Equipment;
 using UnityEngine;
 
-namespace Loot
+namespace Equipment
 {
     /// <summary>
-    /// 몬스터 드롭 테이블 내 장비 하나의 드롭 확률을 정의한다.
+    /// 드롭 테이블 내 장비 하나의 드롭 확률을 정의한다. StageSO의 장비 드롭 테이블에서 사용한다.
     /// </summary>
     [Serializable]
     public sealed class EquipmentDropEntry

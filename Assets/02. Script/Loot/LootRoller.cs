@@ -5,7 +5,7 @@ using UnityEngine;
 namespace Loot
 {
     /// <summary>
-    /// MonsterLootSO 하나에 대해 골드/장비 드롭을 확률 판정하는 순수 굴림 로직.
+    /// 골드/장비 드롭을 확률 판정하는 순수 굴림 로직.
     /// 실시간 사망 처리(LootDropper)와 오프라인 보상 시뮬레이션이 동일한 확률로
     /// 굴릴 수 있도록 공통으로 사용한다.
     /// </summary>
@@ -26,15 +26,16 @@ namespace Loot
 
         /// <summary>
         /// 장비 드롭 테이블을 각 항목 독립적으로 판정해, 성공한 장비들을 반환한다.
+        /// entries가 비어있으면(예: 장비 드롭이 아직 시작되지 않은 스테이지) 아무것도 반환하지 않는다.
         /// </summary>
-        public static IEnumerable<EquipmentSO> RollEquipment(MonsterLootSO loot)
+        public static IEnumerable<EquipmentSO> RollEquipment(EquipmentDropEntry[] entries)
         {
-            if (loot.EquipmentDrops == null)
+            if (entries == null)
             {
                 yield break;
             }
 
-            foreach (EquipmentDropEntry entry in loot.EquipmentDrops)
+            foreach (EquipmentDropEntry entry in entries)
             {
                 if (entry.Equipment == null || Random.value > entry.DropChance)
                 {

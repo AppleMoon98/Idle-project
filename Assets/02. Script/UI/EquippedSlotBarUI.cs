@@ -1,0 +1,70 @@
+using System;
+using Core;
+using Equipment;
+using Inventory;
+using Inventory.Events;
+using UnityEngine;
+using UnityEngine.UI;
+
+namespace UI
+{
+    /// <summary>
+    /// 화면 상단에 슬롯(무기/장갑/갑옷/투구/신발) 순서대로 버튼을 나열한다. 각 버튼은 지금
+    /// 장착 중인 장비 이름을 보여주고, 누르면 그 슬롯의 보유 장비 목록 팝업을 연다.
+    /// </summary>
+    public sealed class EquippedSlotBarUI : MonoBehaviour
+    {
+        [Serializable]
+        private struct SlotUI
+        {
+            public EquipmentType Type;
+            public Button Button;
+            public Text Label;
+        }
+
+        [SerializeField]
+        private SlotUI[] slots;
+
+        [SerializeField]
+        private EquipmentSlotPopupUI popup;
+
+        private void Awake()
+        {
+            foreach (SlotUI slot in slots)
+            {
+                EquipmentType type = slot.Type;
+                slot.Button.onClick.AddListener(() => popup.Open(type));
+            }
+        }
+
+        private void OnEnable()
+        {
+            GameBootstrapper.Events?.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+            Refresh();
+        }
+
+        private void OnDisable()
+        {
+            GameBootstrapper.Events?.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+        }
+
+        private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
+        {
+            Refresh();
+        }
+
+        private void Refresh()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear))
+            {
+                return;
+            }
+
+            foreach (SlotUI slot in slots)
+            {
+                OwnedEquipment owned = equippedGear.GetEquipped(slot.Type);
+                slot.Label.text = owned != null ? owned.Definition.ItemName : "-";
+            }
+        }
+    }
+}
