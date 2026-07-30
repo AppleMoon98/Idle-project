@@ -1,3 +1,4 @@
+using System;
 using Core;
 using Enhancement;
 using Enhancement.Events;
@@ -7,26 +8,38 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 능력치별 현재 레벨/다음 강화 비용을 표시하고, 강화 버튼 클릭을 EnhancementService로 전달한다.
+    /// 능력치별 강화 내용/진행도/비용을 표시하고, x1/x5/x10/x100/MAX 버튼 클릭을
+    /// EnhancementService.TryEnhanceMultiple로 전달한다.
     /// </summary>
     public sealed class StatPanelUI : MonoBehaviour
     {
-        [SerializeField]
-        private Text attackPowerText;
+        /// <summary>
+        /// 강화 버튼 배수. MultiplierButtons 배열과 순서가 대응한다 (x1, x5, x10, x100, MAX).
+        /// </summary>
+        private static readonly int[] Multipliers = { 1, 5, 10, 100, int.MaxValue };
+
+        [Serializable]
+        private sealed class StatRow
+        {
+            public EnhancementStatType StatType;
+            public Text InfoText;
+            public Button[] MultiplierButtons;
+        }
 
         [SerializeField]
-        private Button attackPowerButton;
-
-        [SerializeField]
-        private Text maxHealthText;
-
-        [SerializeField]
-        private Button maxHealthButton;
+        private StatRow[] rows;
 
         private void Awake()
         {
-            attackPowerButton.onClick.AddListener(() => Enhance(EnhancementStatType.AttackPower));
-            maxHealthButton.onClick.AddListener(() => Enhance(EnhancementStatType.MaxHealth));
+            foreach (StatRow row in rows)
+            {
+                for (int i = 0; i < row.MultiplierButtons.Length; i++)
+                {
+                    EnhancementStatType statType = row.StatType;
+                    int count = Multipliers[i];
+                    row.MultiplierButtons[i].onClick.AddListener(() => Enhance(statType, count));
+                }
+            }
         }
 
         private void OnEnable()
@@ -45,11 +58,11 @@ namespace UI
             Refresh();
         }
 
-        private void Enhance(EnhancementStatType statType)
+        private void Enhance(EnhancementStatType statType, int count)
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EnhancementService service))
             {
-                service.TryEnhance(statType);
+                service.TryEnhanceMultiple(statType, count);
             }
         }
 
@@ -60,18 +73,31 @@ namespace UI
                 return;
             }
 
-            SetStatText(attackPowerText, EnhancementStatType.AttackPower, service);
-            SetStatText(maxHealthText, EnhancementStatType.MaxHealth, service);
+            foreach (StatRow row in rows)
+            {
+                RefreshRow(row, service);
+            }
         }
 
-        private static void SetStatText(Text text, EnhancementStatType statType, EnhancementService service)
+        private static void RefreshRow(StatRow row, EnhancementService service)
         {
-            int level = service.GetLevel(statType);
-            int cost = service.GetNextCost(statType);
+            int level = service.GetLevel(row.StatType);
+            int maxLevel = service.GetMaxLevel(row.StatType);
+            float valuePerLevel = service.GetValuePerLevel(row.StatType);
+            int cost = service.GetNextCost(row.StatType);
 
-            text.text = cost < 0
-                ? $"{statType} Lv.{level} (MAX)"
-                : $"{statType} Lv.{level} - Cost: {cost}";
+            string costPart = cost < 0 ? "MAX" : $"{cost} G";
+            row.InfoText.text = $"{DisplayName(row.StatType)} (+{valuePerLevel}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
+        }
+
+        private static string DisplayName(EnhancementStatType statType)
+        {
+            return statType switch
+            {
+                EnhancementStatType.AttackPower => "공격력",
+                EnhancementStatType.MaxHealth => "최대 체력",
+                _ => statType.ToString()
+            };
         }
     }
 }

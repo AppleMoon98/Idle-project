@@ -44,6 +44,22 @@ namespace Enhancement
         }
 
         /// <summary>
+        /// 능력치의 최대 강화 레벨.
+        /// </summary>
+        public int GetMaxLevel(EnhancementStatType statType)
+        {
+            return _configs[statType].MaxLevel;
+        }
+
+        /// <summary>
+        /// 강화 1회당 증가하는 능력치 값.
+        /// </summary>
+        public float GetValuePerLevel(EnhancementStatType statType)
+        {
+            return _configs[statType].ValuePerLevel;
+        }
+
+        /// <summary>
         /// 다음 강화에 필요한 비용. 이미 최대 레벨이면 -1을 반환한다.
         /// </summary>
         public int GetNextCost(EnhancementStatType statType)
@@ -78,6 +94,27 @@ namespace Enhancement
             _events.Publish(new StatEnhancedEvent(statType, config.ValuePerLevel, newLevel));
 
             return true;
+        }
+
+        /// <summary>
+        /// 강화를 최대 count회 반복 시도한다. 골드 부족/최대 레벨로 실패하는 즉시 멈춘다.
+        /// </summary>
+        /// <returns>실제로 성공한 강화 횟수.</returns>
+        public int TryEnhanceMultiple(EnhancementStatType statType, int count)
+        {
+            int succeeded = 0;
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!TryEnhance(statType))
+                {
+                    break;
+                }
+
+                succeeded++;
+            }
+
+            return succeeded;
         }
     }
 }
