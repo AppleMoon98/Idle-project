@@ -9,9 +9,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2602501013443847862}
-  - component: {fileID: 2446143283646997398}
   m_Layer: 0
-  m_Name: WeaponAnchor
+  m_Name: BowAnchor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -33,20 +32,6 @@ Transform:
   - {fileID: 100036308153815250}
   m_Father: {fileID: 626704725417190299}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &2446143283646997398
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 6367261591314995642}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 199de3683e01a7b4aa6c4b3fe764c6b5, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Combat.WeaponSwing
-  swingAngle: 90
-  swingDuration: 0.2
 --- !u!1 &7365930707706604193
 GameObject:
   m_ObjectHideFlags: 0
@@ -58,7 +43,7 @@ GameObject:
   - component: {fileID: 100036308153815250}
   - component: {fileID: 3055318749741998264}
   m_Layer: 0
-  m_Name: WeaponVisual
+  m_Name: BowVisual
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -151,12 +136,12 @@ GameObject:
   - component: {fileID: 4119433706090108836}
   - component: {fileID: 3688044471344087996}
   - component: {fileID: 8564879434766598591}
-  - component: {fileID: 6494660352676122869}
   - component: {fileID: 198481165696731778}
   - component: {fileID: 7803980873243631336}
   - component: {fileID: 5496438977504568496}
+  - component: {fileID: 4602226908076355281}
   m_Layer: 0
-  m_Name: Soldier
+  m_Name: Soldier_Ranged
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -277,19 +262,6 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
---- !u!114 &6494660352676122869
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9114245855020254752}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
-  weaponSwing: {fileID: 2446143283646997398}
 --- !u!114 &198481165696731778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -331,3 +303,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4632a5d11f33e7b49baa03e24ea56bc1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierEnemyFilter
+--- !u!114 &4602226908076355281
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: f382b19a082c1ed438205bc5c0b03870, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.RangedAttackBehavior
+  projectilePrefab: {fileID: 8818582838732067188, guid: e4ec6cf568394f9448559faea6b83232, type: 3}
+  muzzle: {fileID: 2602501013443847862}
+  poolCapacity: 4
+  poolMaxSize: 16

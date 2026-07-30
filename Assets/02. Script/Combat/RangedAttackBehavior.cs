@@ -14,6 +14,12 @@ namespace Combat
         [SerializeField]
         private GameObject projectilePrefab;
 
+        /// <summary>
+        /// 발사체가 스폰될 위치(예: 활 오브젝트). 지정하지 않으면 origin(캐릭터 루트) 위치에서 발사한다.
+        /// </summary>
+        [SerializeField]
+        private Transform muzzle;
+
         [SerializeField]
         private int poolCapacity = 4;
 
@@ -38,7 +44,8 @@ namespace Combat
                 return;
             }
 
-            GameObject instance = _pool.Get(projectilePrefab, origin.position, Quaternion.identity);
+            Vector3 spawnPosition = muzzle != null ? muzzle.position : origin.position;
+            GameObject instance = _pool.Get(projectilePrefab, spawnPosition, Quaternion.identity);
             instance.GetComponent<Projectile>().Launch(target, attackPower);
         }
     }
