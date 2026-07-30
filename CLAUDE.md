@@ -122,6 +122,43 @@ Note: `CharacterStatsSO`/`RuntimeStats` also carry `AttackRange` (added for Comb
 
 **Known gotcha — Script Execution Order:** Unity processes `Awake`→`OnEnable` per-GameObject in scene order, not as two separate global passes. Any component that reads `GameBootstrapper.Services`/`Events` in `OnEnable` (a one-shot check) can silently and permanently fail to acquire it if that GameObject initializes before `GameBootstrapper`'s GameObject does (this actually happened with `RangedAttackBehavior` failing to get `PoolManager`). Fix applied: `GameBootstrapper`'s script execution order is set to `-1000` (stored in `Core/GameBootstrapper.cs.meta`, committed) so its `Awake()` always runs first. Keep this in mind if new components read `GameBootstrapper.Services`/`Events` in `OnEnable`/`Awake`.
 
+### I. Loot & Currency (implemented)
+`Assets/02. Script/Loot/` — turns monster death into gold/equipment drops; knows Character (via `CharacterDiedEvent`) and the `Equipment` data type, nothing else:
+- `MonsterLootSO` — data asset: `MinGold`/`MaxGold`/`DropChance` for gold, plus `EquipmentDropEntry[] EquipmentDrops` for the equipment drop table (each entry independently rolled).
+- `EquipmentDropEntry` (`[Serializable]`, not a SO) — one drop table row: `EquipmentSO Equipment`, `DropChance`.
+- `MonsterLootProvider` (MonoBehaviour) — attached to monster prefabs, holds the `MonsterLootSO` reference so `LootDropper` can identify "this dead GameObject was a monster with loot" without any tag/name check.
+- `LootDropper` (plain C# class, constructed once in `GameBootstrapper`, not per-stage) — subscribes `CharacterDiedEvent`; if the dead GameObject has a `MonsterLootProvider`, rolls gold (`GoldEarnedEvent`) and each equipment entry (`ItemDroppedEvent`) independently.
+- `CurrencyService` (`IManager`, `IService`) — subscribes `GoldEarnedEvent`, accumulates `CurrentGold`, publishes `GoldChangedEvent` on any change. Also exposes `TrySpendGold(amount)` (used by `Enhancement`) which fails without side effects if the balance is insufficient.
+- `Loot/Events/GoldEarnedEvent.cs`, `GoldChangedEvent.cs`, `ItemDroppedEvent.cs` — the three event types other systems subscribe to.
+
+### J. Equipment (data only, implemented)
+`Assets/02. Script/Equipment/` — currently just the item data shape; no equip/stat-application logic yet (that's a future system):
+- `EquipmentSO` — `ItemName`, `EquipmentType`.
+- `EquipmentType` — `enum { Weapon, Armor, Accessory }`, a slot placeholder for the future equip system.
+
+### K. Inventory (implemented)
+`Assets/02. Script/Inventory/` — holds dropped equipment; knows nothing about `Loot` except the event type it subscribes to:
+- `InventoryService` (`IManager`, `IService`) — subscribes `ItemDroppedEvent`, appends to an internal `List<EquipmentSO>` exposed as `Items` (read-only), publishes `InventoryChangedEvent` (added item + new total count).
+
+### L. Enhancement (implemented)
+`Assets/02. Script/Enhancement/` — spends gold to raise the player's base stats; deliberately does not know "Player" exists:
+- `EnhancementStatType` — `enum { AttackPower, MaxHealth }`.
+- `EnhancementConfigSO` — per-stat data asset: `StatType`, `BaseCost`, `CostIncreasePerLevel`, `ValuePerLevel`, `MaxLevel`. Cost for the next level is `BaseCost + CostIncreasePerLevel * currentLevel` — fully data-driven, no magic numbers in code.
+- `EnhancementService` (`IManager`, `IService`) — constructed with `EventBus`, `CurrencyService`, and the full `EnhancementConfigSO[]` (assigned on `GameBootstrapper` in the Inspector). `TryEnhance(statType)` computes the next cost, calls `CurrencyService.TrySpendGold`, and on success increments the internal level and publishes `StatEnhancedEvent` (stat type + `ValuePerLevel` to apply + new level). Never touches any `RuntimeStats` itself.
+- `Enhancement/Events/StatEnhancedEvent.cs` — the event `Character.StatEnhancementReceiver` subscribes to.
+- `Character/StatEnhancementReceiver.cs` (MonoBehaviour, attached to the Player) — subscribes `StatEnhancedEvent`, adds `ValuePerLevel` to its own `CharacterStatsProvider.Stats.AttackPower`/`MaxHealth` depending on `StatType`. This is how "Enhancement doesn't know Player" and "Player's stats still get buffed" coexist — the receiver lives on the Character/Player side, not the Enhancement side.
+
+### M. UI Shell (implemented)
+`Assets/02. Script/UI/` — mobile-portrait presentation layer; every component here subscribes only to the events of the one domain it displays, never to each other:
+- `Canvas`'s `CanvasScaler` is set to `ScaleWithScreenSize`, reference resolution 1080x1920 (portrait).
+- `BottomMenuUI` — generic tab-bar controller: an inspector-assigned `(Button, GameObject panel)[]` array. Clicking a tab's button opens its panel (closing whichever was open); clicking the already-open tab's button closes it. Has zero knowledge of what any panel contains.
+- `GoldDisplayUI` — subscribes `GoldChangedEvent`; reads `CurrencyService.CurrentGold` once on `OnEnable` for the initial value (since the event only fires on change, not on load).
+- `EquipmentPanelUI` — subscribes `InventoryChangedEvent`; renders `InventoryService.Items` as a simple text list.
+- `StatPanelUI` — subscribes `StatEnhancedEvent`; shows each stat's current level and next cost via `EnhancementService`, and wires its two buttons to `EnhancementService.TryEnhance`.
+- `SoldierPanel`/`SkillPanel`/`RelicPanel` — scriptless placeholder panels ("준비 중") since the Soldier/Skill/Relic systems don't exist yet. Swap in real controllers when those systems are built, following the same subscribe-only-your-domain pattern.
+- **Gotcha (new Input System projects):** UI `Button` clicks need an `EventSystem` + an input module in the scene. This project has `activeInputHandler: 1` (new Input System only, old Input Manager disabled), so the module must be `InputSystemUIInputModule`, not the legacy `StandaloneInputModule` — the legacy one silently fails to deliver clicks with the old Input Manager off.
+- **Gotcha (teardown order):** any UI `MonoBehaviour` that touches `GameBootstrapper.Events`/`Services` in `OnDisable`/`OnDestroy` must null-conditional it (`GameBootstrapper.Events?.Unsubscribe(...)`). On exiting Play Mode, `GameBootstrapper.OnDestroy` can run and null out `Events` before a UI GameObject's own `OnDisable` fires, since the two aren't in the same teardown chain — this caused a real `NullReferenceException` in `GoldDisplayUI.OnDisable` during testing.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 
