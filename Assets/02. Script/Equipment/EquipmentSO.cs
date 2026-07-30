@@ -15,6 +15,9 @@ namespace Equipment
         [SerializeField]
         private EquipmentType equipmentType;
 
+        [SerializeField]
+        private EquipmentGradeSO grade;
+
         /// <summary>
         /// 아이템 이름.
         /// </summary>
@@ -24,5 +27,10 @@ namespace Equipment
         /// 착용 슬롯 종류.
         /// </summary>
         public EquipmentType EquipmentType => equipmentType;
+
+        /// <summary>
+        /// 이 장비의 등급단계. 합성(Fusion) 시 EquipmentGradeCatalogSO에서 다음 단계를 조회하는 기준이 된다.
+        /// </summary>
+        public EquipmentGradeSO Grade => grade;
     }
 }

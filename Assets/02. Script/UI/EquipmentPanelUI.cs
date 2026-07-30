@@ -40,9 +40,10 @@ namespace UI
 
             var sb = new StringBuilder();
 
-            foreach (Equipment.EquipmentSO item in inventoryService.Items)
+            foreach (Inventory.OwnedEquipment owned in inventoryService.Items)
             {
-                sb.AppendLine($"{item.ItemName} ({item.EquipmentType})");
+                string gradeName = owned.Definition.Grade != null ? owned.Definition.Grade.DisplayName : "-";
+                sb.AppendLine($"{owned.Definition.ItemName} ({owned.Definition.EquipmentType}, {gradeName}) x{owned.Count}");
             }
 
             listText.text = sb.Length > 0 ? sb.ToString() : "보유한 장비가 없습니다.";

@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0acae09afe1da1044a6e00fe05b6afce, type: 3}
+  m_Name: "Equipment_\uAC11\uC637_\uCEE4\uBA3C1"
+  m_EditorClassIdentifier: Assembly-CSharp::Equipment.EquipmentSO
+  itemName: "\uAC11\uC637 \uCEE4\uBA3C1"
+  equipmentType: 2
+  grade: {fileID: 11400000, guid: 6b4245a4032c6854a8b7606d782434e4, type: 2}

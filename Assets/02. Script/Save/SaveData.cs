@@ -12,6 +12,11 @@ namespace Save
         public int Gold { get; }
 
         /// <summary>
+        /// 마지막으로 저장된 보유 강화석.
+        /// </summary>
+        public int EnhancementStones { get; }
+
+        /// <summary>
         /// 마지막으로 저장된, 현재 진행 중인(도전/반복 대상) 챕터 번호.
         /// </summary>
         public int Chapter { get; }
@@ -38,6 +43,7 @@ namespace Save
 
         public SaveData(
             int gold,
+            int enhancementStones,
             int chapter,
             int stageNumber,
             int highestClearedChapter,
@@ -45,6 +51,7 @@ namespace Save
             long lastActiveUnixTime)
         {
             Gold = gold;
+            EnhancementStones = enhancementStones;
             Chapter = chapter;
             StageNumber = stageNumber;
             HighestClearedChapter = highestClearedChapter;

@@ -1,6 +1,7 @@
 using Character;
 using Combat;
 using Enhancement;
+using Equipment;
 using Inventory;
 using Loot;
 using Managers;
@@ -47,6 +48,15 @@ namespace Core
         [SerializeField]
         private float maxOfflineHours = 24f;
 
+        [SerializeField]
+        private EquipmentGradeCatalogSO equipmentGradeCatalog;
+
+        [SerializeField]
+        private EquipmentCatalogSO equipmentCatalog;
+
+        [SerializeField]
+        private EquipmentEnhancementConfigSO equipmentEnhancementConfig;
+
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
 
@@ -72,6 +82,10 @@ namespace Core
             currencyService.Initialize();
             Services.Register(currencyService);
 
+            var enhancementStoneService = new EnhancementStoneService(Events, save.EnhancementStones);
+            enhancementStoneService.Initialize();
+            Services.Register(enhancementStoneService);
+
             var inventoryService = new InventoryService(Events);
             inventoryService.Initialize();
             Services.Register(inventoryService);
@@ -79,6 +93,14 @@ namespace Core
             var enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
             enhancementService.Initialize();
             Services.Register(enhancementService);
+
+            var equipmentFusionService = new EquipmentFusionService(Events, inventoryService, equipmentGradeCatalog, equipmentCatalog);
+            equipmentFusionService.Initialize();
+            Services.Register(equipmentFusionService);
+
+            var equipmentEnhancementService = new EquipmentEnhancementService(inventoryService, enhancementStoneService, equipmentEnhancementConfig);
+            equipmentEnhancementService.Initialize();
+            Services.Register(equipmentEnhancementService);
 
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
@@ -138,6 +160,11 @@ namespace Core
                 currencyService.Shutdown();
             }
 
+            if (Services != null && Services.TryGet(out EnhancementStoneService enhancementStoneService))
+            {
+                enhancementStoneService.Shutdown();
+            }
+
             if (Services != null && Services.TryGet(out InventoryService inventoryService))
             {
                 inventoryService.Shutdown();
@@ -146,6 +173,16 @@ namespace Core
             if (Services != null && Services.TryGet(out EnhancementService enhancementService))
             {
                 enhancementService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EquipmentFusionService equipmentFusionService))
+            {
+                equipmentFusionService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EquipmentEnhancementService equipmentEnhancementService))
+            {
+                equipmentEnhancementService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))

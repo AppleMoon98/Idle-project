@@ -6,7 +6,9 @@ namespace Equipment
     public enum EquipmentType
     {
         Weapon,
+        Gloves,
         Armor,
-        Accessory
+        Helmet,
+        Shoes
     }
 }
