@@ -17,9 +17,9 @@ namespace UI
 
         private void OnEnable()
         {
-            GameBootstrapper.Events.Subscribe<GoldChangedEvent>(OnGoldChanged);
+            GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnGoldChanged);
 
-            if (GameBootstrapper.Services.TryGet(out CurrencyService currencyService))
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currencyService))
             {
                 SetGoldText(currencyService.CurrentGold);
             }
@@ -27,7 +27,7 @@ namespace UI
 
         private void OnDisable()
         {
-            GameBootstrapper.Events.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
+            GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
         }
 
         private void OnGoldChanged(GoldChangedEvent evt)

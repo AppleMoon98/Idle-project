@@ -36,13 +36,42 @@ namespace Loot
 
             MonsterLootSO loot = provider.Loot;
 
-            if (loot == null || Random.value > loot.DropChance)
+            if (loot == null)
+            {
+                return;
+            }
+
+            DropGold(loot);
+            DropEquipment(loot);
+        }
+
+        private void DropGold(MonsterLootSO loot)
+        {
+            if (Random.value > loot.DropChance)
             {
                 return;
             }
 
             int amount = Random.Range(loot.MinGold, loot.MaxGold + 1);
             _events.Publish(new GoldEarnedEvent(amount));
+        }
+
+        private void DropEquipment(MonsterLootSO loot)
+        {
+            if (loot.EquipmentDrops == null)
+            {
+                return;
+            }
+
+            foreach (EquipmentDropEntry entry in loot.EquipmentDrops)
+            {
+                if (entry.Equipment == null || Random.value > entry.DropChance)
+                {
+                    continue;
+                }
+
+                _events.Publish(new ItemDroppedEvent(entry.Equipment));
+            }
         }
     }
 }

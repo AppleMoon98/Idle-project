@@ -1,3 +1,4 @@
+using Inventory;
 using Loot;
 using Managers;
 using UnityEngine;
@@ -39,6 +40,10 @@ namespace Core
             currencyService.Initialize();
             Services.Register(currencyService);
 
+            var inventoryService = new InventoryService(Events);
+            inventoryService.Initialize();
+            Services.Register(inventoryService);
+
             _lootDropper = new LootDropper(Events);
         }
 
@@ -55,6 +60,11 @@ namespace Core
             if (Services != null && Services.TryGet(out CurrencyService currencyService))
             {
                 currencyService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out InventoryService inventoryService))
+            {
+                inventoryService.Shutdown();
             }
 
             Services?.Clear();
