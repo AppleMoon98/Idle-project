@@ -17,9 +17,13 @@ namespace Loot
         /// </summary>
         public int CurrentGold => _currentGold;
 
-        public CurrencyService(EventBus events)
+        /// <summary>
+        /// initialGold: 저장된 골드로 시작하기 위한 초기값(SaveService.Load() 결과). 기본 0.
+        /// </summary>
+        public CurrencyService(EventBus events, int initialGold = 0)
         {
             _events = events;
+            _currentGold = initialGold;
         }
 
         public void Initialize()

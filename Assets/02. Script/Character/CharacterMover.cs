@@ -16,6 +16,12 @@ namespace Character
         /// </summary>
         public Transform Target { get; set; }
 
+        /// <summary>
+        /// Target까지 남은 거리가 이 값 이하이면 더 이상 접근하지 않고 멈춘다.
+        /// 기본값 0이면 기존과 동일하게 Target 위치까지 계속 이동한다.
+        /// </summary>
+        public float StoppingDistance { get; set; }
+
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
@@ -40,6 +46,13 @@ namespace Character
         void ITickable.Tick(float deltaTime)
         {
             if (Target == null)
+            {
+                return;
+            }
+
+            float distance = Vector3.Distance(transform.position, Target.position);
+
+            if (distance <= StoppingDistance)
             {
                 return;
             }

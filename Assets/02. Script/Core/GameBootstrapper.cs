@@ -1,7 +1,12 @@
+using Character;
 using Enhancement;
 using Inventory;
 using Loot;
 using Managers;
+using Offline;
+using Save;
+using Soldier;
+using Stage;
 using UnityEngine;
 
 namespace Core
@@ -26,7 +31,23 @@ namespace Core
         [SerializeField]
         private EnhancementConfigSO[] enhancementConfigs;
 
+        [SerializeField]
+        private StageCatalogSO stageCatalog;
+
+        [SerializeField]
+        private CharacterStatsSO playerStats;
+
+        [SerializeField]
+        private CharacterStatsSO soldierStats;
+
+        [SerializeField]
+        private int soldierCount;
+
+        [SerializeField]
+        private float maxOfflineHours = 24f;
+
         private LootDropper _lootDropper;
+        private OfflineProgressService _offlineProgressService;
 
         private void Awake()
         {
@@ -40,7 +61,13 @@ namespace Core
             poolManager.Initialize();
             Services.Register(poolManager);
 
-            var currencyService = new CurrencyService(Events);
+            var saveService = new SaveService(Events);
+            saveService.Initialize();
+            Services.Register(saveService);
+
+            SaveData save = saveService.Load();
+
+            var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
             Services.Register(currencyService);
 
@@ -52,7 +79,43 @@ namespace Core
             enhancementService.Initialize();
             Services.Register(enhancementService);
 
+            var soldierTargetRegistry = new SoldierTargetRegistry();
+            soldierTargetRegistry.Initialize();
+            Services.Register(soldierTargetRegistry);
+
+            _offlineProgressService = new OfflineProgressService(
+                Events,
+                saveService,
+                stageCatalog,
+                playerStats,
+                soldierStats,
+                soldierCount,
+                maxOfflineHours * 3600f);
+
             _lootDropper = new LootDropper(Events);
+        }
+
+        private void Start()
+        {
+            // 다른 오브젝트들의 OnEnable(이벤트 구독 포함)이 모두 끝난 뒤(Start 시점)에 계산해야
+            // OfflineProgressCalculatedEvent를 구독하는 UI가 결과를 놓치지 않는다.
+            _offlineProgressService?.CalculateAndApply();
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (pauseStatus && Services != null && Services.TryGet(out SaveService saveService))
+            {
+                saveService.Save();
+            }
+        }
+
+        private void OnApplicationQuit()
+        {
+            if (Services != null && Services.TryGet(out SaveService saveService))
+            {
+                saveService.Save();
+            }
         }
 
         private void OnDestroy()
@@ -78,6 +141,16 @@ namespace Core
             if (Services != null && Services.TryGet(out EnhancementService enhancementService))
             {
                 enhancementService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))
+            {
+                soldierTargetRegistry.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SaveService saveService))
+            {
+                saveService.Shutdown();
             }
 
             Services?.Clear();

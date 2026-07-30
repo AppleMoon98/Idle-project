@@ -9,11 +9,8 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c95f752f11d140b46a3f086bd47c855d, type: 3}
-  m_Name: PlayerStats
-  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsSO
-  maxHealth: 200
-  attackPower: 15
-  attackRange: 3
-  moveSpeed: 2
-  attackInterval: 0.5
+  m_Script: {fileID: 11500000, guid: 90a6330e3dbd9bd40891de50ff5802e3, type: 3}
+  m_Name: StageCatalog
+  m_EditorClassIdentifier: Assembly-CSharp::Stage.StageCatalogSO
+  stages:
+  - {fileID: 11400000, guid: 598922ab6c9ab1040bd7ef8aeb7461ad, type: 2}

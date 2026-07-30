@@ -14,6 +14,9 @@ GameObject:
   - component: {fileID: 3688044471344087996}
   - component: {fileID: 8564879434766598591}
   - component: {fileID: 6494660352676122869}
+  - component: {fileID: 198481165696731778}
+  - component: {fileID: 7803980873243631336}
+  - component: {fileID: 5496438977504568496}
   m_Layer: 0
   m_Name: Soldier
   m_TagString: Untagged
@@ -148,3 +151,44 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
   weaponSwing: {fileID: 0}
+--- !u!114 &198481165696731778
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6340b297ab5cdd74eb696732b8054510, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterMover
+--- !u!114 &7803980873243631336
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a35e06f4548ca06408509708c591c591, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.EnemyTracker
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  detectionRange: 20
+  retargetInterval: 0.2
+--- !u!114 &5496438977504568496
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4632a5d11f33e7b49baa03e24ea56bc1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierEnemyFilter

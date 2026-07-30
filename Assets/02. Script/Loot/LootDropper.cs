@@ -1,5 +1,6 @@
 using Character.Events;
 using Core;
+using Equipment;
 using Loot.Events;
 using UnityEngine;
 
@@ -47,30 +48,19 @@ namespace Loot
 
         private void DropGold(MonsterLootSO loot)
         {
-            if (Random.value > loot.DropChance)
-            {
-                return;
-            }
+            int? amount = LootRoller.RollGold(loot);
 
-            int amount = Random.Range(loot.MinGold, loot.MaxGold + 1);
-            _events.Publish(new GoldEarnedEvent(amount));
+            if (amount.HasValue)
+            {
+                _events.Publish(new GoldEarnedEvent(amount.Value));
+            }
         }
 
         private void DropEquipment(MonsterLootSO loot)
         {
-            if (loot.EquipmentDrops == null)
+            foreach (EquipmentSO equipment in LootRoller.RollEquipment(loot))
             {
-                return;
-            }
-
-            foreach (EquipmentDropEntry entry in loot.EquipmentDrops)
-            {
-                if (entry.Equipment == null || Random.value > entry.DropChance)
-                {
-                    continue;
-                }
-
-                _events.Publish(new ItemDroppedEvent(entry.Equipment));
+                _events.Publish(new ItemDroppedEvent(equipment));
             }
         }
     }

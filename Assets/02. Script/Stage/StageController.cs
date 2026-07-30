@@ -1,5 +1,7 @@
 using Core;
 using Managers;
+using Save;
+using Stage.Events;
 using UnityEngine;
 
 namespace Stage
@@ -19,15 +21,49 @@ namespace Stage
         [SerializeField]
         private StageSO stageToLoadOnStart;
 
+        [SerializeField]
+        private StageCatalogSO catalog;
+
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
+        private StageProgression _progression;
 
         private void Start()
         {
-            if (stageToLoadOnStart != null)
+            if (catalog != null)
             {
-                LoadStage(stageToLoadOnStart);
+                _progression = new StageProgression(catalog, this, GameBootstrapper.Events);
             }
+
+            StageSO initialStage = ResolveInitialStage();
+
+            if (initialStage != null)
+            {
+                LoadStage(initialStage);
+            }
+        }
+
+        /// <summary>
+        /// 저장된 진행(스테이지)이 있으면 그것을, 없으면(최초 실행) stageToLoadOnStart를 반환한다.
+        /// </summary>
+        private StageSO ResolveInitialStage()
+        {
+            if (catalog != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SaveService saveService))
+            {
+                SaveData save = saveService.Load();
+
+                if (save.LastActiveUnixTime > 0)
+                {
+                    StageSO savedStage = catalog.Find(save.Chapter, save.StageNumber);
+
+                    if (savedStage != null)
+                    {
+                        return savedStage;
+                    }
+                }
+            }
+
+            return stageToLoadOnStart;
         }
 
         /// <summary>
@@ -48,6 +84,8 @@ namespace Stage
             _spawner = new MonsterSpawner(stage, pool, spawnPoints, playerTarget, _tracker);
 
             GameBootstrapper.Services.Get<GameTicker>().Register(_spawner);
+
+            GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber));
         }
 
         private void EndCurrentStage()
@@ -69,6 +107,9 @@ namespace Stage
         private void OnDestroy()
         {
             EndCurrentStage();
+
+            _progression?.Dispose();
+            _progression = null;
         }
     }
 }
