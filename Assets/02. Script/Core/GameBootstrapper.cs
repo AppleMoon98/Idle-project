@@ -1,4 +1,5 @@
 using Character;
+using Combat;
 using Enhancement;
 using Inventory;
 using Loot;
@@ -83,6 +84,10 @@ namespace Core
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);
 
+            var playerTargetTracker = new PlayerTargetTracker();
+            playerTargetTracker.Initialize();
+            Services.Register(playerTargetTracker);
+
             _offlineProgressService = new OfflineProgressService(
                 Events,
                 saveService,
@@ -146,6 +151,11 @@ namespace Core
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))
             {
                 soldierTargetRegistry.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out PlayerTargetTracker playerTargetTracker))
+            {
+                playerTargetTracker.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SaveService saveService))

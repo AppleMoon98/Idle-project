@@ -16,5 +16,5 @@ MonoBehaviour:
   stageNumber: 1
   spawnEntries:
   - monsterPrefab: {fileID: 3104091886448902630, guid: 7da6041b108869f4882e0f8ae520fa1a, type: 3}
-    count: 5
-    spawnInterval: 1.5
+    count: 15
+    spawnInterval: 1

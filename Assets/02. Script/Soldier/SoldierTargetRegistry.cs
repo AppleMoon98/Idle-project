@@ -51,5 +51,24 @@ namespace Soldier
 
             _claims[claimant] = target;
         }
+
+        /// <summary>
+        /// target을 현재 클레임 중인 Soldier가 있으면 그 GameObject를 반환한다(역조회).
+        /// 몬스터가 "나를 타겟팅 중인 병사"를 찾을 때 사용한다.
+        /// </summary>
+        public bool TryGetClaimant(Health target, out GameObject claimant)
+        {
+            foreach (KeyValuePair<GameObject, Health> claim in _claims)
+            {
+                if (claim.Value == target)
+                {
+                    claimant = claim.Key;
+                    return true;
+                }
+            }
+
+            claimant = null;
+            return false;
+        }
     }
 }

@@ -13,10 +13,16 @@ namespace Stage
     public sealed class StageController : MonoBehaviour
     {
         [SerializeField]
-        private Transform[] spawnPoints;
+        private Transform[] topSpawnPoints;
+
+        [SerializeField]
+        private Transform[] bottomSpawnPoints;
 
         [SerializeField]
         private Transform playerTarget;
+
+        [SerializeField]
+        private float playerNearTopViewportThreshold = 0.5f;
 
         [SerializeField]
         private StageSO stageToLoadOnStart;
@@ -81,7 +87,7 @@ namespace Stage
             }
 
             _tracker = new StageProgressTracker(stage, GameBootstrapper.Events);
-            _spawner = new MonsterSpawner(stage, pool, spawnPoints, playerTarget, _tracker);
+            _spawner = new MonsterSpawner(stage, pool, topSpawnPoints, bottomSpawnPoints, playerTarget, _tracker, playerNearTopViewportThreshold);
 
             GameBootstrapper.Services.Get<GameTicker>().Register(_spawner);
 
