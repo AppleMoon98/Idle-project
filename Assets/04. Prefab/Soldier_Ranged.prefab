@@ -234,7 +234,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb8b7b99c2462634882d688f1b9717f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsProvider
-  baseStats: {fileID: 11400000, guid: 9f0afc144e163dc48b55a879d55b68e5, type: 2}
+  baseStats: {fileID: 11400000, guid: cd8d2b221d0c3014bb8e8f318c9ed887, type: 2}
 --- !u!114 &3688044471344087996
 MonoBehaviour:
   m_ObjectHideFlags: 0
