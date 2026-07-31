@@ -45,11 +45,22 @@ namespace UI
         {
             GameBootstrapper.Events?.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
             Refresh();
+
+            // 장비 탭을 열면 첫 번째 슬롯(무기)의 팝업을 자동으로 띄워, 슬롯바가 뜨자마자
+            // 바로 장비 목록을 볼 수 있게 한다.
+            if (slots.Length > 0)
+            {
+                popup.Open(slots[0].Type);
+            }
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+
+            // 슬롯바가 꺼질 때 팝업이 따로 떠 있는 채로 남지 않도록 같이 닫는다
+            // (팝업은 슬롯바의 자식이 아니라 Canvas의 별도 형제 오브젝트라 자동으로 꺼지지 않는다).
+            popup.Close();
         }
 
         private void OnEquipmentEquipped(EquipmentEquippedEvent evt)

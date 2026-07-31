@@ -71,7 +71,11 @@ namespace UI
             Refresh();
         }
 
-        private void Close()
+        /// <summary>
+        /// 팝업을 닫는다. EquippedSlotBarUI가 자신이 비활성화될 때(장비 탭을 닫을 때) 이 팝업도
+        /// 같이 닫기 위해 외부에서 호출할 수 있어야 한다.
+        /// </summary>
+        public void Close()
         {
             _isOpen = false;
             popupRoot.SetActive(false);
