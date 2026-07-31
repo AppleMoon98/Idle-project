@@ -59,6 +59,8 @@ namespace Core
 
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
+        private EnhancementService _enhancementService;
+        private SaveData _initialSave;
 
         private void Awake()
         {
@@ -77,6 +79,7 @@ namespace Core
             Services.Register(saveService);
 
             SaveData save = saveService.Load();
+            _initialSave = save;
 
             var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
@@ -94,9 +97,9 @@ namespace Core
             equippedGearService.Initialize();
             Services.Register(equippedGearService);
 
-            var enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
-            enhancementService.Initialize();
-            Services.Register(enhancementService);
+            _enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
+            _enhancementService.Initialize();
+            Services.Register(_enhancementService);
 
             var equipmentFusionService = new EquipmentFusionService(Events, inventoryService, equipmentGradeCatalog, equipmentCatalog);
             equipmentFusionService.Initialize();
@@ -128,8 +131,11 @@ namespace Core
 
         private void Start()
         {
-            // 다른 오브젝트들의 OnEnable(이벤트 구독 포함)이 모두 끝난 뒤(Start 시점)에 계산해야
-            // OfflineProgressCalculatedEvent를 구독하는 UI가 결과를 놓치지 않는다.
+            // 다른 오브젝트들의 OnEnable(이벤트 구독 포함)이 모두 끝난 뒤(Start 시점)에 호출해야
+            // StatEnhancedEvent/OfflineProgressCalculatedEvent를 구독하는 쪽이 이벤트를 놓치지 않는다.
+            _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel);
+            _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel);
+
             _offlineProgressService?.CalculateAndApply();
         }
 

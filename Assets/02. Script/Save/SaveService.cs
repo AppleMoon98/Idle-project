@@ -1,5 +1,7 @@
 using System;
 using Core;
+using Enhancement;
+using Enhancement.Events;
 using Equipment.Events;
 using Loot.Events;
 using Stage.Events;
@@ -20,6 +22,8 @@ namespace Save
         private const string HighestClearedChapterKey = "Save.HighestClearedChapter";
         private const string HighestClearedStageNumberKey = "Save.HighestClearedStageNumber";
         private const string LastActiveUnixTimeKey = "Save.LastActiveUnixTime";
+        private const string AttackPowerLevelKey = "Save.AttackPowerLevel";
+        private const string MaxHealthLevelKey = "Save.MaxHealthLevel";
 
         private readonly EventBus _events;
         private int _gold;
@@ -28,6 +32,8 @@ namespace Save
         private int _stageNumber = 1;
         private int _highestClearedChapter;
         private int _highestClearedStageNumber;
+        private int _attackPowerLevel;
+        private int _maxHealthLevel;
 
         public SaveService(EventBus events)
         {
@@ -36,10 +42,24 @@ namespace Save
 
         public void Initialize()
         {
+            // Save()는 그 시점까지 채워진 내부 필드를 통째로 기록하므로, 이벤트가 아직 한 번도
+            // 오지 않은 필드가 기본값(0/1)인 채로 먼저 Save()가 호출되면 저장된 값을 덮어써버린다.
+            // 구독 전에 저장된 값을 먼저 채워 어떤 이벤트가 먼저 오든 항상 정확한 값을 기록하게 한다.
+            SaveData save = Load();
+            _gold = save.Gold;
+            _enhancementStones = save.EnhancementStones;
+            _chapter = save.Chapter;
+            _stageNumber = save.StageNumber;
+            _highestClearedChapter = save.HighestClearedChapter;
+            _highestClearedStageNumber = save.HighestClearedStageNumber;
+            _attackPowerLevel = save.AttackPowerLevel;
+            _maxHealthLevel = save.MaxHealthLevel;
+
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
             _events.Subscribe<StageChangedEvent>(OnStageChanged);
             _events.Subscribe<HighestStageClearedEvent>(OnHighestStageCleared);
+            _events.Subscribe<StatEnhancedEvent>(OnStatEnhanced);
         }
 
         public void Shutdown()
@@ -48,6 +68,7 @@ namespace Save
             _events.Unsubscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
             _events.Unsubscribe<StageChangedEvent>(OnStageChanged);
             _events.Unsubscribe<HighestStageClearedEvent>(OnHighestStageCleared);
+            _events.Unsubscribe<StatEnhancedEvent>(OnStatEnhanced);
         }
 
         /// <summary>
@@ -62,8 +83,10 @@ namespace Save
             int highestClearedChapter = PlayerPrefs.GetInt(HighestClearedChapterKey, 0);
             int highestClearedStageNumber = PlayerPrefs.GetInt(HighestClearedStageNumberKey, 0);
             long lastActiveUnixTime = long.Parse(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
+            int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
+            int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
 
-            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime);
+            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime, attackPowerLevel, maxHealthLevel);
         }
 
         /// <summary>
@@ -78,6 +101,8 @@ namespace Save
             PlayerPrefs.SetInt(HighestClearedChapterKey, _highestClearedChapter);
             PlayerPrefs.SetInt(HighestClearedStageNumberKey, _highestClearedStageNumber);
             PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+            PlayerPrefs.SetInt(AttackPowerLevelKey, _attackPowerLevel);
+            PlayerPrefs.SetInt(MaxHealthLevelKey, _maxHealthLevel);
             PlayerPrefs.Save();
         }
 
@@ -104,6 +129,21 @@ namespace Save
         {
             _highestClearedChapter = evt.Chapter;
             _highestClearedStageNumber = evt.StageNumber;
+            Save();
+        }
+
+        private void OnStatEnhanced(StatEnhancedEvent evt)
+        {
+            switch (evt.StatType)
+            {
+                case EnhancementStatType.AttackPower:
+                    _attackPowerLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.MaxHealth:
+                    _maxHealthLevel = evt.NewLevel;
+                    break;
+            }
+
             Save();
         }
     }

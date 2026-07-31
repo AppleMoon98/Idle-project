@@ -41,6 +41,16 @@ namespace Save
         /// </summary>
         public long LastActiveUnixTime { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 공격력 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int AttackPowerLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 최대체력 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int MaxHealthLevel { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -48,7 +58,9 @@ namespace Save
             int stageNumber,
             int highestClearedChapter,
             int highestClearedStageNumber,
-            long lastActiveUnixTime)
+            long lastActiveUnixTime,
+            int attackPowerLevel,
+            int maxHealthLevel)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -57,6 +69,8 @@ namespace Save
             HighestClearedChapter = highestClearedChapter;
             HighestClearedStageNumber = highestClearedStageNumber;
             LastActiveUnixTime = lastActiveUnixTime;
+            AttackPowerLevel = attackPowerLevel;
+            MaxHealthLevel = maxHealthLevel;
         }
     }
 }

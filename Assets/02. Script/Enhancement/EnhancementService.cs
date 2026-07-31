@@ -81,6 +81,22 @@ namespace Enhancement
         }
 
         /// <summary>
+        /// 저장된 레벨로 복원한다. 골드 소모 없이 레벨만 맞추고, 그동안 쌓인 누적 보너스를
+        /// StatEnhancedEvent로 재발행해 구독자(Character.StatEnhancementReceiver)가 반영하게 한다.
+        /// GameBootstrapper.Start()에서(구독자의 OnEnable이 모두 끝난 뒤) 호출해야 이벤트를 놓치지 않는다.
+        /// </summary>
+        public void RestoreLevel(EnhancementStatType statType, int level)
+        {
+            if (level <= 0 || !_configs.TryGetValue(statType, out EnhancementConfigSO config))
+            {
+                return;
+            }
+
+            _levels[statType] = level;
+            _events.Publish(new StatEnhancedEvent(statType, config.ValuePerLevel * level, level));
+        }
+
+        /// <summary>
         /// 강화를 시도한다. 최대 레벨이거나 골드가 부족하면 실패한다.
         /// </summary>
         public bool TryEnhance(EnhancementStatType statType)
