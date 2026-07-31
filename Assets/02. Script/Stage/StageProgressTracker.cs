@@ -25,6 +25,7 @@ namespace Stage
             _totalToClear = CalculateTotal(stage);
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
+            _events.Publish(new StageProgressChangedEvent(_totalToClear - _killCount, _totalToClear));
         }
 
         /// <summary>
@@ -68,6 +69,8 @@ namespace Stage
             }
 
             _killCount++;
+
+            _events.Publish(new StageProgressChangedEvent(_totalToClear - _killCount, _totalToClear));
 
             if (_killCount >= _totalToClear)
             {

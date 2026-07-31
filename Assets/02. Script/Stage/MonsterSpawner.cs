@@ -1,3 +1,4 @@
+using Character;
 using Combat;
 using Core;
 using Managers;
@@ -20,6 +21,7 @@ namespace Stage
         private readonly StageProgressTracker _tracker;
         private readonly Camera _camera;
         private readonly float _playerNearTopViewportThreshold;
+        private readonly float _statMultiplier;
 
         private int _entryIndex;
         private int _spawnedInEntry;
@@ -39,7 +41,8 @@ namespace Stage
             Transform[] bottomSpawnPoints,
             Transform playerTarget,
             StageProgressTracker tracker,
-            float playerNearTopViewportThreshold)
+            float playerNearTopViewportThreshold,
+            float statMultiplier)
         {
             _entries = stage.SpawnEntries;
             _pool = pool;
@@ -48,6 +51,7 @@ namespace Stage
             _playerTarget = playerTarget;
             _tracker = tracker;
             _playerNearTopViewportThreshold = playerNearTopViewportThreshold;
+            _statMultiplier = statMultiplier;
             _camera = Camera.main;
         }
 
@@ -83,6 +87,11 @@ namespace Stage
         {
             Transform spawnPoint = NextSpawnPoint();
             GameObject instance = _pool.Get(entry.MonsterPrefab, spawnPoint.position, spawnPoint.rotation);
+
+            if (instance.TryGetComponent(out StageMonsterScaler scaler))
+            {
+                scaler.ApplyScale(_statMultiplier);
+            }
 
             if (instance.TryGetComponent(out MonsterTargetSelector targetSelector))
             {

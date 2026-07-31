@@ -14,3 +14,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Stage.StageCatalogSO
   stages:
   - {fileID: 11400000, guid: 598922ab6c9ab1040bd7ef8aeb7461ad, type: 2}
+  - {fileID: 11400000, guid: 3bfb7954864e9a14dae1e1031f0d9dfc, type: 2}
+  - {fileID: 11400000, guid: b3273b7dd40c60f4f809f0490f3d27bb, type: 2}
+  - {fileID: 11400000, guid: 0a79b24391658734fac9fed049f15467, type: 2}
+  - {fileID: 11400000, guid: 2a167c74da4bb55458ec0898247faf5c, type: 2}
+  - {fileID: 11400000, guid: 974123cf7e2671344a0530caf3f215fc, type: 2}
+  - {fileID: 11400000, guid: b1fd124117156dd488563ed548b53723, type: 2}
+  - {fileID: 11400000, guid: e4bcf43239176e8418ce424823c91911, type: 2}
+  - {fileID: 11400000, guid: 6db6e5c411f419d429581b0b9a9a5378, type: 2}
+  - {fileID: 11400000, guid: b5f684f4e791e4b4db48a8f5829d0263, type: 2}

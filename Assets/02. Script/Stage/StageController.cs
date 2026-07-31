@@ -33,6 +33,9 @@ namespace Stage
         [SerializeField]
         private int maxRegressionDistance = 20;
 
+        [SerializeField]
+        private StageDifficultyConfigSO difficultyConfig;
+
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
         private StageProgression _progression;
@@ -103,12 +106,28 @@ namespace Stage
                 pool.EnsurePool(entry.MonsterPrefab, entry.Count, entry.Count);
             }
 
+            float statMultiplier = GetStatMultiplier(stage);
+
             _tracker = new StageProgressTracker(stage, GameBootstrapper.Events);
-            _spawner = new MonsterSpawner(stage, pool, topSpawnPoints, bottomSpawnPoints, playerTarget, _tracker, playerNearTopViewportThreshold);
+            _spawner = new MonsterSpawner(stage, pool, topSpawnPoints, bottomSpawnPoints, playerTarget, _tracker, playerNearTopViewportThreshold, statMultiplier);
 
             GameBootstrapper.Services.Get<GameTicker>().Register(_spawner);
 
             GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber));
+        }
+
+        /// <summary>
+        /// 카탈로그 상 stage의 인덱스로 난이도 배율을 계산한다. 카탈로그/설정이 없으면 1배(배율 없음).
+        /// </summary>
+        private float GetStatMultiplier(StageSO stage)
+        {
+            if (catalog == null || difficultyConfig == null)
+            {
+                return 1f;
+            }
+
+            int stageIndex = catalog.IndexOf(stage);
+            return difficultyConfig.GetMultiplier(stageIndex);
         }
 
         private void EndCurrentStage()
