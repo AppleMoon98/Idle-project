@@ -2,7 +2,10 @@ using System;
 using Core;
 using Enhancement;
 using Enhancement.Events;
+using Equipment;
 using Equipment.Events;
+using Inventory;
+using Inventory.Events;
 using Loot.Events;
 using Stage.Events;
 using UnityEngine;
@@ -10,11 +13,21 @@ using UnityEngine;
 namespace Save
 {
     /// <summary>
-    /// 오프라인 보상 계산에 필요한 최소 게임 상태(재화, 현재/최고 스테이지, 마지막 접속 시각)를
-    /// PlayerPrefs에 저장/로드한다. 다른 도메인을 직접 참조하지 않고 이벤트만 구독한다.
+    /// 오프라인 보상 계산에 필요한 최소 게임 상태(재화, 현재/최고 스테이지, 마지막 접속 시각)와
+    /// 보유 장비/장착 상태를 PlayerPrefs에 저장/로드한다. 인벤토리 스냅샷 조회/복원을 위해
+    /// InventoryService/EquippedGearService/EquipmentCatalogSO를 직접 참조한다(EnhancementService가
+    /// CurrencyService를 참조하는 것과 같은 성격의 합성 의존성 — 순수 이벤트 구독만으로는
+    /// 가변 길이 컬렉션 전체를 스냅샷할 수 없다).
     /// </summary>
     public sealed class SaveService : IManager, IService
     {
+        [Serializable]
+        private class InventorySaveBlob
+        {
+            public InventoryService.OwnedEquipmentSnapshot[] Owned;
+            public EquippedGearService.EquippedSnapshotEntry[] Equipped;
+        }
+
         private const string GoldKey = "Save.Gold";
         private const string EnhancementStonesKey = "Save.EnhancementStones";
         private const string ChapterKey = "Save.Chapter";
@@ -24,8 +37,13 @@ namespace Save
         private const string LastActiveUnixTimeKey = "Save.LastActiveUnixTime";
         private const string AttackPowerLevelKey = "Save.AttackPowerLevel";
         private const string MaxHealthLevelKey = "Save.MaxHealthLevel";
+        private const string InventoryJsonKey = "Save.InventoryJson";
 
         private readonly EventBus _events;
+        private readonly InventoryService _inventory;
+        private readonly EquippedGearService _equippedGear;
+        private readonly EquipmentCatalogSO _equipmentCatalog;
+
         private int _gold;
         private int _enhancementStones;
         private int _chapter = 1;
@@ -34,10 +52,14 @@ namespace Save
         private int _highestClearedStageNumber;
         private int _attackPowerLevel;
         private int _maxHealthLevel;
+        private string _inventoryJson = "";
 
-        public SaveService(EventBus events)
+        public SaveService(EventBus events, InventoryService inventory, EquippedGearService equippedGear, EquipmentCatalogSO equipmentCatalog)
         {
             _events = events;
+            _inventory = inventory;
+            _equippedGear = equippedGear;
+            _equipmentCatalog = equipmentCatalog;
         }
 
         public void Initialize()
@@ -54,12 +76,15 @@ namespace Save
             _highestClearedStageNumber = save.HighestClearedStageNumber;
             _attackPowerLevel = save.AttackPowerLevel;
             _maxHealthLevel = save.MaxHealthLevel;
+            _inventoryJson = save.InventoryJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
             _events.Subscribe<StageChangedEvent>(OnStageChanged);
             _events.Subscribe<HighestStageClearedEvent>(OnHighestStageCleared);
             _events.Subscribe<StatEnhancedEvent>(OnStatEnhanced);
+            _events.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
+            _events.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
         }
 
         public void Shutdown()
@@ -69,6 +94,8 @@ namespace Save
             _events.Unsubscribe<StageChangedEvent>(OnStageChanged);
             _events.Unsubscribe<HighestStageClearedEvent>(OnHighestStageCleared);
             _events.Unsubscribe<StatEnhancedEvent>(OnStatEnhanced);
+            _events.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
+            _events.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
         }
 
         /// <summary>
@@ -85,8 +112,9 @@ namespace Save
             long lastActiveUnixTime = long.Parse(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
             int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
             int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
+            string inventoryJson = PlayerPrefs.GetString(InventoryJsonKey, "");
 
-            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime, attackPowerLevel, maxHealthLevel);
+            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime, attackPowerLevel, maxHealthLevel, inventoryJson);
         }
 
         /// <summary>
@@ -103,7 +131,30 @@ namespace Save
             PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
             PlayerPrefs.SetInt(AttackPowerLevelKey, _attackPowerLevel);
             PlayerPrefs.SetInt(MaxHealthLevelKey, _maxHealthLevel);
+            PlayerPrefs.SetString(InventoryJsonKey, _inventoryJson);
             PlayerPrefs.Save();
+        }
+
+        /// <summary>
+        /// save.InventoryJson으로 보유 장비/장착 상태를 복원한다. GameBootstrapper.Awake()에서
+        /// InventoryService/EquippedGearService 생성 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreInventory(SaveData save)
+        {
+            if (string.IsNullOrEmpty(save.InventoryJson))
+            {
+                return;
+            }
+
+            InventorySaveBlob blob = JsonUtility.FromJson<InventorySaveBlob>(save.InventoryJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _inventory.RestoreSnapshot(blob.Owned, _equipmentCatalog);
+            _equippedGear.RestoreSnapshot(blob.Equipped, _equipmentCatalog, _inventory);
         }
 
         private void OnGoldChanged(GoldChangedEvent evt)
@@ -145,6 +196,33 @@ namespace Save
             }
 
             Save();
+        }
+
+        private void OnInventoryChanged(InventoryChangedEvent evt)
+        {
+            RebuildInventorySnapshot();
+            Save();
+        }
+
+        private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
+        {
+            RebuildInventorySnapshot();
+            Save();
+        }
+
+        /// <summary>
+        /// InventoryService/EquippedGearService의 현재 상태 전체를 JSON으로 다시 직렬화한다.
+        /// 이벤트는 "무언가 바뀌었다"만 알려주므로, 저장할 땐 항상 전체 스냅샷을 새로 만든다.
+        /// </summary>
+        private void RebuildInventorySnapshot()
+        {
+            var blob = new InventorySaveBlob
+            {
+                Owned = _inventory.ExportSnapshot(_equipmentCatalog),
+                Equipped = _equippedGear.ExportSnapshot(_equipmentCatalog)
+            };
+
+            _inventoryJson = JsonUtility.ToJson(blob);
         }
     }
 }

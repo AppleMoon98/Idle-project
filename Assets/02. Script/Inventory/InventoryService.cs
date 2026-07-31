@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core;
 using Equipment;
@@ -13,6 +14,18 @@ namespace Inventory
     /// </summary>
     public sealed class InventoryService : IManager, IService
     {
+        /// <summary>
+        /// 보유 장비 한 라인을 세이브 데이터로 직렬화하기 위한 형태. EquipmentSO 참조 대신
+        /// EquipmentCatalogSO 상의 인덱스로 "어떤 장비인지"를 기록한다(PlayerPrefs는 에셋 참조를 담을 수 없음).
+        /// </summary>
+        [Serializable]
+        public struct OwnedEquipmentSnapshot
+        {
+            public int CatalogIndex;
+            public int Count;
+            public int EnhancementLevel;
+        }
+
         private readonly EventBus _events;
         private readonly Dictionary<EquipmentSO, OwnedEquipment> _owned = new();
 
@@ -78,6 +91,56 @@ namespace Inventory
 
             owned.EnhancementLevel += levels;
             _events.Publish(new InventoryChangedEvent(owned, _owned.Count));
+        }
+
+        /// <summary>
+        /// 현재 보유 장비 전체를 세이브용 스냅샷으로 내보낸다. catalog에 없는(콘텐츠 삭제된) 항목은 건너뛴다.
+        /// </summary>
+        public OwnedEquipmentSnapshot[] ExportSnapshot(EquipmentCatalogSO catalog)
+        {
+            var snapshot = new List<OwnedEquipmentSnapshot>();
+
+            foreach (OwnedEquipment owned in _owned.Values)
+            {
+                int catalogIndex = catalog.IndexOf(owned.Definition);
+
+                if (catalogIndex < 0)
+                {
+                    continue;
+                }
+
+                snapshot.Add(new OwnedEquipmentSnapshot
+                {
+                    CatalogIndex = catalogIndex,
+                    Count = owned.Count,
+                    EnhancementLevel = owned.EnhancementLevel
+                });
+            }
+
+            return snapshot.ToArray();
+        }
+
+        /// <summary>
+        /// 세이브 스냅샷으로 보유 장비를 복원한다. 게임플레이 획득이 아니므로 InventoryChangedEvent는 발행하지 않는다.
+        /// </summary>
+        public void RestoreSnapshot(OwnedEquipmentSnapshot[] snapshot, EquipmentCatalogSO catalog)
+        {
+            if (snapshot == null)
+            {
+                return;
+            }
+
+            foreach (OwnedEquipmentSnapshot entry in snapshot)
+            {
+                EquipmentSO definition = catalog.GetAt(entry.CatalogIndex);
+
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                _owned[definition] = new OwnedEquipment(definition, entry.Count, entry.EnhancementLevel);
+            }
         }
 
         private void OnItemDropped(ItemDroppedEvent evt)

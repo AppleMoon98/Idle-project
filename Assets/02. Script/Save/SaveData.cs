@@ -51,6 +51,12 @@ namespace Save
         /// </summary>
         public int MaxHealthLevel { get; }
 
+        /// <summary>
+        /// 보유 장비/슬롯별 장착 상태를 직렬화한 JSON. 가변 길이 컬렉션이라 개별 필드가 아니라
+        /// 통째로 문자열 하나로 저장한다(SaveService.RestoreInventory가 파싱/복원한다). 기록이 없으면 빈 문자열.
+        /// </summary>
+        public string InventoryJson { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -60,7 +66,8 @@ namespace Save
             int highestClearedStageNumber,
             long lastActiveUnixTime,
             int attackPowerLevel,
-            int maxHealthLevel)
+            int maxHealthLevel,
+            string inventoryJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -71,6 +78,7 @@ namespace Save
             LastActiveUnixTime = lastActiveUnixTime;
             AttackPowerLevel = attackPowerLevel;
             MaxHealthLevel = maxHealthLevel;
+            InventoryJson = inventoryJson;
         }
     }
 }

@@ -74,12 +74,21 @@ namespace Core
             poolManager.Initialize();
             Services.Register(poolManager);
 
-            var saveService = new SaveService(Events);
+            var inventoryService = new InventoryService(Events);
+            inventoryService.Initialize();
+            Services.Register(inventoryService);
+
+            var equippedGearService = new EquippedGearService(Events);
+            equippedGearService.Initialize();
+            Services.Register(equippedGearService);
+
+            var saveService = new SaveService(Events, inventoryService, equippedGearService, equipmentCatalog);
             saveService.Initialize();
             Services.Register(saveService);
 
             SaveData save = saveService.Load();
             _initialSave = save;
+            saveService.RestoreInventory(save);
 
             var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
@@ -88,14 +97,6 @@ namespace Core
             var enhancementStoneService = new EnhancementStoneService(Events, save.EnhancementStones);
             enhancementStoneService.Initialize();
             Services.Register(enhancementStoneService);
-
-            var inventoryService = new InventoryService(Events);
-            inventoryService.Initialize();
-            Services.Register(inventoryService);
-
-            var equippedGearService = new EquippedGearService(Events);
-            equippedGearService.Initialize();
-            Services.Register(equippedGearService);
 
             _enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
             _enhancementService.Initialize();
