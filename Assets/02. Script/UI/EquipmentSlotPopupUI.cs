@@ -51,11 +51,13 @@ namespace UI
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
+            GameBootstrapper.Events?.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
+            GameBootstrapper.Events?.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
         }
 
         /// <summary>
@@ -76,6 +78,14 @@ namespace UI
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
+        {
+            if (_isOpen)
+            {
+                Refresh();
+            }
+        }
+
+        private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
         {
             if (_isOpen)
             {
@@ -108,26 +118,11 @@ namespace UI
             foreach (OwnedEquipment owned in matching)
             {
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
-                Color backgroundColor = GradeBackgroundColor(owned.Definition.Grade);
+                Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
                 row.Initialize(owned, owned == currentlyEquipped, backgroundColor, Close);
 
                 _spawnedRows.Add(row);
             }
-        }
-
-        /// <summary>
-        /// 카드 기본색에 등급색을 살짝 섞어, 텍스트 가독성을 해치지 않으면서 등급을 구분할 수 있게 한다.
-        /// </summary>
-        private Color GradeBackgroundColor(EquipmentGradeSO grade)
-        {
-            if (grade == null)
-            {
-                return cardBaseColor;
-            }
-
-            Color blended = Color.Lerp(cardBaseColor, grade.TintColor, gradeTintBlend);
-            blended.a = cardBaseColor.a;
-            return blended;
         }
     }
 }

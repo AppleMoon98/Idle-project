@@ -31,8 +31,24 @@ namespace UI
         private OwnedEquipment _owned;
 
         /// <summary>
+        /// 카드 기본색에 등급색을 살짝 섞어, 텍스트 가독성을 해치지 않으면서 등급을 구분할 수 있게 한다.
+        /// 슬롯 팝업/전체 목록 패널이 동일한 카드 색상 규칙을 쓰도록 공용 헬퍼로 둔다.
+        /// </summary>
+        public static Color ComputeGradeBackground(Color cardBaseColor, EquipmentGradeSO grade, float blend)
+        {
+            if (grade == null)
+            {
+                return cardBaseColor;
+            }
+
+            Color blended = Color.Lerp(cardBaseColor, grade.TintColor, blend);
+            blended.a = cardBaseColor.a;
+            return blended;
+        }
+
+        /// <summary>
         /// 행 데이터를 채운다. onEquipped는 장착(행 클릭) 성공 후 팝업을 닫는 등
-        /// 호출자가 처리할 후속 동작을 위한 콜백이다.
+        /// 호출자가 처리할 후속 동작을 위한 콜백이다(없으면 null).
         /// </summary>
         public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action onEquipped)
         {

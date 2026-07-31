@@ -1,29 +1,48 @@
-using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 using Core;
+using Equipment;
 using Inventory;
 using Inventory.Events;
 using UnityEngine;
-using UnityEngine.UI;
 
 namespace UI
 {
     /// <summary>
-    /// InventoryService가 보관 중인 장비 목록을 텍스트로 표시한다.
+    /// 보유 장비 전체를 슬롯→등급 순으로 카드 리스트로 보여준다. 슬롯 팝업(EquipmentSlotPopupUI)과
+    /// 동일한 EquipmentRowUI를 재사용해 등급색 배경/장착 표시/합성·강화 버튼을 그대로 제공한다.
     /// </summary>
     public sealed class EquipmentPanelUI : MonoBehaviour
     {
         [SerializeField]
-        private Text listText;
+        private Transform rowContainer;
+
+        [SerializeField]
+        private EquipmentRowUI rowPrefab;
+
+        [SerializeField]
+        private EquipmentGradeCatalogSO gradeCatalog;
+
+        [SerializeField]
+        private Color cardBaseColor = new Color(0.13f, 0.10f, 0.08f, 0.92f);
+
+        [SerializeField]
+        [Range(0f, 1f)]
+        private float gradeTintBlend = 0.35f;
+
+        private readonly List<EquipmentRowUI> _spawnedRows = new();
 
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
+            GameBootstrapper.Events?.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
             Refresh();
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
+            GameBootstrapper.Events?.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
@@ -31,22 +50,41 @@ namespace UI
             Refresh();
         }
 
+        private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
+        {
+            Refresh();
+        }
+
         private void Refresh()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out InventoryService inventoryService))
+            foreach (EquipmentRowUI row in _spawnedRows)
+            {
+                Destroy(row.gameObject);
+            }
+
+            _spawnedRows.Clear();
+
+            if (GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out InventoryService inventory)
+                || !GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear))
             {
                 return;
             }
 
-            var sb = new StringBuilder();
+            IEnumerable<OwnedEquipment> sorted = inventory.Items
+                .OrderBy(owned => owned.Definition.EquipmentType)
+                .ThenBy(owned => gradeCatalog.IndexOf(owned.Definition.Grade));
 
-            foreach (Inventory.OwnedEquipment owned in inventoryService.Items)
+            foreach (OwnedEquipment owned in sorted)
             {
-                string gradeName = owned.Definition.Grade != null ? owned.Definition.Grade.DisplayName : "-";
-                sb.AppendLine($"{owned.Definition.ItemName} ({owned.Definition.EquipmentType}, {gradeName}) x{owned.Count}");
-            }
+                bool isEquipped = equippedGear.GetEquipped(owned.Definition.EquipmentType) == owned;
+                Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
 
-            listText.text = sb.Length > 0 ? sb.ToString() : "보유한 장비가 없습니다.";
+                EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
+                row.Initialize(owned, isEquipped, backgroundColor, null);
+
+                _spawnedRows.Add(row);
+            }
         }
     }
 }
