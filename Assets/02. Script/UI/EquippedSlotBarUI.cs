@@ -20,6 +20,7 @@ namespace UI
             public EquipmentType Type;
             public Button Button;
             public Text Label;
+            public Image Frame;
         }
 
         [SerializeField]
@@ -27,6 +28,9 @@ namespace UI
 
         [SerializeField]
         private EquipmentSlotPopupUI popup;
+
+        [SerializeField]
+        private Color emptySlotFrameColor = new Color(0.35f, 0.35f, 0.35f, 1f);
 
         private void Awake()
         {
@@ -64,6 +68,12 @@ namespace UI
             {
                 OwnedEquipment owned = equippedGear.GetEquipped(slot.Type);
                 slot.Label.text = owned != null ? owned.Definition.ItemName : "-";
+
+                if (slot.Frame != null)
+                {
+                    bool hasGrade = owned != null && owned.Definition.Grade != null;
+                    slot.Frame.color = hasGrade ? owned.Definition.Grade.TintColor : emptySlotFrameColor;
+                }
             }
         }
     }

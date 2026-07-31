@@ -12,7 +12,7 @@ namespace UI
     /// <summary>
     /// 슬롯 하나의 보유 장비 목록을 등급순으로 나열하는 팝업. 같은 라인은 하나의 행으로
     /// 묶여 "xN"으로 표시되고(EquipmentPanelUI와 동일한 OwnedEquipment 스택 방식), 행을
-    /// 누르면 그 장비를 장착한다.
+    /// 누르면 장착, 각 행의 합성/강화 버튼으로 바로 성장시킬 수 있다.
     /// </summary>
     public sealed class EquipmentSlotPopupUI : MonoBehaviour
     {
@@ -23,7 +23,7 @@ namespace UI
         private Transform rowContainer;
 
         [SerializeField]
-        private GameObject rowPrefab;
+        private EquipmentRowUI rowPrefab;
 
         [SerializeField]
         private Button closeButton;
@@ -31,9 +31,16 @@ namespace UI
         [SerializeField]
         private EquipmentGradeCatalogSO gradeCatalog;
 
+        [SerializeField]
+        private Color cardBaseColor = new Color(0.13f, 0.10f, 0.08f, 0.92f);
+
+        [SerializeField]
+        [Range(0f, 1f)]
+        private float gradeTintBlend = 0.35f;
+
         private EquipmentType _openSlot;
         private bool _isOpen;
-        private readonly List<GameObject> _spawnedRows = new();
+        private readonly List<EquipmentRowUI> _spawnedRows = new();
 
         private void Awake()
         {
@@ -78,9 +85,9 @@ namespace UI
 
         private void Refresh()
         {
-            foreach (GameObject row in _spawnedRows)
+            foreach (EquipmentRowUI row in _spawnedRows)
             {
-                Destroy(row);
+                Destroy(row.gameObject);
             }
 
             _spawnedRows.Clear();
@@ -92,24 +99,35 @@ namespace UI
                 return;
             }
 
+            OwnedEquipment currentlyEquipped = equippedGear.GetEquipped(_openSlot);
+
             IEnumerable<OwnedEquipment> matching = inventory.Items
                 .Where(owned => owned.Definition.EquipmentType == _openSlot)
                 .OrderBy(owned => gradeCatalog.IndexOf(owned.Definition.Grade));
 
             foreach (OwnedEquipment owned in matching)
             {
-                GameObject row = Instantiate(rowPrefab, rowContainer);
-                row.GetComponentInChildren<Text>().text =
-                    $"{owned.Definition.ItemName} x{owned.Count} (강화 {owned.EnhancementLevel})";
-
-                row.GetComponentInChildren<Button>().onClick.AddListener(() =>
-                {
-                    equippedGear.Equip(owned);
-                    Close();
-                });
+                EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
+                Color backgroundColor = GradeBackgroundColor(owned.Definition.Grade);
+                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, Close);
 
                 _spawnedRows.Add(row);
             }
+        }
+
+        /// <summary>
+        /// 카드 기본색에 등급색을 살짝 섞어, 텍스트 가독성을 해치지 않으면서 등급을 구분할 수 있게 한다.
+        /// </summary>
+        private Color GradeBackgroundColor(EquipmentGradeSO grade)
+        {
+            if (grade == null)
+            {
+                return cardBaseColor;
+            }
+
+            Color blended = Color.Lerp(cardBaseColor, grade.TintColor, gradeTintBlend);
+            blended.a = cardBaseColor.a;
+            return blended;
         }
     }
 }
