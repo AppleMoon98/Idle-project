@@ -1,15 +1,13 @@
 using Character;
 using Core;
-using Soldier;
 using UnityEngine;
 
 namespace Combat
 {
     /// <summary>
-    /// 몬스터의 이동 대상을 주기적으로 재평가한다. 우선순위:
-    /// 1) 플레이어가 나를 타겟팅 중이면 플레이어
-    /// 2) 나를 타겟팅 중인 병사가 있으면 그 병사
-    /// 3) 둘 다 아니면 플레이어(기본값)
+    /// 몬스터의 이동 대상을 주기적으로 재평가한다. allyLayerMask(플레이어+병사) 안에서
+    /// 살아있는 최근접 대상을 찾아 그리로 이동한다. 탐지 범위 안에 아무도 없으면 플레이어를
+    /// 기본값으로 삼는다(항상 갈 곳이 있도록).
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(Health))]
@@ -18,23 +16,23 @@ namespace Combat
         [SerializeField]
         private float retargetInterval = 0.2f;
 
+        [SerializeField]
+        private float detectionRange = 30f;
+
+        [SerializeField]
+        private LayerMask allyLayerMask;
+
         private CharacterMover _mover;
-        private Health _self;
-        private PlayerTargetTracker _playerTargetTracker;
-        private SoldierTargetRegistry _soldierTargetRegistry;
         private float _elapsed;
 
         /// <summary>
-        /// 아무도 나를 타겟팅하지 않을 때의 기본 이동 대상(플레이어). MonsterSpawner가 스폰 직후 주입한다.
+        /// 탐지 범위 안에 아무 대상도 없을 때의 기본 이동 대상(플레이어). MonsterSpawner가 스폰 직후 주입한다.
         /// </summary>
         public Transform PlayerTransform { get; private set; }
 
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
-            _self = GetComponent<Health>();
-            GameBootstrapper.Services?.TryGet(out _playerTargetTracker);
-            GameBootstrapper.Services?.TryGet(out _soldierTargetRegistry);
         }
 
         private void OnEnable()
@@ -82,17 +80,28 @@ namespace Combat
 
         private Transform ChooseTarget()
         {
-            if (_playerTargetTracker != null && _playerTargetTracker.CurrentTarget == _self)
+            Collider2D[] candidates = Physics2D.OverlapCircleAll(transform.position, detectionRange, allyLayerMask);
+
+            Transform nearest = null;
+            float nearestSqrDistance = float.MaxValue;
+
+            foreach (Collider2D candidate in candidates)
             {
-                return PlayerTransform;
+                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
+                {
+                    continue;
+                }
+
+                float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
+
+                if (sqrDistance < nearestSqrDistance)
+                {
+                    nearestSqrDistance = sqrDistance;
+                    nearest = candidate.transform;
+                }
             }
 
-            if (_soldierTargetRegistry != null && _soldierTargetRegistry.TryGetClaimant(_self, out GameObject soldier) && soldier != null)
-            {
-                return soldier.transform;
-            }
-
-            return PlayerTransform;
+            return nearest != null ? nearest : PlayerTransform;
         }
     }
 }

@@ -252,6 +252,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MonsterTargetSelector
   retargetInterval: 0.2
+  detectionRange: 30
+  allyLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!114 &54522853668950333
 MonoBehaviour:
   m_ObjectHideFlags: 0
