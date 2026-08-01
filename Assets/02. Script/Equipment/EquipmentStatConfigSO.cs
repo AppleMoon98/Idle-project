@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Enhancement;
 using UnityEngine;
 
@@ -7,7 +8,7 @@ namespace Equipment
     /// <summary>
     /// 장비 슬롯이 어떤 능력치를(<see cref="EnhancementStatType"/>) 얼마나 주는지 정의하는 데이터 에셋.
     /// 슬롯→능력치 매핑을 코드에 고정하지 않고 배열로 데이터화해, 기획 변경(예: 장갑도 공격력에
-    /// 기여) 시 코드 수정 없이 이 에셋만 바꾸면 되도록 한다.
+    /// 기여, 슬롯 하나가 능력치 여러 개를 동시에 주는 것) 시 코드 수정 없이 이 에셋만 바꾸면 되도록 한다.
     /// </summary>
     [CreateAssetMenu(fileName = "EquipmentStatConfig", menuName = "Idle Project/Equipment/Equipment Stat Config")]
     public sealed class EquipmentStatConfigSO : ScriptableObject
@@ -30,24 +31,23 @@ namespace Equipment
         private SlotStatEntry[] entries;
 
         /// <summary>
-        /// slot에 대응하는 능력치 계수를 찾는다. 매핑이 없는 슬롯이면 false(그 슬롯은 스탯을 주지 않음).
+        /// slot에 대응하는 능력치 계수를 모두 찾는다(같은 슬롯에 항목을 여러 개 두면 그 슬롯은
+        /// 능력치를 여러 개 준다). 매핑이 없으면 빈 목록.
         /// </summary>
-        public bool TryGetEntry(EquipmentType slot, out SlotStatEntry entry)
+        public IEnumerable<SlotStatEntry> GetEntries(EquipmentType slot)
         {
-            if (entries != null)
+            if (entries == null)
             {
-                for (int i = 0; i < entries.Length; i++)
-                {
-                    if (entries[i].Slot == slot)
-                    {
-                        entry = entries[i];
-                        return true;
-                    }
-                }
+                yield break;
             }
 
-            entry = default;
-            return false;
+            for (int i = 0; i < entries.Length; i++)
+            {
+                if (entries[i].Slot == slot)
+                {
+                    yield return entries[i];
+                }
+            }
         }
     }
 }

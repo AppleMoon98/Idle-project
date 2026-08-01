@@ -83,17 +83,7 @@ namespace UI
             int cost = service.GetNextCost(_statType);
 
             string costPart = cost < 0 ? "MAX" : $"{cost} G";
-            infoText.text = $"{DisplayName(_statType)} (+{valuePerLevel}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
-        }
-
-        private static string DisplayName(EnhancementStatType statType)
-        {
-            return statType switch
-            {
-                EnhancementStatType.AttackPower => "공격력",
-                EnhancementStatType.MaxHealth => "최대 체력",
-                _ => statType.ToString()
-            };
+            infoText.text = $"{StatDisplayNames.Get(_statType)} (+{valuePerLevel}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
         }
     }
 }

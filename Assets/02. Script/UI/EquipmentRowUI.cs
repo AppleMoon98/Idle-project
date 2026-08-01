@@ -20,6 +20,9 @@ namespace UI
         private Text label;
 
         [SerializeField]
+        private Button nameButton;
+
+        [SerializeField]
         private Button rowButton;
 
         [SerializeField]
@@ -48,9 +51,10 @@ namespace UI
 
         /// <summary>
         /// 행 데이터를 채운다. onEquipped는 장착(행 클릭) 성공 후 팝업을 닫는 등
-        /// 호출자가 처리할 후속 동작을 위한 콜백이다(없으면 null).
+        /// 호출자가 처리할 후속 동작을 위한 콜백이다(없으면 null). onDetailRequested는 이름 라벨을
+        /// 탭했을 때(장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
         /// </summary>
-        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action onEquipped)
+        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action onEquipped, Action<OwnedEquipment> onDetailRequested = null)
         {
             _owned = owned;
             background.color = backgroundColor;
@@ -66,6 +70,11 @@ namespace UI
                     onEquipped?.Invoke();
                 }
             });
+
+            if (nameButton != null)
+            {
+                nameButton.onClick.AddListener(() => onDetailRequested?.Invoke(_owned));
+            }
 
             fuseButton.onClick.AddListener(() =>
             {

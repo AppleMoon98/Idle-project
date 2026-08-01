@@ -29,6 +29,9 @@ namespace UI
         private Button closeButton;
 
         [SerializeField]
+        private EquipmentDetailPopupUI detailPopup;
+
+        [SerializeField]
         private EquipmentGradeCatalogSO gradeCatalog;
 
         [SerializeField]
@@ -79,6 +82,7 @@ namespace UI
         {
             _isOpen = false;
             popupRoot.SetActive(false);
+            detailPopup?.Close();
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
@@ -123,7 +127,7 @@ namespace UI
             {
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
-                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, Close);
+                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, Close, target => detailPopup?.Open(target, currentlyEquipped));
 
                 _spawnedRows.Add(row);
             }

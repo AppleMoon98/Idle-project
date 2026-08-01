@@ -74,17 +74,20 @@ namespace Equipment
             {
                 OwnedEquipment owned = _equippedGear.GetEquipped(slot);
 
-                if (owned == null || !_statConfig.TryGetEntry(slot, out EquipmentStatConfigSO.SlotStatEntry entry))
+                if (owned == null)
                 {
                     continue;
                 }
 
-                int gradeIndex = Mathf.Max(_gradeCatalog.IndexOf(owned.Definition.Grade), 0);
-                float baseline = entry.BaseValue + entry.PerGradeIndex * gradeIndex;
-                float bonus = baseline * (1f + _enhancementConfig.StatBonusPerLevel * owned.EnhancementLevel);
+                int gradeIndex = _gradeCatalog.IndexOf(owned.Definition.Grade);
 
-                totals.TryGetValue(entry.StatType, out float existing);
-                totals[entry.StatType] = existing + bonus;
+                foreach (EquipmentStatConfigSO.SlotStatEntry entry in _statConfig.GetEntries(slot))
+                {
+                    float bonus = EquipmentStatMath.CalculateBonus(entry, gradeIndex, owned.EnhancementLevel, _enhancementConfig.StatBonusPerLevel);
+
+                    totals.TryGetValue(entry.StatType, out float existing);
+                    totals[entry.StatType] = existing + bonus;
+                }
             }
 
             foreach (EnhancementStatType statType in (EnhancementStatType[])Enum.GetValues(typeof(EnhancementStatType)))
@@ -100,6 +103,30 @@ namespace Equipment
                 _lastPublished[statType] = newTotal;
                 _events.Publish(new EquipmentStatsChangedEvent(statType, newTotal));
             }
+        }
+
+        /// <summary>
+        /// definition을 enhancementLevel로 착용했을 때 주는 능력치 옵션 목록을 계산한다. 실제 장착
+        /// 여부와 무관하게 호출 가능 — 장비 목록 UI가 아이템을 미리보기/비교할 때 쓴다.
+        /// </summary>
+        public IReadOnlyList<(EnhancementStatType StatType, float Bonus)> CalculatePreview(EquipmentSO definition, int enhancementLevel)
+        {
+            var preview = new List<(EnhancementStatType, float)>();
+
+            if (definition == null)
+            {
+                return preview;
+            }
+
+            int gradeIndex = _gradeCatalog.IndexOf(definition.Grade);
+
+            foreach (EquipmentStatConfigSO.SlotStatEntry entry in _statConfig.GetEntries(definition.EquipmentType))
+            {
+                float bonus = EquipmentStatMath.CalculateBonus(entry, gradeIndex, enhancementLevel, _enhancementConfig.StatBonusPerLevel);
+                preview.Add((entry.StatType, bonus));
+            }
+
+            return preview;
         }
     }
 }
