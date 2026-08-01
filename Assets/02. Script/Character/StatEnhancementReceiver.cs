@@ -31,17 +31,7 @@ namespace Character
 
         private void OnStatEnhanced(StatEnhancedEvent evt)
         {
-            RuntimeStats stats = _statsProvider.Stats;
-
-            switch (evt.StatType)
-            {
-                case EnhancementStatType.AttackPower:
-                    stats.AttackPower += evt.ValuePerLevel;
-                    break;
-                case EnhancementStatType.MaxHealth:
-                    stats.MaxHealth += evt.ValuePerLevel;
-                    break;
-            }
+            RuntimeStatApplier.Apply(_statsProvider.Stats, evt.StatType, evt.ValuePerLevel);
         }
     }
 }

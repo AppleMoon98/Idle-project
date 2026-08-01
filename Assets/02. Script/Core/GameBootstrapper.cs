@@ -57,9 +57,13 @@ namespace Core
         [SerializeField]
         private EquipmentEnhancementConfigSO equipmentEnhancementConfig;
 
+        [SerializeField]
+        private EquipmentStatConfigSO equipmentStatConfig;
+
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
+        private EquipmentStatService _equipmentStatService;
         private SaveData _initialSave;
 
         private void Awake()
@@ -110,6 +114,15 @@ namespace Core
             equipmentEnhancementService.Initialize();
             Services.Register(equipmentEnhancementService);
 
+            _equipmentStatService = new EquipmentStatService(
+                Events,
+                equippedGearService,
+                equipmentGradeCatalog,
+                equipmentEnhancementConfig,
+                equipmentStatConfig);
+            _equipmentStatService.Initialize();
+            Services.Register(_equipmentStatService);
+
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);
@@ -136,6 +149,10 @@ namespace Core
             // StatEnhancedEvent/OfflineProgressCalculatedEvent를 구독하는 쪽이 이벤트를 놓치지 않는다.
             _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel);
             _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel);
+
+            // RestoreInventory()는 세이브 시딩일 뿐 이벤트를 발행하지 않으므로, 복원된 장착 상태를
+            // EquipmentStatReceiver가 놓치지 않도록 여기서 한 번 직접 재계산/발행한다.
+            _equipmentStatService?.RecomputeAndPublish();
 
             _offlineProgressService?.CalculateAndApply();
         }
@@ -199,6 +216,11 @@ namespace Core
             if (Services != null && Services.TryGet(out EquipmentEnhancementService equipmentEnhancementService))
             {
                 equipmentEnhancementService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EquipmentStatService equipmentStatService))
+            {
+                equipmentStatService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))

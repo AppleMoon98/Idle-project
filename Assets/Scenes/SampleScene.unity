@@ -160,6 +160,7 @@ MonoBehaviour:
   equipmentGradeCatalog: {fileID: 11400000, guid: 29a2262f41054a84ca2f97e8db1269c4, type: 2}
   equipmentCatalog: {fileID: 11400000, guid: 89b101767d07ac448af2982bc3376cf5, type: 2}
   equipmentEnhancementConfig: {fileID: 11400000, guid: 0afe5a650fe721b429ae65c672a90e19, type: 2}
+  equipmentStatConfig: {fileID: 11400000, guid: b1e7aef8f76d0a242a7dd93e280bc01f, type: 2}
 --- !u!114 &8717673
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1763,6 +1764,7 @@ GameObject:
   - component: {fileID: 762544245}
   - component: {fileID: 762544247}
   - component: {fileID: 762544248}
+  - component: {fileID: 762544249}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -2026,6 +2028,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 66d3c98790fbbc94d85e55c154f9ad22, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerReviveOnStageChanged
+--- !u!114 &762544249
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d15d1bb7d2fc0834ca2e89b3339e6d66, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.EquipmentStatReceiver
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
