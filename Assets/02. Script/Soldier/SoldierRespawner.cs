@@ -9,7 +9,9 @@ namespace Soldier
     /// <summary>
     /// 스폰된 병사가 사망하면 일정 시간(respawnDelay) 뒤 그 슬롯의 배정을 다시 확인해 재소환한다.
     /// 사망 시점의 배정을 기억해두지 않고 리스폰 시점에 SoldierDeploymentService를 다시 조회하므로,
-    /// 대기 중 재편성(다른 유닛으로 교체/해제)이 있었다면 항상 최신 배정을 반영한다.
+    /// 대기 중 재편성(다른 유닛으로 교체/해제)이 있었다면 항상 최신 배정을 반영한다. 슬롯별 현재
+    /// 점유 인스턴스도 여기서 함께 관리해, SoldierSpawner가 배치 변경 시 "지금 그 슬롯에 누가
+    /// 있는지"를 항상 정확히 물어볼 수 있게 한다(사망→대기→자연 리스폰 사이에도 어긋나지 않도록).
     /// </summary>
     public sealed class SoldierRespawner : ITickable
     {
@@ -33,6 +35,7 @@ namespace Soldier
         private readonly SoldierDeploymentService _deployment;
         private readonly float _respawnDelay;
         private readonly Dictionary<GameObject, SoldierSpawnSlot> _activeSoldiers = new();
+        private readonly Dictionary<int, GameObject> _activeBySlot = new();
         private readonly List<PendingRespawn> _pendingRespawns = new();
 
         public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, float respawnDelay)
@@ -51,6 +54,7 @@ namespace Soldier
         public void RegisterSpawned(GameObject soldier, SoldierSpawnSlot slot)
         {
             _activeSoldiers[soldier] = slot;
+            _activeBySlot[slot.SlotIndex] = soldier;
         }
 
         /// <summary>
@@ -59,6 +63,24 @@ namespace Soldier
         public void Dispose()
         {
             _events.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+        }
+
+        /// <summary>
+        /// slotIndex를 즉시 비운다 — 대기 중인 리스폰 타이머를 취소하고, 지금 그 슬롯을 차지하고
+        /// 있는 살아있는 인스턴스가 있으면 사망 처리 없이(루팅 등 부수효과 없이) 풀로 반환한다.
+        /// 배치 재편성으로 슬롯의 배정이 바뀌거나 해제됐을 때, SoldierSpawner가 새로 스폰하기
+        /// 전에 호출해 이전 점유자를 정리한다.
+        /// </summary>
+        public void ReleaseSlot(int slotIndex)
+        {
+            _pendingRespawns.RemoveAll(pending => pending.Slot.SlotIndex == slotIndex);
+
+            if (_activeBySlot.TryGetValue(slotIndex, out GameObject instance))
+            {
+                _activeBySlot.Remove(slotIndex);
+                _activeSoldiers.Remove(instance);
+                _pool.Release(instance);
+            }
         }
 
         void ITickable.Tick(float deltaTime)
@@ -86,6 +108,7 @@ namespace Soldier
             }
 
             _activeSoldiers.Remove(evt.Character);
+            _activeBySlot.Remove(slot.SlotIndex);
             _pendingRespawns.Add(new PendingRespawn(slot, _respawnDelay));
         }
 

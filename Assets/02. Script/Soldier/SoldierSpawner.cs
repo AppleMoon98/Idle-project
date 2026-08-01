@@ -2,6 +2,7 @@ using Core;
 using Managers;
 using Rank;
 using Rank.Events;
+using Soldier.Events;
 using UnityEngine;
 
 namespace Soldier
@@ -10,8 +11,11 @@ namespace Soldier
     /// 배치 슬롯마다 SoldierDeploymentService에 배정된 로스터 유닛을 스폰한다. requiredRank가
     /// 설정돼 있으면 현재 랭크가 그 이상이 될 때까지 스폰을 미루고, RankChangedEvent를 구독해
     /// 승급 즉시 스폰한다(null이면 조건 없이 항상 활성). 슬롯에 배정이 없으면(로스터가 비었거나
-    /// 아직 아무도 배치하지 않았으면) 그 슬롯은 스폰하지 않는다. 스폰한 병사가 사망하면
-    /// SoldierRespawner를 통해 respawnDelay 후 그 시점의 배정을 다시 확인해 재소환한다.
+    /// 아직 아무도 배치하지 않았으면) 그 슬롯은 스폰하지 않는다. SoldierDeploymentChangedEvent도
+    /// 구독해, 이미 활성화된 뒤에 플레이어가 슬롯을 재편성하면(새로 배정/교체/해제) 그 슬롯만
+    /// 즉시 정리하고 다시 스폰한다 — 그렇지 않으면 씬 시작 시점 배정만 영원히 유효하게 된다.
+    /// 스폰한 병사가 사망하면 SoldierRespawner를 통해 respawnDelay 후 그 시점의 배정을 다시
+    /// 확인해 재소환한다.
     /// </summary>
     public sealed class SoldierSpawner : MonoBehaviour
     {
@@ -39,6 +43,7 @@ namespace Soldier
             _pool = pool;
             GameBootstrapper.Services.TryGet(out _deployment);
             GameBootstrapper.Events?.Subscribe<RankChangedEvent>(OnRankChanged);
+            GameBootstrapper.Events?.Subscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
 
             TrySpawn();
         }
@@ -46,6 +51,7 @@ namespace Soldier
         private void OnDestroy()
         {
             GameBootstrapper.Events?.Unsubscribe<RankChangedEvent>(OnRankChanged);
+            GameBootstrapper.Events?.Unsubscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
 
             if (_respawner == null)
             {
@@ -64,6 +70,18 @@ namespace Soldier
         private void OnRankChanged(RankChangedEvent evt)
         {
             TrySpawn();
+        }
+
+        private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
+        {
+            if (!_spawned)
+            {
+                // 아직 랭크로 활성화되지 않았으면(예: 슬롯이 이미 잠긴 상태) 손댈 활성 스폰이 없다 —
+                // TrySpawn이 나중에 랭크 승급 시 그 시점의 배정을 그대로 읽어 처리한다.
+                return;
+            }
+
+            RefreshSlot(evt.SlotIndex);
         }
 
         private void TrySpawn()
@@ -87,6 +105,35 @@ namespace Soldier
             {
                 SpawnSlot(slot);
             }
+        }
+
+        /// <summary>
+        /// slotIndex의 현재 점유자를 정리하고(있다면) 최신 배정으로 다시 스폰을 시도한다.
+        /// </summary>
+        private void RefreshSlot(int slotIndex)
+        {
+            SoldierSpawnSlot slot = FindSlot(slotIndex);
+
+            if (slot == null)
+            {
+                return;
+            }
+
+            _respawner.ReleaseSlot(slotIndex);
+            SpawnSlot(slot);
+        }
+
+        private SoldierSpawnSlot FindSlot(int slotIndex)
+        {
+            foreach (SoldierSpawnSlot slot in slots)
+            {
+                if (slot.SlotIndex == slotIndex)
+                {
+                    return slot;
+                }
+            }
+
+            return null;
         }
 
         private void SpawnSlot(SoldierSpawnSlot slot)
