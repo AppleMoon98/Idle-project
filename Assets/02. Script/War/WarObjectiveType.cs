@@ -1,0 +1,29 @@
+namespace War
+{
+    /// <summary>
+    /// 챕터 클라이맥스(War) 스테이지의 승리 목표 종류. WarBattleController가 챕터별로
+    /// 이 값에 따라 어떤 목표 컴포넌트를 활성화할지 결정한다.
+    /// </summary>
+    public enum WarObjectiveType
+    {
+        /// <summary>
+        /// 전멸: 기존 StageProgressTracker의 몬스터 처치 조건을 그대로 사용(패스스루).
+        /// </summary>
+        Annihilation,
+
+        /// <summary>
+        /// 구조물 점령: 지정된 WarStructure 전부가 점령되면 클리어.
+        /// </summary>
+        StructureCapture,
+
+        /// <summary>
+        /// 보스 처치: BossMarker가 붙은 대상이 사망하면 클리어(다른 몬스터 생존 여부 무관).
+        /// </summary>
+        BossDefeat,
+
+        /// <summary>
+        /// 수하물 보호: 지정된 시간 동안 수하물이 생존하면 클리어, 그전에 사망하면 실패.
+        /// </summary>
+        CargoProtection
+    }
+}

@@ -20,6 +20,7 @@ GameObject:
   - component: {fileID: 8088863497483063283}
   - component: {fileID: 1474452836388337801}
   - component: {fileID: 54522853668950333}
+  - component: {fileID: 9045674415394669501}
   m_Layer: 9
   m_Name: Monster_Boss
   m_TagString: Untagged
@@ -264,6 +265,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e456e6e0299c327479ce988e0c5c8919, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.StageMonsterScaler
+--- !u!114 &9045674415394669501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5c629067dd3bc7642a3ad06a1e722f03, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.BossMarker
 --- !u!1001 &5221313293063939603
 PrefabInstance:
   m_ObjectHideFlags: 0
