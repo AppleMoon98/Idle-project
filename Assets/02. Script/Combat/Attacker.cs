@@ -1,3 +1,4 @@
+using System;
 using Character;
 using Core;
 using UnityEngine;
@@ -12,6 +13,13 @@ namespace Combat
     {
         [SerializeField]
         private LayerMask targetLayerMask;
+
+        /// <summary>
+        /// 공격을 실제로 실행한 직후 발행된다. 같은 GameObject의 다른 컴포넌트가 구독해 후속 동작을
+        /// 트리거할 수 있도록 하기 위한 것으로(예: Soldier.SoldierBehaviorController의 원거리 카이팅),
+        /// EventBus를 쓰지 않는다 — 이미 같은 캐릭터 위에서 직접 참조하는 컴포넌트 사이의 알림이다.
+        /// </summary>
+        public event Action AttackPerformed;
 
         private CharacterStatsProvider _statsProvider;
         private IAttackBehavior _attackBehavior;
@@ -57,6 +65,7 @@ namespace Combat
             if (target != null && _attackBehavior != null)
             {
                 _attackBehavior.Execute(transform, target, stats.AttackPower);
+                AttackPerformed?.Invoke();
             }
         }
 

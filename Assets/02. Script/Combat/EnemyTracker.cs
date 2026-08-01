@@ -91,7 +91,7 @@ namespace Combat
                     continue;
                 }
 
-                if (!IsVisibleToCamera(candidate.transform.position))
+                if (!CameraVisibility.IsOnScreen(_camera, candidate.transform.position))
                 {
                     continue;
                 }
@@ -120,21 +120,9 @@ namespace Combat
         }
 
         /// <summary>
-        /// 화면(카메라 뷰포트) 안에 실제로 들어와 있는지 확인한다. 카메라를 찾을 수 없으면
-        /// 화면 판정을 생략하고 항상 보이는 것으로 취급한다(기존 동작으로 안전하게 폴백).
+        /// 이 인스펙터에 설정된 탐지 범위. Soldier.SoldierBehaviorController가 EnemyTracker를 끄고
+        /// 대신 직접 탐지를 수행할 때(원거리 카이팅) 같은 값을 재사용하기 위해 노출한다.
         /// </summary>
-        private bool IsVisibleToCamera(Vector3 worldPosition)
-        {
-            if (_camera == null)
-            {
-                return true;
-            }
-
-            Vector3 viewportPoint = _camera.WorldToViewportPoint(worldPosition);
-
-            return viewportPoint.z > 0f
-                && viewportPoint.x >= 0f && viewportPoint.x <= 1f
-                && viewportPoint.y >= 0f && viewportPoint.y <= 1f;
-        }
+        public float DetectionRange => detectionRange;
     }
 }
