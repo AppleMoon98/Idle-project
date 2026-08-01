@@ -62,6 +62,23 @@ namespace Save
         /// </summary>
         public int RankIndex { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 보유 병사 소환권. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierTicketCount { get; }
+
+        /// <summary>
+        /// 보유 병사 로스터(개별 유닛 + 다음 발급 번호)를 직렬화한 JSON. InventoryJson과 같은 이유로
+        /// 통째로 문자열 하나로 저장한다(SaveService.RestoreSoldierRoster가 파싱/복원한다). 기록이 없으면 빈 문자열.
+        /// </summary>
+        public string SoldierRosterJson { get; }
+
+        /// <summary>
+        /// 병사 전용 장비의 보유 재고/유닛별 장착 상태를 직렬화한 JSON. InventoryJson과 같은 이유로
+        /// 통째로 문자열 하나로 저장한다(SaveService.RestoreSoldierEquipment가 파싱/복원한다). 기록이 없으면 빈 문자열.
+        /// </summary>
+        public string SoldierEquipmentJson { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -73,7 +90,10 @@ namespace Save
             int attackPowerLevel,
             int maxHealthLevel,
             string inventoryJson,
-            int rankIndex)
+            int rankIndex,
+            int soldierTicketCount,
+            string soldierRosterJson,
+            string soldierEquipmentJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -86,6 +106,9 @@ namespace Save
             MaxHealthLevel = maxHealthLevel;
             InventoryJson = inventoryJson;
             RankIndex = rankIndex;
+            SoldierTicketCount = soldierTicketCount;
+            SoldierRosterJson = soldierRosterJson;
+            SoldierEquipmentJson = soldierEquipmentJson;
         }
     }
 }

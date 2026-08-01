@@ -142,6 +142,7 @@ GameObject:
   - component: {fileID: 4602226908076355281}
   - component: {fileID: 1639511923608357718}
   - component: {fileID: 3015650229225750995}
+  - component: {fileID: 8300883455212600932}
   m_Layer: 0
   m_Name: Soldier_Ranged
   m_TagString: Untagged
@@ -370,6 +371,22 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2a465b865eaddb349aca5af707777ae3, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.PoolReleaseOnDeath
+--- !u!114 &8300883455212600932
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d77165eba3f72c74d86ce791505a3850, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierBehaviorController
+  enemyLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  decisionInterval: 0.5
 --- !u!1001 &7154002393889260610
 PrefabInstance:
   m_ObjectHideFlags: 0

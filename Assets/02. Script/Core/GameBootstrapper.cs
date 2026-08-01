@@ -1,7 +1,9 @@
+using Behavior;
 using Character;
 using Combat;
 using Enhancement;
 using Equipment;
+using Gacha;
 using Inventory;
 using Loot;
 using Managers;
@@ -9,6 +11,7 @@ using Offline;
 using Rank;
 using Save;
 using Soldier;
+using SoldierEquipment;
 using Stage;
 using UnityEngine;
 
@@ -64,6 +67,18 @@ namespace Core
         [SerializeField]
         private RankCatalogSO rankCatalog;
 
+        [SerializeField]
+        private SoldierCatalogSO soldierCatalog;
+
+        [SerializeField]
+        private GachaTableSO gachaTable;
+
+        [SerializeField]
+        private SoldierEquipmentCatalogSO soldierEquipmentCatalog;
+
+        [SerializeField]
+        private BehaviorProfileCatalogSO behaviorProfileCatalog;
+
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
@@ -91,13 +106,42 @@ namespace Core
             equippedGearService.Initialize();
             Services.Register(equippedGearService);
 
-            var saveService = new SaveService(Events, inventoryService, equippedGearService, equipmentCatalog);
+            var soldierRosterService = new SoldierRosterService(Events);
+            soldierRosterService.Initialize();
+            Services.Register(soldierRosterService);
+
+            var soldierDeploymentService = new SoldierDeploymentService(Events, soldierRosterService);
+            soldierDeploymentService.Initialize();
+            Services.Register(soldierDeploymentService);
+
+            var soldierEquipmentInventoryService = new SoldierEquipmentInventoryService(Events);
+            soldierEquipmentInventoryService.Initialize();
+            Services.Register(soldierEquipmentInventoryService);
+
+            var soldierEquippedGearService = new SoldierEquippedGearService(Events);
+            soldierEquippedGearService.Initialize();
+            Services.Register(soldierEquippedGearService);
+
+            var saveService = new SaveService(
+                Events,
+                inventoryService,
+                equippedGearService,
+                equipmentCatalog,
+                soldierRosterService,
+                soldierCatalog,
+                soldierDeploymentService,
+                behaviorProfileCatalog,
+                soldierEquipmentInventoryService,
+                soldierEquippedGearService,
+                soldierEquipmentCatalog);
             saveService.Initialize();
             Services.Register(saveService);
 
             SaveData save = saveService.Load();
             _initialSave = save;
             saveService.RestoreInventory(save);
+            saveService.RestoreSoldierRoster(save);
+            saveService.RestoreSoldierEquipment(save);
 
             var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
@@ -131,6 +175,14 @@ namespace Core
             _rankService = new RankService(Events, stageCatalog, rankCatalog);
             _rankService.Initialize();
             Services.Register(_rankService);
+
+            var soldierTicketService = new SoldierTicketService(Events, save.SoldierTicketCount);
+            soldierTicketService.Initialize();
+            Services.Register(soldierTicketService);
+
+            var gachaService = new GachaService(Events, soldierTicketService, soldierRosterService, gachaTable);
+            gachaService.Initialize();
+            Services.Register(gachaService);
 
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
@@ -238,6 +290,36 @@ namespace Core
             if (Services != null && Services.TryGet(out RankService rankService))
             {
                 rankService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierTicketService soldierTicketService))
+            {
+                soldierTicketService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out GachaService gachaService))
+            {
+                gachaService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierRosterService soldierRosterService))
+            {
+                soldierRosterService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierDeploymentService soldierDeploymentService))
+            {
+                soldierDeploymentService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierEquipmentInventoryService soldierEquipmentInventoryService))
+            {
+                soldierEquipmentInventoryService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierEquippedGearService soldierEquippedGearService))
+            {
+                soldierEquippedGearService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))

@@ -7,7 +7,9 @@ using UnityEngine;
 namespace Soldier
 {
     /// <summary>
-    /// 스폰된 병사가 사망하면 일정 시간(respawnDelay) 뒤 원래 스폰 지점에서 다시 소환한다.
+    /// 스폰된 병사가 사망하면 일정 시간(respawnDelay) 뒤 그 슬롯의 배정을 다시 확인해 재소환한다.
+    /// 사망 시점의 배정을 기억해두지 않고 리스폰 시점에 SoldierDeploymentService를 다시 조회하므로,
+    /// 대기 중 재편성(다른 유닛으로 교체/해제)이 있었다면 항상 최신 배정을 반영한다.
     /// </summary>
     public sealed class SoldierRespawner : ITickable
     {
@@ -16,37 +18,39 @@ namespace Soldier
         /// </summary>
         private sealed class PendingRespawn
         {
-            public readonly SoldierSpawnEntry Entry;
+            public readonly SoldierSpawnSlot Slot;
             public float Remaining;
 
-            public PendingRespawn(SoldierSpawnEntry entry, float remaining)
+            public PendingRespawn(SoldierSpawnSlot slot, float remaining)
             {
-                Entry = entry;
+                Slot = slot;
                 Remaining = remaining;
             }
         }
 
         private readonly EventBus _events;
         private readonly PoolManager _pool;
+        private readonly SoldierDeploymentService _deployment;
         private readonly float _respawnDelay;
-        private readonly Dictionary<GameObject, SoldierSpawnEntry> _activeSoldiers = new();
+        private readonly Dictionary<GameObject, SoldierSpawnSlot> _activeSoldiers = new();
         private readonly List<PendingRespawn> _pendingRespawns = new();
 
-        public SoldierRespawner(EventBus events, PoolManager pool, float respawnDelay)
+        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, float respawnDelay)
         {
             _events = events;
             _pool = pool;
+            _deployment = deployment;
             _respawnDelay = respawnDelay;
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
         }
 
         /// <summary>
-        /// 새로 스폰한 병사 인스턴스를, 사망 시 참조할 스폰 엔트리와 함께 등록한다.
+        /// 새로 스폰한 병사 인스턴스를, 사망 시 참조할 슬롯과 함께 등록한다.
         /// </summary>
-        public void RegisterSpawned(GameObject soldier, SoldierSpawnEntry entry)
+        public void RegisterSpawned(GameObject soldier, SoldierSpawnSlot slot)
         {
-            _activeSoldiers[soldier] = entry;
+            _activeSoldiers[soldier] = slot;
         }
 
         /// <summary>
@@ -70,25 +74,41 @@ namespace Soldier
                 }
 
                 _pendingRespawns.RemoveAt(i);
-                Respawn(pending.Entry);
+                Respawn(pending.Slot);
             }
         }
 
         private void OnCharacterDied(CharacterDiedEvent evt)
         {
-            if (!_activeSoldiers.TryGetValue(evt.Character, out SoldierSpawnEntry entry))
+            if (!_activeSoldiers.TryGetValue(evt.Character, out SoldierSpawnSlot slot))
             {
                 return;
             }
 
             _activeSoldiers.Remove(evt.Character);
-            _pendingRespawns.Add(new PendingRespawn(entry, _respawnDelay));
+            _pendingRespawns.Add(new PendingRespawn(slot, _respawnDelay));
         }
 
-        private void Respawn(SoldierSpawnEntry entry)
+        /// <summary>
+        /// 그 시점의 배정을 다시 조회해 재소환한다. 그사이 배정이 해제/변경됐으면(배정된 유닛이
+        /// 없거나 프리팹을 가리키지 못하면) 조용히 재소환하지 않는다.
+        /// </summary>
+        private void Respawn(SoldierSpawnSlot slot)
         {
-            GameObject instance = _pool.Get(entry.SoldierPrefab, entry.SpawnPoint.position, entry.SpawnPoint.rotation);
-            RegisterSpawned(instance, entry);
+            if (_deployment == null || !_deployment.TryGetAssigned(slot.SlotIndex, out OwnedSoldier owned) || owned.Definition.Prefab == null)
+            {
+                return;
+            }
+
+            _pool.EnsurePool(owned.Definition.Prefab, 1, 1);
+            GameObject instance = _pool.Get(owned.Definition.Prefab, slot.SpawnPoint.position, slot.SpawnPoint.rotation);
+
+            if (instance.TryGetComponent(out SoldierBehaviorController controller))
+            {
+                controller.Initialize(owned.InstanceId, slot.SpawnPoint);
+            }
+
+            RegisterSpawned(instance, slot);
         }
     }
 }

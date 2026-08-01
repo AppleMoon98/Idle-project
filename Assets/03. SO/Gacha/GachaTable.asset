@@ -1,0 +1,20 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34672c35f4f7c1b489bf5ebbb5422e8f, type: 3}
+  m_Name: GachaTable
+  m_EditorClassIdentifier: Assembly-CSharp::Gacha.GachaTableSO
+  entries:
+  - soldier: {fileID: 11400000, guid: 15b49ad07b948de4fb76c26062b8d7df, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: d66010d676694284299848fb21b1a90e, type: 2}
+    weight: 30
+  ticketCostPerPull: 1
