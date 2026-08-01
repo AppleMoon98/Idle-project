@@ -56,7 +56,9 @@ namespace Soldier
 
         /// <summary>
         /// instanceId 유닛을 slotIndex에 배정한다. 로스터에 없는 유닛이거나, slotIndex가 현재
-        /// 랭크로 아직 잠금 해제되지 않았으면 아무 변화 없이 false.
+        /// 랭크로 아직 잠금 해제되지 않았으면 아무 변화 없이 false. 그 유닛이 이미 다른 슬롯에
+        /// 배치돼 있었다면 그 슬롯에서는 자동으로 해제한다 — 한 병사는 동시에 한 슬롯만 차지할 수
+        /// 있다(같은 병사를 여러 슬롯에 무한정 배치하는 것을 막는다).
         /// </summary>
         public bool TryAssign(int slotIndex, int instanceId)
         {
@@ -70,9 +72,33 @@ namespace Soldier
                 return false;
             }
 
+            if (TryGetSlotOf(instanceId, out int existingSlot) && existingSlot != slotIndex)
+            {
+                _slotToInstanceId.Remove(existingSlot);
+                _events.Publish(new SoldierDeploymentChangedEvent(existingSlot));
+            }
+
             _slotToInstanceId[slotIndex] = instanceId;
             _events.Publish(new SoldierDeploymentChangedEvent(slotIndex));
             return true;
+        }
+
+        /// <summary>
+        /// instanceId 유닛이 현재 배치돼 있는 슬롯을 찾는다(역방향 조회). 배치돼 있지 않으면 false.
+        /// </summary>
+        public bool TryGetSlotOf(int instanceId, out int slotIndex)
+        {
+            foreach (KeyValuePair<int, int> pair in _slotToInstanceId)
+            {
+                if (pair.Value == instanceId)
+                {
+                    slotIndex = pair.Key;
+                    return true;
+                }
+            }
+
+            slotIndex = -1;
+            return false;
         }
 
         /// <summary>

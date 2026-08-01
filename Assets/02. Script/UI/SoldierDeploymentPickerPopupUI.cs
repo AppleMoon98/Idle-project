@@ -33,7 +33,8 @@ namespace UI
         }
 
         /// <summary>
-        /// slotIndex에 배치할 유닛을 고르기 위해 로스터 목록을 채워 팝업을 연다.
+        /// slotIndex에 배치할 유닛을 고르기 위해 로스터 목록을 채워 팝업을 연다. 이미 다른 슬롯에
+        /// 배치돼 있는 유닛은 목록에서 제외한다(같은 병사를 여러 슬롯에 중복 배치할 수 없도록).
         /// </summary>
         public void Open(int slotIndex)
         {
@@ -56,13 +57,20 @@ namespace UI
 
             _spawnedRows.Clear();
 
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SoldierRosterService roster))
+            if (GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out SoldierRosterService roster)
+                || !GameBootstrapper.Services.TryGet(out SoldierDeploymentService deployment))
             {
                 return;
             }
 
             foreach (OwnedSoldier owned in roster.Roster)
             {
+                if (deployment.TryGetSlotOf(owned.InstanceId, out int assignedSlot) && assignedSlot != _openSlotIndex)
+                {
+                    continue;
+                }
+
                 SoldierPickerRowUI row = Instantiate(rowPrefab, rowContainer);
                 row.Initialize($"{owned.Definition.DisplayName} (#{owned.InstanceId})", () => OnPicked(owned.InstanceId));
 
