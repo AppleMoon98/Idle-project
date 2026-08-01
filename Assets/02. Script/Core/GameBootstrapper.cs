@@ -148,6 +148,11 @@ namespace Core
             saveService.RestoreSoldierRoster(save);
             saveService.RestoreSoldierEquipment(save);
 
+            // OfflineProgressService.CalculateAndApply()(Start()에서 제일 먼저 실행됨)보다 반드시
+            // 먼저 랭크를 맞춰둬야 한다 — 그렇지 않으면 아직 시골 소년 상태인 RankService가 오프라인
+            // 진행의 HighestStageClearedEvent를 받아 이미 딴 랭크까지 진짜 승급으로 재계산해버린다.
+            _rankService.SeedRank(save.RankIndex);
+
             var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
             Services.Register(currencyService);

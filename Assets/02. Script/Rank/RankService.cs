@@ -66,6 +66,26 @@ namespace Rank
         }
 
         /// <summary>
+        /// 세이브 데이터로 현재 랭크를 조용히(이벤트 발행 없이) 맞춘다. GameBootstrapper.Awake()에서
+        /// SaveService.Load() 직후, OfflineProgressService.CalculateAndApply()보다 먼저 호출해야 한다 —
+        /// 그렇지 않으면 오프라인 진행이 만든 HighestStageClearedEvent를 아직 시골 소년(생성자 기본값)
+        /// 상태인 RankService가 받아, 이미 예전에 딴 랭크까지 전부 진짜 승급(isRestore:false)으로
+        /// 재계산해버려 Play 모드에 들어갈 때마다 승급 팝업이 다시 뜨는 문제가 있었다.
+        /// </summary>
+        public void SeedRank(int rankIndex)
+        {
+            RankSO rank = _rankCatalog.GetAt(rankIndex);
+
+            if (rank == null)
+            {
+                return;
+            }
+
+            _currentRank = rank;
+            _currentRankIndex = rankIndex;
+        }
+
+        /// <summary>
         /// 세이브 데이터로 현재 랭크를 복원한다. RankChangedEvent를 재발행해 이미 구독 중인
         /// UI/게이트(SoldierSpawner 등)가 시작 시점 상태를 놓치지 않게 한다.
         /// </summary>
