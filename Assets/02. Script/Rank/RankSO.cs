@@ -16,6 +16,9 @@ namespace Rank
         [SerializeField]
         private StageSO requiredStage;
 
+        [SerializeField]
+        private int maxDeployableSoldiers = 2;
+
         /// <summary>
         /// 화면에 표시할 랭크 이름.
         /// </summary>
@@ -25,5 +28,10 @@ namespace Rank
         /// 이 랭크가 되기 위해 클리어해야 하는 스테이지. null이면 조건 없음(시작 랭크).
         /// </summary>
         public StageSO RequiredStage => requiredStage;
+
+        /// <summary>
+        /// 이 랭크에서 동시에 배치할 수 있는 병사 슬롯 수(최대 30). 랭크가 오를수록 늘어난다.
+        /// </summary>
+        public int MaxDeployableSoldiers => maxDeployableSoldiers;
     }
 }

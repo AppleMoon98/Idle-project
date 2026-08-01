@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using Core;
+using Rank;
 using Soldier.Events;
 
 namespace Soldier
@@ -8,7 +9,9 @@ namespace Soldier
     /// <summary>
     /// 배치 슬롯(SoldierSpawnSlot.SlotIndex)마다 로스터의 어떤 유닛이 나가 있는지 기록한다.
     /// EquippedGearService와 같은 성격 — 배정은 로스터에서 유닛을 "빼지" 않고 슬롯이 InstanceId를
-    /// 가리키게만 한다(유닛은 배치 여부와 무관하게 항상 보유 상태를 유지).
+    /// 가리키게만 한다(유닛은 배치 여부와 무관하게 항상 보유 상태를 유지). 슬롯 잠금 해제 수는
+    /// 현재 랭크(RankSO.MaxDeployableSoldiers)를 그대로 따른다 — SoldierSpawner가 이미
+    /// RankService.IsAtLeast()를 직접 참조하는 것과 같은 방향의 의존성이다.
     /// </summary>
     public sealed class SoldierDeploymentService : IManager, IService
     {
@@ -24,12 +27,22 @@ namespace Soldier
 
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
+        private readonly RankService _rankService;
         private readonly Dictionary<int, int> _slotToInstanceId = new();
 
-        public SoldierDeploymentService(EventBus events, SoldierRosterService roster)
+        public SoldierDeploymentService(EventBus events, SoldierRosterService roster, RankService rankService)
         {
             _events = events;
             _roster = roster;
+            _rankService = rankService;
+        }
+
+        /// <summary>
+        /// 현재 랭크에서 동시에 배치할 수 있는 슬롯 수. 랭크 정보가 없으면(설정 누락) 0.
+        /// </summary>
+        public int GetMaxUnlockedSlotCount()
+        {
+            return _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeployableSoldiers : 0;
         }
 
         public void Initialize()
@@ -42,10 +55,16 @@ namespace Soldier
         }
 
         /// <summary>
-        /// instanceId 유닛을 slotIndex에 배정한다. 로스터에 없는 유닛이면 아무 변화 없이 false.
+        /// instanceId 유닛을 slotIndex에 배정한다. 로스터에 없는 유닛이거나, slotIndex가 현재
+        /// 랭크로 아직 잠금 해제되지 않았으면 아무 변화 없이 false.
         /// </summary>
         public bool TryAssign(int slotIndex, int instanceId)
         {
+            if (slotIndex >= GetMaxUnlockedSlotCount())
+            {
+                return false;
+            }
+
             if (!_roster.TryGet(instanceId, out _))
             {
                 return false;

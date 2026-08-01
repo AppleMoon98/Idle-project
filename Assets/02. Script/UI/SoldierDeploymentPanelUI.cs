@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using Core;
+using Rank.Events;
 using Soldier;
 using Soldier.Events;
 using UnityEngine;
@@ -7,15 +8,11 @@ using UnityEngine;
 namespace UI
 {
     /// <summary>
-    /// 고정된 배치 슬롯 수(slotCount)만큼 행을 보여주는 편성 패널. 씬의 SoldierSpawner에 구성된
-    /// 슬롯 수와 반드시 일치해야 한다(슬롯 수 자체는 서비스로 조회할 방법이 없어 수동으로 맞춘다 —
-    /// GameBootstrapper.soldierCount와 같은 성격의 값).
+    /// 현재 랭크로 잠금 해제된 배치 슬롯 수(SoldierDeploymentService.GetMaxUnlockedSlotCount)만큼
+    /// 행을 보여주는 편성 패널. 슬롯 수가 고정값이 아니라 랭크 승급 시 즉시 늘어난다.
     /// </summary>
     public sealed class SoldierDeploymentPanelUI : MonoBehaviour
     {
-        [SerializeField]
-        private int slotCount = 2;
-
         [SerializeField]
         private Transform rowContainer;
 
@@ -31,6 +28,7 @@ namespace UI
         {
             GameBootstrapper.Events?.Subscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
             GameBootstrapper.Events?.Subscribe<SoldierRosterChangedEvent>(OnRosterChanged);
+            GameBootstrapper.Events?.Subscribe<RankChangedEvent>(OnRankChanged);
             Refresh();
         }
 
@@ -38,6 +36,7 @@ namespace UI
         {
             GameBootstrapper.Events?.Unsubscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
             GameBootstrapper.Events?.Unsubscribe<SoldierRosterChangedEvent>(OnRosterChanged);
+            GameBootstrapper.Events?.Unsubscribe<RankChangedEvent>(OnRankChanged);
         }
 
         private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
@@ -46,6 +45,11 @@ namespace UI
         }
 
         private void OnRosterChanged(SoldierRosterChangedEvent evt)
+        {
+            Refresh();
+        }
+
+        private void OnRankChanged(RankChangedEvent evt)
         {
             Refresh();
         }
@@ -63,6 +67,8 @@ namespace UI
             {
                 return;
             }
+
+            int slotCount = deployment.GetMaxUnlockedSlotCount();
 
             for (int slotIndex = 0; slotIndex < slotCount; slotIndex++)
             {

@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rank.RankSO
   displayName: "\uBCD1\uC0AC"
   requiredStage: {fileID: 11400000, guid: b5f684f4e791e4b4db48a8f5829d0263, type: 2}
+  maxDeployableSoldiers: 6

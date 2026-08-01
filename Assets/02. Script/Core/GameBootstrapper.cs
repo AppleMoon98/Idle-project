@@ -106,11 +106,16 @@ namespace Core
             equippedGearService.Initialize();
             Services.Register(equippedGearService);
 
+            // SoldierDeploymentService가 슬롯 잠금 해제 수를 물어봐야 해서 RankService를 먼저 만든다.
+            _rankService = new RankService(Events, stageCatalog, rankCatalog);
+            _rankService.Initialize();
+            Services.Register(_rankService);
+
             var soldierRosterService = new SoldierRosterService(Events);
             soldierRosterService.Initialize();
             Services.Register(soldierRosterService);
 
-            var soldierDeploymentService = new SoldierDeploymentService(Events, soldierRosterService);
+            var soldierDeploymentService = new SoldierDeploymentService(Events, soldierRosterService, _rankService);
             soldierDeploymentService.Initialize();
             Services.Register(soldierDeploymentService);
 
@@ -171,10 +176,6 @@ namespace Core
                 equipmentStatConfig);
             _equipmentStatService.Initialize();
             Services.Register(_equipmentStatService);
-
-            _rankService = new RankService(Events, stageCatalog, rankCatalog);
-            _rankService.Initialize();
-            Services.Register(_rankService);
 
             var soldierTicketService = new SoldierTicketService(Events, save.SoldierTicketCount);
             soldierTicketService.Initialize();
