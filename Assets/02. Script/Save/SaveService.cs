@@ -7,6 +7,7 @@ using Equipment.Events;
 using Inventory;
 using Inventory.Events;
 using Loot.Events;
+using Rank.Events;
 using Stage.Events;
 using UnityEngine;
 
@@ -38,6 +39,7 @@ namespace Save
         private const string AttackPowerLevelKey = "Save.AttackPowerLevel";
         private const string MaxHealthLevelKey = "Save.MaxHealthLevel";
         private const string InventoryJsonKey = "Save.InventoryJson";
+        private const string RankIndexKey = "Save.RankIndex";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -53,6 +55,7 @@ namespace Save
         private int _attackPowerLevel;
         private int _maxHealthLevel;
         private string _inventoryJson = "";
+        private int _rankIndex;
 
         public SaveService(EventBus events, InventoryService inventory, EquippedGearService equippedGear, EquipmentCatalogSO equipmentCatalog)
         {
@@ -77,6 +80,7 @@ namespace Save
             _attackPowerLevel = save.AttackPowerLevel;
             _maxHealthLevel = save.MaxHealthLevel;
             _inventoryJson = save.InventoryJson;
+            _rankIndex = save.RankIndex;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -85,6 +89,7 @@ namespace Save
             _events.Subscribe<StatEnhancedEvent>(OnStatEnhanced);
             _events.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
             _events.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+            _events.Subscribe<RankChangedEvent>(OnRankChanged);
         }
 
         public void Shutdown()
@@ -96,6 +101,7 @@ namespace Save
             _events.Unsubscribe<StatEnhancedEvent>(OnStatEnhanced);
             _events.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
             _events.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+            _events.Unsubscribe<RankChangedEvent>(OnRankChanged);
         }
 
         /// <summary>
@@ -113,8 +119,9 @@ namespace Save
             int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
             int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
             string inventoryJson = PlayerPrefs.GetString(InventoryJsonKey, "");
+            int rankIndex = PlayerPrefs.GetInt(RankIndexKey, 0);
 
-            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime, attackPowerLevel, maxHealthLevel, inventoryJson);
+            return new SaveData(gold, enhancementStones, chapter, stageNumber, highestClearedChapter, highestClearedStageNumber, lastActiveUnixTime, attackPowerLevel, maxHealthLevel, inventoryJson, rankIndex);
         }
 
         /// <summary>
@@ -132,6 +139,7 @@ namespace Save
             PlayerPrefs.SetInt(AttackPowerLevelKey, _attackPowerLevel);
             PlayerPrefs.SetInt(MaxHealthLevelKey, _maxHealthLevel);
             PlayerPrefs.SetString(InventoryJsonKey, _inventoryJson);
+            PlayerPrefs.SetInt(RankIndexKey, _rankIndex);
             PlayerPrefs.Save();
         }
 
@@ -207,6 +215,12 @@ namespace Save
         private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
         {
             RebuildInventorySnapshot();
+            Save();
+        }
+
+        private void OnRankChanged(RankChangedEvent evt)
+        {
+            _rankIndex = evt.NewRankIndex;
             Save();
         }
 

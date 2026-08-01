@@ -6,6 +6,7 @@ using Inventory;
 using Loot;
 using Managers;
 using Offline;
+using Rank;
 using Save;
 using Soldier;
 using Stage;
@@ -60,10 +61,14 @@ namespace Core
         [SerializeField]
         private EquipmentStatConfigSO equipmentStatConfig;
 
+        [SerializeField]
+        private RankCatalogSO rankCatalog;
+
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
         private EquipmentStatService _equipmentStatService;
+        private RankService _rankService;
         private SaveData _initialSave;
 
         private void Awake()
@@ -123,6 +128,10 @@ namespace Core
             _equipmentStatService.Initialize();
             Services.Register(_equipmentStatService);
 
+            _rankService = new RankService(Events, stageCatalog, rankCatalog);
+            _rankService.Initialize();
+            Services.Register(_rankService);
+
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);
@@ -153,6 +162,9 @@ namespace Core
             // RestoreInventory()는 세이브 시딩일 뿐 이벤트를 발행하지 않으므로, 복원된 장착 상태를
             // EquipmentStatReceiver가 놓치지 않도록 여기서 한 번 직접 재계산/발행한다.
             _equipmentStatService?.RecomputeAndPublish();
+
+            _rankService?.RestoreLevel(_initialSave.RankIndex);
+            _rankService?.CatchUpFromHighestStage(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
 
             _offlineProgressService?.CalculateAndApply();
         }
@@ -221,6 +233,11 @@ namespace Core
             if (Services != null && Services.TryGet(out EquipmentStatService equipmentStatService))
             {
                 equipmentStatService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out RankService rankService))
+            {
+                rankService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))

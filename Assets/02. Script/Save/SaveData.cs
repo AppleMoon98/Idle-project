@@ -57,6 +57,11 @@ namespace Save
         /// </summary>
         public string InventoryJson { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 랭크의 RankCatalogSO 상 인덱스. 기록이 없으면 0(시작 랭크).
+        /// </summary>
+        public int RankIndex { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -67,7 +72,8 @@ namespace Save
             long lastActiveUnixTime,
             int attackPowerLevel,
             int maxHealthLevel,
-            string inventoryJson)
+            string inventoryJson,
+            int rankIndex)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -79,6 +85,7 @@ namespace Save
             AttackPowerLevel = attackPowerLevel;
             MaxHealthLevel = maxHealthLevel;
             InventoryJson = inventoryJson;
+            RankIndex = rankIndex;
         }
     }
 }
