@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Core;
 using Gacha.Events;
 using Soldier;
@@ -40,11 +41,34 @@ namespace Gacha
         }
 
         /// <summary>
-        /// tierIndex 티어로 가챠 1회를 시도한다. 확률 테이블에서 먼저 결과를 굴려본 뒤(콘텐츠
-        /// 미비로 뽑을 병사가 없으면 소환권을 소모하지 않고 false), 소환권 소비에 성공한 경우에만
-        /// 실제로 로스터에 추가하고 SoldierPulledEvent를 발행한다.
+        /// tierIndex 티어로 가챠를 최대 count회 시도한다. 소환권이 모자라거나 확률 테이블에
+        /// 콘텐츠가 없어 중간에 실패하면 그 시점까지 성공한 결과만 반환한다(부분 성공 허용 —
+        /// "300개 뽑기"를 눌렀는데 소환권이 50개분밖에 없으면 50개만 뽑힌다). 1개 이상 성공하면
+        /// SoldierPulledEvent를 한 번만 발행한다(1개 뽑기도 원소 1개짜리 목록으로 동일하게 처리).
         /// </summary>
-        public bool TryPull(int tierIndex, out OwnedSoldier result)
+        public IReadOnlyList<OwnedSoldier> Pull(int tierIndex, int count)
+        {
+            var results = new List<OwnedSoldier>();
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!TryPullOne(tierIndex, out OwnedSoldier result))
+                {
+                    break;
+                }
+
+                results.Add(result);
+            }
+
+            if (results.Count > 0)
+            {
+                _events.Publish(new SoldierPulledEvent(results));
+            }
+
+            return results;
+        }
+
+        private bool TryPullOne(int tierIndex, out OwnedSoldier result)
         {
             result = null;
 
@@ -67,7 +91,6 @@ namespace Gacha
             }
 
             result = _roster.AddSoldier(picked);
-            _events.Publish(new SoldierPulledEvent(result));
             return true;
         }
     }

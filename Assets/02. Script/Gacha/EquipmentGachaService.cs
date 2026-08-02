@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Core;
 using Equipment;
 using Gacha.Events;
@@ -39,11 +40,35 @@ namespace Gacha
         }
 
         /// <summary>
-        /// tierIndex 티어로 가챠 1회를 시도한다. 확률 테이블에서 먼저 결과를 굴려본 뒤(콘텐츠
-        /// 미비로 뽑을 장비가 없으면 골드를 소모하지 않고 false), 골드 소비에 성공한 경우에만
-        /// ItemDroppedEvent(인벤토리 지급)와 EquipmentPulledEvent(결과 알림)를 발행한다.
+        /// tierIndex 티어로 가챠를 최대 count회 시도한다. 골드가 모자라거나 확률 테이블에 콘텐츠가
+        /// 없어 중간에 실패하면 그 시점까지 성공한 결과만 반환한다(부분 성공 허용). 성공한 개별
+        /// 아이템은 뽑히는 즉시 ItemDroppedEvent로 인벤토리에 지급되고, 1개 이상 성공하면
+        /// EquipmentPulledEvent를 한 번만 발행한다(1개 뽑기도 원소 1개짜리 목록으로 동일하게 처리).
         /// </summary>
-        public bool TryPull(int tierIndex, out EquipmentSO result)
+        public IReadOnlyList<EquipmentSO> Pull(int tierIndex, int count)
+        {
+            var results = new List<EquipmentSO>();
+
+            for (int i = 0; i < count; i++)
+            {
+                if (!TryPullOne(tierIndex, out EquipmentSO picked))
+                {
+                    break;
+                }
+
+                results.Add(picked);
+                _events.Publish(new ItemDroppedEvent(picked));
+            }
+
+            if (results.Count > 0)
+            {
+                _events.Publish(new EquipmentPulledEvent(results));
+            }
+
+            return results;
+        }
+
+        private bool TryPullOne(int tierIndex, out EquipmentSO result)
         {
             result = null;
 
@@ -66,8 +91,6 @@ namespace Gacha
             }
 
             result = picked;
-            _events.Publish(new ItemDroppedEvent(picked));
-            _events.Publish(new EquipmentPulledEvent(picked));
             return true;
         }
     }
