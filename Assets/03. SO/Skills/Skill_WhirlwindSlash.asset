@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
+  m_Name: Skill_WhirlwindSlash
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  displayName: "\uD68C\uC624\uB9AC\uBCA0\uAE30"
+  cooldown: 8
+  maxLevel: 20
+  goldCostBase: 100
+  goldCostIncreasePerLevel: 50
+  stoneCostBase: 5
+  stoneCostIncreasePerLevel: 2
+  effectValueBase: 15
+  effectValuePerLevel: 3

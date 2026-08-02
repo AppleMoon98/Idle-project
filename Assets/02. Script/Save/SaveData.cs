@@ -99,6 +99,12 @@ namespace Save
         /// </summary>
         public string SoldierEquipmentJson { get; }
 
+        /// <summary>
+        /// 스킬별 레벨을 직렬화한 JSON. InventoryJson과 같은 이유로 통째로 문자열 하나로 저장한다
+        /// (SaveService.RestoreSkills가 파싱/복원한다). 기록이 없으면 빈 문자열.
+        /// </summary>
+        public string SkillLevelsJson { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -117,7 +123,8 @@ namespace Save
             int rankIndex,
             int soldierTicketCount,
             string soldierRosterJson,
-            string soldierEquipmentJson)
+            string soldierEquipmentJson,
+            string skillLevelsJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -137,6 +144,7 @@ namespace Save
             SoldierTicketCount = soldierTicketCount;
             SoldierRosterJson = soldierRosterJson;
             SoldierEquipmentJson = soldierEquipmentJson;
+            SkillLevelsJson = skillLevelsJson;
         }
     }
 }

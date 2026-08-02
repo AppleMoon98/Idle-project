@@ -10,6 +10,8 @@ using Inventory;
 using Inventory.Events;
 using Loot.Events;
 using Rank.Events;
+using Skill;
+using Skill.Events;
 using Soldier;
 using Soldier.Events;
 using SoldierEquipment;
@@ -53,6 +55,12 @@ namespace Save
             public SoldierEquippedGearService.EquippedSnapshotEntry[] Equipped;
         }
 
+        [Serializable]
+        private class SkillSaveBlob
+        {
+            public SkillService.SkillLevelSnapshot[] Levels;
+        }
+
         private const string GoldKey = "Save.Gold";
         private const string EnhancementStonesKey = "Save.EnhancementStones";
         private const string ChapterKey = "Save.Chapter";
@@ -71,6 +79,7 @@ namespace Save
         private const string SoldierTicketCountKey = "Save.SoldierTicketCount";
         private const string SoldierRosterJsonKey = "Save.SoldierRosterJson";
         private const string SoldierEquipmentJsonKey = "Save.SoldierEquipmentJson";
+        private const string SkillLevelsJsonKey = "Save.SkillLevelsJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -83,6 +92,8 @@ namespace Save
         private readonly SoldierEquipmentInventoryService _soldierEquipmentInventory;
         private readonly SoldierEquippedGearService _soldierEquippedGear;
         private readonly SoldierEquipmentCatalogSO _soldierEquipmentCatalog;
+        private readonly SkillService _skill;
+        private readonly SkillCatalogSO _skillCatalog;
 
         private int _gold;
         private int _enhancementStones;
@@ -101,6 +112,7 @@ namespace Save
         private int _soldierTicketCount;
         private string _soldierRosterJson = "";
         private string _soldierEquipmentJson = "";
+        private string _skillLevelsJson = "";
 
         public SaveService(
             EventBus events,
@@ -113,7 +125,9 @@ namespace Save
             BehaviorProfileCatalogSO behaviorProfileCatalog,
             SoldierEquipmentInventoryService soldierEquipmentInventory,
             SoldierEquippedGearService soldierEquippedGear,
-            SoldierEquipmentCatalogSO soldierEquipmentCatalog)
+            SoldierEquipmentCatalogSO soldierEquipmentCatalog,
+            SkillService skill,
+            SkillCatalogSO skillCatalog)
         {
             _events = events;
             _inventory = inventory;
@@ -126,6 +140,8 @@ namespace Save
             _soldierEquipmentInventory = soldierEquipmentInventory;
             _soldierEquippedGear = soldierEquippedGear;
             _soldierEquipmentCatalog = soldierEquipmentCatalog;
+            _skill = skill;
+            _skillCatalog = skillCatalog;
         }
 
         public void Initialize()
@@ -151,6 +167,7 @@ namespace Save
             _soldierTicketCount = save.SoldierTicketCount;
             _soldierRosterJson = save.SoldierRosterJson;
             _soldierEquipmentJson = save.SoldierEquipmentJson;
+            _skillLevelsJson = save.SkillLevelsJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -166,6 +183,7 @@ namespace Save
             _events.Subscribe<SoldierBehaviorProfileChangedEvent>(OnSoldierBehaviorProfileChanged);
             _events.Subscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Subscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
+            _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
         }
 
         public void Shutdown()
@@ -184,6 +202,7 @@ namespace Save
             _events.Unsubscribe<SoldierBehaviorProfileChangedEvent>(OnSoldierBehaviorProfileChanged);
             _events.Unsubscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Unsubscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
+            _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
         }
 
         /// <summary>
@@ -209,6 +228,7 @@ namespace Save
             int soldierTicketCount = PlayerPrefs.GetInt(SoldierTicketCountKey, 0);
             string soldierRosterJson = PlayerPrefs.GetString(SoldierRosterJsonKey, "");
             string soldierEquipmentJson = PlayerPrefs.GetString(SoldierEquipmentJsonKey, "");
+            string skillLevelsJson = PlayerPrefs.GetString(SkillLevelsJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -228,7 +248,8 @@ namespace Save
                 rankIndex,
                 soldierTicketCount,
                 soldierRosterJson,
-                soldierEquipmentJson);
+                soldierEquipmentJson,
+                skillLevelsJson);
         }
 
         /// <summary>
@@ -254,6 +275,7 @@ namespace Save
             PlayerPrefs.SetInt(SoldierTicketCountKey, _soldierTicketCount);
             PlayerPrefs.SetString(SoldierRosterJsonKey, _soldierRosterJson);
             PlayerPrefs.SetString(SoldierEquipmentJsonKey, _soldierEquipmentJson);
+            PlayerPrefs.SetString(SkillLevelsJsonKey, _skillLevelsJson);
             PlayerPrefs.Save();
         }
 
@@ -322,6 +344,27 @@ namespace Save
 
             _soldierEquipmentInventory.RestoreSnapshot(blob.Owned, _soldierEquipmentCatalog);
             _soldierEquippedGear.RestoreSnapshot(blob.Equipped, _soldierEquipmentCatalog, _soldierEquipmentInventory);
+        }
+
+        /// <summary>
+        /// save.SkillLevelsJson으로 스킬별 레벨을 복원한다. GameBootstrapper.Awake()에서
+        /// SkillService 생성 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreSkills(SaveData save)
+        {
+            if (string.IsNullOrEmpty(save.SkillLevelsJson))
+            {
+                return;
+            }
+
+            SkillSaveBlob blob = JsonUtility.FromJson<SkillSaveBlob>(save.SkillLevelsJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _skill.RestoreSnapshot(blob.Levels, _skillCatalog);
         }
 
         private void OnGoldChanged(GoldChangedEvent evt)
@@ -429,6 +472,25 @@ namespace Save
         {
             RebuildSoldierEquipmentSnapshot();
             Save();
+        }
+
+        private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
+        {
+            RebuildSkillSnapshot();
+            Save();
+        }
+
+        /// <summary>
+        /// SkillService의 현재 상태 전체를 JSON으로 다시 직렬화한다. RebuildInventorySnapshot과 같은 이유.
+        /// </summary>
+        private void RebuildSkillSnapshot()
+        {
+            var blob = new SkillSaveBlob
+            {
+                Levels = _skill.ExportSnapshot(_skillCatalog)
+            };
+
+            _skillLevelsJson = JsonUtility.ToJson(blob);
         }
 
         /// <summary>

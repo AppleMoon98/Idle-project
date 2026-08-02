@@ -10,6 +10,7 @@ using Managers;
 using Offline;
 using Rank;
 using Save;
+using Skill;
 using Soldier;
 using SoldierEquipment;
 using Stage;
@@ -85,6 +86,9 @@ namespace Core
         [SerializeField]
         private BehaviorProfileCatalogSO behaviorProfileCatalog;
 
+        [SerializeField]
+        private SkillCatalogSO skillCatalog;
+
         private LootDropper _lootDropper;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
@@ -133,6 +137,10 @@ namespace Core
             soldierEquippedGearService.Initialize();
             Services.Register(soldierEquippedGearService);
 
+            var skillService = new SkillService(Events);
+            skillService.Initialize();
+            Services.Register(skillService);
+
             var saveService = new SaveService(
                 Events,
                 inventoryService,
@@ -144,7 +152,9 @@ namespace Core
                 behaviorProfileCatalog,
                 soldierEquipmentInventoryService,
                 soldierEquippedGearService,
-                soldierEquipmentCatalog);
+                soldierEquipmentCatalog,
+                skillService,
+                skillCatalog);
             saveService.Initialize();
             Services.Register(saveService);
 
@@ -153,6 +163,7 @@ namespace Core
             saveService.RestoreInventory(save);
             saveService.RestoreSoldierRoster(save);
             saveService.RestoreSoldierEquipment(save);
+            saveService.RestoreSkills(save);
 
             // OfflineProgressService.CalculateAndApply()(Start()에서 제일 먼저 실행됨)보다 반드시
             // 먼저 랭크를 맞춰둬야 한다 — 그렇지 않으면 아직 시골 소년 상태인 RankService가 오프라인
@@ -361,6 +372,11 @@ namespace Core
             if (Services != null && Services.TryGet(out PlayerControlModeService playerControlModeService))
             {
                 playerControlModeService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SkillService skillService))
+            {
+                skillService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SaveService saveService))
