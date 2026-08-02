@@ -4,6 +4,7 @@ using Core;
 using Stage;
 using Stage.Events;
 using UnityEngine;
+using War.Events;
 using War.Objectives;
 
 namespace War
@@ -42,6 +43,12 @@ namespace War
         [SerializeField]
         private int climaxStageNumber = 40;
 
+        /// <summary>
+        /// 클라이맥스 진입 후 실제 목표 판정을 시작하기까지의 워밍업(경고 카운트다운) 시간.
+        /// </summary>
+        [SerializeField]
+        private float climaxWarmupDuration = 3f;
+
         [SerializeField]
         private ChapterObjectiveEntry[] chapterObjectives;
 
@@ -71,6 +78,9 @@ namespace War
         private int _currentChapter;
         private int _currentStageNumber;
         private bool _isActive;
+        private float _lastPublishedProgress;
+        private bool _isWarmingUp;
+        private float _warmupRemaining;
 
         private void OnEnable()
         {
@@ -98,6 +108,7 @@ namespace War
             _currentStageNumber = evt.StageNumber;
 
             DeactivateAll();
+            _isWarmingUp = false;
 
             bool isClimax = evt.StageNumber == climaxStageNumber;
 
@@ -109,16 +120,38 @@ namespace War
             if (!isClimax)
             {
                 _isActive = false;
+                GameBootstrapper.Events?.Publish(new WarClimaxStateChangedEvent(false, _activeType, evt.Chapter));
                 return;
             }
 
+            // 목표는 즉시 활성화하지 않고, climaxWarmupDuration만큼 경고 카운트다운을 먼저 보여준다.
+            // 실제 활성화(ActivateObjective)는 Tick()에서 워밍업이 끝났을 때 수행한다.
             _activeType = ResolveObjectiveType(evt.Chapter);
-            _activeObjective = ActivateObjective(_activeType);
-            _isActive = _activeObjective != null;
+            _isActive = false;
+            _isWarmingUp = true;
+            _warmupRemaining = climaxWarmupDuration;
+            GameBootstrapper.Events?.Publish(new WarClimaxWarmupStartedEvent(_activeType, evt.Chapter, climaxWarmupDuration));
         }
 
         void ITickable.Tick(float deltaTime)
         {
+            if (_isWarmingUp)
+            {
+                _warmupRemaining -= deltaTime;
+
+                if (_warmupRemaining > 0f)
+                {
+                    return;
+                }
+
+                _isWarmingUp = false;
+                _activeObjective = ActivateObjective(_activeType);
+                _isActive = _activeObjective != null;
+                _lastPublishedProgress = -1f;
+                GameBootstrapper.Events?.Publish(new WarClimaxStateChangedEvent(true, _activeType, _currentChapter));
+                return;
+            }
+
             if (!_isActive || _activeObjective == null)
             {
                 return;
@@ -129,6 +162,14 @@ namespace War
                 _isActive = false;
                 playerHealth.TakeDamage(LethalDamageAmount);
                 return;
+            }
+
+            float progress = _activeObjective.Progress01;
+
+            if (!Mathf.Approximately(progress, _lastPublishedProgress))
+            {
+                _lastPublishedProgress = progress;
+                GameBootstrapper.Events?.Publish(new WarObjectiveProgressChangedEvent(progress));
             }
 
             // Annihilation은 StageProgressTracker의 자연스러운 클리어를 그대로 두고,

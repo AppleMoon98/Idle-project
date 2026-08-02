@@ -18,6 +18,11 @@ namespace War
         bool HasFailed { get; }
 
         /// <summary>
+        /// 목표 진행도(0~1). 연속적 진행도가 없는 목표(전멸/보스 처치)는 완료 여부를 그대로 반환한다.
+        /// </summary>
+        float Progress01 { get; }
+
+        /// <summary>
         /// 새로운 시도를 위해 내부 진행 상태를 초기화한다. WarBattleController가 목표를
         /// 활성화하기 직전에 호출한다.
         /// </summary>

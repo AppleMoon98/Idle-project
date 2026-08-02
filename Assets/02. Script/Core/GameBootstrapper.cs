@@ -204,6 +204,10 @@ namespace Core
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);
 
+            var playerControlModeService = new PlayerControlModeService(Events);
+            playerControlModeService.Initialize();
+            Services.Register(playerControlModeService);
+
             _offlineProgressService = new OfflineProgressService(
                 Events,
                 saveService,
@@ -352,6 +356,11 @@ namespace Core
             if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))
             {
                 soldierTargetRegistry.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out PlayerControlModeService playerControlModeService))
+            {
+                playerControlModeService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SaveService saveService))

@@ -23,6 +23,8 @@ namespace War.Objectives
 
         public bool HasFailed { get; private set; }
 
+        public float Progress01 => protectDuration <= 0f ? 1f : Mathf.Clamp01(_elapsed / protectDuration);
+
         private void OnEnable()
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))

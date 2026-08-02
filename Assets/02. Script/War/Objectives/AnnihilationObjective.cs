@@ -15,6 +15,8 @@ namespace War.Objectives
 
         public bool HasFailed => false;
 
+        public float Progress01 => IsCompleted ? 1f : 0f;
+
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<StageClearedEvent>(OnStageCleared);
