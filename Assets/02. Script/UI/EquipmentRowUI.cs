@@ -23,7 +23,10 @@ namespace UI
         private Button nameButton;
 
         [SerializeField]
-        private Button rowButton;
+        private Button equipButton;
+
+        [SerializeField]
+        private Text equipButtonLabel;
 
         [SerializeField]
         private Button fuseButton;
@@ -50,7 +53,7 @@ namespace UI
         }
 
         /// <summary>
-        /// 행 데이터를 채운다. onEquipped는 장착(행 클릭) 성공 후 팝업을 닫는 등
+        /// 행 데이터를 채운다. onEquipped는 장착 버튼 클릭 성공 후 팝업을 닫는 등
         /// 호출자가 처리할 후속 동작을 위한 콜백이다(없으면 null). onDetailRequested는 이름 라벨을
         /// 탭했을 때(장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
         /// </summary>
@@ -62,7 +65,10 @@ namespace UI
             string equippedTag = isEquipped ? "✓ " : "";
             label.text = $"{equippedTag}{owned.Definition.ItemName} x{owned.Count} (강화 {owned.EnhancementLevel})";
 
-            rowButton.onClick.AddListener(() =>
+            equipButton.interactable = !isEquipped;
+            equipButtonLabel.text = isEquipped ? "장착됨" : "장착";
+
+            equipButton.onClick.AddListener(() =>
             {
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear))
                 {
