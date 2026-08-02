@@ -7,9 +7,12 @@ namespace Combat
     /// <summary>
     /// 몬스터의 이동 대상을 주기적으로 재평가한다. allyLayerMask(플레이어+병사) 안에서
     /// 살아있는 최근접 대상을 찾아 그리로 이동한다. 탐지 범위 안에 아무도 없으면 플레이어를
-    /// 기본값으로 삼는다(항상 갈 곳이 있도록).
+    /// 기본값으로 삼는다(항상 갈 곳이 있도록). EnemyTracker(플레이어/병사 쪽)와 동일하게
+    /// StoppingDistance를 Stats.AttackRange로 설정해, 타겟 위치에 완전히 겹치지 않고
+    /// 사거리 안에서 멈추게 한다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
+    [RequireComponent(typeof(CharacterStatsProvider))]
     [RequireComponent(typeof(Health))]
     public sealed class MonsterTargetSelector : MonoBehaviour, ITickable
     {
@@ -23,6 +26,7 @@ namespace Combat
         private LayerMask allyLayerMask;
 
         private CharacterMover _mover;
+        private CharacterStatsProvider _statsProvider;
         private float _elapsed;
 
         /// <summary>
@@ -33,6 +37,7 @@ namespace Combat
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
+            _statsProvider = GetComponent<CharacterStatsProvider>();
         }
 
         private void OnEnable()
@@ -76,6 +81,7 @@ namespace Combat
         private void Retarget()
         {
             _mover.Target = ChooseTarget();
+            _mover.StoppingDistance = _statsProvider.Stats.AttackRange;
         }
 
         private Transform ChooseTarget()

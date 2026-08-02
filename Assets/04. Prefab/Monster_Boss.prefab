@@ -15,12 +15,13 @@ GameObject:
   - component: {fileID: 7887995244585915658}
   - component: {fileID: 1005590566792382908}
   - component: {fileID: 4093541132885541934}
-  - component: {fileID: 7120315005227252746}
   - component: {fileID: 8990497455680450088}
   - component: {fileID: 8088863497483063283}
   - component: {fileID: 1474452836388337801}
   - component: {fileID: 54522853668950333}
   - component: {fileID: 9045674415394669501}
+  - component: {fileID: 7736985882160912777}
+  - component: {fileID: 91045284777858891}
   m_Layer: 9
   m_Name: Monster_Boss
   m_TagString: Untagged
@@ -203,18 +204,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6340b297ab5cdd74eb696732b8054510, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterMover
---- !u!114 &7120315005227252746
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3104091886448902630}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2f12305e4a75d2344825e04877d60271, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Combat.ContactAttacker
 --- !u!114 &8990497455680450088
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -281,6 +270,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5c629067dd3bc7642a3ad06a1e722f03, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.BossMarker
+--- !u!114 &7736985882160912777
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 559d3f5388ec9d7468bc6ebf25e6daf4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.Attacker
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+--- !u!114 &91045284777858891
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
+  weaponSwing: {fileID: 0}
 --- !u!1001 &5221313293063939603
 PrefabInstance:
   m_ObjectHideFlags: 0
