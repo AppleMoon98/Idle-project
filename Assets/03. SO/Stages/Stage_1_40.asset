@@ -16,12 +16,12 @@ MonoBehaviour:
   stageNumber: 40
   spawnEntries:
   - monsterPrefab: {fileID: 3104091886448902630, guid: 7da6041b108869f4882e0f8ae520fa1a, type: 3}
-    count: 30
+    count: 60
     spawnInterval: 0.5
   - monsterPrefab: {fileID: 3104091886448902630, guid: a45eb0f8382bc974bb246c8a4fede3af, type: 3}
-    count: 20
+    count: 40
     spawnInterval: 0.8
   - monsterPrefab: {fileID: 3104091886448902630, guid: ae63bae23b562ce43b805a722d0c75aa, type: 3}
-    count: 1
+    count: 2
     spawnInterval: 2
   equipmentDrops: []
