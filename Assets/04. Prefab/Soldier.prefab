@@ -158,6 +158,7 @@ GameObject:
   - component: {fileID: 4326676530601407989}
   - component: {fileID: 7306136032651036584}
   - component: {fileID: 4203055195105543112}
+  - component: {fileID: 1573488353680083426}
   m_Layer: 8
   m_Name: Soldier
   m_TagString: Untagged
@@ -403,6 +404,22 @@ MonoBehaviour:
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.15
+--- !u!114 &1573488353680083426
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bc955889b058a2e4da4054ff6508f384, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.RallyMoveReceiver
+  componentsToSuspend:
+  - {fileID: 4203055195105543112}
+  - {fileID: 7803980873243631336}
+  arrivalDistance: 0.1
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0
