@@ -126,7 +126,7 @@ namespace Core
             soldierEquipmentInventoryService.Initialize();
             Services.Register(soldierEquipmentInventoryService);
 
-            var soldierEquippedGearService = new SoldierEquippedGearService(Events);
+            var soldierEquippedGearService = new SoldierEquippedGearService(Events, soldierEquipmentInventoryService);
             soldierEquippedGearService.Initialize();
             Services.Register(soldierEquippedGearService);
 

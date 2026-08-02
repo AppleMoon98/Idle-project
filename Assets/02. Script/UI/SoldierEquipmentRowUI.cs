@@ -19,20 +19,24 @@ namespace UI
         private Button equipButton;
 
         [SerializeField]
+        private Button unequipButton;
+
+        [SerializeField]
         private Button debugGrantButton;
 
         /// <summary>
         /// 행 데이터를 채운다. instanceId는 지금 장비 팝업이 열려 있는 병사 유닛이다. 장착/지급은
         /// SoldierEquippedGearService/SoldierEquipmentInventoryService의 이벤트를 SoldierEquipmentPopupUI가
         /// 이미 구독하고 있으므로, 여기서는 서비스만 호출하고 새로고침은 그 구독에 맡긴다
-        /// (EquipmentRowUI의 합성/강화 버튼과 동일한 방식).
+        /// (EquipmentRowUI의 합성/강화 버튼과 동일한 방식). 장착은 재고를 1개 소모하므로
+        /// ownedCount는 이미 다른 병사가 착용 중인 수량은 제외한 "남은 여유분"이다.
         /// </summary>
         public void Initialize(SoldierEquipmentSO definition, int ownedCount, bool isEquipped, int instanceId)
         {
             string equippedTag = isEquipped ? "✓ " : "";
             label.text = $"{equippedTag}{definition.ItemName} x{ownedCount}";
 
-            equipButton.interactable = ownedCount > 0;
+            equipButton.interactable = !isEquipped && ownedCount > 0;
             equipButton.onClick.AddListener(() =>
             {
                 if (GameBootstrapper.Services != null
@@ -41,6 +45,15 @@ namespace UI
                     && inventory.TryGet(definition, out OwnedSoldierEquipment owned))
                 {
                     equippedGear.Equip(instanceId, owned);
+                }
+            });
+
+            unequipButton.interactable = isEquipped;
+            unequipButton.onClick.AddListener(() =>
+            {
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierEquippedGearService equippedGear))
+                {
+                    equippedGear.Unequip(instanceId, definition.SlotType);
                 }
             });
 
