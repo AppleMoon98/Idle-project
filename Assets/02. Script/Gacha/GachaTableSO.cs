@@ -9,10 +9,18 @@ namespace Gacha
     public sealed class GachaTableSO : ScriptableObject
     {
         [SerializeField]
+        private string displayName;
+
+        [SerializeField]
         private GachaPoolEntry[] entries;
 
         [SerializeField]
         private int ticketCostPerPull;
+
+        /// <summary>
+        /// 이 티어의 표시 이름(가챠 팝업 하위 탭 라벨용, 예: "일반 뽑기").
+        /// </summary>
+        public string DisplayName => displayName;
 
         /// <summary>
         /// 이 테이블의 확률 항목 목록.

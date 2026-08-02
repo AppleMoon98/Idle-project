@@ -71,7 +71,10 @@ namespace Core
         private SoldierCatalogSO soldierCatalog;
 
         [SerializeField]
-        private GachaTableSO gachaTable;
+        private GachaTableSO[] soldierGachaTiers;
+
+        [SerializeField]
+        private EquipmentGachaTableSO[] equipmentGachaTiers;
 
         [SerializeField]
         private SoldierEquipmentCatalogSO soldierEquipmentCatalog;
@@ -186,9 +189,13 @@ namespace Core
             soldierTicketService.Initialize();
             Services.Register(soldierTicketService);
 
-            var gachaService = new GachaService(Events, soldierTicketService, soldierRosterService, gachaTable);
+            var gachaService = new GachaService(Events, soldierTicketService, soldierRosterService, soldierGachaTiers);
             gachaService.Initialize();
             Services.Register(gachaService);
+
+            var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaTiers);
+            equipmentGachaService.Initialize();
+            Services.Register(equipmentGachaService);
 
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
@@ -307,6 +314,11 @@ namespace Core
             if (Services != null && Services.TryGet(out GachaService gachaService))
             {
                 gachaService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out EquipmentGachaService equipmentGachaService))
+            {
+                equipmentGachaService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SoldierRosterService soldierRosterService))

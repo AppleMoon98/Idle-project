@@ -14,3 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "\uC6D0\uAC70\uB9AC \uBCD1\uC0AC"
   prefab: {fileID: 9114245855020254752, guid: 1ed8bb48a0b599a42942d4c08c2aa3b4, type: 3}
+  icon: {fileID: 21300000, guid: 644f51c82657259449c3fe79ebe8c577, type: 3}

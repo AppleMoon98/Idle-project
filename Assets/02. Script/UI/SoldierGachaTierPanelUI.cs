@@ -7,11 +7,17 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 보유 병사 소환권을 표시하고, 뽑기/디버그 지급 버튼을 제공한다. 소환권을 얻을 정식 경로가
-    /// 아직 없어 디버그 지급 버튼으로 테스트한다(추후 진짜 획득 시스템이 생기면 이 버튼만 제거하면 됨).
+    /// 가챠 팝업의 "병사 뽑기" 카테고리 안, 티어 하나(일반/고급/유료 등)의 패널. 이 패널이 몇 번째
+    /// 티어를 대표하는지는 tierIndex로 지정하고, GachaService.Tiers[tierIndex]에서 비용/표시
+    /// 이름을 그대로 읽어온다 — 티어가 늘어나도 이 스크립트는 손댈 필요가 없다.
+    /// 소환권을 얻을 정식 경로가 아직 없어 디버그 지급 버튼으로 테스트한다(추후 진짜 획득
+    /// 시스템이 생기면 이 버튼만 제거하면 된다).
     /// </summary>
-    public sealed class SoldierTicketDisplayUI : MonoBehaviour
+    public sealed class SoldierGachaTierPanelUI : MonoBehaviour
     {
+        [SerializeField]
+        private int tierIndex;
+
         [SerializeField]
         private Text ticketText;
 
@@ -49,7 +55,7 @@ namespace UI
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GachaService gacha))
             {
-                gacha.TryPull(out _);
+                gacha.TryPull(tierIndex, out _);
             }
         }
 

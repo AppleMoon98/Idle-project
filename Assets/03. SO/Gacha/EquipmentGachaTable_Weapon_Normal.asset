@@ -1,0 +1,37 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2cff0b5a210011946b8f1b5b1b9bb23c, type: 3}
+  m_Name: EquipmentGachaTable_Weapon_Normal
+  m_EditorClassIdentifier: Assembly-CSharp::Gacha.EquipmentGachaTableSO
+  displayName: "\uC77C\uBC18 \uBF51\uAE30"
+  entries:
+  - equipment: {fileID: 11400000, guid: 00d09296a27b0e949aa76e536a67e930, type: 2}
+    weight: 100
+  - equipment: {fileID: 11400000, guid: eab621393e5468a42b3219e3aa87c0fb, type: 2}
+    weight: 90
+  - equipment: {fileID: 11400000, guid: 9037e2f6a3638194abc1e6f1f152d682, type: 2}
+    weight: 80
+  - equipment: {fileID: 11400000, guid: 32379002ce3dc5e4283fd0c54c767c30, type: 2}
+    weight: 70
+  - equipment: {fileID: 11400000, guid: afad1e5aefc909b41a2c570407d75150, type: 2}
+    weight: 60
+  - equipment: {fileID: 11400000, guid: 2681953077de55b43b8dae006afef348, type: 2}
+    weight: 50
+  - equipment: {fileID: 11400000, guid: b1195221cfc6a23479aa3fde2bb42a8f, type: 2}
+    weight: 40
+  - equipment: {fileID: 11400000, guid: 4ca9a93e88cbd034393512d1e95714d3, type: 2}
+    weight: 30
+  - equipment: {fileID: 11400000, guid: 27f9f0de2342cce4088a0f59c7dcac98, type: 2}
+    weight: 20
+  - equipment: {fileID: 11400000, guid: d062e6abbdc5dea448e259eaf3ffee4b, type: 2}
+    weight: 10
+  goldCostPerPull: 100

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 34672c35f4f7c1b489bf5ebbb5422e8f, type: 3}
   m_Name: GachaTable
   m_EditorClassIdentifier: Assembly-CSharp::Gacha.GachaTableSO
+  displayName: "\uC77C\uBC18 \uBF51\uAE30"
   entries:
   - soldier: {fileID: 11400000, guid: 15b49ad07b948de4fb76c26062b8d7df, type: 2}
     weight: 70
