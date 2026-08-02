@@ -14,15 +14,20 @@ using UnityEngine;
 namespace Offline
 {
     /// <summary>
-    /// 마지막 저장 시각 대비 경과 시간을 근사 전투 공식으로 시뮬레이션해 골드/장비/스테이지
-    /// 진행을 오프라인 보상으로 계산하고 적용한다. 프레임 단위 실시간 재생이 아닌 근사치이며,
-    /// 오프라인 중 플레이어 사망/스테이지 실패는 고려하지 않는다.
+    /// 마지막 저장 시각 대비 경과 시간을 근사 전투 공식으로 시뮬레이션해 골드/장비 획득을
+    /// 오프라인 보상으로 계산하고 적용한다. 프레임 단위 실시간 재생이 아닌 근사치이며,
+    /// 오프라인 중 플레이어 사망은 고려하지 않는다. 새로운 스테이지로 "돌파"하지는 않고
+    /// 역대 최고 기록 스테이지를 그대로 반복(반복 모드)해서 시간만큼 계속 클리어한다 —
+    /// 오프라인 시간 동안 검증 안 된 새 스테이지까지 뚫어버리면(플레이어가 실제로는 못 깰
+    /// 스테이지까지) 체감상 부정확하고 밸런스도 깨지기 때문에, 이미 증명된 난이도의 스테이지만
+    /// 반복해서 안전하게 누적한다.
     /// </summary>
     public sealed class OfflineProgressService
     {
         private readonly EventBus _events;
         private readonly SaveService _saveService;
         private readonly StageCatalogSO _catalog;
+        private readonly StageDifficultyConfigSO _difficultyConfig;
         private readonly CharacterStatsSO _playerStats;
         private readonly CharacterStatsSO _soldierStats;
         private readonly int _soldierCount;
@@ -32,6 +37,7 @@ namespace Offline
             EventBus events,
             SaveService saveService,
             StageCatalogSO catalog,
+            StageDifficultyConfigSO difficultyConfig,
             CharacterStatsSO playerStats,
             CharacterStatsSO soldierStats,
             int soldierCount,
@@ -40,6 +46,7 @@ namespace Offline
             _events = events;
             _saveService = saveService;
             _catalog = catalog;
+            _difficultyConfig = difficultyConfig;
             _playerStats = playerStats;
             _soldierStats = soldierStats;
             _soldierCount = soldierCount;
@@ -68,10 +75,9 @@ namespace Offline
                 return;
             }
 
-            StageSO highestStage = _catalog.Find(save.HighestClearedChapter, save.HighestClearedStageNumber);
-            StageSO currentStage = ResolveStartStage(highestStage);
+            StageSO repeatStage = ResolveRepeatStage(save);
 
-            if (currentStage == null)
+            if (repeatStage == null)
             {
                 return;
             }
@@ -79,54 +85,31 @@ namespace Offline
             float totalDps = _playerStats.AttackPower / _playerStats.AttackInterval
                 + _soldierCount * (_soldierStats.AttackPower / _soldierStats.AttackInterval);
 
-            int totalGold = 0;
-            int totalMonstersKilled = 0;
-            int stagesCleared = 0;
-            var equipmentEarned = new List<EquipmentSO>();
+            float healthMultiplier = _difficultyConfig != null ? _difficultyConfig.GetMultiplier(_catalog.IndexOf(repeatStage)) : 1f;
 
-            while (budget > 0f && currentStage != null)
+            if (!TryBuildStageInfo(repeatStage, healthMultiplier, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth))
             {
-                if (!TryBuildStageInfo(currentStage, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth))
-                {
-                    currentStage = _catalog.GetNext(currentStage);
-                    continue;
-                }
-
-                float killRateByDamage = totalDps / averageMonsterHealth;
-                float killRateBySpawn = totalMonsterCount / totalSpawnDuration;
-                float effectiveKillRate = Mathf.Min(killRateByDamage, killRateBySpawn);
-
-                if (effectiveKillRate <= 0f)
-                {
-                    break;
-                }
-
-                float timeToClear = totalMonsterCount / effectiveKillRate;
-                bool cleared = timeToClear <= budget;
-                int monstersThisStage = cleared ? totalMonsterCount : Mathf.FloorToInt(budget * effectiveKillRate);
-
-                budget = cleared ? budget - timeToClear : 0f;
-
-                RollLoot(currentStage, totalMonsterCount, monstersThisStage, ref totalGold, equipmentEarned);
-                totalMonstersKilled += monstersThisStage;
-
-                if (!cleared)
-                {
-                    break;
-                }
-
-                stagesCleared++;
-                highestStage = currentStage;
-
-                StageSO next = _catalog.GetNext(currentStage);
-
-                if (next != null)
-                {
-                    currentStage = next;
-                }
-
-                // next가 없으면(마지막 스테이지) currentStage를 그대로 두어 남은 시간만큼 계속 반복한다.
+                return;
             }
+
+            float killRateByDamage = totalDps / averageMonsterHealth;
+            float killRateBySpawn = totalMonsterCount / totalSpawnDuration;
+            float effectiveKillRate = Mathf.Min(killRateByDamage, killRateBySpawn);
+
+            if (effectiveKillRate <= 0f)
+            {
+                return;
+            }
+
+            float timeToClear = totalMonsterCount / effectiveKillRate;
+            int timesCleared = Mathf.FloorToInt(budget / timeToClear);
+            float leftoverBudget = budget - timesCleared * timeToClear;
+            int leftoverMonsters = Mathf.FloorToInt(leftoverBudget * effectiveKillRate);
+            int totalMonstersKilled = timesCleared * totalMonsterCount + leftoverMonsters;
+
+            int totalGold = 0;
+            var equipmentEarned = new List<EquipmentSO>();
+            RollLoot(repeatStage, totalMonsterCount, totalMonstersKilled, ref totalGold, equipmentEarned);
 
             if (totalGold > 0)
             {
@@ -138,44 +121,43 @@ namespace Offline
                 _events.Publish(new ItemDroppedEvent(equipment));
             }
 
-            // SaveService가 이 이벤트들을 구독해 즉시 저장하므로, StageController가 곧이어
-            // Start()에서 SaveService.Load()를 읽을 때 오프라인 중 진행된 결과를 그대로 이어받는다.
-            _events.Publish(new StageChangedEvent(currentStage.Chapter, currentStage.StageNumber));
-
-            if (highestStage != null)
-            {
-                _events.Publish(new HighestStageClearedEvent(highestStage.Chapter, highestStage.StageNumber));
-            }
+            // 반복 모드이므로 역대 최고 기록 자체는 갱신되지 않는다(HighestStageClearedEvent 발행 없음) —
+            // 항상 그 기록 스테이지로 복귀시킨다(사망으로 뒤로 밀려 있던 현재 위치는 무시하고, 오프라인은
+            // "죽지 않고 최고 기록을 반복 클리어했다"는 낙관적 가정만 반영한다).
+            _events.Publish(new StageChangedEvent(repeatStage.Chapter, repeatStage.StageNumber));
 
             _events.Publish(new OfflineProgressCalculatedEvent(
                 Mathf.Min(elapsedSeconds, _maxOfflineSeconds),
                 totalGold,
                 equipmentEarned,
                 totalMonstersKilled,
-                stagesCleared,
-                currentStage.Chapter,
-                currentStage.StageNumber));
+                timesCleared,
+                repeatStage.Chapter,
+                repeatStage.StageNumber));
         }
 
         /// <summary>
-        /// 오프라인 시뮬레이션을 시작할 스테이지를 정한다. 역대 최고 기록의 다음 스테이지(=돌파 프론티어),
-        /// 다음이 없으면(마지막 스테이지) 그 자리를 반복, 기록이 아예 없으면(최초 실행) 첫 스테이지부터.
+        /// 오프라인 동안 반복할 스테이지를 정한다 — 역대 최고 기록 스테이지 그 자체(돌파하지 않는다).
+        /// 기록이 아예 없으면(최초 실행) 첫 스테이지부터.
         /// </summary>
-        private StageSO ResolveStartStage(StageSO highestStage)
+        private StageSO ResolveRepeatStage(SaveData save)
         {
-            if (highestStage == null)
+            StageSO highestStage = _catalog.Find(save.HighestClearedChapter, save.HighestClearedStageNumber);
+
+            if (highestStage != null)
             {
-                return _catalog.Stages != null && _catalog.Stages.Length > 0 ? _catalog.Stages[0] : null;
+                return highestStage;
             }
 
-            return _catalog.GetNext(highestStage) ?? highestStage;
+            return _catalog.Stages != null && _catalog.Stages.Length > 0 ? _catalog.Stages[0] : null;
         }
 
         /// <summary>
-        /// 스테이지의 총 몬스터 수/총 스폰 소요시간/가중 평균 체력을 계산한다.
-        /// 몬스터가 하나도 없으면 false.
+        /// 스테이지의 총 몬스터 수/총 스폰 소요시간/가중 평균 체력을 계산한다. healthMultiplier는
+        /// StageDifficultyConfigSO가 실전투에서 StageMonsterScaler로 적용하는 것과 동일한 스테이지별
+        /// 배율이다. 몬스터가 하나도 없으면 false.
         /// </summary>
-        private static bool TryBuildStageInfo(StageSO stage, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth)
+        private static bool TryBuildStageInfo(StageSO stage, float healthMultiplier, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth)
         {
             totalMonsterCount = 0;
             totalSpawnDuration = 0f;
@@ -190,7 +172,7 @@ namespace Offline
 
                 totalMonsterCount += entry.Count;
                 totalSpawnDuration += entry.Count * entry.SpawnInterval;
-                weightedHealth += entry.Count * statsProvider.Stats.MaxHealth;
+                weightedHealth += entry.Count * statsProvider.Stats.MaxHealth * healthMultiplier;
             }
 
             averageMonsterHealth = totalMonsterCount > 0 ? weightedHealth / totalMonsterCount : 0f;
@@ -201,6 +183,8 @@ namespace Offline
         /// <summary>
         /// 스테이지의 스폰 엔트리 비율대로 monstersKilled마리를 배분해, 골드는 각 몬스터 종류의
         /// MonsterLootSO로, 장비는 스테이지의 드롭 테이블로 실제 처치와 동일한 확률로 굴려 누적한다.
+        /// monstersKilled가 totalMonsterCount보다 커도(여러 번 반복 클리어한 합계) 비율 배분은
+        /// 그대로 성립한다.
         /// </summary>
         private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, ref int totalGold, List<EquipmentSO> equipmentEarned)
         {

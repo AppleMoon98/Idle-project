@@ -30,9 +30,9 @@ namespace Offline.Events
         public int MonstersKilled { get; }
 
         /// <summary>
-        /// 새로 클리어한 스테이지 수.
+        /// 역대 최고 기록 스테이지를 반복 클리어한 횟수(오프라인은 새 스테이지로 돌파하지 않는다).
         /// </summary>
-        public int StagesCleared { get; }
+        public int TimesCleared { get; }
 
         /// <summary>
         /// 계산 종료 시점의 챕터 번호.
@@ -49,7 +49,7 @@ namespace Offline.Events
             int goldEarned,
             IReadOnlyList<EquipmentSO> equipmentEarned,
             int monstersKilled,
-            int stagesCleared,
+            int timesCleared,
             int finalChapter,
             int finalStageNumber)
         {
@@ -57,7 +57,7 @@ namespace Offline.Events
             GoldEarned = goldEarned;
             EquipmentEarned = equipmentEarned;
             MonstersKilled = monstersKilled;
-            StagesCleared = stagesCleared;
+            TimesCleared = timesCleared;
             FinalChapter = finalChapter;
             FinalStageNumber = finalStageNumber;
         }

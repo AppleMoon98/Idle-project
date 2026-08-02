@@ -41,6 +41,9 @@ namespace Core
         private StageCatalogSO stageCatalog;
 
         [SerializeField]
+        private StageDifficultyConfigSO stageDifficultyConfig;
+
+        [SerializeField]
         private CharacterStatsSO playerStats;
 
         [SerializeField]
@@ -205,6 +208,7 @@ namespace Core
                 Events,
                 saveService,
                 stageCatalog,
+                stageDifficultyConfig,
                 playerStats,
                 soldierStats,
                 soldierCount,

@@ -153,6 +153,7 @@ MonoBehaviour:
   - {fileID: 11400000, guid: 74d11a902d5de864c8f6062d6b39f532, type: 2}
   - {fileID: 11400000, guid: e6636b38dbd5cd148b687b98938c6bcc, type: 2}
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
+  stageDifficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}
   playerStats: {fileID: 11400000, guid: 7bba16d67a066594d9e9931ab7d3b950, type: 2}
   soldierStats: {fileID: 11400000, guid: 9f0afc144e163dc48b55a879d55b68e5, type: 2}
   soldierCount: 2
