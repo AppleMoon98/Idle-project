@@ -72,7 +72,7 @@ namespace UI
                 }
 
                 SoldierPickerRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize($"{owned.Definition.DisplayName} (#{owned.InstanceId})", () => OnPicked(owned.InstanceId));
+                row.Initialize($"{owned.Definition.DisplayName} (#{owned.InstanceId})", () => OnPicked(owned.InstanceId), owned.Definition.Icon);
 
                 _spawnedRows.Add(row);
             }

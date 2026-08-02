@@ -16,6 +16,9 @@ namespace Soldier
         [SerializeField]
         private GameObject prefab;
 
+        [SerializeField]
+        private Sprite icon;
+
         /// <summary>
         /// 병사 이름(로스터/가챠 결과 UI 표시용).
         /// </summary>
@@ -25,5 +28,10 @@ namespace Soldier
         /// 배치 시 스폰할 프리팹.
         /// </summary>
         public GameObject Prefab => prefab;
+
+        /// <summary>
+        /// 목록 UI(로스터/배치/피커)에 표시할 아이콘. 아직 지정되지 않았으면 null.
+        /// </summary>
+        public Sprite Icon => icon;
     }
 }

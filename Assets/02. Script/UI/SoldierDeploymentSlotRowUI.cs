@@ -13,6 +13,9 @@ namespace UI
     public sealed class SoldierDeploymentSlotRowUI : MonoBehaviour
     {
         [SerializeField]
+        private Image iconImage;
+
+        [SerializeField]
         private Text label;
 
         [SerializeField]
@@ -33,6 +36,13 @@ namespace UI
 
             string assignedText = assigned != null ? $"{assigned.Definition.DisplayName} (#{assigned.InstanceId})" : "비어있음";
             label.text = $"슬롯 {slotIndex}: {assignedText}";
+
+            if (iconImage != null)
+            {
+                Sprite icon = assigned?.Definition.Icon;
+                iconImage.sprite = icon;
+                iconImage.enabled = icon != null;
+            }
 
             assignButton.onClick.AddListener(() => onAssignRequested?.Invoke(_slotIndex));
 

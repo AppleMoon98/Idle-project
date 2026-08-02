@@ -11,6 +11,9 @@ namespace UI
     public sealed class SoldierPickerRowUI : MonoBehaviour
     {
         [SerializeField]
+        private Image iconImage;
+
+        [SerializeField]
         private Text label;
 
         [SerializeField]
@@ -18,11 +21,18 @@ namespace UI
 
         /// <summary>
         /// 행 데이터를 채운다. onSelected는 선택 버튼을 눌렀을 때 호출되는 콜백이다.
+        /// icon이 null이면 아이콘 이미지를 숨긴다.
         /// </summary>
-        public void Initialize(string displayText, Action onSelected)
+        public void Initialize(string displayText, Action onSelected, Sprite icon = null)
         {
             label.text = displayText;
             selectButton.onClick.AddListener(() => onSelected?.Invoke());
+
+            if (iconImage != null)
+            {
+                iconImage.sprite = icon;
+                iconImage.enabled = icon != null;
+            }
         }
     }
 }

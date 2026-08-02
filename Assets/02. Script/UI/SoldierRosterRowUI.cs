@@ -12,6 +12,9 @@ namespace UI
     public sealed class SoldierRosterRowUI : MonoBehaviour
     {
         [SerializeField]
+        private Image iconImage;
+
+        [SerializeField]
         private Text label;
 
         [SerializeField]
@@ -28,6 +31,12 @@ namespace UI
         {
             string profileName = owned.BehaviorProfile != null ? owned.BehaviorProfile.DisplayName : "미배정(교전)";
             label.text = $"{owned.Definition.DisplayName} (#{owned.InstanceId}) - {profileName}";
+
+            if (iconImage != null)
+            {
+                iconImage.sprite = owned.Definition.Icon;
+                iconImage.enabled = owned.Definition.Icon != null;
+            }
 
             equipmentButton.onClick.AddListener(() => onEquipmentRequested?.Invoke(owned.InstanceId));
             behaviorButton.onClick.AddListener(() => onBehaviorRequested?.Invoke(owned.InstanceId));
