@@ -83,7 +83,8 @@ namespace UI
             int cost = service.GetNextCost(_statType);
 
             string costPart = cost < 0 ? "MAX" : $"{cost} G";
-            infoText.text = $"{StatDisplayNames.Get(_statType)} (+{valuePerLevel}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
+            string valuePart = StatDisplayNames.FormatValue(_statType, valuePerLevel);
+            infoText.text = $"{StatDisplayNames.Get(_statType)} (+{valuePart}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
         }
     }
 }

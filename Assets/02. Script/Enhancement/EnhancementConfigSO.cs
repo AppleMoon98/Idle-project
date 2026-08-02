@@ -15,7 +15,7 @@ namespace Enhancement
         private int baseCost;
 
         [SerializeField]
-        private int costIncreasePerLevel;
+        private float costMultiplier = 1.5f;
 
         [SerializeField]
         private float valuePerLevel;
@@ -34,9 +34,9 @@ namespace Enhancement
         public int BaseCost => baseCost;
 
         /// <summary>
-        /// 레벨당 비용 증가량.
+        /// 레벨당 비용 배율(복리). 다음 비용 = BaseCost * CostMultiplier^현재레벨.
         /// </summary>
-        public int CostIncreasePerLevel => costIncreasePerLevel;
+        public float CostMultiplier => costMultiplier;
 
         /// <summary>
         /// 강화 1회당 능력치 증가량.

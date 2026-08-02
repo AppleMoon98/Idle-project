@@ -52,6 +52,26 @@ namespace Save
         public int MaxHealthLevel { get; }
 
         /// <summary>
+        /// 마지막으로 저장된 공격속도 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int AttackSpeedLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 이동속도 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int MoveSpeedLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 크리티컬 확률 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int CriticalChanceLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 크리티컬 피해량 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int CriticalDamageLevel { get; }
+
+        /// <summary>
         /// 보유 장비/슬롯별 장착 상태를 직렬화한 JSON. 가변 길이 컬렉션이라 개별 필드가 아니라
         /// 통째로 문자열 하나로 저장한다(SaveService.RestoreInventory가 파싱/복원한다). 기록이 없으면 빈 문자열.
         /// </summary>
@@ -89,6 +109,10 @@ namespace Save
             long lastActiveUnixTime,
             int attackPowerLevel,
             int maxHealthLevel,
+            int attackSpeedLevel,
+            int moveSpeedLevel,
+            int criticalChanceLevel,
+            int criticalDamageLevel,
             string inventoryJson,
             int rankIndex,
             int soldierTicketCount,
@@ -104,6 +128,10 @@ namespace Save
             LastActiveUnixTime = lastActiveUnixTime;
             AttackPowerLevel = attackPowerLevel;
             MaxHealthLevel = maxHealthLevel;
+            AttackSpeedLevel = attackSpeedLevel;
+            MoveSpeedLevel = moveSpeedLevel;
+            CriticalChanceLevel = criticalChanceLevel;
+            CriticalDamageLevel = criticalDamageLevel;
             InventoryJson = inventoryJson;
             RankIndex = rankIndex;
             SoldierTicketCount = soldierTicketCount;

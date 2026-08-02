@@ -64,7 +64,10 @@ namespace Combat
 
             if (target != null && _attackBehavior != null)
             {
-                _attackBehavior.Execute(transform, target, stats.AttackPower);
+                bool isCritical = UnityEngine.Random.value < stats.CriticalChance;
+                float damage = isCritical ? stats.AttackPower * (1f + stats.CriticalDamageMultiplier) : stats.AttackPower;
+
+                _attackBehavior.Execute(transform, target, damage);
                 AttackPerformed?.Invoke();
             }
         }

@@ -39,7 +39,7 @@ namespace Character
             float delta = evt.NewTotalBonus - previousTotal;
             _applied[evt.StatType] = evt.NewTotalBonus;
 
-            RuntimeStatApplier.Apply(_statsProvider.Stats, evt.StatType, delta);
+            RuntimeStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, delta);
         }
     }
 }

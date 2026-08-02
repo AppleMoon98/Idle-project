@@ -6,6 +6,10 @@ namespace Enhancement
     public enum EnhancementStatType
     {
         AttackPower,
-        MaxHealth
+        MaxHealth,
+        AttackSpeed,
+        MoveSpeed,
+        CriticalChance,
+        CriticalDamage
     }
 }

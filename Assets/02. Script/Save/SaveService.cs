@@ -62,6 +62,10 @@ namespace Save
         private const string LastActiveUnixTimeKey = "Save.LastActiveUnixTime";
         private const string AttackPowerLevelKey = "Save.AttackPowerLevel";
         private const string MaxHealthLevelKey = "Save.MaxHealthLevel";
+        private const string AttackSpeedLevelKey = "Save.AttackSpeedLevel";
+        private const string MoveSpeedLevelKey = "Save.MoveSpeedLevel";
+        private const string CriticalChanceLevelKey = "Save.CriticalChanceLevel";
+        private const string CriticalDamageLevelKey = "Save.CriticalDamageLevel";
         private const string InventoryJsonKey = "Save.InventoryJson";
         private const string RankIndexKey = "Save.RankIndex";
         private const string SoldierTicketCountKey = "Save.SoldierTicketCount";
@@ -88,6 +92,10 @@ namespace Save
         private int _highestClearedStageNumber;
         private int _attackPowerLevel;
         private int _maxHealthLevel;
+        private int _attackSpeedLevel;
+        private int _moveSpeedLevel;
+        private int _criticalChanceLevel;
+        private int _criticalDamageLevel;
         private string _inventoryJson = "";
         private int _rankIndex;
         private int _soldierTicketCount;
@@ -134,6 +142,10 @@ namespace Save
             _highestClearedStageNumber = save.HighestClearedStageNumber;
             _attackPowerLevel = save.AttackPowerLevel;
             _maxHealthLevel = save.MaxHealthLevel;
+            _attackSpeedLevel = save.AttackSpeedLevel;
+            _moveSpeedLevel = save.MoveSpeedLevel;
+            _criticalChanceLevel = save.CriticalChanceLevel;
+            _criticalDamageLevel = save.CriticalDamageLevel;
             _inventoryJson = save.InventoryJson;
             _rankIndex = save.RankIndex;
             _soldierTicketCount = save.SoldierTicketCount;
@@ -188,6 +200,10 @@ namespace Save
             long lastActiveUnixTime = long.Parse(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
             int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
             int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
+            int attackSpeedLevel = PlayerPrefs.GetInt(AttackSpeedLevelKey, 0);
+            int moveSpeedLevel = PlayerPrefs.GetInt(MoveSpeedLevelKey, 0);
+            int criticalChanceLevel = PlayerPrefs.GetInt(CriticalChanceLevelKey, 0);
+            int criticalDamageLevel = PlayerPrefs.GetInt(CriticalDamageLevelKey, 0);
             string inventoryJson = PlayerPrefs.GetString(InventoryJsonKey, "");
             int rankIndex = PlayerPrefs.GetInt(RankIndexKey, 0);
             int soldierTicketCount = PlayerPrefs.GetInt(SoldierTicketCountKey, 0);
@@ -204,6 +220,10 @@ namespace Save
                 lastActiveUnixTime,
                 attackPowerLevel,
                 maxHealthLevel,
+                attackSpeedLevel,
+                moveSpeedLevel,
+                criticalChanceLevel,
+                criticalDamageLevel,
                 inventoryJson,
                 rankIndex,
                 soldierTicketCount,
@@ -225,6 +245,10 @@ namespace Save
             PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
             PlayerPrefs.SetInt(AttackPowerLevelKey, _attackPowerLevel);
             PlayerPrefs.SetInt(MaxHealthLevelKey, _maxHealthLevel);
+            PlayerPrefs.SetInt(AttackSpeedLevelKey, _attackSpeedLevel);
+            PlayerPrefs.SetInt(MoveSpeedLevelKey, _moveSpeedLevel);
+            PlayerPrefs.SetInt(CriticalChanceLevelKey, _criticalChanceLevel);
+            PlayerPrefs.SetInt(CriticalDamageLevelKey, _criticalDamageLevel);
             PlayerPrefs.SetString(InventoryJsonKey, _inventoryJson);
             PlayerPrefs.SetInt(RankIndexKey, _rankIndex);
             PlayerPrefs.SetInt(SoldierTicketCountKey, _soldierTicketCount);
@@ -335,6 +359,18 @@ namespace Save
                     break;
                 case EnhancementStatType.MaxHealth:
                     _maxHealthLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.AttackSpeed:
+                    _attackSpeedLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.MoveSpeed:
+                    _moveSpeedLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.CriticalChance:
+                    _criticalChanceLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.CriticalDamage:
+                    _criticalDamageLevel = evt.NewLevel;
                     break;
             }
 

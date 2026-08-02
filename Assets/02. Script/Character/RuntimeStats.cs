@@ -32,6 +32,16 @@ namespace Character
         public float AttackInterval { get; set; }
 
         /// <summary>
+        /// 치명타 확률(0~1).
+        /// </summary>
+        public float CriticalChance { get; set; }
+
+        /// <summary>
+        /// 치명타 시 추가되는 피해 보너스 비율. 최종 피해 = AttackPower * (1 + CriticalDamageMultiplier).
+        /// </summary>
+        public float CriticalDamageMultiplier { get; set; }
+
+        /// <summary>
         /// CharacterStatsSO의 값을 복사해 RuntimeStats를 생성한다.
         /// </summary>
         public RuntimeStats(CharacterStatsSO source)
@@ -41,6 +51,8 @@ namespace Character
             AttackRange = source.AttackRange;
             MoveSpeed = source.MoveSpeed;
             AttackInterval = source.AttackInterval;
+            CriticalChance = source.CriticalChance;
+            CriticalDamageMultiplier = source.CriticalDamageMultiplier;
         }
     }
 }

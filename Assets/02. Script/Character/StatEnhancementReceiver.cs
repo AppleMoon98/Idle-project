@@ -31,7 +31,7 @@ namespace Character
 
         private void OnStatEnhanced(StatEnhancedEvent evt)
         {
-            RuntimeStatApplier.Apply(_statsProvider.Stats, evt.StatType, evt.ValuePerLevel);
+            RuntimeStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, evt.ValuePerLevel);
         }
     }
 }

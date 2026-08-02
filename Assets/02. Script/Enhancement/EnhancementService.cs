@@ -1,7 +1,9 @@
+using System;
 using System.Collections.Generic;
 using Core;
 using Enhancement.Events;
 using Loot;
+using UnityEngine;
 
 namespace Enhancement
 {
@@ -65,7 +67,12 @@ namespace Enhancement
         }
 
         /// <summary>
-        /// 다음 강화에 필요한 비용. 이미 최대 레벨이면 -1을 반환한다.
+        /// 다음 강화에 필요한 비용(복리 증가: BaseCost * CostMultiplier^레벨). 이미 최대 레벨이면 -1을 반환한다.
+        /// double로 계산 후 int 범위로 saturate한다 — 배율이 1.5~3배씩 복리로 쌓이면 int 범위(약 21억)를
+        /// 레벨 50 안팎에서 이미 넘어서는데, int로 그대로 캐스팅하면 오버플로우로 음수가 되어
+        /// TrySpendGold가 "비용이 충분하다"고 착각해 강화가 사실상 공짜(심지어 골드가 늘어나는
+        /// 방향)로 성립해버리는 문제가 있었다. 실질적으로는 도달 불가능한 레벨이니 int.MaxValue로
+        /// 막아두는 것으로 충분하다.
         /// </summary>
         public int GetNextCost(EnhancementStatType statType)
         {
@@ -77,7 +84,9 @@ namespace Enhancement
                 return -1;
             }
 
-            return config.BaseCost + config.CostIncreasePerLevel * level;
+            double rawCost = config.BaseCost * Math.Pow(config.CostMultiplier, level);
+
+            return rawCost >= int.MaxValue ? int.MaxValue : Mathf.RoundToInt((float)rawCost);
         }
 
         /// <summary>

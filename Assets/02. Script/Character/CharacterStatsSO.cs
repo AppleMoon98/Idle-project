@@ -24,6 +24,12 @@ namespace Character
         [SerializeField]
         private float attackInterval;
 
+        [SerializeField]
+        private float criticalChance;
+
+        [SerializeField]
+        private float criticalDamageMultiplier = 0.5f;
+
         /// <summary>
         /// 최대 체력.
         /// </summary>
@@ -48,5 +54,15 @@ namespace Character
         /// 공격 주기(초).
         /// </summary>
         public float AttackInterval => attackInterval;
+
+        /// <summary>
+        /// 치명타 확률(0~1). 기본값 0(치명타 없음).
+        /// </summary>
+        public float CriticalChance => criticalChance;
+
+        /// <summary>
+        /// 치명타 시 추가되는 피해 보너스 비율. 기본값 0.5(치명타 시 150% 피해).
+        /// </summary>
+        public float CriticalDamageMultiplier => criticalDamageMultiplier;
     }
 }

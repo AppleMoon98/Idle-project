@@ -230,6 +230,10 @@ namespace Core
 
             _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel);
             _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel);
+            _enhancementService?.RestoreLevel(EnhancementStatType.AttackSpeed, _initialSave.AttackSpeedLevel);
+            _enhancementService?.RestoreLevel(EnhancementStatType.MoveSpeed, _initialSave.MoveSpeedLevel);
+            _enhancementService?.RestoreLevel(EnhancementStatType.CriticalChance, _initialSave.CriticalChanceLevel);
+            _enhancementService?.RestoreLevel(EnhancementStatType.CriticalDamage, _initialSave.CriticalDamageLevel);
 
             // RestoreInventory()는 세이브 시딩일 뿐 이벤트를 발행하지 않으므로, 복원된 장착 상태를
             // EquipmentStatReceiver가 놓치지 않도록 여기서 한 번 직접 재계산/발행한다.
