@@ -13,6 +13,8 @@ MonoBehaviour:
   m_Name: Skill_WhirlwindSlash
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
   displayName: "\uD68C\uC624\uB9AC\uBCA0\uAE30"
+  icon: {fileID: 21300000, guid: 58540b804e4c9e948997681ed575049d, type: 3}
+  iconTint: {r: 0.95, g: 0.45, b: 0.15, a: 1}
   cooldown: 8
   maxLevel: 20
   goldCostBase: 100

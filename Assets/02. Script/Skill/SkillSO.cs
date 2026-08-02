@@ -14,6 +14,12 @@ namespace Skill
         private string displayName;
 
         [SerializeField]
+        private Sprite icon;
+
+        [SerializeField]
+        private Color iconTint = Color.white;
+
+        [SerializeField]
         private float cooldown = 8f;
 
         [SerializeField]
@@ -41,6 +47,17 @@ namespace Skill
         /// 스킬 이름(UI 표시용).
         /// </summary>
         public string DisplayName => displayName;
+
+        /// <summary>
+        /// 슬롯 아이콘. 실제 스킬 전용 아트가 없는 동안은 재사용 스프라이트를 IconTint로
+        /// 다르게 물들여 임시 아이콘으로 쓴다(Player/Soldier/Cargo와 동일한 재사용 방식).
+        /// </summary>
+        public Sprite Icon => icon;
+
+        /// <summary>
+        /// 아이콘에 곱해질 색상.
+        /// </summary>
+        public Color IconTint => iconTint;
 
         /// <summary>
         /// 자동 발동 주기(초).
