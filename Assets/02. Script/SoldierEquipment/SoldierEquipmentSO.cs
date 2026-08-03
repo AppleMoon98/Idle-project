@@ -18,6 +18,9 @@ namespace SoldierEquipment
         [SerializeField]
         private SoldierStatBonusEntry[] statBonuses;
 
+        [SerializeField]
+        private Sprite icon;
+
         /// <summary>
         /// 아이템 이름.
         /// </summary>
@@ -32,5 +35,10 @@ namespace SoldierEquipment
         /// 이 아이템이 제공하는 스탯 보너스 목록.
         /// </summary>
         public SoldierStatBonusEntry[] StatBonuses => statBonuses;
+
+        /// <summary>
+        /// 목록 UI에 표시할 아이콘. 아직 지정되지 않았으면 null.
+        /// </summary>
+        public Sprite Icon => icon;
     }
 }

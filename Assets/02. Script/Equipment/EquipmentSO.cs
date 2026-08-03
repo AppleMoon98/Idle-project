@@ -18,6 +18,9 @@ namespace Equipment
         [SerializeField]
         private EquipmentGradeSO grade;
 
+        [SerializeField]
+        private Sprite icon;
+
         /// <summary>
         /// 아이템 이름.
         /// </summary>
@@ -32,5 +35,10 @@ namespace Equipment
         /// 이 장비의 등급단계. 합성(Fusion) 시 EquipmentGradeCatalogSO에서 다음 단계를 조회하는 기준이 된다.
         /// </summary>
         public EquipmentGradeSO Grade => grade;
+
+        /// <summary>
+        /// 목록 UI에 표시할 아이콘. 아직 지정되지 않았으면 null(현재는 등급 틴트로만 구분 표시됨).
+        /// </summary>
+        public Sprite Icon => icon;
     }
 }
