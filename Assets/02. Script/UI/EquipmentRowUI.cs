@@ -56,8 +56,10 @@ namespace UI
         /// 행 데이터를 채운다. 장착은 EquipmentEquippedEvent를 통해 목록이 알아서 갱신되므로
         /// 팝업을 닫는 등의 후속 동작은 필요 없다. onDetailRequested는 이름 라벨을 탭했을 때
         /// (장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
+        /// onEnhanceRequested는 강화 버튼을 눌렀을 때 강화 팝업을 열어달라는 요청 콜백이다
+        /// (없으면 null, 이 경우 예전처럼 즉시 EquipmentEnhancementService.TryEnhance를 호출한다).
         /// </summary>
-        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null)
+        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null, Action<OwnedEquipment> onEnhanceRequested = null)
         {
             _owned = owned;
             background.color = backgroundColor;
@@ -91,6 +93,12 @@ namespace UI
 
             enhanceButton.onClick.AddListener(() =>
             {
+                if (onEnhanceRequested != null)
+                {
+                    onEnhanceRequested.Invoke(_owned);
+                    return;
+                }
+
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancement))
                 {
                     enhancement.TryEnhance(_owned.Definition);

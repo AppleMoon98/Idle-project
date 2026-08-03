@@ -33,6 +33,16 @@ namespace Equipment
         }
 
         /// <summary>
+        /// 강화 1회당 소모되는 중복 장비 개수(강화 대상 1개는 남기고 소모). UI가 필요 재료를 표시할 때 사용.
+        /// </summary>
+        public int DuplicatesRequiredPerLevel => _config.DuplicatesRequiredPerLevel;
+
+        /// <summary>
+        /// 최대 강화 레벨. UI가 "MAX" 여부를 판단할 때 사용.
+        /// </summary>
+        public int MaxLevel => _config.MaxLevel;
+
+        /// <summary>
         /// definition의 다음 강화에 필요한 강화석 비용. 보유하고 있지 않거나 이미 최대 레벨이면 -1.
         /// </summary>
         public int GetNextStoneCost(EquipmentSO definition)

@@ -32,6 +32,9 @@ namespace UI
         private EquipmentDetailPopupUI detailPopup;
 
         [SerializeField]
+        private EquipmentEnhancementPopupUI enhancementPopup;
+
+        [SerializeField]
         private EquipmentGradeCatalogSO gradeCatalog;
 
         [SerializeField]
@@ -83,6 +86,7 @@ namespace UI
             _isOpen = false;
             popupRoot.SetActive(false);
             detailPopup?.Close();
+            enhancementPopup?.Close();
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
@@ -127,7 +131,7 @@ namespace UI
             {
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
-                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped));
+                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target));
 
                 _spawnedRows.Add(row);
             }
