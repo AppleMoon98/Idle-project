@@ -76,7 +76,7 @@ namespace Dungeon
 
             for (int i = 0; i < config.MonsterCount; i++)
             {
-                Vector3 spawnPosition = RandomOnScreenPosition();
+                Vector3 spawnPosition = DungeonSpawnUtility.RandomOnScreenPosition(config.SpawnViewportMargin);
                 GameObject instance = pool.Get(config.MonsterPrefab, spawnPosition, Quaternion.identity);
                 _aliveMonsters.Add(instance);
             }
@@ -145,26 +145,6 @@ namespace Dungeon
             }
 
             _aliveMonsters.Clear();
-        }
-
-        private Vector3 RandomOnScreenPosition()
-        {
-            Camera camera = Camera.main;
-
-            if (camera == null)
-            {
-                return Vector3.zero;
-            }
-
-            float margin = config.SpawnViewportMargin;
-            float viewportX = Random.Range(margin, 1f - margin);
-            float viewportY = Random.Range(margin, 1f - margin);
-            float depth = Mathf.Abs(camera.transform.position.z);
-
-            Vector3 worldPoint = camera.ViewportToWorldPoint(new Vector3(viewportX, viewportY, depth));
-            worldPoint.z = 0f;
-
-            return worldPoint;
         }
 
         private void OnDestroy()

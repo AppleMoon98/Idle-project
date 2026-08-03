@@ -1,3 +1,4 @@
+using Character;
 using Core;
 using Managers;
 using Save;
@@ -143,18 +144,27 @@ namespace Stage
             }
 
             _tracker?.SetActiveAll(false);
+            _progression?.SetSuppressed(true);
         }
 
         /// <summary>
-        /// PauseForOverlay로 숨겨둔 현재 스테이지를 그대로 되돌린다.
+        /// PauseForOverlay로 숨겨둔 현재 스테이지를 그대로 되돌린다. 오버레이 도중 Player가
+        /// 죽었다면(예: 던전 보스에게 사망) StageChangedEvent가 없어 PlayerReviveOnStageChanged가
+        /// 대신 되살려주지 못하므로 여기서 직접 부활시킨다.
         /// </summary>
         public void ResumeAfterOverlay()
         {
+            _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
 
             if (_spawner != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Register(_spawner);
+            }
+
+            if (playerTarget != null && playerTarget.TryGetComponent(out Health playerHealth) && playerHealth.IsDead)
+            {
+                playerHealth.Revive();
             }
         }
 
