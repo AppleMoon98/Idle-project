@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 705f0551577295e459fe486828a0c781, type: 3}
+  m_Name: GoldDungeonConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Dungeon.GoldDungeonConfigSO
+  monsterPrefab: {fileID: 3104091886448902630, guid: 724df522bbc353343b3c3f54950d34a6, type: 3}
+  monsterCount: 50
+  timeLimitSeconds: 60
+  goldPerKillPerStage: 10000
+  spawnViewportMargin: 0.08

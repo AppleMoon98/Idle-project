@@ -130,6 +130,34 @@ namespace Stage
             return difficultyConfig.GetMultiplier(stageIndex);
         }
 
+        /// <summary>
+        /// 현재 스테이지를 건드리지 않고 잠깐 "일시정지 + 숨김" 상태로 둔다. 골드 던전처럼 화면을
+        /// 잠깐 차지하는 오버레이가 시작될 때 호출한다. StageChangedEvent를 발행하지 않으므로
+        /// StageProgression/SaveService/RankService 등 실제 진행도에는 전혀 영향이 없다.
+        /// </summary>
+        public void PauseForOverlay()
+        {
+            if (_spawner != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
+            {
+                ticker.Unregister(_spawner);
+            }
+
+            _tracker?.SetActiveAll(false);
+        }
+
+        /// <summary>
+        /// PauseForOverlay로 숨겨둔 현재 스테이지를 그대로 되돌린다.
+        /// </summary>
+        public void ResumeAfterOverlay()
+        {
+            _tracker?.SetActiveAll(true);
+
+            if (_spawner != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
+            {
+                ticker.Register(_spawner);
+            }
+        }
+
         private void EndCurrentStage()
         {
             if (_spawner != null)
