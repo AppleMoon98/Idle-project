@@ -53,11 +53,11 @@ namespace UI
         }
 
         /// <summary>
-        /// 행 데이터를 채운다. onEquipped는 장착 버튼 클릭 성공 후 팝업을 닫는 등
-        /// 호출자가 처리할 후속 동작을 위한 콜백이다(없으면 null). onDetailRequested는 이름 라벨을
-        /// 탭했을 때(장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
+        /// 행 데이터를 채운다. 장착은 EquipmentEquippedEvent를 통해 목록이 알아서 갱신되므로
+        /// 팝업을 닫는 등의 후속 동작은 필요 없다. onDetailRequested는 이름 라벨을 탭했을 때
+        /// (장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
         /// </summary>
-        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action onEquipped, Action<OwnedEquipment> onDetailRequested = null)
+        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null)
         {
             _owned = owned;
             background.color = backgroundColor;
@@ -73,7 +73,6 @@ namespace UI
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear))
                 {
                     equippedGear.Equip(_owned);
-                    onEquipped?.Invoke();
                 }
             });
 

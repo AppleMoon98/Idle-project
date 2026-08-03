@@ -127,7 +127,7 @@ namespace UI
             {
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
-                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, Close, target => detailPopup?.Open(target, currentlyEquipped));
+                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped));
 
                 _spawnedRows.Add(row);
             }
