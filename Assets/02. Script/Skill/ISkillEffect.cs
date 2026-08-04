@@ -10,8 +10,9 @@ namespace Skill
     public interface ISkillEffect
     {
         /// <summary>
-        /// origin: 스킬 시전자의 Transform(현재는 Player). magnitude: SkillSO.GetMagnitude(현재 레벨) 결과값.
+        /// origin: 스킬 시전자의 Transform(현재는 Player). definition: 장착된 스킬 데이터(사거리/지속시간/
+        /// 이펙트 프리팹 등 스킬 고유 수치는 여기서 읽는다). magnitude: SkillSO.GetMagnitude(현재 레벨) 결과값.
         /// </summary>
-        void Execute(Transform origin, float magnitude);
+        void Execute(Transform origin, SkillSO definition, float magnitude);
     }
 }

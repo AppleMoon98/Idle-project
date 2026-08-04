@@ -24,3 +24,7 @@ MonoBehaviour:
   effectValueBase: 15
   effectValuePerLevel: 3
   effectType: 0
+  areaRadius: 3
+  strikeRange: 2.5
+  buffDuration: 5
+  vfxPrefab: {fileID: 8395996467037409061, guid: 9d651c99864ce604480657d0b8fa6e33, type: 3}

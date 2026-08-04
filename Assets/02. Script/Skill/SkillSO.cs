@@ -47,6 +47,18 @@ namespace Skill
         [SerializeField]
         private SkillEffectType effectType;
 
+        [SerializeField]
+        private float areaRadius = 3f;
+
+        [SerializeField]
+        private float strikeRange = 2.5f;
+
+        [SerializeField]
+        private float buffDuration = 5f;
+
+        [SerializeField]
+        private GameObject vfxPrefab;
+
         /// <summary>
         /// 스킬 이름(UI 표시용).
         /// </summary>
@@ -86,6 +98,26 @@ namespace Skill
         /// 어느 것을 실행할지 고르는 데 쓴다.
         /// </summary>
         public SkillEffectType EffectType => effectType;
+
+        /// <summary>
+        /// AreaDamage 스킬의 데미지 반경. 다른 EffectType의 스킬에서는 쓰이지 않는다.
+        /// </summary>
+        public float AreaRadius => areaRadius;
+
+        /// <summary>
+        /// SingleTargetStrike 스킬의 탐지 사거리. 다른 EffectType의 스킬에서는 쓰이지 않는다.
+        /// </summary>
+        public float StrikeRange => strikeRange;
+
+        /// <summary>
+        /// SelfBuff 스킬의 버프 지속시간(초). 다른 EffectType의 스킬에서는 쓰이지 않는다.
+        /// </summary>
+        public float BuffDuration => buffDuration;
+
+        /// <summary>
+        /// 시전 시 재생할 이펙트 프리팹(Skill.SkillEffectVfx가 붙어있어야 한다).
+        /// </summary>
+        public GameObject VfxPrefab => vfxPrefab;
 
         /// <summary>
         /// 다음 레벨(level -> level+1)로 올리는 데 필요한 골드 비용.

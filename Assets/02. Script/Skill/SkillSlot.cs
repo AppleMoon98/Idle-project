@@ -90,7 +90,7 @@ namespace Skill
 
             if (_effectsByType.TryGetValue(definition.EffectType, out ISkillEffect effect) && effect != null)
             {
-                effect.Execute(transform, definition.GetMagnitude(skillService.GetLevel(definition)));
+                effect.Execute(transform, definition, definition.GetMagnitude(skillService.GetLevel(definition)));
             }
         }
     }

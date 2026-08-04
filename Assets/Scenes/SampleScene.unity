@@ -1749,7 +1749,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &82877832
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1762,10 +1763,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &82877833
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1778,10 +1780,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &82877834
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7688,7 +7691,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -7778,10 +7781,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
@@ -8714,7 +8717,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -10458,10 +10461,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
@@ -14737,10 +14740,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
@@ -15040,7 +15043,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -15797,10 +15800,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
@@ -17238,7 +17241,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1061280277
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17251,10 +17255,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1061280278
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -17267,10 +17272,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1061280279
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18930,7 +18936,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1151127057
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18956,10 +18963,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1151127059
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -18972,10 +18980,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!1 &1155742087
 GameObject:
   m_ObjectHideFlags: 0
@@ -19579,7 +19588,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1207186225
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19592,10 +19602,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1207186226
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -19608,10 +19619,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1207186227
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22322,7 +22334,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -23256,10 +23268,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1437565078
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23285,7 +23298,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1437565080
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -23298,10 +23312,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!1 &1450139900
 GameObject:
   m_ObjectHideFlags: 0
@@ -23408,7 +23423,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -24038,7 +24053,7 @@ MonoBehaviour:
       m_Calls: []
   m_Sprite: {fileID: 0}
   m_Type: 0
-  m_PreserveAspect: 0
+  m_PreserveAspect: 1
   m_FillCenter: 1
   m_FillMethod: 4
   m_FillAmount: 1
@@ -25115,10 +25130,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
@@ -27613,10 +27628,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d0823f3b1ceb72347a31848b6a7be564, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SingleTargetStrikeSkillEffect
-  range: 8
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1683189640
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27642,7 +27658,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e5dab348bf009d4459a29d421c410850, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SelfBuffSkillEffect
-  duration: 5
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!114 &1683189642
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -27655,10 +27672,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d6760005e8a121f4bbfc2a0427f7b333, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.AreaDamageSkillEffect
-  radius: 3
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
 --- !u!1 &1684823563
 GameObject:
   m_ObjectHideFlags: 0
@@ -27829,10 +27847,10 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: 0}
-  m_Type: 0
+  m_Sprite: {fileID: 10907, guid: 0000000000000000f000000000000000, type: 0}
+  m_Type: 1
   m_PreserveAspect: 0
-  m_FillCenter: 1
+  m_FillCenter: 0
   m_FillMethod: 4
   m_FillAmount: 1
   m_FillClockwise: 1
