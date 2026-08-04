@@ -178,6 +178,7 @@ namespace Core
             saveService.RestoreSoldierEquipment(save);
             saveService.RestoreSkills(save);
             saveService.RestoreSkillLoadout(save);
+            saveService.RestoreSkillEnabled(save);
 
             // OfflineProgressService.CalculateAndApply()(Start()에서 제일 먼저 실행됨)보다 반드시
             // 먼저 랭크를 맞춰둬야 한다 — 그렇지 않으면 아직 시골 소년 상태인 RankService가 오프라인

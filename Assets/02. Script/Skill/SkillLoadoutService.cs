@@ -31,11 +31,18 @@ namespace Skill
         private readonly EventBus _events;
         private readonly SkillService _skillService;
         private readonly SkillSO[] _slots = new SkillSO[SlotCount];
+        private readonly bool[] _enabled;
 
         public SkillLoadoutService(EventBus events, SkillService skillService)
         {
             _events = events;
             _skillService = skillService;
+
+            _enabled = new bool[SlotCount];
+            for (int i = 0; i < SlotCount; i++)
+            {
+                _enabled[i] = true;
+            }
         }
 
         public void Initialize()
@@ -92,6 +99,41 @@ namespace Skill
 
             _slots[slotIndex] = null;
             _events.Publish(new SkillLoadoutChangedEvent(slotIndex, null));
+        }
+
+        /// <summary>
+        /// slotIndex가 자동 발동 대상인지. 잘못된 인덱스면 false.
+        /// </summary>
+        public bool IsEnabled(int slotIndex)
+        {
+            return IsValidSlot(slotIndex) && _enabled[slotIndex];
+        }
+
+        /// <summary>
+        /// slotIndex의 자동 발동 켜짐/꺼짐을 지정한다. 실제로 값이 바뀔 때만 이벤트를 발행한다.
+        /// </summary>
+        public void SetEnabled(int slotIndex, bool enabled)
+        {
+            if (!IsValidSlot(slotIndex) || _enabled[slotIndex] == enabled)
+            {
+                return;
+            }
+
+            _enabled[slotIndex] = enabled;
+            _events.Publish(new SkillSlotEnabledChangedEvent(slotIndex, enabled));
+        }
+
+        /// <summary>
+        /// slotIndex의 켜짐/꺼짐을 반전시킨다. HUD의 슬롯 클릭이 호출한다.
+        /// </summary>
+        public void ToggleEnabled(int slotIndex)
+        {
+            if (!IsValidSlot(slotIndex))
+            {
+                return;
+            }
+
+            SetEnabled(slotIndex, !_enabled[slotIndex]);
         }
 
         /// <summary>
@@ -173,6 +215,43 @@ namespace Skill
                 }
 
                 _slots[entry.SlotIndex] = definition;
+            }
+        }
+
+        /// <summary>
+        /// 꺼진 슬롯 인덱스만 스냅샷으로 내보낸다(기본값인 켜짐 슬롯은 생략). SaveService가 저장 시 호출한다.
+        /// </summary>
+        public int[] ExportDisabledSlots()
+        {
+            var result = new List<int>();
+
+            for (int i = 0; i < SlotCount; i++)
+            {
+                if (!_enabled[i])
+                {
+                    result.Add(i);
+                }
+            }
+
+            return result.ToArray();
+        }
+
+        /// <summary>
+        /// 저장된 꺼진 슬롯 목록으로 켜짐/꺼짐 상태를 복원한다. 시딩이라 이벤트를 발행하지 않는다.
+        /// </summary>
+        public void RestoreDisabledSlots(int[] disabledSlotIndices)
+        {
+            if (disabledSlotIndices == null)
+            {
+                return;
+            }
+
+            foreach (int slotIndex in disabledSlotIndices)
+            {
+                if (IsValidSlot(slotIndex))
+                {
+                    _enabled[slotIndex] = false;
+                }
             }
         }
     }

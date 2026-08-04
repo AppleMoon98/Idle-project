@@ -112,6 +112,13 @@ namespace Save
         public string SkillLoadoutJson { get; }
 
         /// <summary>
+        /// 꺼진(자동 발동하지 않는) 장착 슬롯 인덱스 목록을 직렬화한 JSON. InventoryJson과 같은
+        /// 이유로 통째로 문자열 하나로 저장한다(SaveService.RestoreSkillEnabled가 파싱/복원한다).
+        /// 기록이 없으면 빈 문자열(= 전부 켜짐).
+        /// </summary>
+        public string SkillEnabledJson { get; }
+
+        /// <summary>
         /// 마지막으로 저장된 병사 공격력 강화 레벨. 기록이 없으면 0.
         /// </summary>
         public int SoldierAttackPowerLevel { get; }
@@ -167,7 +174,8 @@ namespace Save
             int soldierMoveSpeedLevel,
             int soldierCriticalChanceLevel,
             int soldierCriticalDamageLevel,
-            string skillLoadoutJson)
+            string skillLoadoutJson,
+            string skillEnabledJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -195,6 +203,7 @@ namespace Save
             SoldierCriticalChanceLevel = soldierCriticalChanceLevel;
             SoldierCriticalDamageLevel = soldierCriticalDamageLevel;
             SkillLoadoutJson = skillLoadoutJson;
+            SkillEnabledJson = skillEnabledJson;
         }
     }
 }

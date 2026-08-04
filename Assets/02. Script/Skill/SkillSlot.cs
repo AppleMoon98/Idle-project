@@ -68,9 +68,10 @@ namespace Skill
 
             SkillSO definition = loadout.GetEquipped(slotIndex);
 
-            // 비어있거나(장착 안 함) 방어적으로 레벨이 0인 스킬은 발동하지 않고, 다음에 실제로
-            // 장착됐을 때 쿨다운이 처음부터 새로 시작하도록 진행도를 리셋해둔다.
-            if (definition == null || skillService.GetLevel(definition) <= 0)
+            // 비어있거나(장착 안 함), 방어적으로 레벨이 0이거나, 플레이어가 HUD에서 꺼둔 슬롯은
+            // 발동하지 않고, 다음에 다시 조건이 충족됐을 때 쿨다운이 처음부터 새로 시작하도록
+            // 진행도를 리셋해둔다.
+            if (definition == null || skillService.GetLevel(definition) <= 0 || !loadout.IsEnabled(slotIndex))
             {
                 _elapsed = 0f;
                 CooldownProgress01 = 0f;

@@ -68,6 +68,12 @@ namespace Save
             public SkillLoadoutService.SkillLoadoutSnapshotEntry[] Slots;
         }
 
+        [Serializable]
+        private class SkillEnabledSaveBlob
+        {
+            public int[] DisabledSlots;
+        }
+
         private const string GoldKey = "Save.Gold";
         private const string EnhancementStonesKey = "Save.EnhancementStones";
         private const string ChapterKey = "Save.Chapter";
@@ -94,6 +100,7 @@ namespace Save
         private const string SoldierCriticalChanceLevelKey = "Save.SoldierCriticalChanceLevel";
         private const string SoldierCriticalDamageLevelKey = "Save.SoldierCriticalDamageLevel";
         private const string SkillLoadoutJsonKey = "Save.SkillLoadoutJson";
+        private const string SkillEnabledJsonKey = "Save.SkillEnabledJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -135,6 +142,7 @@ namespace Save
         private int _soldierCriticalChanceLevel;
         private int _soldierCriticalDamageLevel;
         private string _skillLoadoutJson = "";
+        private string _skillEnabledJson = "";
 
         public SaveService(
             EventBus events,
@@ -199,6 +207,7 @@ namespace Save
             _soldierCriticalChanceLevel = save.SoldierCriticalChanceLevel;
             _soldierCriticalDamageLevel = save.SoldierCriticalDamageLevel;
             _skillLoadoutJson = save.SkillLoadoutJson;
+            _skillEnabledJson = save.SkillEnabledJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -217,6 +226,7 @@ namespace Save
             _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
+            _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
         }
 
         public void Shutdown()
@@ -238,6 +248,7 @@ namespace Save
             _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
+            _events.Unsubscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
         }
 
         /// <summary>
@@ -271,6 +282,7 @@ namespace Save
             int soldierCriticalChanceLevel = PlayerPrefs.GetInt(SoldierCriticalChanceLevelKey, 0);
             int soldierCriticalDamageLevel = PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0);
             string skillLoadoutJson = PlayerPrefs.GetString(SkillLoadoutJsonKey, "");
+            string skillEnabledJson = PlayerPrefs.GetString(SkillEnabledJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -298,7 +310,8 @@ namespace Save
                 soldierMoveSpeedLevel,
                 soldierCriticalChanceLevel,
                 soldierCriticalDamageLevel,
-                skillLoadoutJson);
+                skillLoadoutJson,
+                skillEnabledJson);
         }
 
         /// <summary>
@@ -332,6 +345,7 @@ namespace Save
             PlayerPrefs.SetInt(SoldierCriticalChanceLevelKey, _soldierCriticalChanceLevel);
             PlayerPrefs.SetInt(SoldierCriticalDamageLevelKey, _soldierCriticalDamageLevel);
             PlayerPrefs.SetString(SkillLoadoutJsonKey, _skillLoadoutJson);
+            PlayerPrefs.SetString(SkillEnabledJsonKey, _skillEnabledJson);
             PlayerPrefs.Save();
         }
 
@@ -444,6 +458,27 @@ namespace Save
             _skillLoadout.RestoreSnapshot(blob.Slots, _skillCatalog);
         }
 
+        /// <summary>
+        /// save.SkillEnabledJson으로 슬롯별 자동 발동 켜짐/꺼짐 상태를 복원한다. GameBootstrapper.Awake()에서
+        /// RestoreSkillLoadout 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreSkillEnabled(SaveData save)
+        {
+            if (string.IsNullOrEmpty(save.SkillEnabledJson))
+            {
+                return;
+            }
+
+            SkillEnabledSaveBlob blob = JsonUtility.FromJson<SkillEnabledSaveBlob>(save.SkillEnabledJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _skillLoadout.RestoreDisabledSlots(blob.DisabledSlots);
+        }
+
         private void OnGoldChanged(GoldChangedEvent evt)
         {
             _gold = evt.CurrentGold;
@@ -527,6 +562,12 @@ namespace Save
         private void OnSkillLoadoutChanged(SkillLoadoutChangedEvent evt)
         {
             RebuildSkillLoadoutSnapshot();
+            Save();
+        }
+
+        private void OnSkillSlotEnabledChanged(SkillSlotEnabledChangedEvent evt)
+        {
+            RebuildSkillEnabledSnapshot();
             Save();
         }
 
@@ -614,6 +655,19 @@ namespace Save
             };
 
             _skillLoadoutJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// SkillLoadoutService의 현재 켜짐/꺼짐 상태 전체를 JSON으로 다시 직렬화한다. RebuildSkillLoadoutSnapshot과 같은 이유.
+        /// </summary>
+        private void RebuildSkillEnabledSnapshot()
+        {
+            var blob = new SkillEnabledSaveBlob
+            {
+                DisabledSlots = _skillLoadout.ExportDisabledSlots()
+            };
+
+            _skillEnabledJson = JsonUtility.ToJson(blob);
         }
 
         /// <summary>
