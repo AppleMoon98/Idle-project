@@ -51,6 +51,16 @@ namespace Combat
 
         void ITickable.Tick(float deltaTime)
         {
+            // GameTicker는 순회 도중의 Unregister를 그 프레임이 끝난 뒤에야 실제로 반영한다(안전한
+            // 도중 등록/해제를 위해서). 그래서 죽음 등으로 OnDisable→FinishSwing이 이미 회전을
+            // 원위치로 되돌리고 _isSwinging을 false로 내려도, 같은 프레임 안에서 아직 리스트에
+            // 남아있던 이 인스턴스가 한 번 더 Tick을 받을 수 있다 — 그 경우 여기서 즉시 빠져야
+            // FinishSwing이 되돌려놓은 회전을 남은 _elapsed로 다시 덮어써버리는 걸 막을 수 있다.
+            if (!_isSwinging)
+            {
+                return;
+            }
+
             _elapsed += deltaTime;
 
             if (swingDuration <= 0f || _elapsed >= swingDuration)
