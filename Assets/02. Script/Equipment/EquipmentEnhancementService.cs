@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Core;
 using Inventory;
 
@@ -13,15 +15,18 @@ namespace Equipment
         private readonly InventoryService _inventory;
         private readonly EnhancementStoneService _stones;
         private readonly EquipmentEnhancementConfigSO _config;
+        private readonly EquipmentGradeCatalogSO _gradeCatalog;
 
         public EquipmentEnhancementService(
             InventoryService inventory,
             EnhancementStoneService stones,
-            EquipmentEnhancementConfigSO config)
+            EquipmentEnhancementConfigSO config,
+            EquipmentGradeCatalogSO gradeCatalog)
         {
             _inventory = inventory;
             _stones = stones;
             _config = config;
+            _gradeCatalog = gradeCatalog;
         }
 
         public void Initialize()
@@ -84,6 +89,31 @@ namespace Equipment
             _inventory.AddEnhancementLevel(definition, 1);
 
             return true;
+        }
+
+        /// <summary>
+        /// slot에 속한 보유 라인을 등급 낮은 것부터 순서대로, 재료(중복 장비+강화석)가
+        /// 허락하는 한 각 라인을 최대 레벨까지 반복 강화한다. 실제로 성공한 강화 횟수를 반환한다.
+        /// </summary>
+        public int TryEnhanceAll(EquipmentType slot)
+        {
+            int successCount = 0;
+
+            List<EquipmentSO> lines = _inventory.Items
+                .Where(owned => owned.Definition.EquipmentType == slot)
+                .OrderBy(owned => _gradeCatalog.IndexOf(owned.Definition.Grade))
+                .Select(owned => owned.Definition)
+                .ToList();
+
+            foreach (EquipmentSO definition in lines)
+            {
+                while (TryEnhance(definition))
+                {
+                    successCount++;
+                }
+            }
+
+            return successCount;
         }
     }
 }

@@ -214,7 +214,7 @@ namespace Core
             equipmentFusionService.Initialize();
             Services.Register(equipmentFusionService);
 
-            var equipmentEnhancementService = new EquipmentEnhancementService(inventoryService, enhancementStoneService, equipmentEnhancementConfig);
+            var equipmentEnhancementService = new EquipmentEnhancementService(inventoryService, enhancementStoneService, equipmentEnhancementConfig, equipmentGradeCatalog);
             equipmentEnhancementService.Initialize();
             Services.Register(equipmentEnhancementService);
 

@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Core;
 using Inventory;
 using Loot.Events;
@@ -64,6 +66,39 @@ namespace Equipment
 
             _events.Publish(new ItemDroppedEvent(nextItem));
             return true;
+        }
+
+        /// <summary>
+        /// slot에 속한 보유 라인을 등급 낮은 것부터 순서대로, 5개가 모이는 대로 계속 합성한다.
+        /// 합성 결과가 다음 등급 라인에 쌓여 그 라인도 재료가 차면 이어서 합성되도록(연쇄),
+        /// 한 바퀴에서 아무 진전이 없을 때까지 재스캔을 반복한다. 실제로 성공한 합성 횟수를 반환한다.
+        /// </summary>
+        public int TryFuseAll(EquipmentType slot)
+        {
+            int successCount = 0;
+            bool progressed;
+
+            do
+            {
+                progressed = false;
+
+                List<EquipmentSO> lines = _inventory.Items
+                    .Where(owned => owned.Definition.EquipmentType == slot)
+                    .OrderBy(owned => _gradeCatalog.IndexOf(owned.Definition.Grade))
+                    .Select(owned => owned.Definition)
+                    .ToList();
+
+                foreach (EquipmentSO definition in lines)
+                {
+                    while (TryFuse(definition))
+                    {
+                        successCount++;
+                        progressed = true;
+                    }
+                }
+            } while (progressed);
+
+            return successCount;
         }
     }
 }

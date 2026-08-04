@@ -29,6 +29,12 @@ namespace UI
         private Button closeButton;
 
         [SerializeField]
+        private Button enhanceAllButton;
+
+        [SerializeField]
+        private Button fuseAllButton;
+
+        [SerializeField]
         private EquipmentDetailPopupUI detailPopup;
 
         [SerializeField]
@@ -52,6 +58,8 @@ namespace UI
         {
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
+            enhanceAllButton.onClick.AddListener(EnhanceAll);
+            fuseAllButton.onClick.AddListener(FuseAll);
         }
 
         private void OnEnable()
@@ -87,6 +95,24 @@ namespace UI
             popupRoot.SetActive(false);
             detailPopup?.Close();
             enhancementPopup?.Close();
+        }
+
+        // 목록 갱신은 별도로 호출할 필요가 없다 - TryEnhance/TryFuse가 성공할 때마다 발행하는
+        // InventoryChangedEvent를 OnInventoryChanged가 이미 구독해서 Refresh()하고 있다.
+        private void EnhanceAll()
+        {
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancementService))
+            {
+                enhancementService.TryEnhanceAll(_openSlot);
+            }
+        }
+
+        private void FuseAll()
+        {
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
+            {
+                fusionService.TryFuseAll(_openSlot);
+            }
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
