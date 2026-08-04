@@ -67,6 +67,32 @@ namespace Enhancement
         }
 
         /// <summary>
+        /// 이 능력치의 해금 조건(다른 능력치의 레벨)을 만족했는지 여부. 조건이 없으면 항상 true.
+        /// </summary>
+        public bool IsUnlocked(EnhancementStatType statType)
+        {
+            EnhancementConfigSO config = _configs[statType];
+
+            return !config.HasUnlockRequirement || GetLevel(config.RequiredStatType) >= config.RequiredLevel;
+        }
+
+        /// <summary>
+        /// 이 능력치의 해금 조건이 되는 능력치. IsUnlocked가 false일 때 UI가 잠금 문구를 구성하는 데 쓴다.
+        /// </summary>
+        public EnhancementStatType GetRequiredStatType(EnhancementStatType statType)
+        {
+            return _configs[statType].RequiredStatType;
+        }
+
+        /// <summary>
+        /// 이 능력치의 해금에 필요한 RequiredStatType 레벨.
+        /// </summary>
+        public int GetRequiredLevel(EnhancementStatType statType)
+        {
+            return _configs[statType].RequiredLevel;
+        }
+
+        /// <summary>
         /// 다음 강화에 필요한 비용(복리 증가: BaseCost * CostMultiplier^레벨). 이미 최대 레벨이면 -1을 반환한다.
         /// double로 계산 후 int 범위로 saturate한다 — 배율이 1.5~3배씩 복리로 쌓이면 int 범위(약 21억)를
         /// 레벨 50 안팎에서 이미 넘어서는데, int로 그대로 캐스팅하면 오버플로우로 음수가 되어

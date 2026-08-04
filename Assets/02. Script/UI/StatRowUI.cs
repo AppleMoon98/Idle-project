@@ -23,6 +23,12 @@ namespace UI
         [SerializeField]
         private Button[] multiplierButtons;
 
+        [SerializeField]
+        private GameObject lockOverlay;
+
+        [SerializeField]
+        private Text lockOverlayText;
+
         private EnhancementStatType _statType;
 
         /// <summary>
@@ -85,6 +91,25 @@ namespace UI
             string costPart = cost < 0 ? "MAX" : $"{cost} G";
             string valuePart = StatDisplayNames.FormatValue(_statType, valuePerLevel);
             infoText.text = $"{StatDisplayNames.Get(_statType)} (+{valuePart}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
+
+            bool unlocked = service.IsUnlocked(_statType);
+
+            foreach (Button button in multiplierButtons)
+            {
+                button.interactable = unlocked;
+            }
+
+            if (lockOverlay != null)
+            {
+                lockOverlay.SetActive(!unlocked);
+            }
+
+            if (!unlocked && lockOverlayText != null)
+            {
+                EnhancementStatType requiredStatType = service.GetRequiredStatType(_statType);
+                int requiredLevel = service.GetRequiredLevel(_statType);
+                lockOverlayText.text = $"{StatDisplayNames.Get(requiredStatType)} Lv.{requiredLevel} 필요";
+            }
         }
     }
 }

@@ -27,6 +27,15 @@ namespace Enhancement
         [SerializeField]
         private CostIncrementTier[] costIncrementTiers;
 
+        [SerializeField]
+        private bool hasUnlockRequirement;
+
+        [SerializeField]
+        private EnhancementStatType requiredStatType;
+
+        [SerializeField]
+        private int requiredLevel;
+
         /// <summary>
         /// 강화 대상 능력치.
         /// </summary>
@@ -56,5 +65,20 @@ namespace Enhancement
         /// 계단식 비용 증가 구간 목록. 비어있으면 대신 BaseCost * CostMultiplier^level(복리) 방식을 사용한다.
         /// </summary>
         public IReadOnlyList<CostIncrementTier> CostIncrementTiers => costIncrementTiers;
+
+        /// <summary>
+        /// 이 능력치가 다른 능력치의 레벨 조건으로 잠겨있는지 여부. false면 RequiredStatType/RequiredLevel은 무시한다.
+        /// </summary>
+        public bool HasUnlockRequirement => hasUnlockRequirement;
+
+        /// <summary>
+        /// 해금 조건이 되는 능력치. HasUnlockRequirement가 true일 때만 의미가 있다.
+        /// </summary>
+        public EnhancementStatType RequiredStatType => requiredStatType;
+
+        /// <summary>
+        /// 해금에 필요한 RequiredStatType의 레벨. HasUnlockRequirement가 true일 때만 의미가 있다.
+        /// </summary>
+        public int RequiredLevel => requiredLevel;
     }
 }
