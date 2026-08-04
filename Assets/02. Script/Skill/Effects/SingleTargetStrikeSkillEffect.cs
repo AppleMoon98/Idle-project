@@ -6,8 +6,10 @@ using UnityEngine;
 namespace Skill.Effects
 {
     /// <summary>
-    /// 탐지 범위 안 최근접 적 1체에게 magnitude만큼 강타를 날린다. 탐지 범위(SkillSO.StrikeRange)와
-    /// 이펙트 프리팹(SkillSO.VfxPrefab)은 장착된 스킬 데이터에서 읽는다.
+    /// 탐지 범위 안 최근접 적 1체에게 (시전자 현재 공격력 + magnitude)만큼 강타를 날린다 -
+    /// AreaDamageSkillEffect와 같은 이유로 평타(Combat.Attacker)와 같은 기준(RuntimeStats.AttackPower)에
+    /// 얹는다. 탐지 범위(SkillSO.StrikeRange)와 이펙트 프리팹(SkillSO.VfxPrefab)은 장착된
+    /// 스킬 데이터에서 읽는다.
     /// </summary>
     [RequireComponent(typeof(SkillSlot))]
     public sealed class SingleTargetStrikeSkillEffect : MonoBehaviour, ISkillEffect
@@ -22,6 +24,12 @@ namespace Skill.Effects
         private int vfxPoolMaxSize = 4;
 
         private PoolManager _pool;
+        private CharacterStatsProvider _statsProvider;
+
+        private void Awake()
+        {
+            _statsProvider = GetComponentInParent<CharacterStatsProvider>();
+        }
 
         private void OnEnable()
         {
@@ -60,7 +68,7 @@ namespace Skill.Effects
             }
 
             Vector3 hitPosition = nearest.transform.position;
-            nearest.TakeDamage(magnitude);
+            nearest.TakeDamage(_statsProvider.Stats.AttackPower + magnitude);
             PlayVfx(definition, hitPosition);
         }
 
