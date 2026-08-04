@@ -8,76 +8,112 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 스킬 슬롯을 아이콘 바 형태로 나열한다(Equipment.EquippedSlotBarUI와 동일한 패턴). 각 슬롯은
-    /// 지금 레벨을 보여주고, 누르면 그 스킬의 상세/레벨업 팝업을 연다.
+    /// 6개 스킬 장착 슬롯을 한 줄로 보여준다. 슬롯을 탭하면 팝업을 여는 대신 그 슬롯을
+    /// "선택" 상태로 만든다(테두리 강조) — 실제 장착은 아래 SkillGridUI에서 스킬 아이콘을
+    /// 탭했을 때 이 SelectedSlotIndex를 대상으로 이뤄진다.
     /// </summary>
     public sealed class SkillSlotBarUI : MonoBehaviour
     {
         [Serializable]
         private struct SlotUI
         {
-            public SkillSO Skill;
             public Button Button;
             public Image Icon;
             public Text LevelText;
+            public GameObject SelectedHighlight;
         }
 
         [SerializeField]
         private SlotUI[] slots;
 
         [SerializeField]
-        private SkillDetailPopupUI popup;
+        private Color emptySlotIconColor = new(0.3f, 0.3f, 0.3f, 1f);
+
+        /// <summary>
+        /// 현재 선택된 슬롯 인덱스. 아직 아무것도 선택하지 않았으면 -1.
+        /// </summary>
+        public int SelectedSlotIndex { get; private set; } = -1;
 
         private void Awake()
         {
-            foreach (SlotUI slot in slots)
+            for (int i = 0; i < slots.Length; i++)
             {
-                if (slot.Skill == null)
-                {
-                    continue;
-                }
-
-                slot.Icon.sprite = slot.Skill.Icon;
-                slot.Icon.color = slot.Skill.IconTint;
-
-                SkillSO skill = slot.Skill;
-                slot.Button.onClick.AddListener(() => popup.Open(skill));
+                int slotIndex = i;
+                slots[i].Button.onClick.AddListener(() => SelectSlot(slotIndex));
             }
         }
 
         private void OnEnable()
         {
-            GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            GameBootstrapper.Events?.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             Refresh();
+
+            // 탭이 열리면 바로 스킬을 고를 수 있도록 첫 슬롯을 기본 선택해둔다
+            // (EquippedSlotBarUI가 첫 슬롯 팝업을 자동으로 여는 것과 같은 이유).
+            if (SelectedSlotIndex < 0 && slots.Length > 0)
+            {
+                SelectSlot(0);
+            }
+            else
+            {
+                UpdateHighlights();
+            }
         }
 
         private void OnDisable()
         {
-            GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
-            popup?.Close();
+            GameBootstrapper.Events?.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
         }
 
-        private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
+        private void OnSkillLoadoutChanged(SkillLoadoutChangedEvent evt)
         {
             Refresh();
         }
 
+        private void SelectSlot(int slotIndex)
+        {
+            SelectedSlotIndex = slotIndex;
+            UpdateHighlights();
+        }
+
+        private void UpdateHighlights()
+        {
+            for (int i = 0; i < slots.Length; i++)
+            {
+                if (slots[i].SelectedHighlight != null)
+                {
+                    slots[i].SelectedHighlight.SetActive(i == SelectedSlotIndex);
+                }
+            }
+        }
+
         private void Refresh()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillService service))
+            if (GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout)
+                || !GameBootstrapper.Services.TryGet(out SkillService skillService))
             {
                 return;
             }
 
-            foreach (SlotUI slot in slots)
+            for (int i = 0; i < slots.Length; i++)
             {
-                if (slot.Skill == null)
+                SkillSO definition = loadout.GetEquipped(i);
+
+                if (definition == null)
                 {
+                    slots[i].Icon.sprite = null;
+                    slots[i].Icon.color = emptySlotIconColor;
+                    slots[i].LevelText.text = "";
                     continue;
                 }
 
-                slot.LevelText.text = $"Lv.{service.GetLevel(slot.Skill)}";
+                slots[i].Icon.sprite = definition.Icon;
+                slots[i].Icon.color = definition.IconTint;
+                slots[i].LevelText.text = $"Lv.{skillService.GetLevel(definition)}";
             }
+
+            UpdateHighlights();
         }
     }
 }

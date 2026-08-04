@@ -23,3 +23,4 @@ MonoBehaviour:
   stoneCostIncreasePerLevel: 2
   effectValueBase: 5
   effectValuePerLevel: 1
+  effectType: 2

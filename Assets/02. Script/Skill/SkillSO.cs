@@ -44,6 +44,9 @@ namespace Skill
         [SerializeField]
         private float effectValuePerLevel = 2f;
 
+        [SerializeField]
+        private SkillEffectType effectType;
+
         /// <summary>
         /// 스킬 이름(UI 표시용).
         /// </summary>
@@ -77,6 +80,12 @@ namespace Skill
         {
             return effectValueBase + effectValuePerLevel * level;
         }
+
+        /// <summary>
+        /// 이 스킬이 실행할 효과 종류. SkillSlot이 장착 슬롯의 여러 ISkillEffect 구현체 중
+        /// 어느 것을 실행할지 고르는 데 쓴다.
+        /// </summary>
+        public SkillEffectType EffectType => effectType;
 
         /// <summary>
         /// 다음 레벨(level -> level+1)로 올리는 데 필요한 골드 비용.

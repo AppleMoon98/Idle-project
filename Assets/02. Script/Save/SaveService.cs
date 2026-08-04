@@ -62,6 +62,12 @@ namespace Save
             public SkillService.SkillLevelSnapshot[] Levels;
         }
 
+        [Serializable]
+        private class SkillLoadoutSaveBlob
+        {
+            public SkillLoadoutService.SkillLoadoutSnapshotEntry[] Slots;
+        }
+
         private const string GoldKey = "Save.Gold";
         private const string EnhancementStonesKey = "Save.EnhancementStones";
         private const string ChapterKey = "Save.Chapter";
@@ -87,6 +93,7 @@ namespace Save
         private const string SoldierMoveSpeedLevelKey = "Save.SoldierMoveSpeedLevel";
         private const string SoldierCriticalChanceLevelKey = "Save.SoldierCriticalChanceLevel";
         private const string SoldierCriticalDamageLevelKey = "Save.SoldierCriticalDamageLevel";
+        private const string SkillLoadoutJsonKey = "Save.SkillLoadoutJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -101,6 +108,7 @@ namespace Save
         private readonly SoldierEquipmentCatalogSO _soldierEquipmentCatalog;
         private readonly SkillService _skill;
         private readonly SkillCatalogSO _skillCatalog;
+        private readonly SkillLoadoutService _skillLoadout;
 
         private int _gold;
         private int _enhancementStones;
@@ -126,6 +134,7 @@ namespace Save
         private int _soldierMoveSpeedLevel;
         private int _soldierCriticalChanceLevel;
         private int _soldierCriticalDamageLevel;
+        private string _skillLoadoutJson = "";
 
         public SaveService(
             EventBus events,
@@ -140,7 +149,8 @@ namespace Save
             SoldierEquippedGearService soldierEquippedGear,
             SoldierEquipmentCatalogSO soldierEquipmentCatalog,
             SkillService skill,
-            SkillCatalogSO skillCatalog)
+            SkillCatalogSO skillCatalog,
+            SkillLoadoutService skillLoadout)
         {
             _events = events;
             _inventory = inventory;
@@ -155,6 +165,7 @@ namespace Save
             _soldierEquipmentCatalog = soldierEquipmentCatalog;
             _skill = skill;
             _skillCatalog = skillCatalog;
+            _skillLoadout = skillLoadout;
         }
 
         public void Initialize()
@@ -187,6 +198,7 @@ namespace Save
             _soldierMoveSpeedLevel = save.SoldierMoveSpeedLevel;
             _soldierCriticalChanceLevel = save.SoldierCriticalChanceLevel;
             _soldierCriticalDamageLevel = save.SoldierCriticalDamageLevel;
+            _skillLoadoutJson = save.SkillLoadoutJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -204,6 +216,7 @@ namespace Save
             _events.Subscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
+            _events.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
         }
 
         public void Shutdown()
@@ -224,6 +237,7 @@ namespace Save
             _events.Unsubscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
+            _events.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
         }
 
         /// <summary>
@@ -256,6 +270,7 @@ namespace Save
             int soldierMoveSpeedLevel = PlayerPrefs.GetInt(SoldierMoveSpeedLevelKey, 0);
             int soldierCriticalChanceLevel = PlayerPrefs.GetInt(SoldierCriticalChanceLevelKey, 0);
             int soldierCriticalDamageLevel = PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0);
+            string skillLoadoutJson = PlayerPrefs.GetString(SkillLoadoutJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -282,7 +297,8 @@ namespace Save
                 soldierAttackSpeedLevel,
                 soldierMoveSpeedLevel,
                 soldierCriticalChanceLevel,
-                soldierCriticalDamageLevel);
+                soldierCriticalDamageLevel,
+                skillLoadoutJson);
         }
 
         /// <summary>
@@ -315,6 +331,7 @@ namespace Save
             PlayerPrefs.SetInt(SoldierMoveSpeedLevelKey, _soldierMoveSpeedLevel);
             PlayerPrefs.SetInt(SoldierCriticalChanceLevelKey, _soldierCriticalChanceLevel);
             PlayerPrefs.SetInt(SoldierCriticalDamageLevelKey, _soldierCriticalDamageLevel);
+            PlayerPrefs.SetString(SkillLoadoutJsonKey, _skillLoadoutJson);
             PlayerPrefs.Save();
         }
 
@@ -406,6 +423,27 @@ namespace Save
             _skill.RestoreSnapshot(blob.Levels, _skillCatalog);
         }
 
+        /// <summary>
+        /// save.SkillLoadoutJson으로 슬롯별 장착 스킬을 복원한다. GameBootstrapper.Awake()에서
+        /// SkillLoadoutService 생성 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreSkillLoadout(SaveData save)
+        {
+            if (string.IsNullOrEmpty(save.SkillLoadoutJson))
+            {
+                return;
+            }
+
+            SkillLoadoutSaveBlob blob = JsonUtility.FromJson<SkillLoadoutSaveBlob>(save.SkillLoadoutJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _skillLoadout.RestoreSnapshot(blob.Slots, _skillCatalog);
+        }
+
         private void OnGoldChanged(GoldChangedEvent evt)
         {
             _gold = evt.CurrentGold;
@@ -486,6 +524,12 @@ namespace Save
             Save();
         }
 
+        private void OnSkillLoadoutChanged(SkillLoadoutChangedEvent evt)
+        {
+            RebuildSkillLoadoutSnapshot();
+            Save();
+        }
+
         private void OnInventoryChanged(InventoryChangedEvent evt)
         {
             RebuildInventorySnapshot();
@@ -557,6 +601,19 @@ namespace Save
             };
 
             _skillLevelsJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// SkillLoadoutService의 현재 장착 상태 전체를 JSON으로 다시 직렬화한다. RebuildInventorySnapshot과 같은 이유.
+        /// </summary>
+        private void RebuildSkillLoadoutSnapshot()
+        {
+            var blob = new SkillLoadoutSaveBlob
+            {
+                Slots = _skillLoadout.ExportSnapshot(_skillCatalog)
+            };
+
+            _skillLoadoutJson = JsonUtility.ToJson(blob);
         }
 
         /// <summary>

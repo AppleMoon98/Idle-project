@@ -32,6 +32,9 @@ namespace UI
         [SerializeField]
         private Color emptySlotFrameColor = new Color(0.35f, 0.35f, 0.35f, 1f);
 
+        [SerializeField]
+        private GameObject skillCooldownHud;
+
         private void Awake()
         {
             foreach (SlotUI slot in slots)
@@ -52,6 +55,10 @@ namespace UI
             {
                 popup.Open(slots[0].Type);
             }
+
+            // 스킬 쿨다운 HUD(BottomMenu 위 상시 표시)가 장비 슬롯바와 화면 위치가 겹치므로,
+            // 장비 탭이 열려있는 동안은 잠깐 숨겨둔다.
+            skillCooldownHud?.SetActive(false);
         }
 
         private void OnDisable()
@@ -61,6 +68,8 @@ namespace UI
             // 슬롯바가 꺼질 때 팝업이 따로 떠 있는 채로 남지 않도록 같이 닫는다
             // (팝업은 슬롯바의 자식이 아니라 Canvas의 별도 형제 오브젝트라 자동으로 꺼지지 않는다).
             popup.Close();
+
+            skillCooldownHud?.SetActive(true);
         }
 
         private void OnEquipmentEquipped(EquipmentEquippedEvent evt)

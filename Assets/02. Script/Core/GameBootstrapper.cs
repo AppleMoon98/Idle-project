@@ -149,6 +149,10 @@ namespace Core
             skillService.Initialize();
             Services.Register(skillService);
 
+            var skillLoadoutService = new SkillLoadoutService(Events, skillService);
+            skillLoadoutService.Initialize();
+            Services.Register(skillLoadoutService);
+
             var saveService = new SaveService(
                 Events,
                 inventoryService,
@@ -162,7 +166,8 @@ namespace Core
                 soldierEquippedGearService,
                 soldierEquipmentCatalog,
                 skillService,
-                skillCatalog);
+                skillCatalog,
+                skillLoadoutService);
             saveService.Initialize();
             Services.Register(saveService);
 
@@ -172,6 +177,7 @@ namespace Core
             saveService.RestoreSoldierRoster(save);
             saveService.RestoreSoldierEquipment(save);
             saveService.RestoreSkills(save);
+            saveService.RestoreSkillLoadout(save);
 
             // OfflineProgressService.CalculateAndApply()(Start()에서 제일 먼저 실행됨)보다 반드시
             // 먼저 랭크를 맞춰둬야 한다 — 그렇지 않으면 아직 시골 소년 상태인 RankService가 오프라인
@@ -408,6 +414,11 @@ namespace Core
             if (Services != null && Services.TryGet(out SkillService skillService))
             {
                 skillService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SkillLoadoutService skillLoadoutService))
+            {
+                skillLoadoutService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out SaveService saveService))
