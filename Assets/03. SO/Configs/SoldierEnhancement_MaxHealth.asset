@@ -1,0 +1,26 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ebf836476ecfe804892e2b7aaa5c2d91, type: 3}
+  m_Name: SoldierEnhancement_MaxHealth
+  m_EditorClassIdentifier: Assembly-CSharp::Enhancement.EnhancementConfigSO
+  statType: 1
+  baseCost: 10
+  costMultiplier: 1.05
+  valuePerLevel: 5
+  maxLevel: 2000
+  costIncrementTiers:
+  - levelThreshold: 0
+    increment: 20
+  - levelThreshold: 100
+    increment: 200
+  - levelThreshold: 1000
+    increment: 2000

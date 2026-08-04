@@ -12,6 +12,7 @@ using Rank;
 using Save;
 using Skill;
 using Soldier;
+using SoldierEnhancement;
 using SoldierEquipment;
 using Stage;
 using UnityEngine;
@@ -37,6 +38,9 @@ namespace Core
 
         [SerializeField]
         private EnhancementConfigSO[] enhancementConfigs;
+
+        [SerializeField]
+        private EnhancementConfigSO[] soldierEnhancementConfigs;
 
         [SerializeField]
         private StageCatalogSO stageCatalog;
@@ -186,6 +190,20 @@ namespace Core
             _enhancementService.Initialize();
             Services.Register(_enhancementService);
 
+            var soldierEnhancementService = new SoldierEnhancementService(Events, currencyService, soldierEnhancementConfigs);
+            soldierEnhancementService.Initialize();
+            Services.Register(soldierEnhancementService);
+
+            // Player의 RestoreLevel과 달리 여기서(Awake, Start가 아니라) 바로 복원한다 — 병사는
+            // SoldierStatReceiver가 스폰 시점(OnEnable)에 현재 레벨을 직접 조회하는 방식이라, 다른
+            // 구독자의 OnEnable을 기다릴 필요 없이 어떤 병사보다도 먼저 세팅되기만 하면 된다.
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackPower, save.SoldierAttackPowerLevel);
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.MaxHealth, save.SoldierMaxHealthLevel);
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackSpeed, save.SoldierAttackSpeedLevel);
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.MoveSpeed, save.SoldierMoveSpeedLevel);
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalChance, save.SoldierCriticalChanceLevel);
+            soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalDamage, save.SoldierCriticalDamageLevel);
+
             var equipmentFusionService = new EquipmentFusionService(Events, inventoryService, equipmentGradeCatalog, equipmentCatalog);
             equipmentFusionService.Initialize();
             Services.Register(equipmentFusionService);
@@ -315,6 +333,11 @@ namespace Core
             if (Services != null && Services.TryGet(out EnhancementService enhancementService))
             {
                 enhancementService.Shutdown();
+            }
+
+            if (Services != null && Services.TryGet(out SoldierEnhancementService soldierEnhancementService))
+            {
+                soldierEnhancementService.Shutdown();
             }
 
             if (Services != null && Services.TryGet(out EquipmentFusionService equipmentFusionService))

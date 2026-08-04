@@ -14,6 +14,7 @@ using Skill;
 using Skill.Events;
 using Soldier;
 using Soldier.Events;
+using SoldierEnhancement.Events;
 using SoldierEquipment;
 using SoldierEquipment.Events;
 using Stage.Events;
@@ -80,6 +81,12 @@ namespace Save
         private const string SoldierRosterJsonKey = "Save.SoldierRosterJson";
         private const string SoldierEquipmentJsonKey = "Save.SoldierEquipmentJson";
         private const string SkillLevelsJsonKey = "Save.SkillLevelsJson";
+        private const string SoldierAttackPowerLevelKey = "Save.SoldierAttackPowerLevel";
+        private const string SoldierMaxHealthLevelKey = "Save.SoldierMaxHealthLevel";
+        private const string SoldierAttackSpeedLevelKey = "Save.SoldierAttackSpeedLevel";
+        private const string SoldierMoveSpeedLevelKey = "Save.SoldierMoveSpeedLevel";
+        private const string SoldierCriticalChanceLevelKey = "Save.SoldierCriticalChanceLevel";
+        private const string SoldierCriticalDamageLevelKey = "Save.SoldierCriticalDamageLevel";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -113,6 +120,12 @@ namespace Save
         private string _soldierRosterJson = "";
         private string _soldierEquipmentJson = "";
         private string _skillLevelsJson = "";
+        private int _soldierAttackPowerLevel;
+        private int _soldierMaxHealthLevel;
+        private int _soldierAttackSpeedLevel;
+        private int _soldierMoveSpeedLevel;
+        private int _soldierCriticalChanceLevel;
+        private int _soldierCriticalDamageLevel;
 
         public SaveService(
             EventBus events,
@@ -168,6 +181,12 @@ namespace Save
             _soldierRosterJson = save.SoldierRosterJson;
             _soldierEquipmentJson = save.SoldierEquipmentJson;
             _skillLevelsJson = save.SkillLevelsJson;
+            _soldierAttackPowerLevel = save.SoldierAttackPowerLevel;
+            _soldierMaxHealthLevel = save.SoldierMaxHealthLevel;
+            _soldierAttackSpeedLevel = save.SoldierAttackSpeedLevel;
+            _soldierMoveSpeedLevel = save.SoldierMoveSpeedLevel;
+            _soldierCriticalChanceLevel = save.SoldierCriticalChanceLevel;
+            _soldierCriticalDamageLevel = save.SoldierCriticalDamageLevel;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -184,6 +203,7 @@ namespace Save
             _events.Subscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Subscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
         }
 
         public void Shutdown()
@@ -203,6 +223,7 @@ namespace Save
             _events.Unsubscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Unsubscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
         }
 
         /// <summary>
@@ -229,6 +250,12 @@ namespace Save
             string soldierRosterJson = PlayerPrefs.GetString(SoldierRosterJsonKey, "");
             string soldierEquipmentJson = PlayerPrefs.GetString(SoldierEquipmentJsonKey, "");
             string skillLevelsJson = PlayerPrefs.GetString(SkillLevelsJsonKey, "");
+            int soldierAttackPowerLevel = PlayerPrefs.GetInt(SoldierAttackPowerLevelKey, 0);
+            int soldierMaxHealthLevel = PlayerPrefs.GetInt(SoldierMaxHealthLevelKey, 0);
+            int soldierAttackSpeedLevel = PlayerPrefs.GetInt(SoldierAttackSpeedLevelKey, 0);
+            int soldierMoveSpeedLevel = PlayerPrefs.GetInt(SoldierMoveSpeedLevelKey, 0);
+            int soldierCriticalChanceLevel = PlayerPrefs.GetInt(SoldierCriticalChanceLevelKey, 0);
+            int soldierCriticalDamageLevel = PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0);
 
             return new SaveData(
                 gold,
@@ -249,7 +276,13 @@ namespace Save
                 soldierTicketCount,
                 soldierRosterJson,
                 soldierEquipmentJson,
-                skillLevelsJson);
+                skillLevelsJson,
+                soldierAttackPowerLevel,
+                soldierMaxHealthLevel,
+                soldierAttackSpeedLevel,
+                soldierMoveSpeedLevel,
+                soldierCriticalChanceLevel,
+                soldierCriticalDamageLevel);
         }
 
         /// <summary>
@@ -276,6 +309,12 @@ namespace Save
             PlayerPrefs.SetString(SoldierRosterJsonKey, _soldierRosterJson);
             PlayerPrefs.SetString(SoldierEquipmentJsonKey, _soldierEquipmentJson);
             PlayerPrefs.SetString(SkillLevelsJsonKey, _skillLevelsJson);
+            PlayerPrefs.SetInt(SoldierAttackPowerLevelKey, _soldierAttackPowerLevel);
+            PlayerPrefs.SetInt(SoldierMaxHealthLevelKey, _soldierMaxHealthLevel);
+            PlayerPrefs.SetInt(SoldierAttackSpeedLevelKey, _soldierAttackSpeedLevel);
+            PlayerPrefs.SetInt(SoldierMoveSpeedLevelKey, _soldierMoveSpeedLevel);
+            PlayerPrefs.SetInt(SoldierCriticalChanceLevelKey, _soldierCriticalChanceLevel);
+            PlayerPrefs.SetInt(SoldierCriticalDamageLevelKey, _soldierCriticalDamageLevel);
             PlayerPrefs.Save();
         }
 
@@ -414,6 +453,33 @@ namespace Save
                     break;
                 case EnhancementStatType.CriticalDamage:
                     _criticalDamageLevel = evt.NewLevel;
+                    break;
+            }
+
+            Save();
+        }
+
+        private void OnSoldierStatEnhanced(SoldierStatEnhancedEvent evt)
+        {
+            switch (evt.StatType)
+            {
+                case EnhancementStatType.AttackPower:
+                    _soldierAttackPowerLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.MaxHealth:
+                    _soldierMaxHealthLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.AttackSpeed:
+                    _soldierAttackSpeedLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.MoveSpeed:
+                    _soldierMoveSpeedLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.CriticalChance:
+                    _soldierCriticalChanceLevel = evt.NewLevel;
+                    break;
+                case EnhancementStatType.CriticalDamage:
+                    _soldierCriticalDamageLevel = evt.NewLevel;
                     break;
             }
 

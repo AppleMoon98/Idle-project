@@ -144,6 +144,7 @@ GameObject:
   - component: {fileID: 3015650229225750995}
   - component: {fileID: 8300883455212600932}
   - component: {fileID: 5808185526638659028}
+  - component: {fileID: 2006493083690781599}
   m_Layer: 8
   m_Name: Soldier_Ranged
   m_TagString: Untagged
@@ -408,6 +409,18 @@ MonoBehaviour:
   - {fileID: 8300883455212600932}
   - {fileID: 7803980873243631336}
   arrivalDistance: 0.1
+--- !u!114 &2006493083690781599
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 73f0472f811a4654999fb723f981fdfa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierStatReceiver
 --- !u!1001 &7154002393889260610
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -105,6 +105,36 @@ namespace Save
         /// </summary>
         public string SkillLevelsJson { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 병사 공격력 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierAttackPowerLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 병사 최대체력 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierMaxHealthLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 병사 공격속도 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierAttackSpeedLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 병사 이동속도 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierMoveSpeedLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 병사 크리티컬 확률 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierCriticalChanceLevel { get; }
+
+        /// <summary>
+        /// 마지막으로 저장된 병사 크리티컬 피해량 강화 레벨. 기록이 없으면 0.
+        /// </summary>
+        public int SoldierCriticalDamageLevel { get; }
+
         public SaveData(
             int gold,
             int enhancementStones,
@@ -124,7 +154,13 @@ namespace Save
             int soldierTicketCount,
             string soldierRosterJson,
             string soldierEquipmentJson,
-            string skillLevelsJson)
+            string skillLevelsJson,
+            int soldierAttackPowerLevel,
+            int soldierMaxHealthLevel,
+            int soldierAttackSpeedLevel,
+            int soldierMoveSpeedLevel,
+            int soldierCriticalChanceLevel,
+            int soldierCriticalDamageLevel)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -145,6 +181,12 @@ namespace Save
             SoldierRosterJson = soldierRosterJson;
             SoldierEquipmentJson = soldierEquipmentJson;
             SkillLevelsJson = skillLevelsJson;
+            SoldierAttackPowerLevel = soldierAttackPowerLevel;
+            SoldierMaxHealthLevel = soldierMaxHealthLevel;
+            SoldierAttackSpeedLevel = soldierAttackSpeedLevel;
+            SoldierMoveSpeedLevel = soldierMoveSpeedLevel;
+            SoldierCriticalChanceLevel = soldierCriticalChanceLevel;
+            SoldierCriticalDamageLevel = soldierCriticalDamageLevel;
         }
     }
 }

@@ -46,6 +46,17 @@ namespace Character
         /// </summary>
         public RuntimeStats(CharacterStatsSO source)
         {
+            ResetTo(source);
+        }
+
+        /// <summary>
+        /// 모든 필드를 source(원본 SO) 값으로 되돌린다. 풀링되어 재사용되는 캐릭터(병사 등)가
+        /// 스폰될 때마다 이전 생애에서 누적된 버프/강화 적용치를 지우고 원본 기준으로 다시
+        /// 시작하기 위한 것이다 — StageMonsterScaler.ApplyScale이 매 스폰마다 baseStats 기준으로
+        /// 다시 계산하는 것과 같은 이유.
+        /// </summary>
+        public void ResetTo(CharacterStatsSO source)
+        {
             MaxHealth = source.MaxHealth;
             AttackPower = source.AttackPower;
             AttackRange = source.AttackRange;
