@@ -3,9 +3,10 @@ using UnityEngine;
 namespace Skill
 {
     /// <summary>
-    /// 스킬 하나(고정 슬롯)의 데이터 정의. 레벨 0(미강화 상태)에도 EffectValueBase만큼은 항상
-    /// 발동하며, 레벨이 오를수록 EffectValuePerLevel만큼 수치가 커진다. 비용은 골드/강화석을
-    /// 둘 다 요구하며 레벨에 비례해 선형으로 증가한다(EquipmentEnhancementConfigSO와 동일한 형태).
+    /// 스킬 하나(고정 슬롯)의 데이터 정의. 레벨 0(미강화 상태)은 아직 습득하지 않은 것으로 취급돼
+    /// SkillSlot이 자동 발동시키지 않는다(SkillSlot.Tick 참고) — 레벨 1부터 EffectValueBase +
+    /// EffectValuePerLevel × 레벨 수치로 발동한다. 비용은 골드/강화석을 둘 다 요구하며 레벨에
+    /// 비례해 선형으로 증가한다(EquipmentEnhancementConfigSO와 동일한 형태).
     /// </summary>
     [CreateAssetMenu(fileName = "Skill", menuName = "Idle Project/Skill/Skill")]
     public sealed class SkillSO : ScriptableObject

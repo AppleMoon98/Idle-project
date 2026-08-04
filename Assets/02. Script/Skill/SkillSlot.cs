@@ -45,6 +45,19 @@ namespace Skill
                 return;
             }
 
+            int level = 0;
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillService service))
+            {
+                level = service.GetLevel(definition);
+            }
+
+            // 0레벨(강화 전)에는 아직 습득하지 않은 것으로 보고 자동 시전하지 않는다.
+            if (level <= 0)
+            {
+                return;
+            }
+
             _elapsed += deltaTime;
 
             if (_elapsed < definition.Cooldown)
@@ -53,13 +66,6 @@ namespace Skill
             }
 
             _elapsed = 0f;
-
-            int level = 0;
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillService service))
-            {
-                level = service.GetLevel(definition);
-            }
 
             _effect.Execute(transform, definition.GetMagnitude(level));
         }
