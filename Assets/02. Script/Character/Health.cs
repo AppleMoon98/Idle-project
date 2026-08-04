@@ -34,7 +34,7 @@ namespace Character
         /// <summary>
         /// 데미지를 적용한다. 이미 사망했거나 amount가 0 이하이면 무시한다.
         /// </summary>
-        public void TakeDamage(float amount)
+        public void TakeDamage(float amount, bool isCritical = false)
         {
             if (IsDead || amount <= 0f)
             {
@@ -42,6 +42,7 @@ namespace Character
             }
 
             SetCurrent(_current - amount);
+            GameBootstrapper.Events?.Publish(new DamageAppliedEvent(gameObject, amount, isCritical));
 
             if (_current <= 0f)
             {

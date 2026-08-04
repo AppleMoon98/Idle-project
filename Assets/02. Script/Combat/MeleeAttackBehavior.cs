@@ -12,9 +12,9 @@ namespace Combat
         [SerializeField]
         private WeaponSwing weaponSwing;
 
-        public void Execute(Transform origin, Health target, float attackPower)
+        public void Execute(Transform origin, Health target, float attackPower, bool isCritical)
         {
-            target.TakeDamage(attackPower);
+            target.TakeDamage(attackPower, isCritical);
 
             if (weaponSwing != null)
             {

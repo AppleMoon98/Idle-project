@@ -89,7 +89,11 @@ namespace Core
         [SerializeField]
         private SkillCatalogSO skillCatalog;
 
+        [SerializeField]
+        private GameObject damageNumberPrefab;
+
         private LootDropper _lootDropper;
+        private DamageNumberSpawner _damageNumberSpawner;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
         private EquipmentStatService _equipmentStatService;
@@ -230,6 +234,7 @@ namespace Core
                 maxOfflineHours * 3600f);
 
             _lootDropper = new LootDropper(Events, stageCatalog);
+            _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
         }
 
         private void Start()
@@ -278,6 +283,9 @@ namespace Core
         {
             _lootDropper?.Dispose();
             _lootDropper = null;
+
+            _damageNumberSpawner?.Dispose();
+            _damageNumberSpawner = null;
 
             if (Services != null && Services.TryGet(out PoolManager poolManager))
             {

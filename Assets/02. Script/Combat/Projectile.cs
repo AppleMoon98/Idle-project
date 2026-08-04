@@ -18,6 +18,7 @@ namespace Combat
 
         private Health _target;
         private float _damage;
+        private bool _isCritical;
 
         private void OnEnable()
         {
@@ -38,10 +39,11 @@ namespace Combat
         /// <summary>
         /// 발사체를 발사한다. 풀에서 꺼낸 직후 호출되어야 한다.
         /// </summary>
-        public void Launch(Health target, float damage)
+        public void Launch(Health target, float damage, bool isCritical)
         {
             _target = target;
             _damage = damage;
+            _isCritical = isCritical;
         }
 
         void ITickable.Tick(float deltaTime)
@@ -57,7 +59,7 @@ namespace Combat
 
             if (Vector3.Distance(transform.position, targetPosition) <= hitDistance)
             {
-                _target.TakeDamage(_damage);
+                _target.TakeDamage(_damage, _isCritical);
                 ReleaseSelf();
             }
         }

@@ -14,6 +14,7 @@ namespace Combat
         /// <param name="origin">공격을 시작하는 위치(공격자의 Transform)</param>
         /// <param name="target">공격 대상</param>
         /// <param name="attackPower">적용할 공격력</param>
-        void Execute(Transform origin, Health target, float attackPower);
+        /// <param name="isCritical">치명타 여부</param>
+        void Execute(Transform origin, Health target, float attackPower, bool isCritical);
     }
 }

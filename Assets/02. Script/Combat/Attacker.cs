@@ -67,7 +67,7 @@ namespace Combat
                 bool isCritical = UnityEngine.Random.value < stats.CriticalChance;
                 float damage = isCritical ? stats.AttackPower * (1f + stats.CriticalDamageMultiplier) : stats.AttackPower;
 
-                _attackBehavior.Execute(transform, target, damage);
+                _attackBehavior.Execute(transform, target, damage, isCritical);
                 AttackPerformed?.Invoke();
             }
         }
