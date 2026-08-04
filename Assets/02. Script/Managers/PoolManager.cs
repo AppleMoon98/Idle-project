@@ -121,7 +121,7 @@ namespace Managers
 
         private static void NotifySpawned(GameObject instance)
         {
-            if (instance.TryGetComponent(out IPoolable poolable))
+            foreach (IPoolable poolable in instance.GetComponents<IPoolable>())
             {
                 poolable.OnSpawned();
             }
@@ -129,7 +129,7 @@ namespace Managers
 
         private static void NotifyDespawned(GameObject instance)
         {
-            if (instance.TryGetComponent(out IPoolable poolable))
+            foreach (IPoolable poolable in instance.GetComponents<IPoolable>())
             {
                 poolable.OnDespawned();
             }
