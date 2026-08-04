@@ -15,3 +15,4 @@ MonoBehaviour:
   ranks:
   - {fileID: 11400000, guid: 2263427fabda700459d54e9e25eadf1d, type: 2}
   - {fileID: 11400000, guid: 5b34ed3fcfbdffc40bb74038bf0e39a3, type: 2}
+  - {fileID: 11400000, guid: 3d5cecde12961fa41ba11ffcef870c2d, type: 2}
