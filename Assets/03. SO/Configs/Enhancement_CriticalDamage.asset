@@ -18,3 +18,6 @@ MonoBehaviour:
   valuePerLevel: 0.005
   maxLevel: 300
   costIncrementTiers: []
+  hasUnlockRequirement: 1
+  requiredStatType: 0
+  requiredLevel: 140
