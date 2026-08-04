@@ -13,7 +13,8 @@ MonoBehaviour:
   m_Name: Enhancement_AttackSpeed
   m_EditorClassIdentifier: Assembly-CSharp::Enhancement.EnhancementConfigSO
   statType: 2
-  baseCost: 10
+  baseCost: 1000
   costMultiplier: 1.1
   valuePerLevel: 0.01
-  maxLevel: 20
+  maxLevel: 100
+  costIncrementTiers: []

@@ -387,6 +387,14 @@ See Combat section for `EnemyTracker`/`ITargetFilter`/`MonsterTargetSelector` �
 - `GameBootstrapper` gained a `damageNumberPrefab` field (assigned to `Assets/04. Prefab/DamageNumber.prefab`) and constructs/disposes `_damageNumberSpawner` alongside `_lootDropper`.
 - Verified in Play Mode: real auto-combat produces rising/fading white numbers; a forced `TakeDamage(amount, isCritical: true)` renders red.
 
+### AL. Tiered-Linear Enhancement Cost for AttackPower/MaxHealth (implemented — supersedes part of section AC)
+`Assets/02. Script/Enhancement/` — `AttackPower`/`MaxHealth` moved off the compound cost curve onto a step-wise linear one, so the *increase-per-level* itself grows in discrete jumps instead of compounding every level:
+- `Enhancement.CostIncrementTier` (new, `[Serializable]`, not a SO — same "plain data row" shape as `Stage.MonsterSpawnEntry`) — `LevelThreshold`/`Increment`: from `LevelThreshold` onward, each enhance costs `Increment` more than the previous one.
+- `EnhancementConfigSO` gained `CostIncrementTiers` (`CostIncrementTier[]`). **Empty array = unchanged legacy behavior** (`BaseCost * CostMultiplier^level`) — this is why `AttackSpeed`/`MoveSpeed`/`CriticalChance`/`CriticalDamage` needed zero code changes, only value tweaks. Same "empty/null as a signal" idiom as `RankSO.RequiredStage == null` meaning "starting rank."
+- `EnhancementService.GetNextCost` branches on whether `CostIncrementTiers` is non-empty: `CalculateTieredCost` sums, per tier, `Increment × (levels of that tier at or below the current level)`; `CalculateCompoundCost` is the untouched original formula. Tiered totals stay far inside `int` range even at `MaxLevel = 2000` (~591,010 at level 1500), so unlike the compound path it needs no `double`/saturate handling.
+- Tuned values: `AttackPower`/`MaxHealth` — `costIncrementTiers = [{0, +10}, {100, +100}, {1000, +1000}]` (i.e. 강화당 +10원 until 100강, +100원 until 1000강, +1000원 beyond), `BaseCost` still `10`. `AttackSpeed`/`MoveSpeed` — `BaseCost = 1000`, `MaxLevel = 100` (was `10`/`20`), `CostMultiplier` unchanged (`1.1`). `CriticalChance`/`CriticalDamage` — `BaseCost = 100`, `CostMultiplier = 1.3` (was `10`/`2.1`).
+- Verified in Play Mode via `EnhancementService.GetNextCost` at levels 0/99/100/999/1000/1500 for `AttackPower` (10 / 1,000 / 1,010 / 90,910 / 91,010 / 591,010 — matches the tier-boundary math exactly) and level-0/1 spot checks for the other four configs.
+
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
 

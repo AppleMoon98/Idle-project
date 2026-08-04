@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Enhancement
@@ -23,6 +24,9 @@ namespace Enhancement
         [SerializeField]
         private int maxLevel;
 
+        [SerializeField]
+        private CostIncrementTier[] costIncrementTiers;
+
         /// <summary>
         /// 강화 대상 능력치.
         /// </summary>
@@ -47,5 +51,10 @@ namespace Enhancement
         /// 최대 강화 레벨.
         /// </summary>
         public int MaxLevel => maxLevel;
+
+        /// <summary>
+        /// 계단식 비용 증가 구간 목록. 비어있으면 대신 BaseCost * CostMultiplier^level(복리) 방식을 사용한다.
+        /// </summary>
+        public IReadOnlyList<CostIncrementTier> CostIncrementTiers => costIncrementTiers;
     }
 }
