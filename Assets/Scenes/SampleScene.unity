@@ -2137,6 +2137,8 @@ MonoBehaviour:
   - {fileID: 2066704181}
   - {fileID: 317869120}
   - {fileID: 1314201587}
+  selectFirstTabByDefault: 0
+  allowToggleClose: 1
 --- !u!114 &149043401
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3890,6 +3892,8 @@ MonoBehaviour:
   panels:
   - {fileID: 643112196}
   - {fileID: 694636387}
+  selectFirstTabByDefault: 1
+  allowToggleClose: 0
 --- !u!114 &265206908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10638,6 +10642,8 @@ MonoBehaviour:
   - {fileID: 1215350126}
   - {fileID: 989530081}
   - {fileID: 2097635228}
+  selectFirstTabByDefault: 0
+  allowToggleClose: 1
 --- !u!114 &758342002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11615,6 +11621,8 @@ MonoBehaviour:
   - {fileID: 1693939919}
   - {fileID: 1481068120}
   - {fileID: 1480349950}
+  selectFirstTabByDefault: 0
+  allowToggleClose: 1
 --- !u!114 &806573087
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -14182,6 +14190,8 @@ MonoBehaviour:
   panels:
   - {fileID: 1082003053}
   - {fileID: 267841501}
+  selectFirstTabByDefault: 0
+  allowToggleClose: 1
 --- !u!114 &1005445319
 MonoBehaviour:
   m_ObjectHideFlags: 0

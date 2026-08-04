@@ -15,6 +15,12 @@ namespace UI
         [SerializeField]
         private GameObject[] panels;
 
+        [SerializeField]
+        private bool selectFirstTabByDefault;
+
+        [SerializeField]
+        private bool allowToggleClose = true;
+
         private int _activeIndex = -1;
 
         private void Awake()
@@ -29,12 +35,23 @@ namespace UI
             {
                 panel.SetActive(false);
             }
+
+            if (selectFirstTabByDefault && panels.Length > 0)
+            {
+                panels[0].SetActive(true);
+                _activeIndex = 0;
+            }
         }
 
         private void OnTabClicked(int index)
         {
             if (_activeIndex == index)
             {
+                if (!allowToggleClose)
+                {
+                    return;
+                }
+
                 panels[index].SetActive(false);
                 _activeIndex = -1;
                 return;
