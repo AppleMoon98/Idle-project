@@ -72,7 +72,8 @@ namespace SoldierEnhancement
 
         /// <summary>
         /// 다음 강화에 필요한 비용. Enhancement.EnhancementService.GetNextCost와 동일한 계산(계단식/복리
-        /// 자동 분기, BigNumber라 saturate 불필요)을 그대로 쓴다. 이미 최대 레벨이면 -1을 반환한다.
+        /// 자동 분기, BigNumber라 saturate 불필요, TruncateToDisplayPrecision으로 화면 표시 자리와
+        /// 실제 차감액을 일치시킴)을 그대로 쓴다. 이미 최대 레벨이면 -1을 반환한다.
         /// </summary>
         public BigNumber GetNextCost(EnhancementStatType statType)
         {
@@ -84,9 +85,13 @@ namespace SoldierEnhancement
                 return new BigNumber(-1, 0);
             }
 
-            return config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
+            BigNumber rawCost = config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
                 ? CalculateTieredCost(config, level)
                 : CalculateCompoundCost(config, level);
+
+            // 화면에 보이는 자리수 아래는 실제 차감 비용에서도 버려서, 표시된 숫자가 곧 실제
+            // 차감액과 항상 일치하게 한다(BigNumber.TruncateToDisplayPrecision 문서 참고).
+            return rawCost.TruncateToDisplayPrecision();
         }
 
         private static BigNumber CalculateCompoundCost(EnhancementConfigSO config, int level)

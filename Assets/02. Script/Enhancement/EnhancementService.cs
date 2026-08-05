@@ -106,7 +106,8 @@ namespace Enhancement
         /// 다음 강화에 필요한 비용(복리 증가: BaseCost * CostMultiplier^레벨). 이미 최대 레벨이면 -1을 반환한다.
         /// BigNumber는 가수+지수 구조라 int/long과 달리 오버플로우로 값이 뒤집힐 여지가 없으므로(과거 int
         /// 캐스팅 오버플로우로 비용이 음수가 되어 TrySpendGold가 "충분하다"고 착각하던 버그의 원인 자체가
-        /// 사라진다), saturate 처리 없이 double 계산 결과를 그대로 담는다.
+        /// 사라진다), saturate 처리는 필요 없다. 다만 반환 직전 TruncateToDisplayPrecision을 거쳐,
+        /// StatRowUI가 KoreanNumberFormatter로 보여주는 자리 아래는 실제 차감액에서도 버려진다.
         /// </summary>
         public BigNumber GetNextCost(EnhancementStatType statType)
         {
@@ -118,9 +119,13 @@ namespace Enhancement
                 return new BigNumber(-1, 0);
             }
 
-            return config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
+            BigNumber rawCost = config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
                 ? CalculateTieredCost(config, level)
                 : CalculateCompoundCost(config, level);
+
+            // 화면에 보이는 자리수 아래는 실제 차감 비용에서도 버려서, 표시된 숫자가 곧 실제
+            // 차감액과 항상 일치하게 한다(BigNumber.TruncateToDisplayPrecision 문서 참고).
+            return rawCost.TruncateToDisplayPrecision();
         }
 
         private static BigNumber CalculateCompoundCost(EnhancementConfigSO config, int level)

@@ -19,6 +19,18 @@ namespace Core
         /// </summary>
         private const int MaxSignificantExponentGap = 17;
 
+        /// <summary>
+        /// 이 지수 미만은 단위(만/억/...) 없이 정수 그대로 표시한다. UI.KoreanNumberFormatter와
+        /// TruncateToDisplayPrecision이 공유하는 임계값이라 여기(Core)에 둔다.
+        /// </summary>
+        public const long DisplayPlainIntegerExponentLimit = 4;
+
+        /// <summary>
+        /// 이 지수 이상은 한글 단위 대신 과학적 표기(예: "1.23e24")로 전환한다. UI.KoreanNumberFormatter와
+        /// TruncateToDisplayPrecision이 공유하는 임계값이라 여기(Core)에 둔다.
+        /// </summary>
+        public const long DisplayScientificFallbackExponent = 24;
+
         public double Mantissa { get; }
         public long Exponent { get; }
 
@@ -195,5 +207,56 @@ namespace Core
         /// 무한대가 나올 수 있으므로 실제 연산이 아니라 표기 등 보조 용도로만 쓴다.
         /// </summary>
         public double ToDouble() => Mantissa * Math.Pow(NormalizeBase, Exponent);
+
+        /// <summary>
+        /// UI.KoreanNumberFormatter가 이 값을 표시할 때 실제로 보여주는 자리 밑을 전부 버린(0 처리)
+        /// 값을 반환한다. 강화/스탯업 비용처럼 "화면에 보이는 숫자가 곧 실제로 차감되는 금액"이어야
+        /// 하는 곳에서 GetNextCost 같은 계산 함수가 결과를 반환하기 직전에 호출한다 - 그렇지 않으면
+        /// 자릿수가 큰 비용일수록 화면엔 안 보이는 소수점/끝자리만큼 유저가 예상 못 한 채로 더
+        /// 차감되는 것처럼 느껴질 수 있다. 표시 단위 임계값(만/억/조/...)이 전부 4의 배수이므로
+        /// 소수점 자리수는 Exponent % 4만으로 결정된다(과학적 표기 구간은 가수가 항상 1자리라 별도 처리).
+        /// KoreanNumberFormatter.Format과 완전히 같은 반올림/버림 방식을 그대로 재사용해야
+        /// "표시된 값 == 실제 차감된 값"이 항상 보장된다 - 한쪽만 고치면 다시 어긋난다.
+        /// </summary>
+        public BigNumber TruncateToDisplayPrecision()
+        {
+            if (Exponent < DisplayPlainIntegerExponentLimit)
+            {
+                return new BigNumber(Math.Round(ToDouble(), MidpointRounding.AwayFromZero), 0);
+            }
+
+            if (Exponent >= DisplayScientificFallbackExponent)
+            {
+                // 과학적 표기는 만/억/조 단위로 재분류(re-bracket)하지 않고 가수를 그대로
+                // 2자리까지만 보여준다(FormatScientific과 동일).
+                double truncatedMantissa = TruncateWithoutFloatingNoise(Mantissa, 100.0);
+                return new BigNumber(truncatedMantissa, Exponent);
+            }
+
+            // Units 임계값이 전부 4의 배수라, 이 값이 속한 단위(만/억/...) 안에서 몇 번째 자리인지(d)는
+            // Exponent % 4로 정해진다 - Format이 스케일한 값(Mantissa * 10^d)과 반드시 같은 값을 잘라야
+            // "표시된 값 == 실제 차감된 값"이 성립하므로, Mantissa 자체가 아니라 이 스케일된 값을 자른다.
+            int d = (int)(Exponent % 4);
+            int decimalPlaces = d switch { 2 => 1, 3 => 0, _ => 2 };
+
+            double scaledWithinBracket = Mantissa * Math.Pow(NormalizeBase, d);
+            double decimalFactor = Math.Pow(NormalizeBase, decimalPlaces);
+            double truncatedScaled = TruncateWithoutFloatingNoise(scaledWithinBracket, decimalFactor);
+
+            long bracketExponent = Exponent - d;
+            return new BigNumber(truncatedScaled, bracketExponent);
+        }
+
+        /// <summary>
+        /// value*factor를 자른 뒤 factor로 나눈다. 이미 한 번 이 방식으로 잘린 값(예: 4.56)은 부동소수점
+        /// 표현상 정확히 4.56이 아니라 4.559999999999994처럼 저장될 수 있어, 그 값을 다시 그대로
+        /// Truncate하면 한 자리 더 낮게(4.55) 잘리는 이중 절삭 오차가 생긴다. Truncate 직전에 소수점
+        /// 6자리로 반올림해 그 부동소수점 잡음을 제거한 뒤 자른다.
+        /// </summary>
+        private static double TruncateWithoutFloatingNoise(double value, double factor)
+        {
+            double scaled = Math.Round(value * factor, 6, MidpointRounding.AwayFromZero);
+            return Math.Truncate(scaled) / factor;
+        }
     }
 }

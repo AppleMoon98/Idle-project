@@ -12,8 +12,9 @@ namespace UI
     /// </summary>
     public static class KoreanNumberFormatter
     {
-        private const long PlainIntegerExponentLimit = 4; // 10^4(만) 미만은 정수 그대로 표기
-        private const long ScientificFallbackExponent = 24; // 10^24(자) 이상은 과학적 표기로 폴백
+        // 두 임계값은 BigNumber.TruncateToDisplayPrecision과 공유해야 하는 값이라 Core에 정의돼 있다.
+        private const long PlainIntegerExponentLimit = BigNumber.DisplayPlainIntegerExponentLimit;
+        private const long ScientificFallbackExponent = BigNumber.DisplayScientificFallbackExponent;
 
         private static readonly (long Threshold, string Unit)[] Units =
         {
@@ -45,7 +46,7 @@ namespace UI
                 }
 
                 double scaled = value.Mantissa * Math.Pow(10.0, value.Exponent - threshold);
-                return $"{TruncateToTwoDecimals(scaled).ToString("0.00", CultureInfo.InvariantCulture)}{unit}";
+                return $"{FormatScaledMagnitude(scaled)}{unit}";
             }
 
             // 이론상 도달하지 않는 안전망(모든 Units 임계값보다 작은 경우는 위에서 이미 처리됨).
@@ -54,16 +55,44 @@ namespace UI
 
         private static string FormatScientific(BigNumber value)
         {
-            return $"{TruncateToTwoDecimals(value.Mantissa).ToString("0.00", CultureInfo.InvariantCulture)}e{value.Exponent.ToString(CultureInfo.InvariantCulture)}";
+            // 과학적 표기의 가수는 정규화 규칙상 항상 [1, 10) 범위(=정수부 1자리)라
+            // FormatScaledMagnitude의 "1~2자리" 분기와 항상 같은 결과(소수점 둘째 자리)가 나온다.
+            return $"{FormatScaledMagnitude(value.Mantissa)}e{value.Exponent.ToString(CultureInfo.InvariantCulture)}";
+        }
+
+        /// <summary>
+        /// 단위(만/억/조/...) 앞에 붙는 스케일된 값을 정수부 자릿수에 따라 다르게 표시한다:
+        /// 1~2자리(1~99)는 기존과 동일하게 소수점 둘째 자리까지, 3자리(100~999)는 소수점 첫째
+        /// 자리까지만, 4자리(1000~9999)는 소수점 없이 정수로 표시한다 - 값이 커질수록 소수점
+        /// 이하의 정밀도가 상대적으로 덜 중요해지므로 표시 폭이 과도하게 늘어나지 않게 한다.
+        /// </summary>
+        private static string FormatScaledMagnitude(double scaled)
+        {
+            if (scaled >= 1000.0)
+            {
+                return TruncateToDecimals(scaled, 0).ToString("0", CultureInfo.InvariantCulture);
+            }
+
+            if (scaled >= 100.0)
+            {
+                return TruncateToDecimals(scaled, 1).ToString("0.0", CultureInfo.InvariantCulture);
+            }
+
+            return TruncateToDecimals(scaled, 2).ToString("0.00", CultureInfo.InvariantCulture);
         }
 
         /// <summary>
         /// 반올림이 아니라 잘라내기. "12.3456억"을 "12.35억"이 아니라 "12.34억"으로 보여주기 위함
-        /// (방치형 게임에서 실제 보유량보다 커 보이는 반올림 표기를 피하는 흔한 관례).
+        /// (방치형 게임에서 실제 보유량보다 커 보이는 반올림 표기를 피하는 흔한 관례). 이미 한 번
+        /// 잘린 값(예: BigNumber.TruncateToDisplayPrecision을 거친 비용)을 다시 여기서 자를 때
+        /// 부동소수점 표현 오차로 한 자리 더 낮게 잘리지 않도록, Truncate 직전에 소수점 6자리로
+        /// 반올림해 그 잡음을 제거한다(BigNumber.TruncateWithoutFloatingNoise와 동일한 이유).
         /// </summary>
-        private static double TruncateToTwoDecimals(double value)
+        private static double TruncateToDecimals(double value, int decimalPlaces)
         {
-            return Math.Truncate(value * 100.0) / 100.0;
+            double factor = Math.Pow(10.0, decimalPlaces);
+            double scaled = Math.Round(value * factor, 6, MidpointRounding.AwayFromZero);
+            return Math.Truncate(scaled) / factor;
         }
     }
 }
