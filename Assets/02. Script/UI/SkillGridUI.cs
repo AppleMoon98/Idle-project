@@ -8,8 +8,8 @@ namespace UI
 {
     /// <summary>
     /// 보유한 전체 스킬을 아이콘 슬롯 그리드로 상시 보여준다(SkillPanel의 빈 중하단 영역).
-    /// 칸의 아이콘을 탭하면 SkillSlotBarUI에서 현재 선택된 슬롯에 그 스킬을 장착하고,
-    /// 레벨 뱃지를 탭하면 레벨업 팝업(SkillDetailPopupUI)을 연다.
+    /// 칸을 탭하면(아이콘/레벨 뱃지 어느 쪽이든) 상세 팝업(SkillDetailPopupUI)을 연다 - 장착은
+    /// 그 팝업의 장착 버튼에서 이뤄진다(SkillSlotBarUI에서 선택된 슬롯 대상).
     /// </summary>
     public sealed class SkillGridUI : MonoBehaviour
     {
@@ -21,9 +21,6 @@ namespace UI
 
         [SerializeField]
         private SkillCatalogSO skillCatalog;
-
-        [SerializeField]
-        private SkillSlotBarUI slotBar;
 
         [SerializeField]
         private SkillDetailPopupUI detailPopup;
@@ -77,26 +74,9 @@ namespace UI
                 int level = skillService.GetLevel(definition);
 
                 SkillGridCellUI cell = Instantiate(cellPrefab, cellContainer);
-                cell.Initialize(
-                    definition,
-                    level,
-                    onEquipTapped: () => TryEquipToSelectedSlot(definition),
-                    onLevelBadgeTapped: () => detailPopup?.Open(definition));
+                cell.Initialize(definition, level, onTapped: () => detailPopup?.Open(definition));
 
                 _spawnedCells.Add(cell);
-            }
-        }
-
-        private void TryEquipToSelectedSlot(SkillSO definition)
-        {
-            if (slotBar == null || slotBar.SelectedSlotIndex < 0)
-            {
-                return;
-            }
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
-            {
-                loadout.TryEquip(slotBar.SelectedSlotIndex, definition);
             }
         }
     }

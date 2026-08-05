@@ -12,9 +12,9 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 스킬 하나의 상세 정보(아이콘/레벨/스펙/다음 강화 재료)와 레벨업 버튼을 보여주는 팝업.
-    /// SkillSlotBarUI가 슬롯을 누르면 이 팝업을 연다. 장비와 달리 스킬은 슬롯당 항목이
-    /// 하나뿐이라(교체/비교 개념 없음) EquipmentDetailPopupUI보다 단순하다.
+    /// 스킬 하나의 상세 정보(아이콘/레벨/스펙/다음 강화 재료)와 레벨업/장착 버튼을 보여주는 팝업.
+    /// SkillGridUI가 칸을 탭하면 이 팝업을 연다. 장착 버튼은 SkillSlotBarUI에서 현재 선택된
+    /// (테두리 있는) 슬롯에 이 스킬을 장착한다.
     /// </summary>
     public sealed class SkillDetailPopupUI : MonoBehaviour
     {
@@ -42,10 +42,16 @@ namespace UI
         private Button levelUpButton;
 
         [SerializeField]
+        private Button equipButton;
+
+        [SerializeField]
         private Button closeButton;
 
         [SerializeField]
         private CharacterStatsProvider playerStats;
+
+        [SerializeField]
+        private SkillSlotBarUI slotBar;
 
         private SkillSO _definition;
         private bool _isOpen;
@@ -55,6 +61,7 @@ namespace UI
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
             levelUpButton.onClick.AddListener(OnLevelUpClicked);
+            equipButton.onClick.AddListener(OnEquipClicked);
         }
 
         private void OnEnable()
@@ -128,6 +135,24 @@ namespace UI
             }
         }
 
+        // SkillSlotBarUI에서 현재 선택된(테두리 있는) 슬롯에 이 스킬을 장착한다. 그리드에서
+        // 칸을 탭했을 때 바로 장착되던 것을 이 버튼으로 옮겼다 - 어떤 스킬인지 먼저 상세를 보고
+        // 나서 장착 여부를 결정할 수 있게 하기 위함이다.
+        private void OnEquipClicked()
+        {
+            if (slotBar == null || slotBar.SelectedSlotIndex < 0
+                || GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            {
+                return;
+            }
+
+            if (loadout.TryEquip(slotBar.SelectedSlotIndex, _definition))
+            {
+                Close();
+            }
+        }
+
         private void Refresh()
         {
             if (_definition == null
@@ -149,6 +174,9 @@ namespace UI
             statsText.text = BuildStatsText(magnitude);
             materialText.text = BuildMaterialText(level, isMax);
             levelUpButton.interactable = !isMax;
+
+            // 미습득(레벨 0) 스킬이거나 선택된 슬롯이 없으면 장착할 수 없다.
+            equipButton.interactable = level >= 1 && slotBar != null && slotBar.SelectedSlotIndex >= 0;
         }
 
         // 효과 타입에 따라 의미 있는 스펙만 나열한다 - 예를 들어 지속시간은 SelfBuff에만 있는
