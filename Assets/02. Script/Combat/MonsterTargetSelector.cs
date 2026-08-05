@@ -42,18 +42,12 @@ namespace Combat
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         /// <summary>
@@ -86,28 +80,8 @@ namespace Combat
 
         private Transform ChooseTarget()
         {
-            Collider2D[] candidates = Physics2D.OverlapCircleAll(transform.position, detectionRange, allyLayerMask);
-
-            Transform nearest = null;
-            float nearestSqrDistance = float.MaxValue;
-
-            foreach (Collider2D candidate in candidates)
-            {
-                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
-                {
-                    continue;
-                }
-
-                float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
-
-                if (sqrDistance < nearestSqrDistance)
-                {
-                    nearestSqrDistance = sqrDistance;
-                    nearest = candidate.transform;
-                }
-            }
-
-            return nearest != null ? nearest : PlayerTransform;
+            Health nearest = NearestHealthScan.FindNearest(transform.position, detectionRange, allyLayerMask);
+            return nearest != null ? nearest.transform : PlayerTransform;
         }
     }
 }

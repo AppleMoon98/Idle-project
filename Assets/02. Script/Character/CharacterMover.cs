@@ -29,18 +29,12 @@ namespace Character
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         void ITickable.Tick(float deltaTime)

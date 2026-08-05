@@ -84,10 +84,7 @@ namespace Soldier
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             if (_attacker != null)
             {
@@ -97,14 +94,29 @@ namespace Soldier
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
 
             if (_attacker != null)
             {
                 _attacker.AttackPerformed -= OnAttackPerformed;
+            }
+        }
+
+        /// <summary>
+        /// Awake에서 만든 독립 앵커 GameObject는 풀링 대상이 아니라 이 컴포넌트가 직접 소유하므로,
+        /// 파괴 시 함께 정리하지 않으면 풀 eviction(maxSize 초과 시 Object.Destroy 경로) 때마다
+        /// 고아 GameObject가 남는다.
+        /// </summary>
+        private void OnDestroy()
+        {
+            if (_returnAnchor != null)
+            {
+                Destroy(_returnAnchor.gameObject);
+            }
+
+            if (_kiteAnchor != null)
+            {
+                Destroy(_kiteAnchor.gameObject);
             }
         }
 
@@ -282,21 +294,14 @@ namespace Soldier
 
         private Health FindNearestOnScreenEnemy(float range)
         {
-            Collider2D[] candidates = Physics2D.OverlapCircleAll(transform.position, range, enemyLayerMask);
-
             Health nearest = null;
             float nearestSqrDistance = float.MaxValue;
 
-            foreach (Collider2D candidate in candidates)
+            NearestHealthScan.ForEachAliveCandidate(transform.position, range, enemyLayerMask, (candidate, health) =>
             {
-                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
-                {
-                    continue;
-                }
-
                 if (!CameraVisibility.IsOnScreen(_camera, candidate.transform.position))
                 {
-                    continue;
+                    return;
                 }
 
                 float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
@@ -306,7 +311,7 @@ namespace Soldier
                     nearestSqrDistance = sqrDistance;
                     nearest = health;
                 }
-            }
+            });
 
             return nearest;
         }

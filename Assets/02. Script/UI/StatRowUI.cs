@@ -38,7 +38,14 @@ namespace UI
         {
             _statType = statType;
 
-            for (int i = 0; i < multiplierButtons.Length; i++)
+            if (multiplierButtons.Length != Multipliers.Length)
+            {
+                Debug.LogWarning($"{nameof(StatRowUI)}: multiplierButtons({multiplierButtons.Length})와 Multipliers({Multipliers.Length}) 배열 길이가 다릅니다. 인스펙터의 버튼 배열을 확인하세요.");
+            }
+
+            int buttonCount = Mathf.Min(multiplierButtons.Length, Multipliers.Length);
+
+            for (int i = 0; i < buttonCount; i++)
             {
                 int count = Multipliers[i];
                 multiplierButtons[i].onClick.AddListener(() => Enhance(count));

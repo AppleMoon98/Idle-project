@@ -1,5 +1,7 @@
 using Character;
 using Core;
+using Enhancement;
+using Enhancement.Events;
 using Equipment;
 using Equipment.Events;
 using Loot;
@@ -69,6 +71,8 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Subscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
+            GameBootstrapper.Events?.Subscribe<StatEnhancedEvent>(OnAttackPowerChanged);
+            GameBootstrapper.Events?.Subscribe<EquipmentStatsChangedEvent>(OnAttackPowerChanged);
         }
 
         private void OnDisable()
@@ -76,6 +80,8 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Unsubscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
+            GameBootstrapper.Events?.Unsubscribe<StatEnhancedEvent>(OnAttackPowerChanged);
+            GameBootstrapper.Events?.Unsubscribe<EquipmentStatsChangedEvent>(OnAttackPowerChanged);
         }
 
         /// <summary>
@@ -117,6 +123,24 @@ namespace UI
         private void OnCurrencyChanged(EnhancementStoneChangedEvent evt)
         {
             RefreshIfOpen();
+        }
+
+        // statsText의 데미지 프리뷰가 playerStats.Stats.AttackPower를 직접 읽어 계산하므로,
+        // 팝업이 열려 있는 동안 강화/장비 착용으로 공격력이 바뀌면 다시 그려야 값이 어긋나지 않는다.
+        private void OnAttackPowerChanged(StatEnhancedEvent evt)
+        {
+            if (evt.StatType == EnhancementStatType.AttackPower)
+            {
+                RefreshIfOpen();
+            }
+        }
+
+        private void OnAttackPowerChanged(EquipmentStatsChangedEvent evt)
+        {
+            if (evt.StatType == EnhancementStatType.AttackPower)
+            {
+                RefreshIfOpen();
+            }
         }
 
         private void RefreshIfOpen()

@@ -30,10 +30,7 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<GoldDungeonProgressChangedEvent>(OnProgressChanged);
             GameBootstrapper.Events?.Subscribe<GoldDungeonSessionEndedEvent>(OnSessionEnded);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             hudRoot.SetActive(false);
             _isActive = false;
@@ -45,10 +42,7 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<GoldDungeonProgressChangedEvent>(OnProgressChanged);
             GameBootstrapper.Events?.Unsubscribe<GoldDungeonSessionEndedEvent>(OnSessionEnded);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void OnSessionStarted(GoldDungeonSessionStartedEvent evt)
@@ -83,7 +77,7 @@ namespace UI
                 return;
             }
 
-            _remainingTime = Mathf.Max(0f, _remainingTime - deltaTime);
+            _remainingTime = CountdownTimer.Tick(_remainingTime, deltaTime);
             UpdateTimeText();
         }
 

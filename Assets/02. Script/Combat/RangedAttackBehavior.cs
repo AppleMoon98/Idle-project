@@ -37,7 +37,7 @@ namespace Combat
             }
         }
 
-        public void Execute(Transform origin, Health target, float attackPower, bool isCritical)
+        public void Execute(Transform origin, Health target, float damage, bool isCritical)
         {
             if (_pool == null)
             {
@@ -46,7 +46,7 @@ namespace Combat
 
             Vector3 spawnPosition = muzzle != null ? muzzle.position : origin.position;
             GameObject instance = _pool.Get(projectilePrefab, spawnPosition, Quaternion.identity);
-            instance.GetComponent<Projectile>().Launch(target, attackPower, isCritical);
+            instance.GetComponent<Projectile>().Launch(target, damage, isCritical);
         }
     }
 }

@@ -46,6 +46,29 @@ namespace Skill
             _pool?.Release(gameObject);
         }
 
+        /// <summary>
+        /// definition.VfxPrefab을 pool에서 꺼내 position에 배치하고 재생한다. AreaDamage/SingleTargetStrike/
+        /// SelfBuff 세 스킬 이펙트가 각자 들고 있던 동일한 "풀 보장 → 꺼내기 → (선택) 스케일 적용 → 재생"
+        /// 절차를 공유한다. pool을 아직 못 구했거나 definition에 VfxPrefab이 없으면 조용히 아무 일도 하지 않는다.
+        /// </summary>
+        public static void SpawnAndPlay(PoolManager pool, SkillSO definition, Vector3 position, int poolCapacity, int poolMaxSize, float? uniformScale = null)
+        {
+            if (pool == null || definition == null || definition.VfxPrefab == null)
+            {
+                return;
+            }
+
+            pool.EnsurePool(definition.VfxPrefab, poolCapacity, poolMaxSize);
+            GameObject instance = pool.Get(definition.VfxPrefab, position, Quaternion.identity);
+
+            if (uniformScale.HasValue)
+            {
+                instance.transform.localScale = Vector3.one * uniformScale.Value;
+            }
+
+            instance.GetComponent<SkillEffectVfx>().Play();
+        }
+
         public void OnSpawned()
         {
         }

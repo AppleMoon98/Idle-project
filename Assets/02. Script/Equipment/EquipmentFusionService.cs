@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using System.Linq;
 using Core;
 using Inventory;
 using Loot.Events;
@@ -82,11 +81,7 @@ namespace Equipment
             {
                 progressed = false;
 
-                List<EquipmentSO> lines = _inventory.Items
-                    .Where(owned => owned.Definition.EquipmentType == slot)
-                    .OrderBy(owned => _gradeCatalog.IndexOf(owned.Definition.Grade))
-                    .Select(owned => owned.Definition)
-                    .ToList();
+                List<EquipmentSO> lines = _inventory.GetLinesBySlotSortedByGrade(slot, _gradeCatalog);
 
                 foreach (EquipmentSO definition in lines)
                 {

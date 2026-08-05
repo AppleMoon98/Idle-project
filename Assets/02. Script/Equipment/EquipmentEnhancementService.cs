@@ -1,5 +1,5 @@
+using System;
 using System.Collections.Generic;
-using System.Linq;
 using Core;
 using Inventory;
 
@@ -7,8 +7,8 @@ namespace Equipment
 {
     /// <summary>
     /// 중복 장비와 강화석을 소모해 장비 라인의 강화 레벨을 올린다. 능력치 자체 계산/적용은
-    /// 다루지 않고, EquipmentEnhancementConfigSO의 StatBonusPerLevel * 레벨을 나중에
-    /// 장착 시스템이 조회해서 적용하는 방식을 염두에 둔다.
+    /// 다루지 않고, EquipmentEnhancementConfigSO의 StatBonusPerLevel * 레벨을 Equipment.EquipmentStatService가
+    /// 조회해서 적용한다.
     /// </summary>
     public sealed class EquipmentEnhancementService : IManager, IService
     {
@@ -57,7 +57,11 @@ namespace Equipment
                 return -1;
             }
 
-            return _config.StoneCostBase + _config.StoneCostIncreasePerLevel * owned.EnhancementLevel;
+            // int 곱셈을 그대로 두면 MaxLevel/StoneCostIncreasePerLevel이 커질 때 Enhancement.EnhancementService가
+            // 이미 한 번 겪었던 것과 같은 오버플로(비용이 음수가 되어 강화가 사실상 공짜가 되는) 버그가
+            // 재발할 수 있다 - long으로 계산 후 int 범위로 saturate한다.
+            long cost = (long)_config.StoneCostBase + (long)_config.StoneCostIncreasePerLevel * owned.EnhancementLevel;
+            return (int)Math.Min(cost, int.MaxValue);
         }
 
         /// <summary>
@@ -99,11 +103,7 @@ namespace Equipment
         {
             int successCount = 0;
 
-            List<EquipmentSO> lines = _inventory.Items
-                .Where(owned => owned.Definition.EquipmentType == slot)
-                .OrderBy(owned => _gradeCatalog.IndexOf(owned.Definition.Grade))
-                .Select(owned => owned.Definition)
-                .ToList();
+            List<EquipmentSO> lines = _inventory.GetLinesBySlotSortedByGrade(slot, _gradeCatalog);
 
             foreach (EquipmentSO definition in lines)
             {

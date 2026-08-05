@@ -37,18 +37,12 @@ namespace Combat
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         void ITickable.Tick(float deltaTime)
@@ -76,24 +70,17 @@ namespace Combat
         /// </summary>
         private Health FindTarget()
         {
-            Collider2D[] candidates = Physics2D.OverlapCircleAll(transform.position, detectionRange, targetLayerMask);
-
             Health nearestPreferred = null;
             float nearestPreferredSqrDistance = float.MaxValue;
 
             Health nearestAny = null;
             float nearestAnySqrDistance = float.MaxValue;
 
-            foreach (Collider2D candidate in candidates)
+            NearestHealthScan.ForEachAliveCandidate(transform.position, detectionRange, targetLayerMask, (candidate, health) =>
             {
-                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
-                {
-                    continue;
-                }
-
                 if (!CameraVisibility.IsOnScreen(_camera, candidate.transform.position))
                 {
-                    continue;
+                    return;
                 }
 
                 float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
@@ -106,7 +93,7 @@ namespace Combat
 
                 if (_targetFilter != null && !_targetFilter.IsPreferred(health))
                 {
-                    continue;
+                    return;
                 }
 
                 if (sqrDistance < nearestPreferredSqrDistance)
@@ -114,7 +101,7 @@ namespace Combat
                     nearestPreferredSqrDistance = sqrDistance;
                     nearestPreferred = health;
                 }
-            }
+            });
 
             return nearestPreferred != null ? nearestPreferred : nearestAny;
         }

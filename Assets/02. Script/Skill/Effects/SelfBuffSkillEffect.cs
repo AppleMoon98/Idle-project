@@ -60,7 +60,9 @@ namespace Skill.Effects
             _statsProvider.Stats.AttackPower += _appliedBonus;
             _remaining = definition.BuffDuration;
 
-            PlayVfx(definition, origin.position);
+            // 버프 지속시간 내내 도는 루프 이펙트가 아니라 시전 순간의 1회성 버스트만 재생한다 -
+            // 지속시간과 이펙트 수명을 동기화하려면 별도 해제 로직이 필요해져 범위를 넘어선다.
+            SkillEffectVfx.SpawnAndPlay(_pool, definition, origin.position, vfxPoolCapacity, vfxPoolMaxSize);
         }
 
         void ITickable.Tick(float deltaTime)
@@ -87,20 +89,6 @@ namespace Skill.Effects
 
             _statsProvider.Stats.AttackPower -= _appliedBonus;
             _appliedBonus = 0f;
-        }
-
-        // 버프 지속시간 내내 도는 루프 이펙트가 아니라 시전 순간의 1회성 버스트만 재생한다 -
-        // 지속시간과 이펙트 수명을 동기화하려면 별도 해제 로직이 필요해져 범위를 넘어선다.
-        private void PlayVfx(SkillSO definition, Vector3 position)
-        {
-            if (_pool == null || definition.VfxPrefab == null)
-            {
-                return;
-            }
-
-            _pool.EnsurePool(definition.VfxPrefab, vfxPoolCapacity, vfxPoolMaxSize);
-            GameObject instance = _pool.Get(definition.VfxPrefab, position, Quaternion.identity);
-            instance.GetComponent<SkillEffectVfx>().Play();
         }
     }
 }

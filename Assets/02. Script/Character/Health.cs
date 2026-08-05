@@ -85,8 +85,14 @@ namespace Character
         private void SetCurrent(float value)
         {
             float max = _statsProvider.Stats.MaxHealth;
-            _current = Mathf.Clamp(value, 0f, max);
+            float clamped = Mathf.Clamp(value, 0f, max);
 
+            if (Mathf.Approximately(clamped, _current))
+            {
+                return;
+            }
+
+            _current = clamped;
             GameBootstrapper.Events?.Publish(new CharacterHealthChangedEvent(gameObject, _current, max));
         }
 

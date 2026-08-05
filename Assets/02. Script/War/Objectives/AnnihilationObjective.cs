@@ -1,6 +1,4 @@
-using Core;
 using Stage.Events;
-using UnityEngine;
 
 namespace War.Objectives
 {
@@ -9,32 +7,11 @@ namespace War.Objectives
     /// 처리하므로, 이 컴포넌트는 사실상 패스스루다 — WarBattleController는 이 타입일 때
     /// 별도로 StageClearedEvent를 강제 발행하지 않는다(자연스러운 클리어를 그대로 둔다).
     /// </summary>
-    public sealed class AnnihilationObjective : MonoBehaviour, IWarObjective
+    public sealed class AnnihilationObjective : SingleEventObjectiveBase<StageClearedEvent>
     {
-        public bool IsCompleted { get; private set; }
-
-        public bool HasFailed => false;
-
-        public float Progress01 => IsCompleted ? 1f : 0f;
-
-        private void OnEnable()
+        protected override bool IsCompletionEvent(StageClearedEvent evt)
         {
-            GameBootstrapper.Events?.Subscribe<StageClearedEvent>(OnStageCleared);
-        }
-
-        private void OnDisable()
-        {
-            GameBootstrapper.Events?.Unsubscribe<StageClearedEvent>(OnStageCleared);
-        }
-
-        public void ResetForNewAttempt()
-        {
-            IsCompleted = false;
-        }
-
-        private void OnStageCleared(StageClearedEvent evt)
-        {
-            IsCompleted = true;
+            return true;
         }
     }
 }

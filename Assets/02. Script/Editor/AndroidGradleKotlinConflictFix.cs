@@ -1,7 +1,7 @@
 using System.IO;
 using UnityEditor.Android;
 
-namespace IdleProject.Editor
+namespace Editor
 {
     /// <summary>
     /// Google Play Billing(com.unity.purchasing)이 추가하는 최신 kotlin-stdlib와

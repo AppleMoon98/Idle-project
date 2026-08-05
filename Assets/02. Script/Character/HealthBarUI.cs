@@ -39,21 +39,13 @@ namespace Character
             _targetFillAmount = 1f;
 
             GameBootstrapper.Events?.Subscribe<CharacterHealthChangedEvent>(OnHealthChanged);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<CharacterHealthChangedEvent>(OnHealthChanged);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         void ITickable.Tick(float deltaTime)

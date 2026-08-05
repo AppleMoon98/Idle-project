@@ -372,12 +372,7 @@ namespace Save
         /// </summary>
         public void RestoreInventory(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.InventoryJson))
-            {
-                return;
-            }
-
-            InventorySaveBlob blob = JsonUtility.FromJson<InventorySaveBlob>(save.InventoryJson);
+            InventorySaveBlob blob = ParseBlobOrNull<InventorySaveBlob>(save.InventoryJson);
 
             if (blob == null)
             {
@@ -395,12 +390,7 @@ namespace Save
         /// </summary>
         public void RestoreSoldierRoster(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.SoldierRosterJson))
-            {
-                return;
-            }
-
-            SoldierRosterSaveBlob blob = JsonUtility.FromJson<SoldierRosterSaveBlob>(save.SoldierRosterJson);
+            SoldierRosterSaveBlob blob = ParseBlobOrNull<SoldierRosterSaveBlob>(save.SoldierRosterJson);
 
             if (blob == null)
             {
@@ -417,12 +407,7 @@ namespace Save
         /// </summary>
         public void RestoreSoldierEquipment(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.SoldierEquipmentJson))
-            {
-                return;
-            }
-
-            SoldierEquipmentSaveBlob blob = JsonUtility.FromJson<SoldierEquipmentSaveBlob>(save.SoldierEquipmentJson);
+            SoldierEquipmentSaveBlob blob = ParseBlobOrNull<SoldierEquipmentSaveBlob>(save.SoldierEquipmentJson);
 
             if (blob == null)
             {
@@ -439,12 +424,7 @@ namespace Save
         /// </summary>
         public void RestoreSkills(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.SkillLevelsJson))
-            {
-                return;
-            }
-
-            SkillSaveBlob blob = JsonUtility.FromJson<SkillSaveBlob>(save.SkillLevelsJson);
+            SkillSaveBlob blob = ParseBlobOrNull<SkillSaveBlob>(save.SkillLevelsJson);
 
             if (blob == null)
             {
@@ -460,12 +440,7 @@ namespace Save
         /// </summary>
         public void RestoreSkillLoadout(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.SkillLoadoutJson))
-            {
-                return;
-            }
-
-            SkillLoadoutSaveBlob blob = JsonUtility.FromJson<SkillLoadoutSaveBlob>(save.SkillLoadoutJson);
+            SkillLoadoutSaveBlob blob = ParseBlobOrNull<SkillLoadoutSaveBlob>(save.SkillLoadoutJson);
 
             if (blob == null)
             {
@@ -481,12 +456,7 @@ namespace Save
         /// </summary>
         public void RestoreSkillEnabled(SaveData save)
         {
-            if (string.IsNullOrEmpty(save.SkillEnabledJson))
-            {
-                return;
-            }
-
-            SkillEnabledSaveBlob blob = JsonUtility.FromJson<SkillEnabledSaveBlob>(save.SkillEnabledJson);
+            SkillEnabledSaveBlob blob = ParseBlobOrNull<SkillEnabledSaveBlob>(save.SkillEnabledJson);
 
             if (blob == null)
             {
@@ -494,6 +464,16 @@ namespace Save
             }
 
             _skillLoadout.RestoreDisabledSlots(blob.DisabledSlots);
+        }
+
+        /// <summary>
+        /// "비어있으면 복원할 게 없고, 아니면 JSON을 역직렬화한다"는 6개 Restore* 메서드가 공유하는
+        /// 파싱 절차. JsonUtility.FromJson은 빈 문자열을 넘기면 예외 대신 그냥 null이 아닌 기본
+        /// 인스턴스를 반환할 수 있어, 빈 문자열 체크를 JsonUtility 호출보다 먼저 해야 한다.
+        /// </summary>
+        private static T ParseBlobOrNull<T>(string json) where T : class
+        {
+            return string.IsNullOrEmpty(json) ? null : JsonUtility.FromJson<T>(json);
         }
 
         private void OnGoldChanged(GoldChangedEvent evt)
@@ -614,17 +594,20 @@ namespace Save
 
         private void OnSoldierRosterChanged(SoldierRosterChangedEvent evt)
         {
-            RebuildSoldierRosterSnapshot();
-            Save();
+            RebuildRosterSnapshotAndSave();
         }
 
         private void OnSoldierDeploymentChanged(SoldierDeploymentChangedEvent evt)
         {
-            RebuildSoldierRosterSnapshot();
-            Save();
+            RebuildRosterSnapshotAndSave();
         }
 
         private void OnSoldierBehaviorProfileChanged(SoldierBehaviorProfileChangedEvent evt)
+        {
+            RebuildRosterSnapshotAndSave();
+        }
+
+        private void RebuildRosterSnapshotAndSave()
         {
             RebuildSoldierRosterSnapshot();
             Save();

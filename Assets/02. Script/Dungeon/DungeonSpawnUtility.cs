@@ -1,9 +1,11 @@
+using Core;
+using Managers;
 using UnityEngine;
 
 namespace Dungeon
 {
     /// <summary>
-    /// 던전 오버레이가 몬스터를 화면 안 랜덤 위치에 스폰할 때 공통으로 쓰는 좌표 계산.
+    /// 골드/강화석 던전 오버레이 컨트롤러들이 공통으로 쓰는 스폰 좌표 계산 및 PoolManager 조회.
     /// </summary>
     public static class DungeonSpawnUtility
     {
@@ -28,6 +30,20 @@ namespace Dungeon
             worldPoint.z = 0f;
 
             return worldPoint;
+        }
+
+        /// <summary>
+        /// "Services가 있고 PoolManager를 얻을 수 있으면"이라는 반복 조회 보일러플레이트를 한 줄로 줄여준다.
+        /// </summary>
+        public static bool TryGetPool(out PoolManager pool)
+        {
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out pool))
+            {
+                return true;
+            }
+
+            pool = null;
+            return false;
         }
     }
 }

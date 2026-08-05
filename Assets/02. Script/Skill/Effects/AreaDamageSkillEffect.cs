@@ -53,21 +53,8 @@ namespace Skill.Effects
                 }
             }
 
-            PlayVfx(definition, origin.position);
-        }
-
-        // 프리팹은 radius=1 기준으로 제작하고, 실제 데미지 반경에 맞춰 스케일만 조정한다.
-        private void PlayVfx(SkillSO definition, Vector3 position)
-        {
-            if (_pool == null || definition.VfxPrefab == null)
-            {
-                return;
-            }
-
-            _pool.EnsurePool(definition.VfxPrefab, vfxPoolCapacity, vfxPoolMaxSize);
-            GameObject instance = _pool.Get(definition.VfxPrefab, position, Quaternion.identity);
-            instance.transform.localScale = Vector3.one * definition.AreaRadius;
-            instance.GetComponent<SkillEffectVfx>().Play();
+            // 프리팹은 radius=1 기준으로 제작하고, 실제 데미지 반경에 맞춰 스케일만 조정한다.
+            SkillEffectVfx.SpawnAndPlay(_pool, definition, origin.position, vfxPoolCapacity, vfxPoolMaxSize, definition.AreaRadius);
         }
     }
 }

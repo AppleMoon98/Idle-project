@@ -151,7 +151,7 @@ namespace UI
             foreach ((EnhancementStatType statType, float currentBonus) in currentStats)
             {
                 EquipmentStatPreviewRowUI row = Instantiate(statRowPrefab, statRowContainer);
-                row.Initialize(statType, currentBonus, FindBonus(nextStats, statType));
+                row.Initialize(statType, currentBonus, StatOptionLookup.FindBonus(nextStats, statType));
                 _spawnedRows.Add(row);
             }
 
@@ -161,19 +161,6 @@ namespace UI
 
             enhanceButton.interactable = !isMax;
             enhanceButtonLabel.text = isMax ? "MAX" : "강화하기";
-        }
-
-        private static float FindBonus(IReadOnlyList<(EnhancementStatType StatType, float Bonus)> options, EnhancementStatType statType)
-        {
-            for (int i = 0; i < options.Count; i++)
-            {
-                if (options[i].StatType == statType)
-                {
-                    return options[i].Bonus;
-                }
-            }
-
-            return 0f;
         }
     }
 }

@@ -35,20 +35,13 @@ namespace Character
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
-
+            TickerRegistration.Register(this);
             PickNewDestination();
         }
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void OnDestroy()

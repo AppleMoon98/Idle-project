@@ -102,18 +102,14 @@ namespace Dungeon
             SpawnBoss();
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             GameBootstrapper.Events?.Publish(new StoneDungeonAttemptStartedEvent(_stageNumber, _remainingTime));
         }
 
         private void SpawnBoss()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out PoolManager pool))
+            if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
                 return;
             }
@@ -191,16 +187,12 @@ namespace Dungeon
             _isFighting = false;
 
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void ReleaseBoss()
         {
-            if (_bossInstance != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PoolManager pool))
+            if (_bossInstance != null && DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
                 pool.Release(_bossInstance);
             }

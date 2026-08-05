@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Behavior;
 using Character;
 using Combat;
@@ -96,6 +97,14 @@ namespace Core
         [SerializeField]
         private GameObject damageNumberPrefab;
 
+        /// <summary>
+        /// Awake에서 등록한 모든 IManager 인스턴스를 등록 순서대로 모아둔다. 각 서비스의 Shutdown()은
+        /// 자기 자신의 이벤트 구독 해제/내부 상태 초기화만 하고 다른 서비스를 참조하지 않으므로
+        /// (Shutdown 구현부 확인됨) 순서가 결과에 영향을 주지 않는다 — OnDestroy에서 이 목록을
+        /// 한 번에 순회하는 것으로 서비스별 개별 TryGet 블록 반복을 대신한다.
+        /// </summary>
+        private readonly List<IManager> _managers = new();
+
         private LootDropper _lootDropper;
         private DamageNumberSpawner _damageNumberSpawner;
         private OfflineProgressService _offlineProgressService;
@@ -115,43 +124,53 @@ namespace Core
             var poolManager = new PoolManager();
             poolManager.Initialize();
             Services.Register(poolManager);
+            _managers.Add(poolManager);
 
             var inventoryService = new InventoryService(Events);
             inventoryService.Initialize();
             Services.Register(inventoryService);
+            _managers.Add(inventoryService);
 
             var equippedGearService = new EquippedGearService(Events);
             equippedGearService.Initialize();
             Services.Register(equippedGearService);
+            _managers.Add(equippedGearService);
 
             // SoldierDeploymentService가 슬롯 잠금 해제 수를 물어봐야 해서 RankService를 먼저 만든다.
             _rankService = new RankService(Events, stageCatalog, rankCatalog);
             _rankService.Initialize();
             Services.Register(_rankService);
+            _managers.Add(_rankService);
 
             var soldierRosterService = new SoldierRosterService(Events);
             soldierRosterService.Initialize();
             Services.Register(soldierRosterService);
+            _managers.Add(soldierRosterService);
 
             var soldierDeploymentService = new SoldierDeploymentService(Events, soldierRosterService, _rankService);
             soldierDeploymentService.Initialize();
             Services.Register(soldierDeploymentService);
+            _managers.Add(soldierDeploymentService);
 
             var soldierEquipmentInventoryService = new SoldierEquipmentInventoryService(Events);
             soldierEquipmentInventoryService.Initialize();
             Services.Register(soldierEquipmentInventoryService);
+            _managers.Add(soldierEquipmentInventoryService);
 
             var soldierEquippedGearService = new SoldierEquippedGearService(Events, soldierEquipmentInventoryService);
             soldierEquippedGearService.Initialize();
             Services.Register(soldierEquippedGearService);
+            _managers.Add(soldierEquippedGearService);
 
             var skillService = new SkillService(Events);
             skillService.Initialize();
             Services.Register(skillService);
+            _managers.Add(skillService);
 
             var skillLoadoutService = new SkillLoadoutService(Events, skillService);
             skillLoadoutService.Initialize();
             Services.Register(skillLoadoutService);
+            _managers.Add(skillLoadoutService);
 
             var saveService = new SaveService(
                 Events,
@@ -170,6 +189,7 @@ namespace Core
                 skillLoadoutService);
             saveService.Initialize();
             Services.Register(saveService);
+            _managers.Add(saveService);
 
             SaveData save = saveService.Load();
             _initialSave = save;
@@ -188,18 +208,22 @@ namespace Core
             var currencyService = new CurrencyService(Events, save.Gold);
             currencyService.Initialize();
             Services.Register(currencyService);
+            _managers.Add(currencyService);
 
             var enhancementStoneService = new EnhancementStoneService(Events, save.EnhancementStones);
             enhancementStoneService.Initialize();
             Services.Register(enhancementStoneService);
+            _managers.Add(enhancementStoneService);
 
             _enhancementService = new EnhancementService(Events, currencyService, enhancementConfigs);
             _enhancementService.Initialize();
             Services.Register(_enhancementService);
+            _managers.Add(_enhancementService);
 
             var soldierEnhancementService = new SoldierEnhancementService(Events, currencyService, soldierEnhancementConfigs);
             soldierEnhancementService.Initialize();
             Services.Register(soldierEnhancementService);
+            _managers.Add(soldierEnhancementService);
 
             // Player의 RestoreLevel과 달리 여기서(Awake, Start가 아니라) 바로 복원한다 — 병사는
             // SoldierStatReceiver가 스폰 시점(OnEnable)에 현재 레벨을 직접 조회하는 방식이라, 다른
@@ -214,10 +238,12 @@ namespace Core
             var equipmentFusionService = new EquipmentFusionService(Events, inventoryService, equipmentGradeCatalog, equipmentCatalog);
             equipmentFusionService.Initialize();
             Services.Register(equipmentFusionService);
+            _managers.Add(equipmentFusionService);
 
             var equipmentEnhancementService = new EquipmentEnhancementService(inventoryService, enhancementStoneService, equipmentEnhancementConfig, equipmentGradeCatalog);
             equipmentEnhancementService.Initialize();
             Services.Register(equipmentEnhancementService);
+            _managers.Add(equipmentEnhancementService);
 
             _equipmentStatService = new EquipmentStatService(
                 Events,
@@ -227,26 +253,32 @@ namespace Core
                 equipmentStatConfig);
             _equipmentStatService.Initialize();
             Services.Register(_equipmentStatService);
+            _managers.Add(_equipmentStatService);
 
             var soldierTicketService = new SoldierTicketService(Events, save.SoldierTicketCount);
             soldierTicketService.Initialize();
             Services.Register(soldierTicketService);
+            _managers.Add(soldierTicketService);
 
             var gachaService = new GachaService(Events, soldierTicketService, soldierRosterService, soldierGachaTiers);
             gachaService.Initialize();
             Services.Register(gachaService);
+            _managers.Add(gachaService);
 
             var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaTiers);
             equipmentGachaService.Initialize();
             Services.Register(equipmentGachaService);
+            _managers.Add(equipmentGachaService);
 
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);
+            _managers.Add(soldierTargetRegistry);
 
             var playerControlModeService = new PlayerControlModeService(Events);
             playerControlModeService.Initialize();
             Services.Register(playerControlModeService);
+            _managers.Add(playerControlModeService);
 
             _offlineProgressService = new OfflineProgressService(
                 Events,
@@ -312,120 +344,12 @@ namespace Core
             _damageNumberSpawner?.Dispose();
             _damageNumberSpawner = null;
 
-            if (Services != null && Services.TryGet(out PoolManager poolManager))
+            for (int i = 0; i < _managers.Count; i++)
             {
-                poolManager.Shutdown();
+                _managers[i].Shutdown();
             }
 
-            if (Services != null && Services.TryGet(out CurrencyService currencyService))
-            {
-                currencyService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EnhancementStoneService enhancementStoneService))
-            {
-                enhancementStoneService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out InventoryService inventoryService))
-            {
-                inventoryService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EquippedGearService equippedGearService))
-            {
-                equippedGearService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EnhancementService enhancementService))
-            {
-                enhancementService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierEnhancementService soldierEnhancementService))
-            {
-                soldierEnhancementService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EquipmentFusionService equipmentFusionService))
-            {
-                equipmentFusionService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EquipmentEnhancementService equipmentEnhancementService))
-            {
-                equipmentEnhancementService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EquipmentStatService equipmentStatService))
-            {
-                equipmentStatService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out RankService rankService))
-            {
-                rankService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierTicketService soldierTicketService))
-            {
-                soldierTicketService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out GachaService gachaService))
-            {
-                gachaService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out EquipmentGachaService equipmentGachaService))
-            {
-                equipmentGachaService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierRosterService soldierRosterService))
-            {
-                soldierRosterService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierDeploymentService soldierDeploymentService))
-            {
-                soldierDeploymentService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierEquipmentInventoryService soldierEquipmentInventoryService))
-            {
-                soldierEquipmentInventoryService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierEquippedGearService soldierEquippedGearService))
-            {
-                soldierEquippedGearService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SoldierTargetRegistry soldierTargetRegistry))
-            {
-                soldierTargetRegistry.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out PlayerControlModeService playerControlModeService))
-            {
-                playerControlModeService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SkillService skillService))
-            {
-                skillService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SkillLoadoutService skillLoadoutService))
-            {
-                skillLoadoutService.Shutdown();
-            }
-
-            if (Services != null && Services.TryGet(out SaveService saveService))
-            {
-                saveService.Shutdown();
-            }
+            _managers.Clear();
 
             Services?.Clear();
             Events?.Clear();

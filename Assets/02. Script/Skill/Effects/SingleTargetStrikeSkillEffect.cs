@@ -69,19 +69,7 @@ namespace Skill.Effects
 
             Vector3 hitPosition = nearest.transform.position;
             nearest.TakeDamage(_statsProvider.Stats.AttackPower + magnitude);
-            PlayVfx(definition, hitPosition);
-        }
-
-        private void PlayVfx(SkillSO definition, Vector3 position)
-        {
-            if (_pool == null || definition.VfxPrefab == null)
-            {
-                return;
-            }
-
-            _pool.EnsurePool(definition.VfxPrefab, vfxPoolCapacity, vfxPoolMaxSize);
-            GameObject instance = _pool.Get(definition.VfxPrefab, position, Quaternion.identity);
-            instance.GetComponent<SkillEffectVfx>().Play();
+            SkillEffectVfx.SpawnAndPlay(_pool, definition, hitPosition, vfxPoolCapacity, vfxPoolMaxSize);
         }
     }
 }

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Core;
 using Equipment;
 using Inventory.Events;
@@ -91,6 +92,19 @@ namespace Inventory
 
             owned.EnhancementLevel += levels;
             _events.Publish(new InventoryChangedEvent(owned, _owned.Count));
+        }
+
+        /// <summary>
+        /// slot에 속한 보유 라인을 등급 낮은 것부터 정렬해 반환한다. "슬롯 전체 일괄 처리" 기능
+        /// (EquipmentEnhancementService.TryEnhanceAll, EquipmentFusionService.TryFuseAll)이 공유하는 조회 로직.
+        /// </summary>
+        public List<EquipmentSO> GetLinesBySlotSortedByGrade(EquipmentType slot, EquipmentGradeCatalogSO gradeCatalog)
+        {
+            return _owned.Values
+                .Where(owned => owned.Definition.EquipmentType == slot)
+                .OrderBy(owned => gradeCatalog.IndexOf(owned.Definition.Grade))
+                .Select(owned => owned.Definition)
+                .ToList();
         }
 
         /// <summary>

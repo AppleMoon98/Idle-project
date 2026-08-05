@@ -58,11 +58,7 @@ namespace Soldier
                 return;
             }
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(_respawner);
-            }
-
+            TickerRegistration.Unregister(_respawner);
             _respawner.Dispose();
             _respawner = null;
         }
@@ -99,7 +95,7 @@ namespace Soldier
             _spawned = true;
 
             _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, respawnDelay);
-            GameBootstrapper.Services.Get<GameTicker>().Register(_respawner);
+            TickerRegistration.Register(_respawner);
 
             foreach (SoldierSpawnSlot slot in slots)
             {
@@ -138,17 +134,9 @@ namespace Soldier
 
         private void SpawnSlot(SoldierSpawnSlot slot)
         {
-            if (_deployment == null || !_deployment.TryGetAssigned(slot.SlotIndex, out OwnedSoldier owned) || owned.Definition.Prefab == null)
+            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, out GameObject instance))
             {
                 return;
-            }
-
-            _pool.EnsurePool(owned.Definition.Prefab, 1, 1);
-            GameObject instance = _pool.Get(owned.Definition.Prefab, slot.SpawnPoint.position, slot.SpawnPoint.rotation);
-
-            if (instance.TryGetComponent(out SoldierBehaviorController controller))
-            {
-                controller.Initialize(owned.InstanceId, slot.SpawnPoint);
             }
 
             _respawner.RegisterSpawned(instance, slot);

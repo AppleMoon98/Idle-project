@@ -33,18 +33,12 @@ namespace Combat
 
         private void OnEnable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         void ITickable.Tick(float deltaTime)
@@ -74,28 +68,7 @@ namespace Combat
 
         private Health FindNearestTarget(float range)
         {
-            Collider2D[] candidates = Physics2D.OverlapCircleAll(transform.position, range, targetLayerMask);
-
-            Health nearest = null;
-            float nearestSqrDistance = float.MaxValue;
-
-            foreach (Collider2D candidate in candidates)
-            {
-                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
-                {
-                    continue;
-                }
-
-                float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
-
-                if (sqrDistance < nearestSqrDistance)
-                {
-                    nearestSqrDistance = sqrDistance;
-                    nearest = health;
-                }
-            }
-
-            return nearest;
+            return NearestHealthScan.FindNearest(transform.position, range, targetLayerMask);
         }
     }
 }

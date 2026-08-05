@@ -30,10 +30,7 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<WarClimaxWarmupStartedEvent>(OnWarmupStarted);
             GameBootstrapper.Events?.Subscribe<WarClimaxStateChangedEvent>(OnClimaxStateChanged);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             warningRoot.SetActive(false);
             _isCountingDown = false;
@@ -44,10 +41,7 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<WarClimaxWarmupStartedEvent>(OnWarmupStarted);
             GameBootstrapper.Events?.Unsubscribe<WarClimaxStateChangedEvent>(OnClimaxStateChanged);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void OnWarmupStarted(WarClimaxWarmupStartedEvent evt)
@@ -72,7 +66,7 @@ namespace UI
                 return;
             }
 
-            _remaining = Mathf.Max(0f, _remaining - deltaTime);
+            _remaining = CountdownTimer.Tick(_remaining, deltaTime);
             UpdateCountdownText();
         }
 

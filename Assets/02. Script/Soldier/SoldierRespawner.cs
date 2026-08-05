@@ -118,17 +118,9 @@ namespace Soldier
         /// </summary>
         private void Respawn(SoldierSpawnSlot slot)
         {
-            if (_deployment == null || !_deployment.TryGetAssigned(slot.SlotIndex, out OwnedSoldier owned) || owned.Definition.Prefab == null)
+            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, out GameObject instance))
             {
                 return;
-            }
-
-            _pool.EnsurePool(owned.Definition.Prefab, 1, 1);
-            GameObject instance = _pool.Get(owned.Definition.Prefab, slot.SpawnPoint.position, slot.SpawnPoint.rotation);
-
-            if (instance.TryGetComponent(out SoldierBehaviorController controller))
-            {
-                controller.Initialize(owned.InstanceId, slot.SpawnPoint);
             }
 
             RegisterSpawned(instance, slot);

@@ -26,10 +26,7 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<StoneDungeonAttemptFailedEvent>(OnAttemptFailed);
             GameBootstrapper.Events?.Subscribe<StoneDungeonSessionEndedEvent>(OnSessionEnded);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             hudRoot.SetActive(false);
             _isActive = false;
@@ -41,10 +38,7 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<StoneDungeonAttemptFailedEvent>(OnAttemptFailed);
             GameBootstrapper.Events?.Unsubscribe<StoneDungeonSessionEndedEvent>(OnSessionEnded);
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void OnAttemptStarted(StoneDungeonAttemptStartedEvent evt)
@@ -74,16 +68,13 @@ namespace UI
                 return;
             }
 
-            _remainingTime = Mathf.Max(0f, _remainingTime - deltaTime);
+            _remainingTime = CountdownTimer.Tick(_remainingTime, deltaTime);
             UpdateTimeText();
         }
 
         private void UpdateTimeText()
         {
-            int totalSeconds = Mathf.CeilToInt(_remainingTime);
-            int minutes = totalSeconds / 60;
-            int seconds = totalSeconds % 60;
-            timeText.text = $"제한시간: {minutes:00}:{seconds:00}";
+            timeText.text = $"제한시간: {CountdownTimer.FormatMinutesSeconds(_remainingTime)}";
         }
     }
 }

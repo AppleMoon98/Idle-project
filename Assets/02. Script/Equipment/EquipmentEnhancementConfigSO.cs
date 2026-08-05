@@ -40,7 +40,7 @@ namespace Equipment
         public int StoneCostIncreasePerLevel => stoneCostIncreasePerLevel;
 
         /// <summary>
-        /// 강화 1회당 증가하는 능력치 비율(장착 시 적용 — 장착 시스템은 이후 단계에서 실제 적용).
+        /// 강화 1회당 증가하는 능력치 비율. 착용 중일 때 EquipmentStatMath.CalculateBonus가 이 값을 실제로 적용한다.
         /// </summary>
         public float StatBonusPerLevel => statBonusPerLevel;
 

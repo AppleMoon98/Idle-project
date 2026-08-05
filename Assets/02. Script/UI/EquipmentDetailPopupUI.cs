@@ -4,6 +4,7 @@ using Core;
 using Enhancement;
 using Equipment;
 using Inventory;
+using Inventory.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -28,10 +29,24 @@ namespace UI
         [SerializeField]
         private Button closeButton;
 
+        private OwnedEquipment _target;
+        private OwnedEquipment _currentlyEquipped;
+        private bool _isOpen;
+
         private void Awake()
         {
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
+        }
+
+        private void OnEnable()
+        {
+            GameBootstrapper.Events?.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
+        }
+
+        private void OnDisable()
+        {
+            GameBootstrapper.Events?.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
         }
 
         /// <summary>
@@ -40,22 +55,64 @@ namespace UI
         /// </summary>
         public void Open(OwnedEquipment target, OwnedEquipment currentlyEquipped)
         {
-            if (target == null || GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquipmentStatService statService))
+            if (target == null)
             {
                 return;
             }
 
+            _target = target;
+            _currentlyEquipped = currentlyEquipped;
+            _isOpen = true;
             popupRoot.SetActive(true);
+            Refresh();
+        }
 
-            string gradeName = target.Definition.Grade != null ? target.Definition.Grade.DisplayName : "-";
-            nameText.text = $"{target.Definition.ItemName} ({gradeName}, 강화 {target.EnhancementLevel})";
+        /// <summary>
+        /// 팝업을 닫는다. 부모 팝업(EquipmentSlotPopupUI)이 닫힐 때 같이 닫기 위해 외부에서도 호출한다.
+        /// </summary>
+        public void Close()
+        {
+            _isOpen = false;
+            popupRoot.SetActive(false);
+        }
+
+        private void OnInventoryChanged(InventoryChangedEvent evt)
+        {
+            if (!_isOpen)
+            {
+                return;
+            }
+
+            if (evt.Changed != _target && evt.Changed != _currentlyEquipped)
+            {
+                return;
+            }
+
+            if (_target.Count <= 0)
+            {
+                Close();
+                return;
+            }
+
+            Refresh();
+        }
+
+        private void Refresh()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquipmentStatService statService))
+            {
+                return;
+            }
+
+            string gradeName = _target.Definition.Grade != null ? _target.Definition.Grade.DisplayName : "-";
+            nameText.text = $"{_target.Definition.ItemName} ({gradeName}, 강화 {_target.EnhancementLevel})";
 
             IReadOnlyList<(EnhancementStatType StatType, float Bonus)> targetOptions =
-                statService.CalculatePreview(target.Definition, target.EnhancementLevel);
+                statService.CalculatePreview(_target.Definition, _target.EnhancementLevel);
 
-            bool hasComparison = currentlyEquipped != null && currentlyEquipped != target;
+            bool hasComparison = _currentlyEquipped != null && _currentlyEquipped != _target;
             IReadOnlyList<(EnhancementStatType StatType, float Bonus)> comparisonOptions = hasComparison
-                ? statService.CalculatePreview(currentlyEquipped.Definition, currentlyEquipped.EnhancementLevel)
+                ? statService.CalculatePreview(_currentlyEquipped.Definition, _currentlyEquipped.EnhancementLevel)
                 : null;
 
             var sb = new StringBuilder();
@@ -69,34 +126,13 @@ namespace UI
                 if (hasComparison)
                 {
                     sb.Append(' ');
-                    sb.Append(FormatDiff(bonus - FindBonus(comparisonOptions, statType)));
+                    sb.Append(FormatDiff(bonus - StatOptionLookup.FindBonus(comparisonOptions, statType)));
                 }
 
                 sb.AppendLine();
             }
 
             optionsText.text = sb.Length > 0 ? sb.ToString() : "옵션 없음";
-        }
-
-        /// <summary>
-        /// 팝업을 닫는다. 부모 팝업(EquipmentSlotPopupUI)이 닫힐 때 같이 닫기 위해 외부에서도 호출한다.
-        /// </summary>
-        public void Close()
-        {
-            popupRoot.SetActive(false);
-        }
-
-        private static float FindBonus(IReadOnlyList<(EnhancementStatType StatType, float Bonus)> options, EnhancementStatType statType)
-        {
-            for (int i = 0; i < options.Count; i++)
-            {
-                if (options[i].StatType == statType)
-                {
-                    return options[i].Bonus;
-                }
-            }
-
-            return 0f;
         }
 
         private static string FormatDiff(float diff)

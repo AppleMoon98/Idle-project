@@ -36,21 +36,13 @@ namespace Character
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<SquadMoveCommandEvent>(OnSquadMoveCommand);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<SquadMoveCommandEvent>(OnSquadMoveCommand);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
         }
 
         private void OnDestroy()

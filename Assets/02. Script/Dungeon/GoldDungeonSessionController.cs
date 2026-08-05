@@ -55,11 +55,7 @@ namespace Dungeon
             SpawnMonsters();
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Register(this);
-            }
+            TickerRegistration.Register(this);
 
             GameBootstrapper.Events?.Publish(new GoldDungeonSessionStartedEvent(_stageNumber, _aliveMonsters.Count, _remainingTime));
             GameBootstrapper.Events?.Publish(new GoldDungeonProgressChangedEvent(_aliveMonsters.Count));
@@ -67,7 +63,7 @@ namespace Dungeon
 
         private void SpawnMonsters()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out PoolManager pool))
+            if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
                 return;
             }
@@ -118,11 +114,7 @@ namespace Dungeon
             _isActive = false;
 
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-            {
-                ticker.Unregister(this);
-            }
+            TickerRegistration.Unregister(this);
 
             ReleaseRemainingMonsters();
 
@@ -133,7 +125,7 @@ namespace Dungeon
 
         private void ReleaseRemainingMonsters()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PoolManager pool))
+            if (DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
                 foreach (GameObject monster in _aliveMonsters)
                 {

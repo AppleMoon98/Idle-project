@@ -100,7 +100,10 @@ namespace Stage
         {
             EndCurrentStage();
 
-            PoolManager pool = GameBootstrapper.Services.Get<PoolManager>();
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out PoolManager pool))
+            {
+                return;
+            }
 
             foreach (MonsterSpawnEntry entry in stage.SpawnEntries)
             {
@@ -112,7 +115,7 @@ namespace Stage
             _tracker = new StageProgressTracker(stage, GameBootstrapper.Events);
             _spawner = new MonsterSpawner(stage, pool, topSpawnPoints, bottomSpawnPoints, playerTarget, _tracker, playerNearTopViewportThreshold, statMultiplier);
 
-            GameBootstrapper.Services.Get<GameTicker>().Register(_spawner);
+            TickerRegistration.Register(_spawner);
 
             GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber));
         }
@@ -138,9 +141,9 @@ namespace Stage
         /// </summary>
         public void PauseForOverlay()
         {
-            if (_spawner != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
+            if (_spawner != null)
             {
-                ticker.Unregister(_spawner);
+                TickerRegistration.Unregister(_spawner);
             }
 
             _tracker?.SetActiveAll(false);
@@ -157,9 +160,9 @@ namespace Stage
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
 
-            if (_spawner != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
+            if (_spawner != null)
             {
-                ticker.Register(_spawner);
+                TickerRegistration.Register(_spawner);
             }
 
             if (playerTarget != null && playerTarget.TryGetComponent(out Health playerHealth) && playerHealth.IsDead)
@@ -172,11 +175,7 @@ namespace Stage
         {
             if (_spawner != null)
             {
-                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
-                {
-                    ticker.Unregister(_spawner);
-                }
-
+                TickerRegistration.Unregister(_spawner);
                 _spawner = null;
             }
 
