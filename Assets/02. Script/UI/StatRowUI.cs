@@ -99,9 +99,9 @@ namespace UI
             int level = service.GetLevel(_statType);
             int maxLevel = service.GetMaxLevel(_statType);
             float valuePerLevel = service.GetValuePerLevel(_statType);
-            int cost = service.GetNextCost(_statType);
+            BigNumber cost = service.GetNextCost(_statType);
 
-            string costPart = cost < 0 ? "MAX" : $"{cost} G";
+            string costPart = cost < 0 ? "MAX" : $"{KoreanNumberFormatter.Format(cost)} G";
             string valuePart = StatDisplayNames.FormatValue(_statType, valuePerLevel);
             infoText.text = $"{StatDisplayNames.Get(_statType)} (+{valuePart}/Lv)  Lv.{level}/{maxLevel}  {costPart}";
 

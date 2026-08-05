@@ -210,7 +210,7 @@ namespace UI
 
             int goldNeeded = _definition.GetGoldCost(level);
             int stoneNeeded = _definition.GetStoneCost(level);
-            int goldOwned = 0;
+            BigNumber goldOwned = BigNumber.Zero;
             int stoneOwned = 0;
 
             if (GameBootstrapper.Services != null)
@@ -235,6 +235,12 @@ namespace UI
         private static string FormatMaterialLine(string label, int needed, int owned)
         {
             string line = $"{label} {needed} / 보유 {owned}";
+            return owned < needed ? $"<color={InsufficientColorHex}>{line}</color>" : line;
+        }
+
+        private static string FormatMaterialLine(string label, int needed, BigNumber owned)
+        {
+            string line = $"{label} {needed} / 보유 {KoreanNumberFormatter.Format(owned)}";
             return owned < needed ? $"<color={InsufficientColorHex}>{line}</color>" : line;
         }
     }

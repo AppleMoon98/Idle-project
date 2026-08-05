@@ -1,3 +1,5 @@
+using Core;
+
 namespace Loot.Events
 {
     /// <summary>
@@ -8,9 +10,9 @@ namespace Loot.Events
         /// <summary>
         /// 변경 후 보유 골드 총량.
         /// </summary>
-        public int CurrentGold { get; }
+        public BigNumber CurrentGold { get; }
 
-        public GoldChangedEvent(int currentGold)
+        public GoldChangedEvent(BigNumber currentGold)
         {
             CurrentGold = currentGold;
         }

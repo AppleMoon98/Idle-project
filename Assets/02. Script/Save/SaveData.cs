@@ -1,3 +1,5 @@
+using Core;
+
 namespace Save
 {
     /// <summary>
@@ -9,7 +11,7 @@ namespace Save
         /// <summary>
         /// 마지막으로 저장된 보유 골드.
         /// </summary>
-        public int Gold { get; }
+        public BigNumber Gold { get; }
 
         /// <summary>
         /// 마지막으로 저장된 보유 강화석.
@@ -149,7 +151,7 @@ namespace Save
         public int SoldierCriticalDamageLevel { get; }
 
         public SaveData(
-            int gold,
+            BigNumber gold,
             int enhancementStones,
             int chapter,
             int stageNumber,

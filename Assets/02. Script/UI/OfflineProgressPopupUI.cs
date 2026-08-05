@@ -43,7 +43,7 @@ namespace UI
 
             summaryText.text =
                 $"{elapsedHours:0.#}시간 동안 자리를 비웠습니다.\n" +
-                $"골드 {evt.GoldEarned} 획득\n" +
+                $"골드 {KoreanNumberFormatter.Format(evt.GoldEarned)} 획득\n" +
                 $"장비 {evt.EquipmentEarned.Count}개 획득\n" +
                 $"몬스터 {evt.MonstersKilled}마리 처치\n" +
                 $"현재 스테이지: {evt.FinalChapter}-{evt.FinalStageNumber}";

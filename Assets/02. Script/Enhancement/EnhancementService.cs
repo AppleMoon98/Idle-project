@@ -104,20 +104,18 @@ namespace Enhancement
 
         /// <summary>
         /// 다음 강화에 필요한 비용(복리 증가: BaseCost * CostMultiplier^레벨). 이미 최대 레벨이면 -1을 반환한다.
-        /// double로 계산 후 int 범위로 saturate한다 — 배율이 1.5~3배씩 복리로 쌓이면 int 범위(약 21억)를
-        /// 레벨 50 안팎에서 이미 넘어서는데, int로 그대로 캐스팅하면 오버플로우로 음수가 되어
-        /// TrySpendGold가 "비용이 충분하다"고 착각해 강화가 사실상 공짜(심지어 골드가 늘어나는
-        /// 방향)로 성립해버리는 문제가 있었다. 실질적으로는 도달 불가능한 레벨이니 int.MaxValue로
-        /// 막아두는 것으로 충분하다.
+        /// BigNumber는 가수+지수 구조라 int/long과 달리 오버플로우로 값이 뒤집힐 여지가 없으므로(과거 int
+        /// 캐스팅 오버플로우로 비용이 음수가 되어 TrySpendGold가 "충분하다"고 착각하던 버그의 원인 자체가
+        /// 사라진다), saturate 처리 없이 double 계산 결과를 그대로 담는다.
         /// </summary>
-        public int GetNextCost(EnhancementStatType statType)
+        public BigNumber GetNextCost(EnhancementStatType statType)
         {
             EnhancementConfigSO config = _configs[statType];
             int level = GetLevel(statType);
 
             if (level >= config.MaxLevel)
             {
-                return -1;
+                return new BigNumber(-1, 0);
             }
 
             return config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
@@ -125,18 +123,19 @@ namespace Enhancement
                 : CalculateCompoundCost(config, level);
         }
 
-        private static int CalculateCompoundCost(EnhancementConfigSO config, int level)
+        private static BigNumber CalculateCompoundCost(EnhancementConfigSO config, int level)
         {
             double rawCost = config.BaseCost * Math.Pow(config.CostMultiplier, level);
 
-            return rawCost >= int.MaxValue ? int.MaxValue : Mathf.RoundToInt((float)rawCost);
+            return new BigNumber(rawCost, 0);
         }
 
         /// <summary>
         /// 구간별로 강화 1회당 비용 증가폭이 달라지는 계단식 누적 비용. 각 구간은 해당 구간 시작
         /// 레벨부터 다음 구간 시작 레벨(또는 마지막 구간이면 끝)까지 걸쳐있는 만큼만 기여한다.
+        /// 레벨/증가폭 자체는 여전히 유한하므로 long 누산으로 충분하다(BigNumber로 승격은 반환 시점).
         /// </summary>
-        private static int CalculateTieredCost(EnhancementConfigSO config, int level)
+        private static BigNumber CalculateTieredCost(EnhancementConfigSO config, int level)
         {
             IReadOnlyList<CostIncrementTier> tiers = config.CostIncrementTiers;
             long total = config.BaseCost;
@@ -150,7 +149,7 @@ namespace Enhancement
                 total += (long)levelsInTier * tiers[i].Increment;
             }
 
-            return total >= int.MaxValue ? int.MaxValue : (int)total;
+            return total;
         }
 
         /// <summary>
@@ -174,7 +173,7 @@ namespace Enhancement
         /// </summary>
         public bool TryEnhance(EnhancementStatType statType)
         {
-            int cost = GetNextCost(statType);
+            BigNumber cost = GetNextCost(statType);
 
             if (cost < 0 || !_currency.TrySpendGold(cost))
             {

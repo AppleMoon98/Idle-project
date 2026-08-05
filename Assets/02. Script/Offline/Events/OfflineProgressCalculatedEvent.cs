@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Core;
 using Equipment;
 
 namespace Offline.Events
@@ -17,7 +18,7 @@ namespace Offline.Events
         /// <summary>
         /// 획득한 골드.
         /// </summary>
-        public int GoldEarned { get; }
+        public BigNumber GoldEarned { get; }
 
         /// <summary>
         /// 획득한 장비 목록.
@@ -46,7 +47,7 @@ namespace Offline.Events
 
         public OfflineProgressCalculatedEvent(
             float elapsedSeconds,
-            int goldEarned,
+            BigNumber goldEarned,
             IReadOnlyList<EquipmentSO> equipmentEarned,
             int monstersKilled,
             int timesCleared,

@@ -72,16 +72,16 @@ namespace SoldierEnhancement
 
         /// <summary>
         /// 다음 강화에 필요한 비용. Enhancement.EnhancementService.GetNextCost와 동일한 계산(계단식/복리
-        /// 자동 분기, 오버플로우 saturate)을 그대로 쓴다. 이미 최대 레벨이면 -1을 반환한다.
+        /// 자동 분기, BigNumber라 saturate 불필요)을 그대로 쓴다. 이미 최대 레벨이면 -1을 반환한다.
         /// </summary>
-        public int GetNextCost(EnhancementStatType statType)
+        public BigNumber GetNextCost(EnhancementStatType statType)
         {
             EnhancementConfigSO config = _configs[statType];
             int level = GetLevel(statType);
 
             if (level >= config.MaxLevel)
             {
-                return -1;
+                return new BigNumber(-1, 0);
             }
 
             return config.CostIncrementTiers != null && config.CostIncrementTiers.Count > 0
@@ -89,14 +89,14 @@ namespace SoldierEnhancement
                 : CalculateCompoundCost(config, level);
         }
 
-        private static int CalculateCompoundCost(EnhancementConfigSO config, int level)
+        private static BigNumber CalculateCompoundCost(EnhancementConfigSO config, int level)
         {
             double rawCost = config.BaseCost * Math.Pow(config.CostMultiplier, level);
 
-            return rawCost >= int.MaxValue ? int.MaxValue : Mathf.RoundToInt((float)rawCost);
+            return new BigNumber(rawCost, 0);
         }
 
-        private static int CalculateTieredCost(EnhancementConfigSO config, int level)
+        private static BigNumber CalculateTieredCost(EnhancementConfigSO config, int level)
         {
             IReadOnlyList<CostIncrementTier> tiers = config.CostIncrementTiers;
             long total = config.BaseCost;
@@ -110,7 +110,7 @@ namespace SoldierEnhancement
                 total += (long)levelsInTier * tiers[i].Increment;
             }
 
-            return total >= int.MaxValue ? int.MaxValue : (int)total;
+            return total;
         }
 
         /// <summary>
@@ -135,7 +135,7 @@ namespace SoldierEnhancement
         /// </summary>
         public bool TryEnhance(EnhancementStatType statType)
         {
-            int cost = GetNextCost(statType);
+            BigNumber cost = GetNextCost(statType);
 
             if (cost < 0 || !_currency.TrySpendGold(cost))
             {

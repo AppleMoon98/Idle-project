@@ -74,7 +74,8 @@ namespace Save
             public int[] DisabledSlots;
         }
 
-        private const string GoldKey = "Save.Gold";
+        private const string GoldKey = "Save.Gold"; // 레거시(BigNumber 도입 전) int 저장 키 — 하위호환 읽기 전용
+        private const string GoldBigKey = "Save.Gold.Big"; // BigNumber 라운드트립 문자열 저장 키
         private const string EnhancementStonesKey = "Save.EnhancementStones";
         private const string ChapterKey = "Save.Chapter";
         private const string StageNumberKey = "Save.StageNumber";
@@ -117,7 +118,7 @@ namespace Save
         private readonly SkillCatalogSO _skillCatalog;
         private readonly SkillLoadoutService _skillLoadout;
 
-        private int _gold;
+        private BigNumber _gold;
         private int _enhancementStones;
         private int _chapter = 1;
         private int _stageNumber = 1;
@@ -256,7 +257,7 @@ namespace Save
         /// </summary>
         public SaveData Load()
         {
-            int gold = PlayerPrefs.GetInt(GoldKey, 0);
+            BigNumber gold = LoadGold();
             int enhancementStones = PlayerPrefs.GetInt(EnhancementStonesKey, 0);
             int chapter = PlayerPrefs.GetInt(ChapterKey, 1);
             int stageNumber = PlayerPrefs.GetInt(StageNumberKey, 1);
@@ -315,11 +316,27 @@ namespace Save
         }
 
         /// <summary>
+        /// 골드를 읽는다. BigNumber 문자열 저장분을 우선 시도하고, 없으면(= BigNumber 도입 전
+        /// int로 저장된 구버전 세이브) 레거시 int 키로 폴백한다.
+        /// </summary>
+        private static BigNumber LoadGold()
+        {
+            string raw = PlayerPrefs.GetString(GoldBigKey, "");
+
+            if (BigNumber.TryParse(raw, out BigNumber parsed))
+            {
+                return parsed;
+            }
+
+            return PlayerPrefs.GetInt(GoldKey, 0);
+        }
+
+        /// <summary>
         /// 지금까지 추적한 값과 현재 시각을 PlayerPrefs에 즉시 기록한다.
         /// </summary>
         public void Save()
         {
-            PlayerPrefs.SetInt(GoldKey, _gold);
+            PlayerPrefs.SetString(GoldBigKey, _gold.ToString());
             PlayerPrefs.SetInt(EnhancementStonesKey, _enhancementStones);
             PlayerPrefs.SetInt(ChapterKey, _chapter);
             PlayerPrefs.SetInt(StageNumberKey, _stageNumber);

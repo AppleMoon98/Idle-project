@@ -107,7 +107,7 @@ namespace Offline
             int leftoverMonsters = Mathf.FloorToInt(leftoverBudget * effectiveKillRate);
             int totalMonstersKilled = timesCleared * totalMonsterCount + leftoverMonsters;
 
-            int totalGold = 0;
+            BigNumber totalGold = BigNumber.Zero;
             var equipmentEarned = new List<EquipmentSO>();
             RollLoot(repeatStage, totalMonsterCount, totalMonstersKilled, ref totalGold, equipmentEarned);
 
@@ -186,7 +186,7 @@ namespace Offline
         /// monstersKilled가 totalMonsterCount보다 커도(여러 번 반복 클리어한 합계) 비율 배분은
         /// 그대로 성립한다.
         /// </summary>
-        private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, ref int totalGold, List<EquipmentSO> equipmentEarned)
+        private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, ref BigNumber totalGold, List<EquipmentSO> equipmentEarned)
         {
             foreach (MonsterSpawnEntry entry in stage.SpawnEntries)
             {

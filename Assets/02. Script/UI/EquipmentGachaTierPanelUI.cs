@@ -64,9 +64,9 @@ namespace UI
             }
         }
 
-        private void SetGoldText(int amount)
+        private void SetGoldText(BigNumber amount)
         {
-            goldText.text = $"Gold: {amount}";
+            goldText.text = $"Gold: {KoreanNumberFormatter.Format(amount)}";
         }
     }
 }

@@ -1,3 +1,5 @@
+using Core;
+
 namespace Loot.Events
 {
     /// <summary>
@@ -8,9 +10,9 @@ namespace Loot.Events
         /// <summary>
         /// 획득한 골드 수량.
         /// </summary>
-        public int Amount { get; }
+        public BigNumber Amount { get; }
 
-        public GoldEarnedEvent(int amount)
+        public GoldEarnedEvent(BigNumber amount)
         {
             Amount = amount;
         }
