@@ -1467,6 +1467,7 @@ GameObject:
   - component: {fileID: 70350992}
   - component: {fileID: 70350991}
   - component: {fileID: 70350990}
+  - component: {fileID: 70350993}
   m_Layer: 0
   m_Name: GoldText
   m_TagString: Untagged
@@ -1548,6 +1549,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 70350988}
   m_CullTransparentMesh: 1
+--- !u!114 &70350993
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 70350988}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
 --- !u!1 &76451275
 GameObject:
   m_ObjectHideFlags: 0
@@ -3253,6 +3266,7 @@ GameObject:
   - component: {fileID: 202894493}
   - component: {fileID: 202894495}
   - component: {fileID: 202894494}
+  - component: {fileID: 202894497}
   m_Layer: 0
   m_Name: MenuButton
   m_TagString: Untagged
@@ -3362,6 +3376,18 @@ RectTransform:
   m_AnchoredPosition: {x: -210, y: -30}
   m_SizeDelta: {x: 160, y: 90}
   m_Pivot: {x: 1, y: 1}
+--- !u!114 &202894497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 202894492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
 --- !u!1 &209119000
 GameObject:
   m_ObjectHideFlags: 0
@@ -11846,7 +11872,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 340, y: -130}
+  m_AnchoredPosition: {x: 340, y: -170}
   m_SizeDelta: {x: 420, y: 60}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &665732548
@@ -18964,6 +18990,7 @@ GameObject:
   - component: {fileID: 1087615292}
   - component: {fileID: 1087615291}
   - component: {fileID: 1087615290}
+  - component: {fileID: 1087615294}
   m_Layer: 0
   m_Name: PlayerControlModeToggle
   m_TagString: Untagged
@@ -19087,6 +19114,18 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1087615294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1087615288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
 --- !u!1 &1096968289
 GameObject:
   m_ObjectHideFlags: 0
@@ -36021,6 +36060,7 @@ GameObject:
   - component: {fileID: 1972277500}
   - component: {fileID: 1972277499}
   - component: {fileID: 1972277498}
+  - component: {fileID: 1972277501}
   m_Layer: 0
   m_Name: StageInfoText
   m_TagString: Untagged
@@ -36044,7 +36084,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 1}
   m_AnchorMax: {x: 0, y: 1}
-  m_AnchoredPosition: {x: 340, y: -20}
+  m_AnchoredPosition: {x: 340, y: -60}
   m_SizeDelta: {x: 420, y: 100}
   m_Pivot: {x: 0, y: 1}
 --- !u!114 &1972277498
@@ -36102,6 +36142,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1972277496}
   m_CullTransparentMesh: 1
+--- !u!114 &1972277501
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1972277496}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
 --- !u!1 &1973348262
 GameObject:
   m_ObjectHideFlags: 0
@@ -37223,11 +37275,11 @@ RectTransform:
   - {fileID: 709964222}
   m_Father: {fileID: 374586479}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 1}
-  m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 0, y: -1625}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 0}
+  m_AnchoredPosition: {x: 0, y: 155}
   m_SizeDelta: {x: -40, y: 140}
-  m_Pivot: {x: 0.5, y: 1}
+  m_Pivot: {x: 0.5, y: 0}
 --- !u!114 &2066704183
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -37456,6 +37508,7 @@ GameObject:
   - component: {fileID: 2091045706}
   - component: {fileID: 2091045705}
   - component: {fileID: 2091045704}
+  - component: {fileID: 2091045707}
   m_Layer: 0
   m_Name: SquadRallyFlagSlot
   m_TagString: Untagged
@@ -37537,6 +37590,18 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2091045702}
   m_CullTransparentMesh: 1
+--- !u!114 &2091045707
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2091045702}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
 --- !u!1 &2092097295
 GameObject:
   m_ObjectHideFlags: 0
