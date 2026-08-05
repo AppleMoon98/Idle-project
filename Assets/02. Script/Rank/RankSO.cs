@@ -19,6 +19,9 @@ namespace Rank
         [SerializeField]
         private int maxDeployableSoldiers = 2;
 
+        [SerializeField]
+        private GameObject bossPrefab;
+
         /// <summary>
         /// 화면에 표시할 랭크 이름.
         /// </summary>
@@ -26,6 +29,8 @@ namespace Rank
 
         /// <summary>
         /// 이 랭크가 되기 위해 클리어해야 하는 스테이지. null이면 조건 없음(시작 랭크).
+        /// RequiredStage를 클리어했다고 바로 승급하지는 않는다 - 조건을 만족하면 "랭크 승급 가능"
+        /// 버튼이 뜰 뿐이고, 실제 승급은 BossPrefab과의 전투에서 이겨야 확정된다.
         /// </summary>
         public StageSO RequiredStage => requiredStage;
 
@@ -33,5 +38,11 @@ namespace Rank
         /// 이 랭크에서 동시에 배치할 수 있는 병사 슬롯 수(최대 30). 랭크가 오를수록 늘어난다.
         /// </summary>
         public int MaxDeployableSoldiers => maxDeployableSoldiers;
+
+        /// <summary>
+        /// 이 랭크로 승급하기 위해 처치해야 하는 보스. null이면(콘텐츠 미비) 조건을 만족해도
+        /// 승급 가능 버튼이 뜨지 않는다(RankService.IsNextRankAvailable 참고).
+        /// </summary>
+        public GameObject BossPrefab => bossPrefab;
     }
 }

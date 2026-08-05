@@ -6,10 +6,11 @@ using Stage.Events;
 namespace Rank
 {
     /// <summary>
-    /// Stage.Events.HighestStageClearedEvent(역대 최고 기록 갱신)를 구독해 랭크 승급을 판정한다.
-    /// 오프라인 진행처럼 한 번에 여러 스테이지를 건너뛸 수도 있으므로, 이번 갱신으로 여러 랭크를
-    /// 한꺼번에 승급할 수 있는지 반복 확인한다. Stage 서비스를 직접 참조하지 않고 이벤트와
-    /// StageCatalogSO(데이터 조회용)만 사용한다.
+    /// 현재 랭크와 "다음 랭크로 승급 가능한지"를 관리한다. RequiredStage를 클리어했다고 자동으로
+    /// 승급하지 않는다 - 조건을 만족하면 UI(RankUpAvailableTextUI)가 "랭크 승급 가능" 버튼을 띄우고,
+    /// 플레이어가 그 버튼으로 RankPromotionBattleController를 시작해 보스를 처치해야 PromoteToNext가
+    /// 호출되어 실제로 승급한다. 항상 RankCatalogSO.GetNext(현재 랭크) 딱 한 단계만 다루므로, 스테이지
+    /// 진행이 훨씬 앞서 있어도 중간 랭크를 건너뛸 수 없다.
     /// </summary>
     public sealed class RankService : IManager, IService
     {
@@ -19,6 +20,7 @@ namespace Rank
 
         private RankSO _currentRank;
         private int _currentRankIndex;
+        private int _highestClearedIndex = -1;
 
         public RankService(EventBus events, StageCatalogSO stageCatalog, RankCatalogSO rankCatalog)
         {
@@ -67,10 +69,7 @@ namespace Rank
 
         /// <summary>
         /// 세이브 데이터로 현재 랭크를 조용히(이벤트 발행 없이) 맞춘다. GameBootstrapper.Awake()에서
-        /// SaveService.Load() 직후, OfflineProgressService.CalculateAndApply()보다 먼저 호출해야 한다 —
-        /// 그렇지 않으면 오프라인 진행이 만든 HighestStageClearedEvent를 아직 시골 소년(생성자 기본값)
-        /// 상태인 RankService가 받아, 이미 예전에 딴 랭크까지 전부 진짜 승급(isRestore:false)으로
-        /// 재계산해버려 Play 모드에 들어갈 때마다 승급 팝업이 다시 뜨는 문제가 있었다.
+        /// SaveService.Load() 직후 호출한다.
         /// </summary>
         public void SeedRank(int rankIndex)
         {
@@ -104,59 +103,71 @@ namespace Rank
         }
 
         /// <summary>
-        /// 세이브의 역대 최고 기록 기준으로 밀린 승급이 있으면 조용히(팝업 없이) 따라잡는다.
-        /// Rank 시스템이 생기기 전에 이미 그 스테이지를 클리어해둔 세이브이거나, 이미 클리어한
-        /// 스테이지가 나중에 마일스톤으로 지정된 경우 랭크가 영영 안 올라가는 걸 방지한다.
-        /// RestoreLevel 직후 GameBootstrapper.Start()에서 한 번 호출한다.
+        /// 세이브의 역대 최고 기록으로 "승급 가능 여부" 판정용 캐시만 시딩한다(승급 자체는
+        /// 일으키지 않음 - 승급은 오직 PromoteToNext로만 일어난다). RestoreLevel 직후
+        /// GameBootstrapper.Start()에서 한 번 호출한다.
         /// </summary>
-        public void CatchUpFromHighestStage(int chapter, int stageNumber)
+        public void SeedHighestCleared(int chapter, int stageNumber)
         {
             StageSO stage = _stageCatalog.Find(chapter, stageNumber);
 
-            if (stage == null)
+            if (stage != null)
+            {
+                _highestClearedIndex = _stageCatalog.IndexOf(stage);
+            }
+        }
+
+        /// <summary>
+        /// 현재 랭크의 바로 다음 랭크. 카탈로그 끝이면 null. 항상 한 단계만 반환하므로 스테이지
+        /// 진행이 앞서 있어도 중간 랭크를 건너뛰는 경로가 존재하지 않는다.
+        /// </summary>
+        public RankSO GetNextRank()
+        {
+            return _rankCatalog.GetNext(_currentRank);
+        }
+
+        /// <summary>
+        /// 다음 랭크로 승급전을 시작할 수 있는지: 다음 랭크가 있고, 필요 스테이지를 이미
+        /// 클리어했고, 승급전에 쓸 보스 콘텐츠가 준비돼 있어야 한다.
+        /// </summary>
+        public bool IsNextRankAvailable()
+        {
+            RankSO nextRank = GetNextRank();
+
+            if (nextRank == null || nextRank.RequiredStage == null || nextRank.BossPrefab == null)
+            {
+                return false;
+            }
+
+            int requiredIndex = _stageCatalog.IndexOf(nextRank.RequiredStage);
+            return requiredIndex >= 0 && _highestClearedIndex >= requiredIndex;
+        }
+
+        /// <summary>
+        /// 다음 랭크로 딱 한 단계 승급한다. RankPromotionBattleController가 승급전 승리 시에만
+        /// 호출한다.
+        /// </summary>
+        public void PromoteToNext()
+        {
+            RankSO nextRank = GetNextRank();
+
+            if (nextRank == null)
             {
                 return;
             }
 
-            PromoteUpTo(_stageCatalog.IndexOf(stage), isRestore: true);
+            _currentRank = nextRank;
+            _currentRankIndex = _rankCatalog.IndexOf(nextRank);
+            _events.Publish(new RankChangedEvent(_currentRank, _currentRankIndex, isRestore: false));
         }
 
         private void OnHighestStageCleared(HighestStageClearedEvent evt)
         {
             StageSO clearedStage = _stageCatalog.Find(evt.Chapter, evt.StageNumber);
 
-            if (clearedStage == null)
+            if (clearedStage != null)
             {
-                return;
-            }
-
-            PromoteUpTo(_stageCatalog.IndexOf(clearedStage), isRestore: false);
-        }
-
-        /// <summary>
-        /// clearedIndex(스테이지 카탈로그 인덱스)가 요구치를 만족하는 한 연속으로 승급시킨다.
-        /// </summary>
-        private void PromoteUpTo(int clearedIndex, bool isRestore)
-        {
-            while (true)
-            {
-                RankSO nextRank = _rankCatalog.GetNext(_currentRank);
-
-                if (nextRank == null || nextRank.RequiredStage == null)
-                {
-                    break;
-                }
-
-                int requiredIndex = _stageCatalog.IndexOf(nextRank.RequiredStage);
-
-                if (clearedIndex < requiredIndex)
-                {
-                    break;
-                }
-
-                _currentRank = nextRank;
-                _currentRankIndex = _rankCatalog.IndexOf(nextRank);
-                _events.Publish(new RankChangedEvent(_currentRank, _currentRankIndex, isRestore));
+                _highestClearedIndex = _stageCatalog.IndexOf(clearedStage);
             }
         }
     }

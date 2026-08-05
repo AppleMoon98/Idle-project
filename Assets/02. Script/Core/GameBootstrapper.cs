@@ -285,7 +285,7 @@ namespace Core
             _equipmentStatService?.RecomputeAndPublish();
 
             _rankService?.RestoreLevel(_initialSave.RankIndex);
-            _rankService?.CatchUpFromHighestStage(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
+            _rankService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
         }
 
         private void OnApplicationPause(bool pauseStatus)

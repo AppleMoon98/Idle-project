@@ -15,3 +15,4 @@ MonoBehaviour:
   displayName: "\uBCD1\uC0AC"
   requiredStage: {fileID: 11400000, guid: b5f684f4e791e4b4db48a8f5829d0263, type: 2}
   maxDeployableSoldiers: 6
+  bossPrefab: {fileID: 3104091886448902630, guid: ae63bae23b562ce43b805a722d0c75aa, type: 3}
