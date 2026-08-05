@@ -65,6 +65,19 @@ namespace UI
             if (evt.StatType == _statType)
             {
                 Refresh();
+                return;
+            }
+
+            // 이 행이 다른 능력치(예: 공격력)의 레벨을 조건으로 잠겨있는 경우, 그 조건이 되는
+            // 능력치가 강화됐을 때도 잠금이 풀렸는지 다시 확인해야 한다 - 그렇지 않으면 조건을
+            // 만족한 뒤에도 이 행 자체를 강화(=자기 자신의 StatEnhancedEvent 발생)하기 전까지는
+            // 잠금 표시가 그대로 남는다.
+            if (GameBootstrapper.Services != null
+                && GameBootstrapper.Services.TryGet(out EnhancementService service)
+                && service.HasUnlockRequirement(_statType)
+                && service.GetRequiredStatType(_statType) == evt.StatType)
+            {
+                Refresh();
             }
         }
 

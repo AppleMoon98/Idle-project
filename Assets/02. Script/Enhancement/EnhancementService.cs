@@ -77,6 +77,16 @@ namespace Enhancement
         }
 
         /// <summary>
+        /// 이 능력치가 다른 능력치의 레벨을 조건으로 하는 해금 대상인지. UI가 어느 StatEnhancedEvent에
+        /// 반응해 잠금 상태를 다시 확인해야 하는지 판단하는 데 쓴다(RequiredStatType은 조건이 없을
+        /// 때도 항상 기본값을 반환하므로, 이 값을 먼저 확인해야 한다).
+        /// </summary>
+        public bool HasUnlockRequirement(EnhancementStatType statType)
+        {
+            return _configs[statType].HasUnlockRequirement;
+        }
+
+        /// <summary>
         /// 이 능력치의 해금 조건이 되는 능력치. IsUnlocked가 false일 때 UI가 잠금 문구를 구성하는 데 쓴다.
         /// </summary>
         public EnhancementStatType GetRequiredStatType(EnhancementStatType statType)
