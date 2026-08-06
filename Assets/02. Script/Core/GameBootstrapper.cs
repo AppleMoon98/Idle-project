@@ -86,6 +86,9 @@ namespace Core
         private EquipmentGachaTableSO[] equipmentGachaTiers;
 
         [SerializeField]
+        private SkillGachaTableSO[] skillGachaTiers;
+
+        [SerializeField]
         private SoldierEquipmentCatalogSO soldierEquipmentCatalog;
 
         [SerializeField]
@@ -269,6 +272,16 @@ namespace Core
             equipmentGachaService.Initialize();
             Services.Register(equipmentGachaService);
             _managers.Add(equipmentGachaService);
+
+            var skillScrollService = new SkillScrollService(Events, save.SkillScrollCount);
+            skillScrollService.Initialize();
+            Services.Register(skillScrollService);
+            _managers.Add(skillScrollService);
+
+            var skillGachaService = new SkillGachaService(Events, skillScrollService, skillService, skillGachaTiers);
+            skillGachaService.Initialize();
+            Services.Register(skillGachaService);
+            _managers.Add(skillGachaService);
 
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();

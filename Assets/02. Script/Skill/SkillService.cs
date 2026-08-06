@@ -55,6 +55,33 @@ namespace Skill
         }
 
         /// <summary>
+        /// 스킬이 이미 최대 레벨인지 여부. SkillGachaService가 뽑기 후보에서 만렙 스킬을
+        /// 제외할 때 쓴다.
+        /// </summary>
+        public bool IsMaxLevel(SkillSO definition)
+        {
+            return definition != null && GetLevel(definition) >= definition.MaxLevel;
+        }
+
+        /// <summary>
+        /// 골드/강화석 소모 없이 레벨을 1 올린다(스킬 뽑기 전용 — TryLevelUp과 달리 재화를
+        /// 요구하지 않는다). 이미 최대 레벨이면 아무 변화 없이 false.
+        /// </summary>
+        public bool LevelUpFree(SkillSO definition)
+        {
+            if (definition == null || IsMaxLevel(definition))
+            {
+                return false;
+            }
+
+            int newLevel = GetLevel(definition) + 1;
+            _levels[definition] = newLevel;
+            _events.Publish(new SkillLeveledUpEvent(definition, newLevel));
+
+            return true;
+        }
+
+        /// <summary>
         /// 레벨업을 시도한다. 최대 레벨이거나 골드/강화석 중 하나라도 부족하면 아무 변화 없이 false.
         /// </summary>
         public bool TryLevelUp(SkillSO definition)

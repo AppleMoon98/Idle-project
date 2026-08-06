@@ -102,6 +102,7 @@ namespace Save
         private const string SoldierCriticalDamageLevelKey = "Save.SoldierCriticalDamageLevel";
         private const string SkillLoadoutJsonKey = "Save.SkillLoadoutJson";
         private const string SkillEnabledJsonKey = "Save.SkillEnabledJson";
+        private const string SkillScrollCountKey = "Save.SkillScrollCount";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -144,6 +145,7 @@ namespace Save
         private int _soldierCriticalDamageLevel;
         private string _skillLoadoutJson = "";
         private string _skillEnabledJson = "";
+        private int _skillScrollCount;
 
         public SaveService(
             EventBus events,
@@ -209,6 +211,7 @@ namespace Save
             _soldierCriticalDamageLevel = save.SoldierCriticalDamageLevel;
             _skillLoadoutJson = save.SkillLoadoutJson;
             _skillEnabledJson = save.SkillEnabledJson;
+            _skillScrollCount = save.SkillScrollCount;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -228,6 +231,7 @@ namespace Save
             _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
+            _events.Subscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
         }
 
         public void Shutdown()
@@ -250,6 +254,7 @@ namespace Save
             _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Unsubscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
+            _events.Unsubscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
         }
 
         /// <summary>
@@ -284,6 +289,7 @@ namespace Save
             int soldierCriticalDamageLevel = PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0);
             string skillLoadoutJson = PlayerPrefs.GetString(SkillLoadoutJsonKey, "");
             string skillEnabledJson = PlayerPrefs.GetString(SkillEnabledJsonKey, "");
+            int skillScrollCount = PlayerPrefs.GetInt(SkillScrollCountKey, 0);
 
             return new SaveData(
                 gold,
@@ -312,7 +318,8 @@ namespace Save
                 soldierCriticalChanceLevel,
                 soldierCriticalDamageLevel,
                 skillLoadoutJson,
-                skillEnabledJson);
+                skillEnabledJson,
+                skillScrollCount);
         }
 
         /// <summary>
@@ -363,6 +370,7 @@ namespace Save
             PlayerPrefs.SetInt(SoldierCriticalDamageLevelKey, _soldierCriticalDamageLevel);
             PlayerPrefs.SetString(SkillLoadoutJsonKey, _skillLoadoutJson);
             PlayerPrefs.SetString(SkillEnabledJsonKey, _skillEnabledJson);
+            PlayerPrefs.SetInt(SkillScrollCountKey, _skillScrollCount);
             PlayerPrefs.Save();
         }
 
@@ -565,6 +573,12 @@ namespace Save
         private void OnSkillSlotEnabledChanged(SkillSlotEnabledChangedEvent evt)
         {
             RebuildSkillEnabledSnapshot();
+            Save();
+        }
+
+        private void OnSkillScrollChanged(SkillScrollChangedEvent evt)
+        {
+            _skillScrollCount = evt.CurrentScrolls;
             Save();
         }
 

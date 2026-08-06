@@ -150,6 +150,11 @@ namespace Save
         /// </summary>
         public int SoldierCriticalDamageLevel { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 보유 스킬 주문서. 기록이 없으면 0.
+        /// </summary>
+        public int SkillScrollCount { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -177,7 +182,8 @@ namespace Save
             int soldierCriticalChanceLevel,
             int soldierCriticalDamageLevel,
             string skillLoadoutJson,
-            string skillEnabledJson)
+            string skillEnabledJson,
+            int skillScrollCount)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -206,6 +212,7 @@ namespace Save
             SoldierCriticalDamageLevel = soldierCriticalDamageLevel;
             SkillLoadoutJson = skillLoadoutJson;
             SkillEnabledJson = skillEnabledJson;
+            SkillScrollCount = skillScrollCount;
         }
     }
 }
