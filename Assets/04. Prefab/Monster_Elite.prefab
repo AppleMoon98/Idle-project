@@ -21,6 +21,7 @@ GameObject:
   - component: {fileID: 54522853668950333}
   - component: {fileID: 7487501538378465138}
   - component: {fileID: 6408278535112976322}
+  - component: {fileID: 3963478932011175273}
   m_Layer: 9
   m_Name: Monster_Elite
   m_TagString: Untagged
@@ -286,6 +287,18 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
   weaponSwing: {fileID: 3098931478945097723}
+--- !u!114 &3963478932011175273
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c0be797d7af6e294eb5f5a4c61788598, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.MonsterVisualRandomizer
 --- !u!1 &3140490879305707709
 GameObject:
   m_ObjectHideFlags: 0

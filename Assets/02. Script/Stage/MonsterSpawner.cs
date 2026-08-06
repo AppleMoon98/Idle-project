@@ -98,6 +98,13 @@ namespace Stage
                 targetSelector.Initialize(_playerTarget);
             }
 
+            // 세트가 없어도 무조건 호출한다 — StageMonsterScaler.ApplyScale과 같은 이유로,
+            // 풀에서 재사용된 인스턴스가 이전 스폰의 스킨을 그대로 들고 있으면 안 되기 때문이다.
+            if (instance.TryGetComponent(out MonsterVisualRandomizer visual))
+            {
+                visual.ApplyVisualSet(entry.VisualSet);
+            }
+
             _tracker.RegisterSpawned(instance);
         }
 
