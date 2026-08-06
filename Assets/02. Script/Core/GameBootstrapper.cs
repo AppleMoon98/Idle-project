@@ -11,6 +11,7 @@ using Managers;
 using Offline;
 using Rank;
 using Save;
+using Services;
 using Skill;
 using Soldier;
 using SoldierEnhancement;
@@ -292,6 +293,11 @@ namespace Core
             playerControlModeService.Initialize();
             Services.Register(playerControlModeService);
             _managers.Add(playerControlModeService);
+
+            var cameraShakeService = new CameraShakeService(Events);
+            cameraShakeService.Initialize();
+            Services.Register(cameraShakeService);
+            _managers.Add(cameraShakeService);
 
             _offlineProgressService = new OfflineProgressService(
                 Events,

@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Core;
 using Skill.Effects;
+using Skill.Events;
 using UnityEngine;
 
 namespace Skill
@@ -92,6 +93,11 @@ namespace Skill
             if (_effectsByType.TryGetValue(definition.EffectType, out ISkillEffect effect) && effect != null)
             {
                 effect.Execute(transform, definition, definition.GetMagnitude(skillService.GetLevel(definition)));
+
+                if (definition.ShakeCamera)
+                {
+                    GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(definition.ShakeDuration, definition.ShakeMagnitude));
+                }
             }
         }
     }

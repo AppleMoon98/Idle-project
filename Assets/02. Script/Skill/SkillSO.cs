@@ -59,6 +59,15 @@ namespace Skill
         [SerializeField]
         private GameObject vfxPrefab;
 
+        [SerializeField]
+        private bool shakeCamera;
+
+        [SerializeField]
+        private float shakeDuration = 0.3f;
+
+        [SerializeField]
+        private float shakeMagnitude = 0.2f;
+
         /// <summary>
         /// 스킬 이름(UI 표시용).
         /// </summary>
@@ -118,6 +127,22 @@ namespace Skill
         /// 시전 시 재생할 이펙트 프리팹(Skill.SkillEffectVfx가 붙어있어야 한다).
         /// </summary>
         public GameObject VfxPrefab => vfxPrefab;
+
+        /// <summary>
+        /// 시전 시 카메라 흔들림 연출을 재생할지 여부. 기본 false — 이 스킬만의 부가 옵션이라
+        /// 켜둔 스킬에서만 의미가 있다(AreaRadius 등과 같은 "일부 스킬만 쓰는 필드" 관례).
+        /// </summary>
+        public bool ShakeCamera => shakeCamera;
+
+        /// <summary>
+        /// 카메라 흔들림 지속시간(초). ShakeCamera가 false면 쓰이지 않는다.
+        /// </summary>
+        public float ShakeDuration => shakeDuration;
+
+        /// <summary>
+        /// 카메라 흔들림 강도. ShakeCamera가 false면 쓰이지 않는다.
+        /// </summary>
+        public float ShakeMagnitude => shakeMagnitude;
 
         /// <summary>
         /// 다음 레벨(level -> level+1)로 올리는 데 필요한 골드 비용.
