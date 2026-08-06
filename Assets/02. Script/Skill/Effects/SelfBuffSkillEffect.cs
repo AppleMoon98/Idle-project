@@ -62,7 +62,9 @@ namespace Skill.Effects
 
             // 버프 지속시간 내내 도는 루프 이펙트가 아니라 시전 순간의 1회성 버스트만 재생한다 -
             // 지속시간과 이펙트 수명을 동기화하려면 별도 해제 로직이 필요해져 범위를 넘어선다.
-            SkillEffectVfx.SpawnAndPlay(_pool, definition, origin.position, vfxPoolCapacity, vfxPoolMaxSize);
+            Vector3 spawnPosition = origin.position + Vector3.up * definition.VfxHeightOffset;
+            Transform followTarget = definition.VfxFollowCaster ? origin : null;
+            SkillEffectVfx.SpawnAndPlay(_pool, definition, spawnPosition, vfxPoolCapacity, vfxPoolMaxSize, followTarget: followTarget);
         }
 
         void ITickable.Tick(float deltaTime)

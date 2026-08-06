@@ -28,6 +28,8 @@ MonoBehaviour:
   strikeRange: 2.5
   buffDuration: 5
   vfxPrefab: {fileID: 472679378118459677, guid: f92bd90cd3ac9f7449b4a81f04e34675, type: 3}
+  vfxFollowCaster: 1
+  vfxHeightOffset: 0.7
   shakeCamera: 1
   shakeDuration: 1
   shakeMagnitude: 0.25

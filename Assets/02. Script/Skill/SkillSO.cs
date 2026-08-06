@@ -60,6 +60,12 @@ namespace Skill
         private GameObject vfxPrefab;
 
         [SerializeField]
+        private bool vfxFollowCaster;
+
+        [SerializeField]
+        private float vfxHeightOffset;
+
+        [SerializeField]
         private bool shakeCamera;
 
         [SerializeField]
@@ -127,6 +133,19 @@ namespace Skill
         /// 시전 시 재생할 이펙트 프리팹(Skill.SkillEffectVfx가 붙어있어야 한다).
         /// </summary>
         public GameObject VfxPrefab => vfxPrefab;
+
+        /// <summary>
+        /// 이 스킬의 이펙트가 시전자(캐스터)를 따라다닐지 여부. 기본 false(시전 위치에 고정) —
+        /// AreaDamage/SingleTargetStrike처럼 타격 지점에 고정돼야 하는 이펙트는 끄고,
+        /// SelfBuff처럼 시전자 본인에게 붙는 이펙트만 켠다.
+        /// </summary>
+        public bool VfxFollowCaster => vfxFollowCaster;
+
+        /// <summary>
+        /// 이펙트 스폰 위치에 더할 높이(시전자 기준 위쪽). VfxFollowCaster가 켜져 있으면
+        /// 재부모화 이후의 로컬 오프셋으로도 그대로 쓰인다(따라다니는 동안에도 이 높이 유지).
+        /// </summary>
+        public float VfxHeightOffset => vfxHeightOffset;
 
         /// <summary>
         /// 시전 시 카메라 흔들림 연출을 재생할지 여부. 기본 false — 이 스킬만의 부가 옵션이라
