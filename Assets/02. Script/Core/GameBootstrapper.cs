@@ -84,7 +84,7 @@ namespace Core
         private GachaTableSO[] soldierGachaTiers;
 
         [SerializeField]
-        private EquipmentGachaTableSO[] equipmentGachaTiers;
+        private EquipmentGachaSlotTiers[] equipmentGachaSlots;
 
         [SerializeField]
         private SkillGachaTableSO[] skillGachaTiers;
@@ -269,7 +269,7 @@ namespace Core
             Services.Register(gachaService);
             _managers.Add(gachaService);
 
-            var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaTiers);
+            var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaSlots);
             equipmentGachaService.Initialize();
             Services.Register(equipmentGachaService);
             _managers.Add(equipmentGachaService);
