@@ -13,8 +13,8 @@ MonoBehaviour:
   m_Name: Skill_BattleCry
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
   displayName: "\uC804\uD22C\uC758 \uD568\uC131"
-  icon: {fileID: 21300000, guid: 58540b804e4c9e948997681ed575049d, type: 3}
-  iconTint: {r: 0.25, g: 0.55, b: 0.95, a: 1}
+  icon: {fileID: 5777552420452043588, guid: 4ecccb81125b57d4a85cccc40097cff9, type: 3}
+  iconTint: {r: 1, g: 1, b: 1, a: 1}
   cooldown: 20
   maxLevel: 20
   goldCostBase: 150
