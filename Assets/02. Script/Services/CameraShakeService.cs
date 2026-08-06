@@ -13,6 +13,12 @@ namespace Services
     /// </summary>
     public sealed class CameraShakeService : IManager, IService, ITickable
     {
+        /// <summary>
+        /// 화면 흔들림을 껐는지 저장하는 PlayerPrefs 키. UI.CameraShakeToggleUI가 이 값을
+        /// 그대로 읽고 쓴다 — 두 파일에 문자열을 따로 적어 어긋나는 일이 없도록 여기서만 정의한다.
+        /// </summary>
+        public const string DisabledPlayerPrefsKey = "ScreenShakeDisabled";
+
         private readonly EventBus _events;
         private Transform _cameraTransform;
         private Vector3 _basePosition;
@@ -51,6 +57,11 @@ namespace Services
 
         private void OnShakeRequested(SkillCameraShakeRequestedEvent evt)
         {
+            if (PlayerPrefs.GetInt(DisabledPlayerPrefsKey, 0) != 0)
+            {
+                return;
+            }
+
             // 재시전으로 흔들림이 겹치면 새 요청으로 갱신할 뿐 누적하지 않는다(SelfBuffSkillEffect가
             // 이전 보너스를 제거하고 새로 적용하는 것과 같은 사상) — 과도하게 흔들리는 것을 막는다.
             _remaining = evt.Duration;
