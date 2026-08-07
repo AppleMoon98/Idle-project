@@ -63,6 +63,9 @@ namespace Core
         private float maxOfflineHours = 24f;
 
         [SerializeField]
+        private float offlineRewardMultiplier = 0.1f;
+
+        [SerializeField]
         private EquipmentGradeCatalogSO equipmentGradeCatalog;
 
         [SerializeField]
@@ -307,7 +310,8 @@ namespace Core
                 playerStats,
                 soldierStats,
                 soldierCount,
-                maxOfflineHours * 3600f);
+                maxOfflineHours * 3600f,
+                offlineRewardMultiplier);
 
             _lootDropper = new LootDropper(Events, stageCatalog);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);

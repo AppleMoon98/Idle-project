@@ -20,7 +20,9 @@ namespace Offline
     /// 역대 최고 기록 스테이지를 그대로 반복(반복 모드)해서 시간만큼 계속 클리어한다 —
     /// 오프라인 시간 동안 검증 안 된 새 스테이지까지 뚫어버리면(플레이어가 실제로는 못 깰
     /// 스테이지까지) 체감상 부정확하고 밸런스도 깨지기 때문에, 이미 증명된 난이도의 스테이지만
-    /// 반복해서 안전하게 누적한다.
+    /// 반복해서 안전하게 누적한다. 시뮬레이션으로 산출된 처치 마릿수(totalMonstersKilled, 팝업에
+    /// 표시되는 값)는 그대로 두고, 실제 골드/장비 드롭 굴리기에 넣는 마릿수만 rewardMultiplier를
+    /// 곱해 줄인다 — 골드와 장비가 항상 같은 비율로 함께 줄어들도록(따로 계수를 두지 않고) 하기 위함.
     /// </summary>
     public sealed class OfflineProgressService
     {
@@ -32,6 +34,7 @@ namespace Offline
         private readonly CharacterStatsSO _soldierStats;
         private readonly int _soldierCount;
         private readonly float _maxOfflineSeconds;
+        private readonly float _rewardMultiplier;
 
         public OfflineProgressService(
             EventBus events,
@@ -41,7 +44,8 @@ namespace Offline
             CharacterStatsSO playerStats,
             CharacterStatsSO soldierStats,
             int soldierCount,
-            float maxOfflineSeconds)
+            float maxOfflineSeconds,
+            float rewardMultiplier)
         {
             _events = events;
             _saveService = saveService;
@@ -51,6 +55,7 @@ namespace Offline
             _soldierStats = soldierStats;
             _soldierCount = soldierCount;
             _maxOfflineSeconds = maxOfflineSeconds;
+            _rewardMultiplier = rewardMultiplier;
         }
 
         /// <summary>
@@ -107,9 +112,11 @@ namespace Offline
             int leftoverMonsters = Mathf.FloorToInt(leftoverBudget * effectiveKillRate);
             int totalMonstersKilled = timesCleared * totalMonsterCount + leftoverMonsters;
 
+            int rewardedKills = Mathf.RoundToInt(totalMonstersKilled * _rewardMultiplier);
+
             BigNumber totalGold = BigNumber.Zero;
             var equipmentEarned = new List<EquipmentSO>();
-            RollLoot(repeatStage, totalMonsterCount, totalMonstersKilled, ref totalGold, equipmentEarned);
+            RollLoot(repeatStage, totalMonsterCount, rewardedKills, ref totalGold, equipmentEarned);
 
             if (totalGold > 0)
             {
