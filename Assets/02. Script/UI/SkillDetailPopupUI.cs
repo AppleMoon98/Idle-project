@@ -69,6 +69,7 @@ namespace UI
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            GameBootstrapper.Events?.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Subscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Subscribe<StatEnhancedEvent>(OnAttackPowerChanged);
@@ -78,6 +79,7 @@ namespace UI
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            GameBootstrapper.Events?.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Unsubscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Unsubscribe<StatEnhancedEvent>(OnAttackPowerChanged);
@@ -106,6 +108,14 @@ namespace UI
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
+        {
+            if (_isOpen && evt.Definition == _definition)
+            {
+                Refresh();
+            }
+        }
+
+        private void OnSkillCountChanged(SkillCountChangedEvent evt)
         {
             if (_isOpen && evt.Definition == _definition)
             {
@@ -193,11 +203,14 @@ namespace UI
             int level = service.GetLevel(_definition);
             bool isMax = level >= _definition.MaxLevel;
             float magnitude = _definition.GetMagnitude(level);
+            int count = service.GetCount(_definition);
+            int requiredCount = service.GetRequiredCount(_definition);
 
-            levelText.text = $"Lv. {level} / {_definition.MaxLevel}";
+            levelText.text = $"Lv. {level} / {_definition.MaxLevel} (보유 {count}개)";
             statsText.text = BuildStatsText(magnitude);
-            materialText.text = BuildMaterialText(level, isMax);
-            levelUpButton.interactable = !isMax;
+            materialText.text = BuildMaterialText(level, isMax, count, requiredCount);
+            levelUpButton.interactable = !isMax && count >= requiredCount
+                && (level == 0 || HasEnoughCurrency(level));
 
             // 미습득(레벨 0) 스킬이거나 선택된 슬롯이 없으면 장착할 수 없다.
             equipButton.interactable = level >= 1 && slotBar != null && slotBar.SelectedSlotIndex >= 0;
@@ -224,12 +237,21 @@ namespace UI
             }
         }
 
-        // 다음 레벨에 필요한 재화와 현재 보유량을 나란히 보여주고, 부족한 쪽만 빨간색으로 강조한다.
-        private string BuildMaterialText(int level, bool isMax)
+        // 다음 레벨에 필요한 재료(주문서 + 0강 구간이 아니면 골드/강화석)와 현재 보유량을 나란히
+        // 보여주고, 부족한 쪽만 빨간색으로 강조한다. 0강 -> 1강은 주문서 1개만 있으면 무료라
+        // 골드/강화석 줄 자체를 보여줄 필요가 없다.
+        private string BuildMaterialText(int level, bool isMax, int count, int requiredCount)
         {
             if (isMax)
             {
                 return "MAX";
+            }
+
+            string countLine = FormatMaterialLine("주문서", requiredCount, count);
+
+            if (level == 0)
+            {
+                return $"{countLine}\n(무료 습득 — 골드/강화석 불필요)";
             }
 
             int goldNeeded = _definition.GetGoldCost(level);
@@ -253,7 +275,21 @@ namespace UI
             string goldLine = FormatMaterialLine("골드", goldNeeded, goldOwned);
             string stoneLine = FormatMaterialLine("강화석", stoneNeeded, stoneOwned);
 
-            return $"{goldLine}\n{stoneLine}";
+            return $"{countLine}\n{goldLine}\n{stoneLine}";
+        }
+
+        // levelUpButton의 활성 조건 중 재화 충분 여부만 따로 뗀 헬퍼 — 복제본 개수는 Refresh에서
+        // 이미 확인했으므로 여기서는 골드/강화석만 본다(0강 구간은 이 메서드 자체를 호출하지 않는다).
+        private bool HasEnoughCurrency(int level)
+        {
+            if (GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out CurrencyService currency)
+                || !GameBootstrapper.Services.TryGet(out EnhancementStoneService stones))
+            {
+                return false;
+            }
+
+            return currency.CurrentGold >= _definition.GetGoldCost(level) && stones.CurrentStones >= _definition.GetStoneCost(level);
         }
 
         private static string FormatMaterialLine(string label, int needed, int owned)

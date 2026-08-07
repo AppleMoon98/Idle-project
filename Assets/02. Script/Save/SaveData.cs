@@ -155,6 +155,12 @@ namespace Save
         /// </summary>
         public int SkillScrollCount { get; }
 
+        /// <summary>
+        /// 스킬별 보유 개수(레벨업 재료)를 직렬화한 JSON. InventoryJson과 같은 이유로 통째로
+        /// 문자열 하나로 저장한다(SaveService.RestoreSkillCounts가 파싱/복원한다). 기록이 없으면 빈 문자열.
+        /// </summary>
+        public string SkillCountsJson { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -183,7 +189,8 @@ namespace Save
             int soldierCriticalDamageLevel,
             string skillLoadoutJson,
             string skillEnabledJson,
-            int skillScrollCount)
+            int skillScrollCount,
+            string skillCountsJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -213,6 +220,7 @@ namespace Save
             SkillLoadoutJson = skillLoadoutJson;
             SkillEnabledJson = skillEnabledJson;
             SkillScrollCount = skillScrollCount;
+            SkillCountsJson = skillCountsJson;
         }
     }
 }

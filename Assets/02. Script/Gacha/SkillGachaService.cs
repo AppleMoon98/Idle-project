@@ -7,11 +7,11 @@ using Skill.Events;
 namespace Gacha
 {
     /// <summary>
-    /// 스킬 주문서를 소모해 가챠를 실행하는 서비스. GachaService(병사)와 대칭되는 구조지만,
-    /// 새 유닛/아이템을 지급하는 대신 뽑힌 스킬을 골드/강화석 없이 무료로 1레벨 올린다
-    /// (SkillService.LevelUpFree) — 스킬은 이미 SkillCatalogSO에 전부 등재되어 있어 "보유"라는
-    /// 개념이 없으므로, 다른 뽑기들과 달리 "아이템 획득"이 아니라 "무료 레벨업 1회 획득"으로
-    /// 동작한다. 이미 최대 레벨인 스킬은 매 시도마다 후보에서 제외한다. 티어별로 확률 테이블이
+    /// 스킬 주문서를 소모해 가챠를 실행하는 서비스. GachaService(병사)와 대칭되는 구조로,
+    /// 뽑힌 스킬의 보유 개수를 1 늘린다(SkillService.AddCopy) — 스킬은 이미 SkillCatalogSO에
+    /// 전부 등재되어 있어 새 슬롯을 만들 필요는 없지만, 그 보유 개수가 레벨업(SkillService.TryLevelUp)의
+    /// 재료로 소모된다는 점에서 장비의 "보유 스택"과 같은 역할을 한다. 이미 최대 레벨인 스킬은
+    /// 매 시도마다 후보에서 제외한다(더 모아도 레벨업할 곳이 없으므로). 티어별로 확률 테이블이
     /// 따로 있고, tiers 배열에 에셋만 추가하면 새 티어가 늘어난다.
     /// </summary>
     public sealed class SkillGachaService : IManager, IService
@@ -93,7 +93,7 @@ namespace Gacha
                 return false;
             }
 
-            _skills.LevelUpFree(picked);
+            _skills.AddCopy(picked);
             result = picked;
             return true;
         }

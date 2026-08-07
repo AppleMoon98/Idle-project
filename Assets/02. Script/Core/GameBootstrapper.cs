@@ -204,6 +204,7 @@ namespace Core
             saveService.RestoreSoldierRoster(save);
             saveService.RestoreSoldierEquipment(save);
             saveService.RestoreSkills(save);
+            saveService.RestoreSkillCounts(save);
             saveService.RestoreSkillLoadout(save);
             saveService.RestoreSkillEnabled(save);
 

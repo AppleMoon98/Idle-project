@@ -28,13 +28,14 @@ namespace UI
         private Color lockedIconColor = new(0.4f, 0.4f, 0.4f, 1f);
 
         /// <summary>
-        /// 이 칸이 보여줄 스킬 하나를 초기화한다. 인스턴스화 직후 한 번 호출한다.
+        /// 이 칸이 보여줄 스킬 하나를 초기화한다. 인스턴스화 직후 한 번 호출한다. count는 아직
+        /// 레벨업 재료로 쓰이지 않은 보유 개수(뽑기/던전으로 얻은 중복분)다.
         /// </summary>
-        public void Initialize(SkillSO definition, int level, Action onTapped)
+        public void Initialize(SkillSO definition, int level, int count, Action onTapped)
         {
             icon.sprite = definition.Icon;
             icon.color = level >= 1 ? definition.IconTint : lockedIconColor;
-            levelBadgeText.text = $"Lv.{level}";
+            levelBadgeText.text = count > 0 ? $"Lv.{level} ×{count}" : $"Lv.{level}";
 
             iconButton.onClick.AddListener(() => onTapped());
             levelBadgeButton.onClick.AddListener(() => onTapped());

@@ -63,6 +63,12 @@ namespace Save
         }
 
         [Serializable]
+        private class SkillCountSaveBlob
+        {
+            public SkillService.SkillCountSnapshot[] Counts;
+        }
+
+        [Serializable]
         private class SkillLoadoutSaveBlob
         {
             public SkillLoadoutService.SkillLoadoutSnapshotEntry[] Slots;
@@ -103,6 +109,7 @@ namespace Save
         private const string SkillLoadoutJsonKey = "Save.SkillLoadoutJson";
         private const string SkillEnabledJsonKey = "Save.SkillEnabledJson";
         private const string SkillScrollCountKey = "Save.SkillScrollCount";
+        private const string SkillCountsJsonKey = "Save.SkillCountsJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -146,6 +153,7 @@ namespace Save
         private string _skillLoadoutJson = "";
         private string _skillEnabledJson = "";
         private int _skillScrollCount;
+        private string _skillCountsJson = "";
 
         public SaveService(
             EventBus events,
@@ -212,6 +220,7 @@ namespace Save
             _skillLoadoutJson = save.SkillLoadoutJson;
             _skillEnabledJson = save.SkillEnabledJson;
             _skillScrollCount = save.SkillScrollCount;
+            _skillCountsJson = save.SkillCountsJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -228,6 +237,7 @@ namespace Save
             _events.Subscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Subscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            _events.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
@@ -251,6 +261,7 @@ namespace Save
             _events.Unsubscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
             _events.Unsubscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            _events.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _events.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Unsubscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
@@ -290,6 +301,7 @@ namespace Save
             string skillLoadoutJson = PlayerPrefs.GetString(SkillLoadoutJsonKey, "");
             string skillEnabledJson = PlayerPrefs.GetString(SkillEnabledJsonKey, "");
             int skillScrollCount = PlayerPrefs.GetInt(SkillScrollCountKey, 0);
+            string skillCountsJson = PlayerPrefs.GetString(SkillCountsJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -319,7 +331,8 @@ namespace Save
                 soldierCriticalDamageLevel,
                 skillLoadoutJson,
                 skillEnabledJson,
-                skillScrollCount);
+                skillScrollCount,
+                skillCountsJson);
         }
 
         /// <summary>
@@ -371,6 +384,7 @@ namespace Save
             PlayerPrefs.SetString(SkillLoadoutJsonKey, _skillLoadoutJson);
             PlayerPrefs.SetString(SkillEnabledJsonKey, _skillEnabledJson);
             PlayerPrefs.SetInt(SkillScrollCountKey, _skillScrollCount);
+            PlayerPrefs.SetString(SkillCountsJsonKey, _skillCountsJson);
             PlayerPrefs.Save();
         }
 
@@ -440,6 +454,22 @@ namespace Save
             }
 
             _skill.RestoreSnapshot(blob.Levels, _skillCatalog);
+        }
+
+        /// <summary>
+        /// save.SkillCountsJson으로 스킬별 보유 개수를 복원한다. GameBootstrapper.Awake()에서
+        /// RestoreSkills 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreSkillCounts(SaveData save)
+        {
+            SkillCountSaveBlob blob = ParseBlobOrNull<SkillCountSaveBlob>(save.SkillCountsJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _skill.RestoreCountSnapshot(blob.Counts, _skillCatalog);
         }
 
         /// <summary>
@@ -645,6 +675,12 @@ namespace Save
             Save();
         }
 
+        private void OnSkillCountChanged(SkillCountChangedEvent evt)
+        {
+            RebuildSkillCountSnapshot();
+            Save();
+        }
+
         /// <summary>
         /// SkillService의 현재 상태 전체를 JSON으로 다시 직렬화한다. RebuildInventorySnapshot과 같은 이유.
         /// </summary>
@@ -656,6 +692,19 @@ namespace Save
             };
 
             _skillLevelsJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// SkillService의 현재 보유 개수 전체를 JSON으로 다시 직렬화한다. RebuildSkillSnapshot과 같은 이유.
+        /// </summary>
+        private void RebuildSkillCountSnapshot()
+        {
+            var blob = new SkillCountSaveBlob
+            {
+                Counts = _skill.ExportCountSnapshot(_skillCatalog)
+            };
+
+            _skillCountsJson = JsonUtility.ToJson(blob);
         }
 
         /// <summary>

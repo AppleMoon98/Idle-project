@@ -30,6 +30,7 @@ namespace UI
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            GameBootstrapper.Events?.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             Refresh();
         }
@@ -37,10 +38,16 @@ namespace UI
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            GameBootstrapper.Events?.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
+        {
+            Refresh();
+        }
+
+        private void OnSkillCountChanged(SkillCountChangedEvent evt)
         {
             Refresh();
         }
@@ -72,9 +79,10 @@ namespace UI
                 }
 
                 int level = skillService.GetLevel(definition);
+                int count = skillService.GetCount(definition);
 
                 SkillGridCellUI cell = Instantiate(cellPrefab, cellContainer);
-                cell.Initialize(definition, level, onTapped: () => detailPopup?.Open(definition));
+                cell.Initialize(definition, level, count, onTapped: () => detailPopup?.Open(definition));
 
                 _spawnedCells.Add(cell);
             }
