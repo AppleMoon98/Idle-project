@@ -83,3 +83,6 @@ crashlytics-build.properties
 
 # Sprite art not tracked in this repo
 /Assets/01. Sprite/
+
+# Balance-sensitive design tooling — not for version control
+/Tools/EconomySimulation/
