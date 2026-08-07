@@ -16,7 +16,7 @@ MonoBehaviour:
   timeLimitSeconds: 300
   scrollsPerClearPerStage: 1
   extraStrengthMultiplier: 1.5
-  climaxStage: {fileID: 11400000, guid: cee18a770ca25bc47a0c637dada0024f, type: 2}
+  climaxStage: {fileID: 11400000, guid: b5f684f4e791e4b4db48a8f5829d0263, type: 2}
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   difficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}
   spawnViewportMargin: 0.2

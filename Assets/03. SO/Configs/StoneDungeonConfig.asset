@@ -12,11 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 874dacf4e22283b4d8805a16c255e3ab, type: 3}
   m_Name: StoneDungeonConfig
   m_EditorClassIdentifier: Assembly-CSharp::Dungeon.StoneDungeonConfigSO
-  bossPrefab: {fileID: 3104091886448902630, guid: 5846bf25c5c10ca40b3f2b55b61ffc7a, type: 3}
+  bossPrefab: {fileID: 2913678691088440627, guid: c58fb46e5e6a0d645b26e40b4004ac0c, type: 3}
   timeLimitSeconds: 300
   stonesPerClearPerStage: 50
   extraStrengthMultiplier: 1.5
-  climaxStage: {fileID: 11400000, guid: cee18a770ca25bc47a0c637dada0024f, type: 2}
+  climaxStage: {fileID: 11400000, guid: b5f684f4e791e4b4db48a8f5829d0263, type: 2}
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   difficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}
   spawnViewportMargin: 0.2
