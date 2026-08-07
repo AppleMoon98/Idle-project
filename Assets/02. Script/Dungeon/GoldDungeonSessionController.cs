@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Character;
 using Character.Events;
 using Core;
 using Dungeon.Events;
@@ -74,6 +75,12 @@ namespace Dungeon
             {
                 Vector3 spawnPosition = DungeonSpawnUtility.RandomOnScreenPosition(config.SpawnViewportMargin);
                 GameObject instance = pool.Get(config.MonsterPrefab, spawnPosition, Quaternion.identity);
+
+                if (instance.TryGetComponent(out StageMonsterScaler scaler))
+                {
+                    scaler.ApplyScale(config.CalculateMonsterStatMultiplier(_stageNumber));
+                }
+
                 _aliveMonsters.Add(instance);
             }
         }
