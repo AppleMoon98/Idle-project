@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: Skill_BattleCry
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
   displayName: "\uC804\uD22C\uC758 \uD568\uC131"
+  grade: 1
   icon: {fileID: 5777552420452043588, guid: 4ecccb81125b57d4a85cccc40097cff9, type: 3}
   iconTint: {r: 1, g: 1, b: 1, a: 1}
   cooldown: 20
@@ -21,12 +22,13 @@ MonoBehaviour:
   goldCostIncreasePerLevel: 70
   stoneCostBase: 6
   stoneCostIncreasePerLevel: 2
-  effectValueBase: 5
-  effectValuePerLevel: 1
+  effectValueBase: 0.1
+  effectValuePerLevel: 0
   effectType: 2
   areaRadius: 3
   strikeRange: 2.5
   buffDuration: 5
+  buffDurationPerLevel: 1
   vfxPrefab: {fileID: 472679378118459677, guid: f92bd90cd3ac9f7449b4a81f04e34675, type: 3}
   vfxFollowCaster: 1
   vfxHeightOffset: 0.7

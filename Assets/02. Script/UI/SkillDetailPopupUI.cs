@@ -207,7 +207,7 @@ namespace UI
             int requiredCount = service.GetRequiredCount(_definition);
 
             levelText.text = $"Lv. {level} / {_definition.MaxLevel} (보유 {count}개)";
-            statsText.text = BuildStatsText(magnitude);
+            statsText.text = BuildStatsText(magnitude, level);
             materialText.text = BuildMaterialText(level, isMax, count, requiredCount);
             levelUpButton.interactable = !isMax && count >= requiredCount
                 && (level == 0 || HasEnoughCurrency(level));
@@ -220,7 +220,7 @@ namespace UI
         // 값이라 다른 타입에는 표시하지 않는다. 데미지 계열(AreaDamage/SingleTargetStrike)은
         // 실전에서 (공격력 + magnitude)로 들어가므로(각 이펙트의 Execute와 동일한 공식), 그 합계를
         // 내역과 함께 보여줘 스킬이 평타보다 항상 세다는 걸 바로 확인할 수 있게 한다.
-        private string BuildStatsText(float magnitude)
+        private string BuildStatsText(float magnitude, int level)
         {
             float attackPower = playerStats != null ? playerStats.Stats.AttackPower : 0f;
 
@@ -231,7 +231,7 @@ namespace UI
                 case SkillEffectType.SingleTargetStrike:
                     return $"데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n공격 거리 {_definition.StrikeRange:F1}";
                 case SkillEffectType.SelfBuff:
-                    return $"공격력 증가 {magnitude:F0}\n지속시간 {_definition.BuffDuration:F1}초";
+                    return $"공격력 증가 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초";
                 default:
                     return "";
             }
