@@ -42,6 +42,21 @@ namespace Rank
         public int CurrentRankIndex => _currentRankIndex;
 
         /// <summary>
+        /// 역대 최고 클리어 스테이지의 챕터 번호. 아직 아무것도 클리어하지 않았으면(세이브/시딩 전) 0.
+        /// 랭크 판정용으로 이미 추적 중인 값을 재사용한 것 — "카탈로그에 존재하는 콘텐츠 양"이 아니라
+        /// "플레이어가 실제로 클리어한 진행도"를 기준으로 삼아야 하는 소비자(예: 골드 던전의 단계 상한)를
+        /// 위한 공개 접근자.
+        /// </summary>
+        public int HighestClearedChapter
+        {
+            get
+            {
+                StageSO stage = _stageCatalog.GetAt(_highestClearedIndex);
+                return stage != null ? stage.Chapter : 0;
+            }
+        }
+
+        /// <summary>
         /// 현재 랭크가 rank 이상인지 판정한다. rank가 null이면 조건 없음으로 간주해 항상 true
         /// (해금 조건을 아직 안 정한 시스템이 이 값을 그대로 써도 항상 열려 있도록).
         /// rank가 카탈로그에 없으면(설정 실수) false.

@@ -27,6 +27,16 @@ namespace UI
             enterButton.onClick.AddListener(OnEnterClicked);
         }
 
+        private void OnEnable()
+        {
+            // OnEnable은 같은 활성화 프레임의 모든 Awake가 끝난 뒤 호출되므로,
+            // stepper.Awake()가 minStage로 초기화를 마친 뒤 안전하게 상한을 덮어쓸 수 있다.
+            if (session != null)
+            {
+                stepper.SetMaxStage(session.MaxStageNumber);
+            }
+        }
+
         private void OnEnterClicked()
         {
             foreach (SimplePopupUI popup in popupsToClose)

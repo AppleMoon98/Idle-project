@@ -94,5 +94,30 @@ namespace Stage
 
             return stages[index];
         }
+
+        /// <summary>
+        /// 카탈로그에 실제로 존재하는 가장 높은 챕터 번호를 반환한다. 스테이지가 없으면 0.
+        /// 콘텐츠가 줄어들 때(예: 테스트 빌드용 챕터 축소, section BD) "지금 존재하는 마지막
+        /// 챕터가 몇 번인지"를 매번 다시 훑지 않고 조회하기 위한 헬퍼.
+        /// </summary>
+        public int GetMaxChapter()
+        {
+            int maxChapter = 0;
+
+            if (stages == null)
+            {
+                return maxChapter;
+            }
+
+            foreach (StageSO stage in stages)
+            {
+                if (stage != null && stage.Chapter > maxChapter)
+                {
+                    maxChapter = stage.Chapter;
+                }
+            }
+
+            return maxChapter;
+        }
     }
 }

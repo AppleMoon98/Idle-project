@@ -51,6 +51,19 @@ namespace UI
             Refresh();
         }
 
+        /// <summary>
+        /// 최대 선택 가능 단계를 런타임에 갱신한다(예: 콘텐츠가 실제로 존재하는 챕터 수만큼만
+        /// 선택 가능하도록). 이미 선택된 단계가 새 상한을 넘으면 상한으로 내려앉힌다.
+        /// Awake()보다 먼저 호출되면 안 되므로(아직 minStage로 초기화되지 않았을 수 있음),
+        /// 호출하는 쪽은 OnEnable 이후(Unity가 같은 활성화에서 모든 Awake를 먼저 끝낸 뒤) 호출해야 한다.
+        /// </summary>
+        public void SetMaxStage(int max)
+        {
+            maxStage = Mathf.Max(minStage, max);
+            _currentStage = Mathf.Clamp(_currentStage, minStage, maxStage);
+            Refresh();
+        }
+
         private void Refresh()
         {
             stageNumberText.text = _currentStage.ToString();

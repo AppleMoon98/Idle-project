@@ -5,6 +5,7 @@ using Core;
 using Dungeon.Events;
 using Loot.Events;
 using Managers;
+using Rank;
 using Stage;
 using UnityEngine;
 
@@ -38,7 +39,30 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// UI(GoldDungeonEntryUI)가 스테퍼의 최대 선택 가능 단계를 읽어가기 위한 접근자. "카탈로그에
+        /// 존재하는 콘텐츠 양"이 아니라 "플레이어가 실제로 클리어한 챕터"를 기준으로 삼는다 — 아직
+        /// 클리어하지 못한 챕터의 몹 체력을 미리 farming하는 것을 막기 위함. 랭크 서비스가 아직 없으면
+        /// (극초반 등) 최소 1단계는 항상 선택 가능해야 하므로 1로 대체한다.
+        /// </summary>
+        public int MaxStageNumber
+        {
+            get
+            {
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService))
+                {
+                    return Mathf.Max(1, rankService.HighestClearedChapter);
+                }
+
+                return 1;
+            }
+        }
+
+        /// <summary>
         /// 골드 던전을 시작한다. stageNumber는 보상 계산에 쓰인다. 이미 진행 중이면 무시한다.
+        /// MaxStageNumber(플레이어가 실제로 클리어한 챕터 기준)로 즉시 정규화해서 저장하므로, UI가
+        /// 실수로(또는 스테퍼 상한 설정 전에) 아직 클리어하지 못한 단계를 넘겨도 몹 체력과 골드 보상이
+        /// 항상 같은 유효 단계를 기준으로 계산된다 — 체력은 진행도에서 멈추는데 보상만 계속 커지는
+        /// 문제를 여기서 막는다.
         /// </summary>
         public void Enter(int stageNumber)
         {
@@ -48,7 +72,7 @@ namespace Dungeon
             }
 
             _isActive = true;
-            _stageNumber = stageNumber;
+            _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
             _remainingTime = config.TimeLimitSeconds;
 
             stageController?.PauseForOverlay();

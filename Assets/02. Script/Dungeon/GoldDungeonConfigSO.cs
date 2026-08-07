@@ -28,13 +28,16 @@ namespace Dungeon
         private float extraStrengthMultiplier = 1f;
 
         [SerializeField]
-        private StageSO climaxStage;
-
-        [SerializeField]
         private StageCatalogSO stageCatalog;
 
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
+
+        /// <summary>
+        /// 선택한 단계 N을 "챕터 N, N-20 스테이지"의 몬스터 체력 기준으로 해석할 때 쓰는 고정 스테이지
+        /// 번호. 20 자체는 "챕터 하나를 대표하는 후반 스테이지"라는 의미로 고른 값이라 상수로 둔다.
+        /// </summary>
+        private const int ReferenceStageNumber = 20;
 
         /// <summary>
         /// 스폰할 던전 몬스터 프리팹.
@@ -62,21 +65,48 @@ namespace Dungeon
         public float SpawnViewportMargin => spawnViewportMargin;
 
         /// <summary>
-        /// 스토리에서 이 몬스터를 만났을 때의 스탯 배율(climaxStage 기준)에 extraStrengthMultiplier와
-        /// 선택한 단계를 곱해, 골드 던전에서도 단계를 올릴수록 몬스터가 실제로 강해지도록 계산한다.
-        /// StoneDungeonConfigSO/SkillDungeonConfigSO의 CalculateBossStatMultiplier와 동일한 형태.
+        /// 선택한 단계 N을 "챕터 N의 N-20 스테이지" 몬스터 체력 기준으로 해석한다(예: 1단계 → 1-20,
+        /// 2단계 → 2-20). N 자체가 유효한 범위인지(콘텐츠 존재 여부, 플레이어 진행도)는 호출하는 쪽
+        /// (GoldDungeonSessionController)이 미리 클램프해서 넘겨야 한다 — 이 데이터 에셋은 런타임
+        /// 서비스(랭크/진행도)를 모르므로 순수하게 "주어진 단계를 스테이지로 해석"만 담당한다.
+        /// 카탈로그에 해당 챕터가 없으면 존재하는 마지막 챕터의 -20 스테이지로 대체한다(방어적 처리).
+        /// 여기서 구한 스테이지의 난이도 배율에 extraStrengthMultiplier(기본 1.2, "스토리보다 1.2배
+        /// 강하게")만 곱해 최종 배율을 낸다.
         /// </summary>
         public float CalculateMonsterStatMultiplier(int stageNumber)
         {
-            float storyMultiplier = 1f;
-
-            if (climaxStage != null && stageCatalog != null && difficultyConfig != null)
+            if (stageCatalog == null || difficultyConfig == null)
             {
-                int stageIndex = stageCatalog.IndexOf(climaxStage);
-                storyMultiplier = difficultyConfig.GetMultiplier(stageIndex);
+                return extraStrengthMultiplier;
             }
 
-            return storyMultiplier * extraStrengthMultiplier * Mathf.Max(1, stageNumber);
+            StageSO referenceStage = ResolveReferenceStage(Mathf.Max(1, stageNumber));
+
+            if (referenceStage == null)
+            {
+                return extraStrengthMultiplier;
+            }
+
+            int stageIndex = stageCatalog.IndexOf(referenceStage);
+            float storyMultiplier = difficultyConfig.GetMultiplier(stageIndex);
+
+            return storyMultiplier * extraStrengthMultiplier;
+        }
+
+        /// <summary>
+        /// chapter-20 스테이지를 찾는다. 존재하지 않으면 카탈로그에 실제로 존재하는 가장 높은 챕터의
+        /// -20 스테이지로 대체한다(콘텐츠가 줄어도 항상 유효한 기준 스테이지를 반환하기 위함).
+        /// </summary>
+        private StageSO ResolveReferenceStage(int chapter)
+        {
+            StageSO stage = stageCatalog.Find(chapter, ReferenceStageNumber);
+
+            if (stage != null)
+            {
+                return stage;
+            }
+
+            return stageCatalog.Find(stageCatalog.GetMaxChapter(), ReferenceStageNumber);
         }
     }
 }
