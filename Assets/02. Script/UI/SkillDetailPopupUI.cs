@@ -198,7 +198,7 @@ namespace UI
 
             icon.sprite = _definition.Icon;
             icon.color = _definition.IconTint;
-            nameText.text = _definition.DisplayName;
+            nameText.text = $"{_definition.DisplayName} [{SkillGradeDisplayNames.Get(_definition.Grade)}]";
 
             int level = service.GetLevel(_definition);
             bool isMax = level >= _definition.MaxLevel;

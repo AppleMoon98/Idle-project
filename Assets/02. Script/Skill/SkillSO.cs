@@ -15,6 +15,9 @@ namespace Skill
         private string displayName;
 
         [SerializeField]
+        private SkillGrade grade;
+
+        [SerializeField]
         private Sprite icon;
 
         [SerializeField]
@@ -78,6 +81,12 @@ namespace Skill
         /// 스킬 이름(UI 표시용).
         /// </summary>
         public string DisplayName => displayName;
+
+        /// <summary>
+        /// 스킬 등급(커먼/언커먼/레어/슈퍼레어/에픽/레전더리). 장비처럼 등급별 시각 효과(색상 등)는
+        /// 아직 없고, 분류용 데이터로만 쓰인다.
+        /// </summary>
+        public SkillGrade Grade => grade;
 
         /// <summary>
         /// 슬롯 아이콘. 실제 스킬 전용 아트가 없는 동안은 재사용 스프라이트를 IconTint로
