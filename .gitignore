@@ -77,5 +77,9 @@ crashlytics-build.properties
 /Assets/Screenshots/
 /Assets/Screenshots.meta
 
+# Auto-regenerated on every Play Mode enter/exit, not a real project asset
+/Assets/Resources/GDKEditionAutoGen/
+/Assets/Resources/GDKEditionAutoGen.meta
+
 # Sprite art not tracked in this repo
 /Assets/01. Sprite/
