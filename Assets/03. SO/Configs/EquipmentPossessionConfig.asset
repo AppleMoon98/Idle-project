@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: caf7fdd827bfb5e4e904c6d0295b0aa3, type: 3}
+  m_Name: EquipmentPossessionConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Equipment.EquipmentPossessionConfigSO
+  entries:
+  - Slot: 0
+    StatType: 0
+    BaseValue: 0.01
+    PerGradeIndex: 0
+  - Slot: 1
+    StatType: 2
+    BaseValue: 0.0005
+    PerGradeIndex: 0
+  - Slot: 2
+    StatType: 1
+    BaseValue: 0.01
+    PerGradeIndex: 0
+  - Slot: 3
+    StatType: 5
+    BaseValue: 0.001
+    PerGradeIndex: 0
+  - Slot: 4
+    StatType: 3
+    BaseValue: 0.0005
+    PerGradeIndex: 0
+  mainGradeMultipliers:
+  - 1
+  - 5
+  - 10
+  - 20
+  - 50
+  - 100
+  subGradesPerMainGrade: 5
+  enhancementTiers:
+  - MainGradeTierThreshold: 0
+    PercentPerLevel: 0.01
+    MaxLevel: 100
+  - MainGradeTierThreshold: 4
+    PercentPerLevel: 0.1
+    MaxLevel: 20

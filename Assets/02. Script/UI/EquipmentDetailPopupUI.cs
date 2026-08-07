@@ -132,6 +132,26 @@ namespace UI
                 sb.AppendLine();
             }
 
+            if (GameBootstrapper.Services.TryGet(out EquipmentPossessionService possessionService))
+            {
+                IReadOnlyList<(EnhancementStatType StatType, float PercentBonus)> possessionOptions =
+                    possessionService.CalculatePreview(_target.Definition, _target.EnhancementLevel);
+
+                if (possessionOptions.Count > 0)
+                {
+                    sb.AppendLine();
+                    sb.AppendLine("[보유 효과] (장착 여부와 무관하게 적용)");
+
+                    foreach ((EnhancementStatType statType, float percentBonus) in possessionOptions)
+                    {
+                        sb.Append(StatDisplayNames.Get(statType));
+                        sb.Append(" +");
+                        sb.Append((percentBonus * 100f).ToString("0.##"));
+                        sb.AppendLine("%");
+                    }
+                }
+            }
+
             optionsText.text = sb.Length > 0 ? sb.ToString() : "옵션 없음";
         }
 

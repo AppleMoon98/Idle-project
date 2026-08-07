@@ -174,6 +174,7 @@ MonoBehaviour:
   equipmentCatalog: {fileID: 11400000, guid: 89b101767d07ac448af2982bc3376cf5, type: 2}
   equipmentEnhancementConfig: {fileID: 11400000, guid: 0afe5a650fe721b429ae65c672a90e19, type: 2}
   equipmentStatConfig: {fileID: 11400000, guid: b1e7aef8f76d0a242a7dd93e280bc01f, type: 2}
+  equipmentPossessionConfig: {fileID: 11400000, guid: 91ebfb0eefe7fa843bab910c5b53ebaf, type: 2}
   rankCatalog: {fileID: 11400000, guid: 3605c45a90710094c92f47979c86484e, type: 2}
   soldierCatalog: {fileID: 11400000, guid: 050bd27f755c27f4784b61a88964459c, type: 2}
   soldierGachaTiers:
@@ -16946,6 +16947,7 @@ GameObject:
   - component: {fileID: 762544249}
   - component: {fileID: 762544250}
   - component: {fileID: 762544251}
+  - component: {fileID: 762544252}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -17243,6 +17245,18 @@ MonoBehaviour:
   componentsToSuspend:
   - {fileID: 762544245}
   arrivalDistance: 0.1
+--- !u!114 &762544252
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 11fe50eb05809114bbb1c4c6c112b969, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.EquipmentPossessionStatReceiver
 --- !u!1 &763898311
 GameObject:
   m_ObjectHideFlags: 0
