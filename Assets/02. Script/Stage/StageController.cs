@@ -49,6 +49,8 @@ namespace Stage
             if (catalog != null)
             {
                 StageSO initialHighestStage = catalog.Find(save.HighestClearedChapter, save.HighestClearedStageNumber);
+                StageModeService modeService = null;
+                GameBootstrapper.Services?.TryGet(out modeService);
                 _progression = new StageProgression(
                     catalog,
                     this,
@@ -56,7 +58,8 @@ namespace Stage
                     playerTarget,
                     maxRegressionDistance,
                     initialStage,
-                    initialHighestStage);
+                    initialHighestStage,
+                    modeService);
             }
 
             if (initialStage != null)

@@ -7,12 +7,12 @@ namespace Stage
 {
     /// <summary>
     /// 스테이지 진행 정책을 담당한다. "현재 스테이지"와 "역대 최고 클리어 스테이지"를
-    /// 카탈로그 인덱스로 관리하며, 둘을 비교해 돌파/반복 여부를 그때그때 판단한다
-    /// (별도의 모드 상태를 저장하지 않는다):
+    /// 카탈로그 인덱스로 관리한다:
     ///
-    /// - 클리어 시: 새 기록이면(현재 == 최고+1) 최고 기록을 갱신하고 다음 스테이지로,
-    ///   다음이 없으면 그 자리를 반복. 이미 클리어한 곳을 반복 클리어한 경우엔 한 칸만
-    ///   전진한다 — 반복하다 최고 기록+1까지 도달하면 자연스럽게 돌파가 재개된다.
+    /// - 클리어 시: 새 기록이면(현재 &gt; 최고) 항상 최고 기록을 갱신한다(모드와 무관 — 반복
+    ///   모드에서도 진짜 기록이므로 잃지 않는다). 전진 여부는 StageModeService.CurrentMode를
+    ///   따른다 — Breakthrough면 기존과 동일하게 다음 스테이지로(다음이 없으면 최고 기록 자리를
+    ///   반복), Repeat이면 전진하지 않고 같은 스테이지를 계속 반복한다.
     /// - 플레이어 사망 시: 모드와 무관하게 한 칸 후퇴하되, 최고 기록 기준
     ///   maxRegressionDistance칸 밑으로는 내려가지 않는다.
     /// </summary>
@@ -23,6 +23,7 @@ namespace Stage
         private readonly EventBus _events;
         private readonly Transform _playerTransform;
         private readonly int _maxRegressionDistance;
+        private readonly StageModeService _modeService;
 
         private int _currentIndex;
         private int _highestClearedIndex;
@@ -35,13 +36,15 @@ namespace Stage
             Transform playerTransform,
             int maxRegressionDistance,
             StageSO initialCurrentStage,
-            StageSO initialHighestClearedStage)
+            StageSO initialHighestClearedStage,
+            StageModeService modeService)
         {
             _catalog = catalog;
             _controller = controller;
             _events = events;
             _playerTransform = playerTransform;
             _maxRegressionDistance = maxRegressionDistance;
+            _modeService = modeService;
 
             _currentIndex = _catalog.IndexOf(initialCurrentStage);
             _highestClearedIndex = _catalog.IndexOf(initialHighestClearedStage);
@@ -60,10 +63,10 @@ namespace Stage
         }
 
         /// <summary>
-        /// 현재 스테이지가 돌파(새로운 스테이지)인지 반복(이미 클리어한 스테이지)인지. 클래스
-        /// 상단 주석의 판정 규칙과 동일 — 별도 모드 상태 없이 두 인덱스 비교로 매번 계산한다.
+        /// 현재 플레이어가 선택한 방침이 돌파인지(true) 반복인지(false). StageModeService가 없으면
+        /// (구성 실수 등 방어적 상황) 기존 기본 동작인 돌파로 취급한다.
         /// </summary>
-        public bool IsBreakthrough => _currentIndex > _highestClearedIndex;
+        public bool IsBreakthrough => _modeService == null || _modeService.CurrentMode == StageProgressionMode.Breakthrough;
 
         /// <summary>
         /// true인 동안 StageClearedEvent/Player CharacterDiedEvent를 완전히 무시한다. 던전 등
@@ -91,8 +94,11 @@ namespace Stage
                 _events.Publish(new HighestStageClearedEvent(highest.Chapter, highest.StageNumber));
             }
 
-            StageSO next = _catalog.GetAt(_currentIndex + 1);
-            _currentIndex = next != null ? _currentIndex + 1 : _highestClearedIndex;
+            if (IsBreakthrough)
+            {
+                StageSO next = _catalog.GetAt(_currentIndex + 1);
+                _currentIndex = next != null ? _currentIndex + 1 : _highestClearedIndex;
+            }
 
             _controller.LoadStage(_catalog.GetAt(_currentIndex));
         }

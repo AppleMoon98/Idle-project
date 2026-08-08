@@ -311,6 +311,11 @@ namespace Core
             Services.Register(playerControlModeService);
             _managers.Add(playerControlModeService);
 
+            var stageModeService = new StageModeService(Events);
+            stageModeService.Initialize();
+            Services.Register(stageModeService);
+            _managers.Add(stageModeService);
+
             var cameraShakeService = new CameraShakeService(Events);
             cameraShakeService.Initialize();
             Services.Register(cameraShakeService);

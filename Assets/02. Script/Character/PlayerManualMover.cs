@@ -8,20 +8,36 @@ using UnityEngine.InputSystem;
 namespace Character
 {
     /// <summary>
-    /// PlayerControlMode가 Manual일 때 화면 탭 위치로 플레이어를 직접 이동시킨다. Manual 진입 시
-    /// 같은 오브젝트의 EnemyTracker를 꺼서 이동 제어권을 가져오고(Soldier.SoldierBehaviorController가
-    /// 원거리 카이팅에 쓰는 것과 동일한 패턴), Auto로 돌아가면 다시 켜서 반납한다. 공격(Attacker)은
-    /// 이동 방식과 무관하게 항상 자동으로 동작한다.
+    /// 화면 탭 위치로 플레이어를 직접 이동시킨다. Auto/Manual 모드와 무관하게 항상 동작한다 —
+    /// 탭하는 동안만 EnemyTracker를 잠깐 끄고(Soldier.SoldierBehaviorController가 원거리
+    /// 카이팅에 쓰는 것과 동일한 패턴) 그 자리로 이동시키며, 도착하면 그 시점의 모드가 Auto면
+    /// EnemyTracker를 다시 켜 자동 전투를 재개하고 Manual이면 계속 꺼둔 채 정지시킨다(Manual의
+    /// "항상 꺼져 있다" 불변식 유지). 공격(Attacker)은 이동 방식과 무관하게 항상 자동으로 동작한다.
+    ///
+    /// 누르고 있는 시간이 squadRallyHoldSeconds를 넘기면 SquadMoveCommandEvent를 한 번 발행해
+    /// 병사들도 같은 위치로 부른다 — 실제 이동/도착 후 재개 로직은 이미 Player/Soldier 모두에
+    /// 붙어있는 RallyMoveReceiver가 처리하므로 여기서는 이벤트만 발행한다(이전에는
+    /// UI.SquadRallyFlagUI가 깃발 아이콘을 드래그해서 같은 이벤트를 발행했으나, 그 UI를 완전히
+    /// 대체한다).
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(EnemyTracker))]
     public sealed class PlayerManualMover : MonoBehaviour, ITickable
     {
+        [SerializeField]
+        private float squadRallyHoldSeconds = 0.4f;
+
+        [SerializeField]
+        private float arrivalDistance = 0.1f;
+
         private CharacterMover _mover;
         private EnemyTracker _enemyTracker;
         private Transform _tapAnchor;
         private Camera _camera;
-        private bool _isManualActive;
+
+        private bool _isMovingToTap;
+        private float _pressHeldSeconds;
+        private bool _hasTriggeredSquadRally;
 
         private void Awake()
         {
@@ -40,7 +56,7 @@ namespace Character
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PlayerControlModeService controlModeService))
             {
-                ApplyMode(controlModeService.CurrentMode);
+                OnControlModeChanged(new PlayerControlModeChangedEvent(controlModeService.CurrentMode));
             }
         }
 
@@ -58,43 +74,120 @@ namespace Character
             }
         }
 
+        /// <summary>
+        /// Manual로 바뀌면 즉시 EnemyTracker를 끈다(탭 중이었든 아니든 무조건). Auto로 바뀌면,
+        /// 지금 탭 이동 중이 아닐 때만 즉시 켠다 — 탭 이동 중이라면 도착 시점의
+        /// HandleArrival이 알아서 재개하므로 여기서 미리 켜서 이동을 방해하지 않는다.
+        /// </summary>
         private void OnControlModeChanged(PlayerControlModeChangedEvent evt)
         {
-            ApplyMode(evt.Mode);
-        }
-
-        private void ApplyMode(PlayerControlMode mode)
-        {
-            _isManualActive = mode == PlayerControlMode.Manual;
-            _enemyTracker.enabled = !_isManualActive;
+            if (evt.Mode == PlayerControlMode.Manual)
+            {
+                _enemyTracker.enabled = false;
+            }
+            else if (!_isMovingToTap)
+            {
+                _enemyTracker.enabled = true;
+            }
         }
 
         void ITickable.Tick(float deltaTime)
         {
-            if (!_isManualActive)
-            {
-                return;
-            }
+            HandlePointerInput(deltaTime);
+            HandleArrival();
+        }
 
+        private void HandlePointerInput(float deltaTime)
+        {
             Pointer pointer = Pointer.current;
 
-            if (pointer == null || !pointer.press.wasPressedThisFrame)
+            if (pointer == null)
             {
                 return;
             }
 
-            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            if (pointer.press.wasPressedThisFrame)
+            {
+                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                {
+                    return;
+                }
+
+                BeginTapMove(pointer.position.ReadValue());
+                return;
+            }
+
+            if (!pointer.press.isPressed || _hasTriggeredSquadRally)
             {
                 return;
             }
 
-            Vector2 screenPosition = pointer.position.ReadValue();
-            Vector3 worldPosition = _camera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, -_camera.transform.position.z));
-            worldPosition.z = 0f;
+            _pressHeldSeconds += deltaTime;
 
-            _tapAnchor.position = worldPosition;
+            if (_pressHeldSeconds >= squadRallyHoldSeconds)
+            {
+                _hasTriggeredSquadRally = true;
+                TriggerSquadRally(pointer.position.ReadValue());
+            }
+        }
+
+        private void BeginTapMove(Vector2 screenPosition)
+        {
+            _pressHeldSeconds = 0f;
+            _hasTriggeredSquadRally = false;
+
+            _tapAnchor.position = ScreenToWorld(screenPosition);
             _mover.Target = _tapAnchor;
             _mover.StoppingDistance = 0f;
+
+            _enemyTracker.enabled = false;
+            _isMovingToTap = true;
+        }
+
+        private void TriggerSquadRally(Vector2 screenPosition)
+        {
+            GameBootstrapper.Events?.Publish(new SquadMoveCommandEvent(ScreenToWorld(screenPosition)));
+        }
+
+        /// <summary>
+        /// 탭으로 이동 중일 때만 판정한다. 다른 무언가(집결 명령 등)가 이동 목표를 가로채면
+        /// 조용히 추적을 포기한다 — RallyMoveReceiver가 이미 쓰는 것과 동일한 패턴.
+        /// </summary>
+        private void HandleArrival()
+        {
+            if (!_isMovingToTap)
+            {
+                return;
+            }
+
+            if (_mover.Target != _tapAnchor)
+            {
+                _isMovingToTap = false;
+                return;
+            }
+
+            if (Vector3.Distance(transform.position, _tapAnchor.position) > arrivalDistance)
+            {
+                return;
+            }
+
+            _isMovingToTap = false;
+
+            bool isAuto = GameBootstrapper.Services != null
+                && GameBootstrapper.Services.TryGet(out PlayerControlModeService controlModeService)
+                && controlModeService.CurrentMode == PlayerControlMode.Auto;
+
+            if (isAuto)
+            {
+                _enemyTracker.enabled = true;
+            }
+        }
+
+        private Vector3 ScreenToWorld(Vector2 screenPosition)
+        {
+            Vector3 worldPosition = _camera.ScreenToWorldPoint(new Vector3(screenPosition.x, screenPosition.y, -_camera.transform.position.z));
+            worldPosition.z = 0f;
+            return worldPosition;
         }
     }
 }
