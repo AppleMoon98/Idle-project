@@ -60,6 +60,12 @@ namespace Stage
         }
 
         /// <summary>
+        /// 현재 스테이지가 돌파(새로운 스테이지)인지 반복(이미 클리어한 스테이지)인지. 클래스
+        /// 상단 주석의 판정 규칙과 동일 — 별도 모드 상태 없이 두 인덱스 비교로 매번 계산한다.
+        /// </summary>
+        public bool IsBreakthrough => _currentIndex > _highestClearedIndex;
+
+        /// <summary>
         /// true인 동안 StageClearedEvent/Player CharacterDiedEvent를 완전히 무시한다. 던전 등
         /// 오버레이가 화면을 차지하는 동안(StageController.PauseForOverlay~ResumeAfterOverlay)
         /// 그 안에서 벌어지는 죽음/클리어가 실제 스테이지 진행도(돌파/후퇴)에 새어 들어가

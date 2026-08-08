@@ -131,7 +131,7 @@ namespace Offline
             // 반복 모드이므로 역대 최고 기록 자체는 갱신되지 않는다(HighestStageClearedEvent 발행 없음) —
             // 항상 그 기록 스테이지로 복귀시킨다(사망으로 뒤로 밀려 있던 현재 위치는 무시하고, 오프라인은
             // "죽지 않고 최고 기록을 반복 클리어했다"는 낙관적 가정만 반영한다).
-            _events.Publish(new StageChangedEvent(repeatStage.Chapter, repeatStage.StageNumber));
+            _events.Publish(new StageChangedEvent(repeatStage.Chapter, repeatStage.StageNumber, isBreakthrough: false));
 
             _events.Publish(new OfflineProgressCalculatedEvent(
                 Mathf.Min(elapsedSeconds, _maxOfflineSeconds),

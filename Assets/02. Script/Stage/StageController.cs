@@ -117,7 +117,8 @@ namespace Stage
 
             TickerRegistration.Register(_spawner);
 
-            GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber));
+            bool isBreakthrough = _progression?.IsBreakthrough ?? true;
+            GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber, isBreakthrough));
         }
 
         /// <summary>

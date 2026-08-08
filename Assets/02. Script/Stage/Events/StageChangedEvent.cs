@@ -16,10 +16,18 @@ namespace Stage.Events
         /// </summary>
         public int StageNumber { get; }
 
-        public StageChangedEvent(int chapter, int stageNumber)
+        /// <summary>
+        /// 돌파(새로운 스테이지에 처음 도전)인지 반복(이미 클리어한 스테이지를 다시 도는 중)인지.
+        /// StageProgression의 "current > highest" 판정을 그대로 실어 보낸다 — UI 등 소비자가
+        /// Stage 도메인을 직접 참조하지 않고도 모드를 표시할 수 있게 하기 위함.
+        /// </summary>
+        public bool IsBreakthrough { get; }
+
+        public StageChangedEvent(int chapter, int stageNumber, bool isBreakthrough)
         {
             Chapter = chapter;
             StageNumber = stageNumber;
+            IsBreakthrough = isBreakthrough;
         }
     }
 }
