@@ -159,6 +159,17 @@ namespace Rank
         }
 
         /// <summary>
+        /// stage를 역대 최고 기록으로 실제로 클리어한 적이 있는지 판정한다. IsNextRankAvailable과
+        /// 같은 인덱스 비교 방식 — 골드/강화석 던전처럼 "특정 스테이지 클리어"를 입장 조건으로 삼는
+        /// 소비자를 위한 공개 API. stage가 카탈로그에 없으면(콘텐츠 없음) false.
+        /// </summary>
+        public bool HasClearedStage(StageSO stage)
+        {
+            int index = _stageCatalog.IndexOf(stage);
+            return index >= 0 && _highestClearedIndex >= index;
+        }
+
+        /// <summary>
         /// 다음 랭크로 딱 한 단계 승급한다. RankPromotionBattleController가 승급전 승리 시에만
         /// 호출한다.
         /// </summary>

@@ -73,7 +73,7 @@ namespace Dungeon
                 return extraStrengthMultiplier;
             }
 
-            StageSO referenceStage = ResolveReferenceStage(Mathf.Max(1, stageNumber));
+            StageSO referenceStage = GetReferenceStage(stageNumber);
 
             if (referenceStage == null)
             {
@@ -87,11 +87,19 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// chapter-40 스테이지를 찾는다. 존재하지 않으면 카탈로그에 실제로 존재하는 가장 높은 챕터의
-        /// -40 스테이지로 대체한다(콘텐츠가 줄어도 항상 유효한 기준 스테이지를 반환하기 위함).
+        /// 선택한 단계 N의 기준 스테이지(챕터 N의 -40 스테이지)를 반환한다. 존재하지 않으면 카탈로그에
+        /// 실제로 존재하는 가장 높은 챕터의 -40 스테이지로 대체한다(콘텐츠가 줄어도 항상 유효한 기준
+        /// 스테이지를 반환하기 위함). 공개 API인 이유: 입장 조건 판정(해당 스테이지를 실제로
+        /// 클리어했는지)을 위해 StoneDungeonSessionController가 이 스테이지 자체를 필요로 한다.
         /// </summary>
-        private StageSO ResolveReferenceStage(int chapter)
+        public StageSO GetReferenceStage(int stageNumber)
         {
+            if (stageCatalog == null)
+            {
+                return null;
+            }
+
+            int chapter = Mathf.Max(1, stageNumber);
             StageSO stage = stageCatalog.Find(chapter, ReferenceStageNumber);
 
             if (stage != null)

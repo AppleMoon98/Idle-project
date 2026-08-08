@@ -58,6 +58,30 @@ namespace Dungeon
         }
 
         /// <summary>
+        /// stageNumber 단계의 입장 조건 — 그 단계의 기준 스테이지(챕터 N의 N-20 스테이지)를 실제로
+        /// 클리어한 기록이 있는지 — 를 판정한다. MaxStageNumber(챕터 단위)보다 훨씬 엄격한 검사다:
+        /// 챕터 N에 막 진입만 해도 MaxStageNumber는 N까지 올라가지만, N-20 자체는 아직 못 클리어했을
+        /// 수 있다. requiredStage는 조건 충족 여부와 무관하게 항상 채워 반환한다 — 실패 시 UI가 이
+        /// 값으로 안내 메시지("스테이지 N-20 클리어 시 입장이 가능합니다.")를 만든다.
+        /// </summary>
+        public bool IsStageUnlocked(int stageNumber, out StageSO requiredStage)
+        {
+            requiredStage = config != null ? config.GetReferenceStage(stageNumber) : null;
+
+            if (requiredStage == null)
+            {
+                return true;
+            }
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService))
+            {
+                return rankService.HasClearedStage(requiredStage);
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// 골드 던전을 시작한다. stageNumber는 보상 계산에 쓰인다. 이미 진행 중이면 무시한다.
         /// MaxStageNumber(플레이어가 실제로 클리어한 챕터 기준)로 즉시 정규화해서 저장하므로, UI가
         /// 실수로(또는 스테퍼 상한 설정 전에) 아직 클리어하지 못한 단계를 넘겨도 몹 체력과 골드 보상이
