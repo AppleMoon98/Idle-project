@@ -160,6 +160,8 @@ GameObject:
   - component: {fileID: 4203055195105543112}
   - component: {fileID: 1573488353680083426}
   - component: {fileID: 4244513230545591590}
+  - component: {fileID: 2692374472471921882}
+  - component: {fileID: 5488968294148996119}
   m_Layer: 8
   m_Name: Soldier
   m_TagString: Untagged
@@ -433,6 +435,34 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 73f0472f811a4654999fb723f981fdfa, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierStatReceiver
+--- !u!114 &2692374472471921882
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fa5227aa086b3d439c7e40eef2bcb0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
+  separationStrength: 6
+--- !u!114 &5488968294148996119
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 093c6255721ca104e9256fb8262014aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.KnockbackReceiver
+  componentsToSuspend:
+  - {fileID: 4203055195105543112}
+  - {fileID: 7803980873243631336}
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0

@@ -115,7 +115,7 @@ GameObject:
   - component: {fileID: 1143015433925478683}
   - component: {fileID: 8518660914904533806}
   m_Layer: 9
-  m_Name: Monster
+  m_Name: Monster_Knight
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -272,7 +272,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb8b7b99c2462634882d688f1b9717f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsProvider
-  baseStats: {fileID: 11400000, guid: afc999c95d7cf5249a55fe571701078f, type: 2}
+  baseStats: {fileID: 11400000, guid: 76ff723c933bf1f4ca60ee3162a5633f, type: 2}
 --- !u!114 &1005590566792382908
 MonoBehaviour:
   m_ObjectHideFlags: 0

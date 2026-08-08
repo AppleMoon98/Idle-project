@@ -93,9 +93,9 @@ namespace Stage
                 scaler.ApplyScale(_statMultiplier);
             }
 
-            if (instance.TryGetComponent(out MonsterTargetSelector targetSelector))
+            if (instance.TryGetComponent(out IMonsterMovementInitializer movementInitializer))
             {
-                targetSelector.Initialize(_playerTarget);
+                movementInitializer.Initialize(_playerTarget);
             }
 
             // 세트가 없어도 무조건 호출한다 — StageMonsterScaler.ApplyScale과 같은 이유로,

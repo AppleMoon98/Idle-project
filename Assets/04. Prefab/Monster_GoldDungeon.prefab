@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 5230942838541864901}
   - component: {fileID: 608472257101492990}
   - component: {fileID: 331921721517285194}
+  - component: {fileID: 6898879633123239137}
   m_Layer: 9
   m_Name: Monster_GoldDungeon
   m_TagString: Untagged
@@ -252,6 +253,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e456e6e0299c327479ce988e0c5c8919, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.StageMonsterScaler
+--- !u!114 &6898879633123239137
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fa5227aa086b3d439c7e40eef2bcb0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
+  separationStrength: 6
 --- !u!1001 &5221313293063939603
 PrefabInstance:
   m_ObjectHideFlags: 0

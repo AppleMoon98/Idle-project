@@ -114,8 +114,9 @@ GameObject:
   - component: {fileID: 8304740955297524442}
   - component: {fileID: 1143015433925478683}
   - component: {fileID: 8518660914904533806}
+  - component: {fileID: 3501901884419578908}
   m_Layer: 9
-  m_Name: Monster
+  m_Name: Monster_ShieldBearer
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -272,7 +273,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb8b7b99c2462634882d688f1b9717f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsProvider
-  baseStats: {fileID: 11400000, guid: afc999c95d7cf5249a55fe571701078f, type: 2}
+  baseStats: {fileID: 11400000, guid: 6080ffd7bfdba6943a907c8a2249fd25, type: 2}
 --- !u!114 &1005590566792382908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -404,6 +405,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+--- !u!114 &3501901884419578908
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d5c762c4b0d80c64880ba1f581a3f3aa, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldGuard
+  maxShieldHealth: 25
 --- !u!1 &5626639420520912746
 GameObject:
   m_ObjectHideFlags: 0

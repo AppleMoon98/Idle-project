@@ -19,6 +19,7 @@ GameObject:
   - component: {fileID: 9182623924751491497}
   - component: {fileID: 6840492953599145196}
   - component: {fileID: 3651733081445919950}
+  - component: {fileID: 985043916233307103}
   m_Layer: 9
   m_Name: Boss_TrainingDummy
   m_TagString: Untagged
@@ -250,6 +251,19 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c0be797d7af6e294eb5f5a4c61788598, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.MonsterVisualRandomizer
+--- !u!114 &985043916233307103
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2913678691088440627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0fa5227aa086b3d439c7e40eef2bcb0d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
+  separationStrength: 6
 --- !u!1001 &7210608643880030075
 PrefabInstance:
   m_ObjectHideFlags: 0

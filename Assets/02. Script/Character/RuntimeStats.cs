@@ -42,6 +42,11 @@ namespace Character
         public float CriticalDamageMultiplier { get; set; }
 
         /// <summary>
+        /// 매 피격마다 고정으로 깎이는 피해량(정액 감소). 기본값 0.
+        /// </summary>
+        public float DamageReduction { get; set; }
+
+        /// <summary>
         /// CharacterStatsSO의 값을 복사해 RuntimeStats를 생성한다.
         /// </summary>
         public RuntimeStats(CharacterStatsSO source)
@@ -64,6 +69,7 @@ namespace Character
             AttackInterval = source.AttackInterval;
             CriticalChance = source.CriticalChance;
             CriticalDamageMultiplier = source.CriticalDamageMultiplier;
+            DamageReduction = source.DamageReduction;
         }
     }
 }

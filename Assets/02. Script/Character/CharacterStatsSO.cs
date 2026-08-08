@@ -30,6 +30,9 @@ namespace Character
         [SerializeField]
         private float criticalDamageMultiplier = 0.5f;
 
+        [SerializeField]
+        private float damageReduction;
+
         /// <summary>
         /// 최대 체력.
         /// </summary>
@@ -64,5 +67,12 @@ namespace Character
         /// 치명타 시 추가되는 피해 보너스 비율. 기본값 0.5(치명타 시 150% 피해).
         /// </summary>
         public float CriticalDamageMultiplier => criticalDamageMultiplier;
+
+        /// <summary>
+        /// 매 피격마다 고정으로 깎이는 피해량(정률 감소가 아니라 정액 감소 — 기사(Knight)가
+        /// "방어력 수치 자체보다는 받는 피해가 일정량 줄어드는" 컨셉을 원해서 이렇게 설계했다).
+        /// 기본값 0(감소 없음)이라 다른 유닛에는 영향이 없다.
+        /// </summary>
+        public float DamageReduction => damageReduction;
     }
 }

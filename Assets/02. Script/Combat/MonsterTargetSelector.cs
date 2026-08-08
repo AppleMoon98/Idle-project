@@ -14,7 +14,7 @@ namespace Combat
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
     [RequireComponent(typeof(Health))]
-    public sealed class MonsterTargetSelector : MonoBehaviour, ITickable
+    public sealed class MonsterTargetSelector : MonoBehaviour, ITickable, IMonsterMovementInitializer
     {
         [SerializeField]
         private float retargetInterval = 0.2f;
