@@ -114,6 +114,7 @@ GameObject:
   - component: {fileID: 8518660914904533806}
   - component: {fileID: 1945007582640500320}
   - component: {fileID: 3888400304079957378}
+  - component: {fileID: 7112207535746188794}
   m_Layer: 9
   m_Name: Monster_Archer
   m_TagString: Untagged
@@ -407,6 +408,24 @@ MonoBehaviour:
   kiteTriggerDistance: 2
   kiteStepDistance: 2
   kiteScreenMargin: 0.05
+  allyLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
+--- !u!114 &7112207535746188794
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: dbcddbfaf69207948810d70921f75727, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.FormationFollower
+  followDistance: 1.5
+  retargetInterval: 0.2
+  detectionRange: 20
   allyLayerMask:
     serializedVersion: 2
     m_Bits: 256

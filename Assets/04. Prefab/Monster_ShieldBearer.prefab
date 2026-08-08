@@ -115,6 +115,7 @@ GameObject:
   - component: {fileID: 1143015433925478683}
   - component: {fileID: 8518660914904533806}
   - component: {fileID: 3501901884419578908}
+  - component: {fileID: 3036351468646390010}
   m_Layer: 9
   m_Name: Monster_ShieldBearer
   m_TagString: Untagged
@@ -418,6 +419,24 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldGuard
   maxShieldHealth: 25
+--- !u!114 &3036351468646390010
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5c2302f7aac503419d9a00e8f8dd52f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.GuardPositioner
+  guardDistance: 1.2
+  retargetInterval: 0.2
+  detectionRange: 20
+  allyLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!1 &5626639420520912746
 GameObject:
   m_ObjectHideFlags: 0

@@ -14,11 +14,15 @@ namespace Combat
     /// 구현한다. 창병의 긴 사거리(AttackRange)는 스탯 값만으로 표현되며(리더 뒤에 서 있어도 창이
     /// 리더를 넘어 위협에 닿도록 followDistance + 리더의 AttackRange보다 크게 잡아야 한다), 실제
     /// 공격(Attacker+MeleeAttackBehavior)은 이 컴포넌트와 무관하게 자기 사거리 안의 가장 가까운
-    /// 대상을 독립적으로 스캔해 처리한다.
+    /// 대상을 독립적으로 스캔해 처리한다. IMonsterMovementInitializer는 구현하지 않는다 - 궁병처럼
+    /// RangedKiter(역시 그 인터페이스를 구현)와 한 프리팹에 같이 있을 수 있는 유닛에서
+    /// TryGetComponent&lt;IMonsterMovementInitializer&gt;가 어느 쪽을 찾을지 모호해지는 것을 피하기
+    /// 위해서다(GuardPositioner가 같은 이유로 이 인터페이스를 구현하지 않는 것과 동일한 판단,
+    /// section BU) - 대신 MonsterSpawner.SpawnPair가 대형 편입 시점에 Initialize를 직접 호출한다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
-    public sealed class FormationFollower : MonoBehaviour, ITickable, IMonsterMovementInitializer
+    public sealed class FormationFollower : MonoBehaviour, ITickable
     {
         [SerializeField]
         private float followDistance = 1.5f;

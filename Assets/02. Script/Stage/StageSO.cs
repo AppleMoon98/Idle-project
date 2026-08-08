@@ -19,6 +19,9 @@ namespace Stage
         private MonsterSpawnEntry[] spawnEntries;
 
         [SerializeField]
+        private TacticSpawnEntry[] tacticEntries;
+
+        [SerializeField]
         private EquipmentDropEntry[] equipmentDrops;
 
         /// <summary>
@@ -35,6 +38,12 @@ namespace Stage
         /// 이 스테이지의 몬스터 스폰 웨이브 목록.
         /// </summary>
         public MonsterSpawnEntry[] SpawnEntries => spawnEntries;
+
+        /// <summary>
+        /// 이 스테이지의 진형 전술(Tactic) 웨이브 목록 - 일반 웨이브(SpawnEntries)가 모두 끝난
+        /// 뒤에 처리된다. 비어있으면(대부분의 스테이지) 이 스테이지엔 전술 웨이브가 없다.
+        /// </summary>
+        public TacticSpawnEntry[] TacticEntries => tacticEntries;
 
         /// <summary>
         /// 이 스테이지에서 몬스터를 잡을 때마다 독립적으로 판정되는 장비 드롭 테이블.

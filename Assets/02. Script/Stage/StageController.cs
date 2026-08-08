@@ -113,6 +113,15 @@ namespace Stage
                 pool.EnsurePool(entry.MonsterPrefab, entry.Count, entry.Count);
             }
 
+            if (stage.TacticEntries != null)
+            {
+                foreach (TacticSpawnEntry tacticEntry in stage.TacticEntries)
+                {
+                    pool.EnsurePool(tacticEntry.LeaderPrefab, tacticEntry.PairCount, tacticEntry.PairCount);
+                    pool.EnsurePool(tacticEntry.FollowerPrefab, tacticEntry.PairCount, tacticEntry.PairCount);
+                }
+            }
+
             float statMultiplier = GetStatMultiplier(stage);
 
             _tracker = new StageProgressTracker(stage, GameBootstrapper.Events);
@@ -180,6 +189,7 @@ namespace Stage
             if (_spawner != null)
             {
                 TickerRegistration.Unregister(_spawner);
+                _spawner.Dispose();
                 _spawner = null;
             }
 
