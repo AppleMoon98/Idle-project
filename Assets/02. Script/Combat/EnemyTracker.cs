@@ -1,5 +1,6 @@
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -24,7 +25,7 @@ namespace Combat
         private CharacterStatsProvider _statsProvider;
         private CharacterMover _mover;
         private ITargetFilter _targetFilter;
-        private Camera _camera;
+        private CameraFollowService _cameraFollowService;
         private float _elapsed;
 
         private void Awake()
@@ -32,7 +33,7 @@ namespace Combat
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _mover = GetComponent<CharacterMover>();
             _targetFilter = GetComponent<ITargetFilter>();
-            _camera = Camera.main;
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
         }
 
         private void OnEnable()
@@ -78,7 +79,11 @@ namespace Combat
 
             NearestHealthScan.ForEachAliveCandidate(transform.position, detectionRange, targetLayerMask, (candidate, health) =>
             {
-                if (!CameraVisibility.IsOnScreen(_camera, candidate.transform.position))
+                // 실시간 카메라 뷰포트(CameraVisibility.IsOnScreen)가 아니라 최광각 기준 고정
+                // 경계로 판정한다 - 플레이어가 줌인해서 화면을 좁혀도 탐지 범위가 같이 줄어들어
+                // 화면 밖 적을 영영 못 쫓는 일이 없도록 하기 위함.
+                if (_cameraFollowService != null
+                    && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), candidate.transform.position))
                 {
                     return;
                 }

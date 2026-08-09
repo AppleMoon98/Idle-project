@@ -2,6 +2,7 @@ using Behavior;
 using Character;
 using Combat;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Soldier
@@ -50,6 +51,7 @@ namespace Soldier
         private Attacker _attacker;
         private RangedAttackBehavior _rangedAttack;
         private SoldierRosterService _roster;
+        private CameraFollowService _cameraFollowService;
         private Camera _camera;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
@@ -69,6 +71,7 @@ namespace Soldier
             _rangedAttack = GetComponent<RangedAttackBehavior>();
             _camera = Camera.main;
             GameBootstrapper.Services?.TryGet(out _roster);
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
 
             // 이동 목표로 쓸 앵커는 병사의 자식으로 붙이면 안 된다 — 자식이면 부모(병사)가 움직일
             // 때마다 같은 상대 오프셋을 유지하며 같이 이동해버려서, CharacterMover가 "항상 같은
@@ -261,7 +264,7 @@ namespace Soldier
             }
 
             float detectionRange = _enemyTracker != null ? _enemyTracker.DetectionRange : 20f;
-            Health nearestEnemy = FindNearestOnScreenEnemy(detectionRange);
+            Health nearestEnemy = FindNearestTargetableEnemy(detectionRange);
 
             if (nearestEnemy == null)
             {
@@ -292,14 +295,19 @@ namespace Soldier
             }
         }
 
-        private Health FindNearestOnScreenEnemy(float range)
+        /// <summary>
+        /// 실시간 카메라 뷰포트가 아니라 최광각 기준 고정 경계로 후보를 거른다(EnemyTracker와
+        /// 동일한 이유 - 줌인으로 화면이 좁아져도 탐지 범위가 같이 줄면 안 된다).
+        /// </summary>
+        private Health FindNearestTargetableEnemy(float range)
         {
             Health nearest = null;
             float nearestSqrDistance = float.MaxValue;
 
             NearestHealthScan.ForEachAliveCandidate(transform.position, range, enemyLayerMask, (candidate, health) =>
             {
-                if (!CameraVisibility.IsOnScreen(_camera, candidate.transform.position))
+                if (_cameraFollowService != null
+                    && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), candidate.transform.position))
                 {
                     return;
                 }
