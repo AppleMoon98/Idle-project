@@ -70,6 +70,27 @@ namespace Services
             return new Vector2(wideSize * _camera.aspect, wideSize);
         }
 
+        /// <summary>
+        /// value=0(wideOrthographicSize) 기준 고정 범위 안의 랜덤한 월드 좌표를 반환한다. margin은
+        /// 범위 가장자리에서 제외할 비율(0~0.5). 줌 배율과 무관하게 항상 같은 범위에서 뽑아야 하는
+        /// 모든 곳(던전 스폰, 몬스터 방황 목적지 등)이 이 하나의 계산을 공유한다 — 실시간
+        /// Camera.main 뷰포트를 직접 쓰면 플레이어가 확대할수록 범위가 좁아져 버리는 문제가
+        /// 반복적으로 발생했다(Dungeon.DungeonSpawnUtility.RandomOnScreenPosition, 섹션 CG /
+        /// Character.RandomWanderer가 각각 겪은 문제).
+        /// </summary>
+        public Vector3 GetRandomPointWithinBounds(float margin)
+        {
+            Vector3 center = _homeLocalPosition;
+            Vector2 halfExtent = GetWorldBoundsHalfExtent();
+            float marginX = halfExtent.x * 2f * margin;
+            float marginY = halfExtent.y * 2f * margin;
+
+            float x = Random.Range(center.x - halfExtent.x + marginX, center.x + halfExtent.x - marginX);
+            float y = Random.Range(center.y - halfExtent.y + marginY, center.y + halfExtent.y - marginY);
+
+            return new Vector3(x, y, center.z);
+        }
+
         void ITickable.Tick(float deltaTime)
         {
             if (_cameraTransform == null || _camera == null)

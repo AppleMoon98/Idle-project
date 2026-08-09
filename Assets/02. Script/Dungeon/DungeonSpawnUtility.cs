@@ -25,15 +25,7 @@ namespace Dungeon
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CameraFollowService followService))
             {
-                Vector3 center = followService.HomeLocalPosition;
-                Vector2 halfExtent = followService.GetWorldBoundsHalfExtent();
-                float marginX = halfExtent.x * 2f * margin;
-                float marginY = halfExtent.y * 2f * margin;
-
-                float boundedX = Random.Range(center.x - halfExtent.x + marginX, center.x + halfExtent.x - marginX);
-                float boundedY = Random.Range(center.y - halfExtent.y + marginY, center.y + halfExtent.y - marginY);
-
-                return new Vector3(boundedX, boundedY, 0f);
+                return followService.GetRandomPointWithinBounds(margin);
             }
 
             Camera camera = Camera.main;
