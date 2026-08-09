@@ -201,6 +201,8 @@ MonoBehaviour:
   behaviorProfileCatalog: {fileID: 11400000, guid: 8d1c923587a87884cb924bc1facd0ea8, type: 2}
   skillCatalog: {fileID: 11400000, guid: 53602890262fb144f850d570e12a1a41, type: 2}
   damageNumberPrefab: {fileID: 1841499651595476301, guid: 5981ddfe0e1efcd46b4bba17efde8de9, type: 3}
+  playerTransform: {fileID: 762544236}
+  cameraZoomSlider: {fileID: 206854211}
 --- !u!114 &8717673
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -16980,6 +16982,7 @@ GameObject:
   - component: {fileID: 762544252}
   - component: {fileID: 762544253}
   - component: {fileID: 762544254}
+  - component: {fileID: 762544255}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -17318,6 +17321,18 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character.KnockbackReceiver
   componentsToSuspend:
   - {fileID: 762544245}
+--- !u!114 &762544255
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a0b94b2abcab6c343bfe4480f89849b4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerWorldBoundsConstraint
 --- !u!1 &763898311
 GameObject:
   m_ObjectHideFlags: 0

@@ -107,6 +107,12 @@ namespace Core
         [SerializeField]
         private GameObject damageNumberPrefab;
 
+        [SerializeField]
+        private Transform playerTransform;
+
+        [SerializeField]
+        private UI.CameraZoomSliderUI cameraZoomSlider;
+
         /// <summary>
         /// Awake에서 등록한 모든 IManager 인스턴스를 등록 순서대로 모아둔다. 각 서비스의 Shutdown()은
         /// 자기 자신의 이벤트 구독 해제/내부 상태 초기화만 하고 다른 서비스를 참조하지 않으므로
@@ -320,6 +326,11 @@ namespace Core
             cameraShakeService.Initialize();
             Services.Register(cameraShakeService);
             _managers.Add(cameraShakeService);
+
+            var cameraFollowService = new CameraFollowService(playerTransform, cameraZoomSlider);
+            cameraFollowService.Initialize();
+            Services.Register(cameraFollowService);
+            _managers.Add(cameraFollowService);
 
             _offlineProgressService = new OfflineProgressService(
                 Events,

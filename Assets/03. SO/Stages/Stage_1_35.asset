@@ -15,15 +15,17 @@ MonoBehaviour:
   chapter: 1
   stageNumber: 35
   spawnEntries:
+  - monsterPrefab: {fileID: 3104091886448902630, guid: 7da6041b108869f4882e0f8ae520fa1a, type: 3}
+    count: 18
+    spawnInterval: 0.3
+    visualSet: {fileID: 0}
+  - monsterPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
+    count: 10
+    spawnInterval: 0.3
+    visualSet: {fileID: 0}
   - monsterPrefab: {fileID: 3104091886448902630, guid: a45eb0f8382bc974bb246c8a4fede3af, type: 3}
     count: 16
     spawnInterval: 1
     visualSet: {fileID: 0}
-  tacticEntries:
-  - type: 0
-    leaderPrefab: {fileID: 3104091886448902630, guid: 017b75ffb24cb3545ad23b607331a435, type: 3}
-    followerPrefab: {fileID: 3104091886448902630, guid: 2bf238906febe384d95ef5403d51d9f6, type: 3}
-    alternateFollowerPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
-    alternateFollowerChance: 0.3
-    totalUnitCount: 28
+  tacticEntries: []
   equipmentDrops: []

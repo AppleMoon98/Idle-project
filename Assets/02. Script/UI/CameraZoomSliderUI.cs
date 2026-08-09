@@ -25,6 +25,20 @@ namespace UI
         [SerializeField]
         private float narrowOrthographicSize = 6f;
 
+        /// <summary>
+        /// 슬라이더가 도달할 수 있는 가장 좁은(확대된) orthographicSize.
+        /// Services.CameraFollowService가 카메라 추적 시작 임계값으로 그대로 재사용한다 —
+        /// 같은 값을 두 곳에 따로 두면 나중에 어긋나므로 여기서만 정의한다.
+        /// </summary>
+        public float NarrowOrthographicSize => narrowOrthographicSize;
+
+        /// <summary>
+        /// 슬라이더 value=0(맨 아래)일 때의 orthographicSize. Services.CameraFollowService가
+        /// "카메라/플레이어가 벗어날 수 없는 영역"의 경계로 그대로 재사용한다 — 마찬가지로 값을
+        /// 두 곳에 따로 두지 않기 위해 여기서만 정의한다.
+        /// </summary>
+        public float WideOrthographicSize => wideOrthographicSize;
+
         private Camera _camera;
 
         private void OnEnable()

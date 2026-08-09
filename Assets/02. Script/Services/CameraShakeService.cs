@@ -7,9 +7,10 @@ namespace Services
     /// <summary>
     /// 스킬 시전 등에서 요청하는 카메라 흔들림 연출을 담당한다. Skill 도메인은 이 서비스의 존재를
     /// 몰라도 되도록 SkillCameraShakeRequestedEvent만 구독한다(Character.StatEnhancementReceiver가
-    /// Enhancement의 이벤트를 구독하는 것과 같은 방향). 카메라를 따라다니게 하는 별도 시스템이
-    /// 없는 고정 카메라라는 전제로, 기준 위치를 한 번만 캐싱해 그 기준으로 흔든다 — 나중에 카메라
-    /// 추적 시스템이 생기면 기준 위치를 매 틱 그쪽에서 읽어오도록 바꾸면 된다.
+    /// Enhancement의 이벤트를 구독하는 것과 같은 방향). 카메라 위치(transform.localPosition)는 더
+    /// 이상 여기서 직접 쓰지 않는다 — CameraFollowService가 카메라 위치를 쓰는 유일한 지점이고,
+    /// 매 틱 CurrentOffset을 읽어 자신이 계산한 목표 위치에 더한다. 흔들림/추적 두 시스템의
+    /// GameTicker 등록 순서에 관계없이 항상 같은 프레임에 정확히 합성되도록 하기 위한 구조다.
     /// </summary>
     public sealed class CameraShakeService : IManager, IService, ITickable
     {
@@ -20,10 +21,13 @@ namespace Services
         public const string DisabledPlayerPrefsKey = "ScreenShakeDisabled";
 
         private readonly EventBus _events;
-        private Transform _cameraTransform;
-        private Vector3 _basePosition;
         private float _remaining;
         private float _magnitude;
+
+        /// <summary>
+        /// 이번 프레임 카메라가 흔들림으로 더해야 할 오프셋. 흔들림이 없으면 Vector3.zero.
+        /// </summary>
+        public Vector3 CurrentOffset { get; private set; }
 
         public CameraShakeService(EventBus events)
         {
@@ -32,14 +36,6 @@ namespace Services
 
         public void Initialize()
         {
-            Camera mainCamera = Camera.main;
-
-            if (mainCamera != null)
-            {
-                _cameraTransform = mainCamera.transform;
-                _basePosition = _cameraTransform.localPosition;
-            }
-
             _events.Subscribe<SkillCameraShakeRequestedEvent>(OnShakeRequested);
             TickerRegistration.Register(this);
         }
@@ -48,11 +44,6 @@ namespace Services
         {
             _events.Unsubscribe<SkillCameraShakeRequestedEvent>(OnShakeRequested);
             TickerRegistration.Unregister(this);
-
-            if (_cameraTransform != null)
-            {
-                _cameraTransform.localPosition = _basePosition;
-            }
         }
 
         private void OnShakeRequested(SkillCameraShakeRequestedEvent evt)
@@ -70,8 +61,9 @@ namespace Services
 
         void ITickable.Tick(float deltaTime)
         {
-            if (_cameraTransform == null || _remaining <= 0f)
+            if (_remaining <= 0f)
             {
+                CurrentOffset = Vector3.zero;
                 return;
             }
 
@@ -79,12 +71,12 @@ namespace Services
 
             if (_remaining <= 0f)
             {
-                _cameraTransform.localPosition = _basePosition;
+                CurrentOffset = Vector3.zero;
                 return;
             }
 
             Vector2 offset = Random.insideUnitCircle * _magnitude;
-            _cameraTransform.localPosition = _basePosition + new Vector3(offset.x, offset.y, 0f);
+            CurrentOffset = new Vector3(offset.x, offset.y, 0f);
         }
     }
 }
