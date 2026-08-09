@@ -62,6 +62,12 @@ namespace War
         private GameObject warZoneRoot;
 
         [SerializeField]
+        private GameObject structureCaptureProps;
+
+        [SerializeField]
+        private GameObject cargoProtectionProps;
+
+        [SerializeField]
         private AnnihilationObjective annihilationObjective;
 
         [SerializeField]
@@ -120,13 +126,17 @@ namespace War
             if (!isClimax)
             {
                 _isActive = false;
+                SetWarZonePropsActive(WarObjectiveType.Annihilation);
                 GameBootstrapper.Events?.Publish(new WarClimaxStateChangedEvent(false, _activeType, evt.Chapter));
                 return;
             }
 
             // 목표는 즉시 활성화하지 않고, climaxWarmupDuration만큼 경고 카운트다운을 먼저 보여준다.
-            // 실제 활성화(ActivateObjective)는 Tick()에서 워밍업이 끝났을 때 수행한다.
+            // 실제 활성화(ActivateObjective)는 Tick()에서 워밍업이 끝났을 때 수행한다. 다만 구조물/
+            // 수하물 같은 전장 소품은 워밍업 중에도 이미 보여야 하므로(warZoneRoot와 같은 타이밍),
+            // _activeType이 정해지는 즉시 그에 맞는 소품만 SetWarZonePropsActive로 켠다.
             _activeType = ResolveObjectiveType(evt.Chapter);
+            SetWarZonePropsActive(_activeType);
             _isActive = false;
             _isWarmingUp = true;
             _warmupRemaining = climaxWarmupDuration;
@@ -183,6 +193,26 @@ namespace War
                 {
                     GameBootstrapper.Events?.Publish(new StageClearedEvent(clearedStage));
                 }
+            }
+        }
+
+        /// <summary>
+        /// warZoneRoot 밑의 구조물/수하물 소품은 실제로 그 목표가 활성화된 챕터에서만 보여야 한다 -
+        /// warZoneRoot.SetActive(true)만으로는 안에 있는 모든 소품(다른 목표용까지)이 한꺼번에
+        /// 켜져버린다(실제 발견된 문제: chapterObjectives가 비어 Annihilation으로 배정된 챕터의
+        /// 클라이맥스에 들어가도 Cargo가 화면에 나타났고, Player 레이어라 몬스터의 실제 공격
+        /// 대상이 되기까지 했다). Annihilation/BossDefeat처럼 전용 소품이 없는 목표는 둘 다 끈다.
+        /// </summary>
+        private void SetWarZonePropsActive(WarObjectiveType type)
+        {
+            if (structureCaptureProps != null)
+            {
+                structureCaptureProps.SetActive(type == WarObjectiveType.StructureCapture);
+            }
+
+            if (cargoProtectionProps != null)
+            {
+                cargoProtectionProps.SetActive(type == WarObjectiveType.CargoProtection);
             }
         }
 

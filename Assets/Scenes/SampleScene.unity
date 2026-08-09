@@ -6682,6 +6682,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 255306496}
   m_CullTransparentMesh: 1
+--- !u!1 &261813621 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8882303317878126429, guid: c3e3aefff255018428048f8fb102b849, type: 3}
+  m_PrefabInstance: {fileID: 2296313086806946606}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &264425951
 GameObject:
   m_ObjectHideFlags: 0
@@ -30242,6 +30247,11 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1269654030}
   m_CullTransparentMesh: 1
+--- !u!1 &1275394183 stripped
+GameObject:
+  m_CorrespondingSourceObject: {fileID: 8480391494377752689, guid: ad0ae9340b5949a45a7294eeb4db2b61, type: 3}
+  m_PrefabInstance: {fileID: 2979402051488846364}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1277470489
 GameObject:
   m_ObjectHideFlags: 0
@@ -36095,6 +36105,8 @@ MonoBehaviour:
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   playerHealth: {fileID: 762544238}
   warZoneRoot: {fileID: 1632300256}
+  structureCaptureProps: {fileID: 1275394183}
+  cargoProtectionProps: {fileID: 261813621}
   annihilationObjective: {fileID: 1717223748}
   structureCaptureObjective: {fileID: 129247066}
   bossDefeatObjective: {fileID: 1589023344}
@@ -50975,7 +50987,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 30323525933267951, guid: c3e3aefff255018428048f8fb102b849, type: 3}
   m_PrefabInstance: {fileID: 2296313086806946606}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 261813621}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 0f39c679c9203ff43bbd154892c726c9, type: 3}
@@ -51053,7 +51065,7 @@ MonoBehaviour:
   m_CorrespondingSourceObject: {fileID: 1656409670585378684, guid: ad0ae9340b5949a45a7294eeb4db2b61, type: 3}
   m_PrefabInstance: {fileID: 2979402051488846364}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
+  m_GameObject: {fileID: 1275394183}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 59fdebc71f9b26d428f360553f57fdda, type: 3}

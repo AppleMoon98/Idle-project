@@ -14,7 +14,7 @@ namespace UI
     /// 묶여 "xN"으로 표시되고(EquipmentPanelUI와 동일한 OwnedEquipment 스택 방식), 행을
     /// 누르면 장착, 각 행의 합성/강화 버튼으로 바로 성장시킬 수 있다.
     /// </summary>
-    public sealed class EquipmentSlotPopupUI : MonoBehaviour
+    public sealed class EquipmentSlotPopupUI : MonoBehaviour, ITickable
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -52,6 +52,7 @@ namespace UI
 
         private EquipmentType _openSlot;
         private bool _isOpen;
+        private bool _isRefreshPending;
         private readonly List<EquipmentRowUI> _spawnedRows = new();
 
         private void Awake()
@@ -66,12 +67,36 @@ namespace UI
         {
             GameBootstrapper.Events?.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
             GameBootstrapper.Events?.Subscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+            TickerRegistration.Register(this);
         }
 
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
             GameBootstrapper.Events?.Unsubscribe<EquipmentEquippedEvent>(OnEquipmentEquipped);
+            TickerRegistration.Unregister(this);
+        }
+
+        /// <summary>
+        /// 전체 합성/강화(EquipmentFusionService.TryFuseAll 등) 한 번의 클릭이 InventoryChangedEvent를
+        /// 수십~수백 번 연달아 발행할 수 있는데, 그때마다 Refresh()로 목록 전체를 Destroy+Instantiate로
+        /// 다시 그리면 그 프레임에 몰려서 눈에 띄는 멈춤이 생긴다(실사용 중 발견 - 대량 뽑기 후 전체
+        /// 합성 시 재현). 이벤트가 오면 더티 플래그만 세우고, 실제 Refresh()는 프레임당 최대 한 번만
+        /// 수행한다.
+        /// </summary>
+        void ITickable.Tick(float deltaTime)
+        {
+            if (!_isRefreshPending)
+            {
+                return;
+            }
+
+            _isRefreshPending = false;
+
+            if (_isOpen)
+            {
+                Refresh();
+            }
         }
 
         /// <summary>
@@ -119,7 +144,7 @@ namespace UI
         {
             if (_isOpen)
             {
-                Refresh();
+                _isRefreshPending = true;
             }
         }
 
@@ -127,7 +152,7 @@ namespace UI
         {
             if (_isOpen)
             {
-                Refresh();
+                _isRefreshPending = true;
             }
         }
 

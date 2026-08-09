@@ -55,6 +55,12 @@ namespace Stage
         private readonly List<GameObject> _pendingFollowers = new();
         private readonly List<ITacticFormationGroup> _formationGroups = new();
 
+        /// <summary>
+        /// BehindTacticFormation 배치가 대형 후방으로 물러나는 거리 = tacticRowSpacing × 이 배수.
+        /// 추종자(2열)가 이미 리더보다 rowSpacing만큼 물러나 있으므로, 그보다 한 겹 더 뒤에 서게 된다.
+        /// </summary>
+        private const float BehindFormationDistanceMultiplier = 2f;
+
         private int _entryIndex;
         private int _spawnedInEntry;
         private float _elapsed;
@@ -65,6 +71,10 @@ namespace Stage
         private int _rightCursor;
         private Vector3[] _formationLeaderPositions;
         private Vector3[] _formationFollowerPositions;
+        private Vector3 _lastFormationAnchor;
+        private bool _lastFormationAlongX;
+        private float _lastFormationOutwardSign;
+        private bool _hasFormationPlacement;
 
         /// <summary>
         /// 모든 웨이브(일반 + 전술)의 스폰이 끝났는지 여부. 전술 대형이 아직 전멸하지 않았다면
@@ -169,6 +179,29 @@ namespace Stage
                 SpawnFormation(_tacticEntries[_tacticEntryIndex]);
                 _tacticEntryIndex++;
             }
+
+            SpawnImmediateEntries();
+        }
+
+        /// <summary>
+        /// spawnEntries 배열 앞쪽부터, spawnWithTactics가 켜진 항목을 만나는 동안 그 Count 전부를
+        /// 시간차 없이 즉시 스폰하고 _entryIndex를 그만큼 건너뛴다. 전술 웨이브가 이미 배치를 끝낸
+        /// 직후(같은 틱)에 호출되므로, BehindTacticFormation 배치가 방금 계산된 대형 좌표를 그대로
+        /// 참조할 수 있다. 이후 TickEntries는 남은(즉시 스폰이 아닌) 항목부터 기존처럼 처리한다.
+        /// </summary>
+        private void SpawnImmediateEntries()
+        {
+            while (_entryIndex < _entries.Length && _entries[_entryIndex].SpawnWithTactics)
+            {
+                MonsterSpawnEntry entry = _entries[_entryIndex];
+
+                for (int i = 0; i < entry.Count; i++)
+                {
+                    SpawnOne(entry);
+                }
+
+                _entryIndex++;
+            }
         }
 
         private void SpawnFormation(TacticSpawnEntry entry)
@@ -221,6 +254,11 @@ namespace Stage
             bool alongX = side == SpawnSide.Top || side == SpawnSide.Bottom;
             float outwardSign = side == SpawnSide.Top || side == SpawnSide.Right ? 1f : -1f;
 
+            _lastFormationAnchor = anchor;
+            _lastFormationAlongX = alongX;
+            _lastFormationOutwardSign = outwardSign;
+            _hasFormationPlacement = true;
+
             int pairCount = Mathf.Max(entry.TotalUnitCount / 2, 0);
             _formationLeaderPositions = new Vector3[pairCount];
             _formationFollowerPositions = new Vector3[pairCount];
@@ -270,7 +308,52 @@ namespace Stage
 
         private void SpawnOne(MonsterSpawnEntry entry)
         {
-            SpawnInstance(entry.MonsterPrefab, entry.VisualSet, null);
+            Vector3? explicitPosition = ResolveExplicitPosition(entry.Placement);
+            SpawnInstance(entry.MonsterPrefab, entry.VisualSet, explicitPosition);
+        }
+
+        /// <summary>
+        /// Automatic이면 null(=NextSpawnPoint()의 기존 4방향 자동 선택을 그대로 씀)을 반환한다.
+        /// </summary>
+        private Vector3? ResolveExplicitPosition(MonsterSpawnPlacement placement)
+        {
+            switch (placement)
+            {
+                case MonsterSpawnPlacement.LeftOrRight:
+                    return NextLeftOrRightSpawnPoint().position;
+                case MonsterSpawnPlacement.BehindTacticFormation:
+                    return ComputeBehindFormationPosition();
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>
+        /// 좌/우 스폰 지점 중 무작위로 하나를 골라 그 방향의 커서를 순환한다(상/하 제외).
+        /// </summary>
+        private Transform NextLeftOrRightSpawnPoint()
+        {
+            bool useLeft = UnityEngine.Random.value < 0.5f;
+
+            return useLeft
+                ? _leftSpawnPoints[_leftCursor++ % _leftSpawnPoints.Length]
+                : _rightSpawnPoints[_rightCursor++ % _rightSpawnPoints.Length];
+        }
+
+        /// <summary>
+        /// 가장 최근에 배치된 전술 대형의 앵커에서, 그 대형이 물러난 방향(outwardSign)으로
+        /// BehindFormationDistanceMultiplier배만큼 더 물러난 좌표. 아직 어떤 대형도 배치되지
+        /// 않았으면(그 스테이지에 전술 웨이브가 없음) NextSpawnPoint()로 방어적 대체한다.
+        /// </summary>
+        private Vector3 ComputeBehindFormationPosition()
+        {
+            if (!_hasFormationPlacement)
+            {
+                return NextSpawnPoint().position;
+            }
+
+            Vector3 outwardAxis = _lastFormationAlongX ? Vector3.up : Vector3.right;
+            return _lastFormationAnchor + outwardAxis * (_lastFormationOutwardSign * _tacticRowSpacing * BehindFormationDistanceMultiplier);
         }
 
         /// <summary>

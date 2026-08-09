@@ -98,11 +98,30 @@ namespace Stage
 
                 if (savedStage != null)
                 {
-                    return savedStage;
+                    return ResolveBreakthroughFrontier(savedStage, save);
                 }
             }
 
             return stageToLoadOnStart;
+        }
+
+        /// <summary>
+        /// 저장된 현재 스테이지가 최고 기록과 정확히 같으면(반복 모드로 그 스테이지에 머물던 채로
+        /// 앱을 종료한 경우) 다음 스테이지로 시작한다. 게임을 새로 켜면 모드가 항상 돌파로
+        /// 초기화되는데(SaveData에 모드를 저장하지 않음, 섹션 BL), 이미 클리어한 스테이지에서
+        /// 돌파 모드로 다시 시작하는 건 어색하다 - 이미 넘어선 자리이기 때문이다. 현재가 기록보다
+        /// 낮으면(죽어서 후퇴한 상태) 손대지 않는다 - 그건 의도된 페널티라 앱 재시작으로 없어지면
+        /// 안 된다.
+        /// </summary>
+        private StageSO ResolveBreakthroughFrontier(StageSO savedStage, SaveData save)
+        {
+            if (savedStage.Chapter != save.HighestClearedChapter || savedStage.StageNumber != save.HighestClearedStageNumber)
+            {
+                return savedStage;
+            }
+
+            StageSO nextStage = catalog.GetNext(savedStage);
+            return nextStage != null ? nextStage : savedStage;
         }
 
         /// <summary>

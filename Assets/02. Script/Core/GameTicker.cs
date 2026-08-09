@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -49,10 +50,26 @@ namespace Core
             float deltaTime = Time.deltaTime;
 
             _isTicking = true;
+
             for (int i = 0; i < _tickables.Count; i++)
             {
-                _tickables[i].Tick(deltaTime);
+                // 개별 Tick()이 예외를 던져도(예: 파괴된 오브젝트에 접근) 이 루프 자체가 중단되면
+                // 안 된다 - 중단되면 아래 _isTicking = false / ApplyPendingChanges()가 영원히
+                // 실행되지 않아, 그 시점부터 새로 등록되는 ITickable은 전부 시작조차 못 하고
+                // 대기 중인 해제도 반영되지 않는 채로 게임 전체의 틱이 사실상 멈춰버린다(실제
+                // 발생했던 연쇄 장애). 예외를 던진 tickable은 로그를 남기고 즉시 해제 대상으로
+                // 등록해, 같은 오브젝트가 다음 프레임에도 똑같이 예외를 반복하지 않게 한다.
+                try
+                {
+                    _tickables[i].Tick(deltaTime);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception);
+                    _pendingRemove.Add(_tickables[i]);
+                }
             }
+
             _isTicking = false;
 
             ApplyPendingChanges();

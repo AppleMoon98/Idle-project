@@ -38,7 +38,10 @@ namespace UI
                 pullButtons[i].onClick.AddListener(() => OnPullClicked(count));
             }
 
-            debugGrantButton.onClick.AddListener(OnDebugGrantClicked);
+            if (debugGrantButton != null)
+            {
+                debugGrantButton.onClick.AddListener(OnDebugGrantClicked);
+            }
         }
 
         private void OnEnable()
