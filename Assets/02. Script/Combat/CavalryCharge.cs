@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Character;
 using Core;
 using UnityEngine;
@@ -17,10 +18,20 @@ namespace Combat
     /// 충돌(자기 몸 반경 + hitCheckReach 안에 위협이 들어옴)하면 기본 공격력에 (현재속도-시작속도)×
     /// bonusDamagePerSpeed만큼 추가 피해를 Health.TakeDamage로 직접 적용하고(공격 주기 시스템을
     /// 거치지 않는다 — War.Boss.WarBossPatternRunner의 광역딜과 같은 이유), 맞은 대상에
-    /// KnockbackReceiver가 있으면 돌진 방향으로 넉백시킨다. 맞히든 최대 돌진 시간을 넘기든, 돌진이
-    /// 끝나면 즉시 Positioning으로 돌아가 다음 돌진을 준비한다. 근접 기본 공격(Attacker+
-    /// MeleeAttackBehavior)은 이 컴포넌트와 별개로 그대로 동작한다 — 돌진 사이사이 위협이 우연히
-    /// 근접 사거리에 들어오면 평범한 공격도 함께 들어간다.
+    /// KnockbackReceiver가 있으면 넉백시킨다(넉백 방향은 돌진 정면이 아니라 knockbackSidewaysAngleDegrees
+    /// 만큼 옆으로 꺾은 방향 — 정면 그대로 밀어내면 돌진 속도가 넉백 속도보다 빨라 계속 따라붙으며
+    /// 대상을 끝까지 끌고 가는 것처럼 보였다(실사용 중 발견). 옆으로 꺾어야 관통 경로에서 대상이
+    /// 완전히 벗어난다). 명중해도 돌진을 끊지 않고 그대로
+    /// 관통해서 직진한다(같은 돌진에서 이미 맞힌 대상은 _hitTargetsThisCharge로 걸러 중복 피해를
+    /// 주지 않는다) — 최대 돌진 시간(maxChargeDuration)을 넘겨야 비로소 Positioning으로 돌아가
+    /// 다음 돌진을 준비한다. 첫 명중 이후에는 위협을 다시 조준하는 조향(TickCharging의 방향 보정)도
+    /// 멈춘다 — 그렇지 않으면 방금 지나친 대상이 여전히 가장 가까운 위협으로 잡혀 그쪽으로 다시
+    /// 돌아서려 해, "관통해서 직진"이 아니라 제자리에서 맴도는 것처럼 보인다. 돌진 중에는 자신의
+    /// CharacterSeparation(모든 캐릭터가 서로 겹치지 않게 매 틱 밀어내는 범용 컴포넌트)도 꺼둔다 —
+    /// 켜둔 채로 대상과 충돌하면 그 반작용으로 기마병 자신도 반대 방향으로 밀려나 버려, 관통은커녕
+    /// 튕겨 나가는 것처럼 보였다(실사용 중 발견). 근접 기본 공격(Attacker+MeleeAttackBehavior)은
+    /// 이 컴포넌트와 별개로 그대로 동작한다 — 돌진 사이사이 위협이 우연히 근접 사거리에 들어오면
+    /// 평범한 공격도 함께 들어간다.
     ///
     /// 돌진을 시작하기 직전, 자기 위치에서 위협까지 직선 경로(자기 몸 반경 폭)에 다른 몬스터
     /// (allyMonsterLayerMask - 이 컴포넌트의 allyLayerMask는 반대로 "공격 대상" 레이어를 뜻하므로
@@ -93,6 +104,9 @@ namespace Combat
         [SerializeField]
         private float knockbackDuration = 0.3f;
 
+        [SerializeField]
+        private float knockbackSidewaysAngleDegrees = 70f;
+
         [Header("아군 충돌 회피")]
         [SerializeField]
         private LayerMask allyMonsterLayerMask;
@@ -113,6 +127,8 @@ namespace Combat
         private Vector3 _chargeDirection;
         private float _chargeSpeed;
         private float _chargeElapsed;
+        private bool _hasHitThisCharge;
+        private readonly HashSet<Health> _hitTargetsThisCharge = new HashSet<Health>();
 
         /// <summary>
         /// 탐지 범위 안에 아무 대상도 없을 때의 기본 위협(플레이어). MonsterSpawner가 스폰 직후 주입한다.
@@ -285,6 +301,13 @@ namespace Combat
             _chargeDirection = (targetPosition - transform.position).normalized;
             _chargeSpeed = chargeStartSpeed;
             _chargeElapsed = 0f;
+            _hasHitThisCharge = false;
+            _hitTargetsThisCharge.Clear();
+
+            if (_separation != null)
+            {
+                _separation.enabled = false;
+            }
         }
 
         private void TickCharging(float deltaTime)
@@ -299,13 +322,16 @@ namespace Combat
 
             _chargeSpeed = Mathf.Min(maxChargeSpeed, _chargeSpeed + chargeAcceleration * deltaTime);
 
-            Transform threat = FindThreat();
-
-            if (threat != null)
+            if (!_hasHitThisCharge)
             {
-                Vector3 idealDirection = (threat.position - transform.position).normalized;
-                float turnRateDegrees = Mathf.Max(minTurnRateDegreesPerSecond, baseTurnRateDegreesPerSecond - turnRatePenaltyPerSpeed * (_chargeSpeed - chargeStartSpeed));
-                _chargeDirection = Vector3.RotateTowards(_chargeDirection, idealDirection, turnRateDegrees * Mathf.Deg2Rad * deltaTime, 0f).normalized;
+                Transform threat = FindThreat();
+
+                if (threat != null)
+                {
+                    Vector3 idealDirection = (threat.position - transform.position).normalized;
+                    float turnRateDegrees = Mathf.Max(minTurnRateDegreesPerSecond, baseTurnRateDegreesPerSecond - turnRatePenaltyPerSpeed * (_chargeSpeed - chargeStartSpeed));
+                    _chargeDirection = Vector3.RotateTowards(_chargeDirection, idealDirection, turnRateDegrees * Mathf.Deg2Rad * deltaTime, 0f).normalized;
+                }
             }
 
             transform.position += _chargeDirection * (_chargeSpeed * deltaTime);
@@ -317,36 +343,57 @@ namespace Combat
         {
             float bodyRadius = _separation != null ? _separation.BodyRadius : 0.5f;
             Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, bodyRadius + hitCheckReach, allyLayerMask);
-            bool didHit = false;
 
             foreach (Collider2D hit in hits)
             {
-                if (!hit.TryGetComponent(out Health health) || health.IsDead)
+                if (!hit.TryGetComponent(out Health health) || health.IsDead || _hitTargetsThisCharge.Contains(health))
                 {
                     continue;
                 }
+
+                _hitTargetsThisCharge.Add(health);
+                _hasHitThisCharge = true;
 
                 float bonusDamage = (_chargeSpeed - chargeStartSpeed) * bonusDamagePerSpeed;
                 health.TakeDamage(_statsProvider.Stats.AttackPower + bonusDamage);
 
                 if (hit.TryGetComponent(out KnockbackReceiver knockback))
                 {
-                    knockback.ApplyKnockback(_chargeDirection, knockbackDistance, knockbackDuration);
+                    Vector2 knockbackDirection = ComputeSidewaysKnockbackDirection(hit.transform.position);
+                    knockback.ApplyKnockback(knockbackDirection, knockbackDistance, knockbackDuration);
                 }
-
-                didHit = true;
             }
+        }
 
-            if (didHit)
-            {
-                EndCharge();
-            }
+        /// <summary>
+        /// 돌진 방향(_chargeDirection)을 기준으로 knockbackSidewaysAngleDegrees만큼 옆으로 꺾은
+        /// 방향을 계산한다. 어느 쪽(좌/우)으로 꺾을지는 대상이 돌진 경로에서 실제로 살짝 치우친
+        /// 쪽을 그대로 따른다(부딪힌 순간 두 콜라이더 중심이 정확히 일치하는 경우는 거의 없다) —
+        /// 완전히 정중앙(오차 이내)이면 좌우를 무작위로 고른다.
+        /// </summary>
+        private Vector2 ComputeSidewaysKnockbackDirection(Vector3 targetPosition)
+        {
+            Vector2 forward = _chargeDirection;
+            Vector2 perpendicular = new Vector2(-forward.y, forward.x);
+            Vector2 toTarget = (Vector2)(targetPosition - transform.position);
+            float lateralDot = Vector2.Dot(toTarget, perpendicular);
+            float side = Mathf.Abs(lateralDot) > 0.01f ? Mathf.Sign(lateralDot) : (Random.value < 0.5f ? 1f : -1f);
+
+            float angleRad = knockbackSidewaysAngleDegrees * Mathf.Deg2Rad * side;
+            float cos = Mathf.Cos(angleRad);
+            float sin = Mathf.Sin(angleRad);
+            return new Vector2(forward.x * cos - forward.y * sin, forward.x * sin + forward.y * cos);
         }
 
         private void EndCharge()
         {
             _state = ChargeState.Positioning;
             _elapsed = retargetInterval;
+
+            if (_separation != null)
+            {
+                _separation.enabled = true;
+            }
         }
     }
 }

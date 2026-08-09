@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsSO
   maxHealth: 75
   attackPower: 16
-  attackRange: 3
+  attackRange: 10
   moveSpeed: 0.6
   attackInterval: 1.8
   criticalChance: 0

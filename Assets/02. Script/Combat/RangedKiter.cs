@@ -10,7 +10,12 @@ namespace Combat
     /// AttackRange), 위협이 kiteTriggerDistance보다 가까이 오면 KiteRetreatCalculator로 반대
     /// 방향 후퇴 지점을 찾아 물러난다. 실제 사격(Attacker+RangedAttackBehavior)은 이 컴포넌트가
     /// 무엇을 하든 상관없이 자기 사거리 안의 가장 가까운 대상을 독립적으로 스캔해 쏘므로, 여기서는
-    /// 순수하게 "어디에 서 있을지"만 담당한다.
+    /// 순수하게 "어디에 서 있을지"만 담당한다. 다만 공격 직후에는 postAttackLockFraction ×
+    /// AttackInterval만큼 그 자리에 뿌리박혀 움직이지 않는다(Soldier.SoldierBehaviorController의
+    /// 원거리 카이팅과 같은 "공격 후 잠깐 고정" 개념, 같은 GameObject의 Attacker.AttackPerformed를
+    /// 구독) — 공격주기 전체를 잠그는 게 아니라 그 절반 정도만 고정해, 남은 시간에는 정상적으로
+    /// 접근/후퇴 판단을 계속한다. 사거리와 무관한 순수 "거리 유지" 로직이라 궁병 전용이 아니라
+    /// 사거리가 긴 다른 근접 유닛(창병 등)에도 재사용된다(section BZ/CT).
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -34,11 +39,16 @@ namespace Combat
         [SerializeField]
         private LayerMask allyLayerMask;
 
+        [SerializeField]
+        private float postAttackLockFraction = 0.5f;
+
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
+        private Attacker _attacker;
         private Camera _camera;
         private Transform _kiteAnchor;
         private float _elapsed;
+        private float _lockRemaining;
 
         /// <summary>
         /// 탐지 범위 안에 아무 대상도 없을 때의 기본 위협(플레이어). MonsterSpawner가 스폰 직후 주입한다.
@@ -49,6 +59,7 @@ namespace Combat
         {
             _mover = GetComponent<CharacterMover>();
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _attacker = GetComponent<Attacker>();
             _camera = Camera.main;
             _kiteAnchor = new GameObject("RangedKiterAnchor").transform;
         }
@@ -56,11 +67,29 @@ namespace Combat
         private void OnEnable()
         {
             TickerRegistration.Register(this);
+
+            if (_attacker != null)
+            {
+                _attacker.AttackPerformed += HandleAttackPerformed;
+            }
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
+
+            if (_attacker != null)
+            {
+                _attacker.AttackPerformed -= HandleAttackPerformed;
+            }
+
+            _lockRemaining = 0f;
+        }
+
+        private void HandleAttackPerformed()
+        {
+            _lockRemaining = _statsProvider.Stats.AttackInterval * postAttackLockFraction;
+            _mover.Target = null;
         }
 
         private void OnDestroy()
@@ -79,6 +108,12 @@ namespace Combat
 
         void ITickable.Tick(float deltaTime)
         {
+            if (_lockRemaining > 0f)
+            {
+                _lockRemaining -= deltaTime;
+                return;
+            }
+
             _elapsed += deltaTime;
 
             if (_elapsed < retargetInterval)
