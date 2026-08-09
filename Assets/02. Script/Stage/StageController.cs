@@ -20,10 +20,13 @@ namespace Stage
         private Transform[] bottomSpawnPoints;
 
         [SerializeField]
-        private Transform playerTarget;
+        private Transform[] leftSpawnPoints;
 
         [SerializeField]
-        private float playerNearTopViewportThreshold = 0.5f;
+        private Transform[] rightSpawnPoints;
+
+        [SerializeField]
+        private Transform playerTarget;
 
         [SerializeField]
         private StageSO stageToLoadOnStart;
@@ -142,9 +145,10 @@ namespace Stage
                 pool,
                 topSpawnPoints,
                 bottomSpawnPoints,
+                leftSpawnPoints,
+                rightSpawnPoints,
                 playerTarget,
                 _tracker,
-                playerNearTopViewportThreshold,
                 statMultiplier,
                 tacticUnitSpacing,
                 tacticRowSpacing);

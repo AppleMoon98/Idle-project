@@ -11,15 +11,28 @@ namespace Stage
 {
     /// <summary>
     /// StageSO에 정의된 스폰 웨이브를 순서대로 시간차 실행해 몬스터를 생성한다.
-    /// 몬스터는 항상 플레이어 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어가
-    /// 화면 상단에 있는지 확인해 상단/하단 스폰 지점 중 하나를 고른다. 전술 웨이브
-    /// (TacticSpawnEntry)를 먼저 처리하고 - 스테이지에 입장하자마자 대형부터 즉시 구성되도록 -
-    /// 그게 모두 끝나면 이어서 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형은 한 마리씩
-    /// 시간차로 나오지 않고, 한 틱에 리더/추종자 전원이 한꺼번에 스폰된다("뭉텅이로 조금씩"이
-    /// 아니라 "대형이 즉시 갖춰진다").
+    /// 몬스터는 항상 플레이어 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어의 뷰포트 좌표가
+    /// 중심(0.5, 0.5)에서 세로/가로 중 어느 축으로 더 벗어나 있는지 보고 그 축의 반대쪽
+    /// (상/하/좌/우 4방향 중 하나) 스폰 지점을 고른다. 전술 웨이브(TacticSpawnEntry)를 먼저
+    /// 처리하고 - 스테이지에 입장하자마자 대형부터 즉시 구성되도록 - 그게 모두 끝나면 이어서
+    /// 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형은 한 마리씩 시간차로 나오지 않고,
+    /// 한 틱에 리더/추종자 전원이 한꺼번에 스폰된다("뭉텅이로 조금씩"이 아니라 "대형이 즉시
+    /// 갖춰진다").
     /// </summary>
     public sealed class MonsterSpawner : ITickable, IDisposable
     {
+        /// <summary>
+        /// 화면 밖 스폰 지점의 네 방향. 전술 대형 배치(PrepareFormationLayout)에서 Top/Bottom은
+        /// 리더 줄이 X축을 따라 늘어서고 Left/Right는 Y축을 따라 늘어선다.
+        /// </summary>
+        private enum SpawnSide
+        {
+            Top,
+            Bottom,
+            Left,
+            Right
+        }
+
         private static readonly Dictionary<TacticType, ITacticSpawnStrategy> TacticStrategies = new()
         {
             { TacticType.ShieldWall, new ShieldWallTacticStrategy() }
@@ -30,10 +43,11 @@ namespace Stage
         private readonly PoolManager _pool;
         private readonly Transform[] _topSpawnPoints;
         private readonly Transform[] _bottomSpawnPoints;
+        private readonly Transform[] _leftSpawnPoints;
+        private readonly Transform[] _rightSpawnPoints;
         private readonly Transform _playerTarget;
         private readonly StageProgressTracker _tracker;
         private readonly Camera _camera;
-        private readonly float _playerNearTopViewportThreshold;
         private readonly float _statMultiplier;
         private readonly float _tacticUnitSpacing;
         private readonly float _tacticRowSpacing;
@@ -47,6 +61,8 @@ namespace Stage
         private int _tacticEntryIndex;
         private int _topCursor;
         private int _bottomCursor;
+        private int _leftCursor;
+        private int _rightCursor;
         private Vector3[] _formationLeaderPositions;
         private Vector3[] _formationFollowerPositions;
 
@@ -61,9 +77,10 @@ namespace Stage
             PoolManager pool,
             Transform[] topSpawnPoints,
             Transform[] bottomSpawnPoints,
+            Transform[] leftSpawnPoints,
+            Transform[] rightSpawnPoints,
             Transform playerTarget,
             StageProgressTracker tracker,
-            float playerNearTopViewportThreshold,
             float statMultiplier,
             float tacticUnitSpacing,
             float tacticRowSpacing)
@@ -73,9 +90,10 @@ namespace Stage
             _pool = pool;
             _topSpawnPoints = topSpawnPoints;
             _bottomSpawnPoints = bottomSpawnPoints;
+            _leftSpawnPoints = leftSpawnPoints;
+            _rightSpawnPoints = rightSpawnPoints;
             _playerTarget = playerTarget;
             _tracker = tracker;
-            _playerNearTopViewportThreshold = playerNearTopViewportThreshold;
             _statMultiplier = statMultiplier;
             _tacticUnitSpacing = tacticUnitSpacing;
             _tacticRowSpacing = tacticRowSpacing;
@@ -155,8 +173,8 @@ namespace Stage
 
         private void SpawnFormation(TacticSpawnEntry entry)
         {
-            bool useBottom = IsPlayerNearTop();
-            int pairCount = PrepareFormationLayout(entry, useBottom);
+            SpawnSide side = DetermineSpawnSide();
+            int pairCount = PrepareFormationLayout(entry, side);
 
             for (int i = 0; i < pairCount; i++)
             {
@@ -188,29 +206,42 @@ namespace Stage
         /// <summary>
         /// 전술 대형 한 벌의 스폰 위치를 미리 계산한다 - 리더(1열)는 고정된 스폰 지점 한 줄을
         /// 따라 나란히, 추종자(2열)는 그보다 rowSpacing만큼 더 화면 밖(플레이어 반대쪽)으로
-        /// 물러난 평행한 줄을 따라 나란히 선다. 기존 NextSpawnPoint()처럼 몇 개 안 되는
-        /// 스폰 지점을 순환 재사용하면 다수의 쌍이 같은 좌표 근처에 뭉쳐 스폰되므로(대형처럼
-        /// 안 보이고, 스플래시 등 광역 판정에도 의도치 않게 한꺼번에 걸림) 전술 스폰만은
-        /// 매 쌍마다 서로 다른 고유 좌표를 미리 계산해 쓴다. entry.TotalUnitCount를 절반으로
-        /// 나눈 쌍의 수를 반환한다.
+        /// 물러난 평행한 줄을 따라 나란히 선다. Top/Bottom은 화면 가로(X축)를 따라 늘어서고
+        /// Left/Right는 화면 세로(Y축)를 따라 늘어선다 - 스폰 지점이 놓인 화면 가장자리와
+        /// 평행한 방향이 "줄"이고, 그 가장자리에서 더 바깥으로 물러나는 방향이 "열 간격"이다.
+        /// 기존 NextSpawnPoint()처럼 몇 개 안 되는 스폰 지점을 순환 재사용하면 다수의 쌍이 같은
+        /// 좌표 근처에 뭉쳐 스폰되므로(대형처럼 안 보이고, 스플래시 등 광역 판정에도 의도치 않게
+        /// 한꺼번에 걸림) 전술 스폰만은 매 쌍마다 서로 다른 고유 좌표를 미리 계산해 쓴다.
+        /// entry.TotalUnitCount를 절반으로 나눈 쌍의 수를 반환한다.
         /// </summary>
-        private int PrepareFormationLayout(TacticSpawnEntry entry, bool useBottom)
+        private int PrepareFormationLayout(TacticSpawnEntry entry, SpawnSide side)
         {
-            Transform[] points = useBottom ? _bottomSpawnPoints : _topSpawnPoints;
+            Transform[] points = GetSpawnPoints(side);
             Vector3 anchor = points[0].position;
-            float behindSign = useBottom ? -1f : 1f;
+            bool alongX = side == SpawnSide.Top || side == SpawnSide.Bottom;
+            float outwardSign = side == SpawnSide.Top || side == SpawnSide.Right ? 1f : -1f;
 
             int pairCount = Mathf.Max(entry.TotalUnitCount / 2, 0);
             _formationLeaderPositions = new Vector3[pairCount];
             _formationFollowerPositions = new Vector3[pairCount];
 
-            float startX = anchor.x - (pairCount - 1) * _tacticUnitSpacing * 0.5f;
+            float anchorAlong = alongX ? anchor.x : anchor.y;
+            float start = anchorAlong - (pairCount - 1) * _tacticUnitSpacing * 0.5f;
 
             for (int i = 0; i < pairCount; i++)
             {
-                float x = startX + i * _tacticUnitSpacing;
-                _formationLeaderPositions[i] = new Vector3(x, anchor.y, anchor.z);
-                _formationFollowerPositions[i] = new Vector3(x, anchor.y + behindSign * _tacticRowSpacing, anchor.z);
+                float along = start + i * _tacticUnitSpacing;
+
+                if (alongX)
+                {
+                    _formationLeaderPositions[i] = new Vector3(along, anchor.y, anchor.z);
+                    _formationFollowerPositions[i] = new Vector3(along, anchor.y + outwardSign * _tacticRowSpacing, anchor.z);
+                }
+                else
+                {
+                    _formationLeaderPositions[i] = new Vector3(anchor.x, along, anchor.z);
+                    _formationFollowerPositions[i] = new Vector3(anchor.x + outwardSign * _tacticRowSpacing, along, anchor.z);
+                }
             }
 
             return pairCount;
@@ -287,31 +318,59 @@ namespace Stage
         }
 
         /// <summary>
-        /// 플레이어가 화면 상단에 있으면 하단 스폰 지점을, 아니면 상단 스폰 지점을 사용한다.
+        /// DetermineSpawnSide()가 고른 방향의 스폰 지점 배열을 순환하며 다음 지점을 반환한다.
         /// </summary>
         private Transform NextSpawnPoint()
         {
-            if (IsPlayerNearTop())
-            {
-                Transform point = _bottomSpawnPoints[_bottomCursor % _bottomSpawnPoints.Length];
-                _bottomCursor++;
-                return point;
-            }
+            SpawnSide side = DetermineSpawnSide();
+            Transform[] points = GetSpawnPoints(side);
 
-            Transform topPoint = _topSpawnPoints[_topCursor % _topSpawnPoints.Length];
-            _topCursor++;
-            return topPoint;
+            switch (side)
+            {
+                case SpawnSide.Bottom:
+                    return points[_bottomCursor++ % points.Length];
+                case SpawnSide.Left:
+                    return points[_leftCursor++ % points.Length];
+                case SpawnSide.Right:
+                    return points[_rightCursor++ % points.Length];
+                default:
+                    return points[_topCursor++ % points.Length];
+            }
         }
 
-        private bool IsPlayerNearTop()
+        private Transform[] GetSpawnPoints(SpawnSide side)
+        {
+            return side switch
+            {
+                SpawnSide.Bottom => _bottomSpawnPoints,
+                SpawnSide.Left => _leftSpawnPoints,
+                SpawnSide.Right => _rightSpawnPoints,
+                _ => _topSpawnPoints
+            };
+        }
+
+        /// <summary>
+        /// 플레이어의 뷰포트 좌표가 화면 중심(0.5, 0.5)에서 세로/가로 중 더 많이 벗어난 축을 골라
+        /// 그 반대쪽 방향을 반환한다 - 항상 플레이어와 가장 먼 화면 가장자리에서 스폰된다.
+        /// 카메라/플레이어를 아직 쓸 수 없으면 기존 기본 동작과 같은 Top으로 대체한다.
+        /// </summary>
+        private SpawnSide DetermineSpawnSide()
         {
             if (_camera == null || _playerTarget == null)
             {
-                return false;
+                return SpawnSide.Top;
             }
 
             Vector3 viewportPoint = _camera.WorldToViewportPoint(_playerTarget.position);
-            return viewportPoint.y > _playerNearTopViewportThreshold;
+            float verticalOffset = viewportPoint.y - 0.5f;
+            float horizontalOffset = viewportPoint.x - 0.5f;
+
+            if (Mathf.Abs(verticalOffset) >= Mathf.Abs(horizontalOffset))
+            {
+                return verticalOffset > 0f ? SpawnSide.Bottom : SpawnSide.Top;
+            }
+
+            return horizontalOffset > 0f ? SpawnSide.Left : SpawnSide.Right;
         }
 
         /// <summary>
