@@ -66,6 +66,25 @@ namespace Soldier
         }
 
         /// <summary>
+        /// 현재 추적 중인(살아있는) 병사 인스턴스 전부를 SetActive만 토글한다.
+        /// Stage.StageProgressTracker.SetActiveAll과 동일한 패턴 — 사망/루팅/재소환 파이프라인은
+        /// 전혀 건드리지 않고 순수하게 보이기/틱을 잠깐 멈췄다 되돌리는 용도다(예: 병사 동행이
+        /// 금지된 던전 오버레이 진입/종료). 비활성화된 채로도 _activeSoldiers/_activeBySlot 추적은
+        /// 그대로 유지되므로, 병사가 이 상태에서 죽는 일은 없다(비활성 GameObject는 애초에
+        /// CharacterDiedEvent를 발행할 수 없다).
+        /// </summary>
+        public void SetActiveAll(bool active)
+        {
+            foreach (GameObject soldier in _activeSoldiers.Keys)
+            {
+                if (soldier != null)
+                {
+                    soldier.SetActive(active);
+                }
+            }
+        }
+
+        /// <summary>
         /// slotIndex를 즉시 비운다 — 대기 중인 리스폰 타이머를 취소하고, 지금 그 슬롯을 차지하고
         /// 있는 살아있는 인스턴스가 있으면 사망 처리 없이(루팅 등 부수효과 없이) 풀로 반환한다.
         /// 배치 재편성으로 슬롯의 배정이 바뀌거나 해제됐을 때, SoldierSpawner가 새로 스폰하기

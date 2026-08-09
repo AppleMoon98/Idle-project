@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 15ae903013523d64eabc6467051e6c97, type: 3}
+  m_Name: SoldierRescueDungeonConfig
+  m_EditorClassIdentifier: Assembly-CSharp::Dungeon.SoldierRescueDungeonConfigSO
+  cavalryPrefab: {fileID: 3104091886448902630, guid: 105c56d9539f36f48a6819e5ce64104d, type: 3}
+  structureDefinition: {fileID: 11400000, guid: 1427e8bbdb2c9024aad747865903a41f, type: 2}
+  zoneCount: 3
+  minDistanceBetweenZones: 4
+  timeLimitSeconds: 180
+  cavalrySpawnInterval: 4
+  ticketsPerClearPerStage: 5
+  extraStrengthMultiplier: 1.5
+  stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
+  difficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}
+  spawnViewportMargin: 0.2

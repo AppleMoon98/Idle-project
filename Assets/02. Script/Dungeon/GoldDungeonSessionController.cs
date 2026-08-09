@@ -121,7 +121,7 @@ namespace Dungeon
 
             for (int i = 0; i < config.MonsterCount; i++)
             {
-                Vector3 spawnPosition = DungeonSpawnUtility.RandomOnScreenPosition(config.SpawnViewportMargin);
+                Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(config.SpawnViewportMargin);
                 GameObject instance = pool.Get(config.MonsterPrefab, spawnPosition, Quaternion.identity);
 
                 if (instance.TryGetComponent(out StageMonsterScaler scaler))

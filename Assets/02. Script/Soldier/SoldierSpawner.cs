@@ -68,6 +68,16 @@ namespace Soldier
             TrySpawn();
         }
 
+        /// <summary>
+        /// 현재 스폰된 병사 전부를 잠깐 비활성화(true로 복귀 전까지 전투/이동/리스폰 판정 정지)한다.
+        /// 병사 동행이 금지된 콘텐츠(예: 던전 오버레이) 진입/종료 시 사용한다. 아직 한 번도
+        /// 스폰되지 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
+        /// </summary>
+        public void SetSoldiersActive(bool active)
+        {
+            _respawner?.SetActiveAll(active);
+        }
+
         private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
         {
             if (!_spawned)

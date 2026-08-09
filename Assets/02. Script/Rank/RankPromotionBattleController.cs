@@ -109,7 +109,7 @@ namespace Rank
 
             pool.EnsurePool(_targetRank.BossPrefab, 1, 1);
 
-            Vector3 spawnPosition = DungeonSpawnUtility.RandomOnScreenPosition(spawnViewportMargin);
+            Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(spawnViewportMargin);
             _bossInstance = pool.Get(_targetRank.BossPrefab, spawnPosition, Quaternion.identity);
         }
 

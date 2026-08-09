@@ -164,7 +164,7 @@ namespace Dungeon
 
             pool.EnsurePool(config.BossPrefab, 1, 1);
 
-            Vector3 spawnPosition = DungeonSpawnUtility.RandomOnScreenPosition(config.SpawnViewportMargin);
+            Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(config.SpawnViewportMargin);
             _bossInstance = pool.Get(config.BossPrefab, spawnPosition, Quaternion.identity);
 
             if (_bossInstance.TryGetComponent(out StageMonsterScaler scaler))
