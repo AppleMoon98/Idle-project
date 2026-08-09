@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Character.Events;
 using Combat;
 using Core;
@@ -38,6 +39,8 @@ namespace Character
         private bool _isMovingToTap;
         private float _pressHeldSeconds;
         private bool _hasTriggeredSquadRally;
+
+        private readonly List<RaycastResult> _uiRaycastResults = new();
 
         private void Awake()
         {
@@ -108,12 +111,14 @@ namespace Character
 
             if (pointer.press.wasPressedThisFrame)
             {
-                if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+                Vector2 screenPosition = pointer.position.ReadValue();
+
+                if (IsPointerOverUI(screenPosition))
                 {
                     return;
                 }
 
-                BeginTapMove(pointer.position.ReadValue());
+                BeginTapMove(screenPosition);
                 return;
             }
 
@@ -181,6 +186,26 @@ namespace Character
             {
                 _enemyTracker.enabled = true;
             }
+        }
+
+        /// <summary>
+        /// EventSystem.current.IsPointerOverGameObject()는 터치 입력의 첫 프레임(방금 누른 그
+        /// 프레임)에는 아직 EventSystem이 그 터치를 UI 레이캐스트로 처리하기 전이라 신뢰할 수 없다
+        /// (항상 false를 반환) - CameraZoomControl의 슬라이더 핸들을 터치했는데도 가끔 탭 이동이
+        /// 발동하던 원인이 이것이다. EventSystem의 캐시된 상태를 묻는 대신 지금 이 프레임의
+        /// 스크린 좌표로 직접 UI 레이캐스트를 쏴서 즉시 판정하면 이 한 프레임 지연 문제가 없다.
+        /// </summary>
+        private bool IsPointerOverUI(Vector2 screenPosition)
+        {
+            if (EventSystem.current == null)
+            {
+                return false;
+            }
+
+            PointerEventData eventData = new(EventSystem.current) { position = screenPosition };
+            _uiRaycastResults.Clear();
+            EventSystem.current.RaycastAll(eventData, _uiRaycastResults);
+            return _uiRaycastResults.Count > 0;
         }
 
         private Vector3 ScreenToWorld(Vector2 screenPosition)
