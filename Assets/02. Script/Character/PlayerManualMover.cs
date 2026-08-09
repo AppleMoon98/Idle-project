@@ -39,6 +39,7 @@ namespace Character
         private bool _isMovingToTap;
         private float _pressHeldSeconds;
         private bool _hasTriggeredSquadRally;
+        private bool _pressStartedOffUI;
 
         private readonly List<RaycastResult> _uiRaycastResults = new();
 
@@ -112,8 +113,9 @@ namespace Character
             if (pointer.press.wasPressedThisFrame)
             {
                 Vector2 screenPosition = pointer.position.ReadValue();
+                _pressStartedOffUI = !IsPointerOverUI(screenPosition);
 
-                if (IsPointerOverUI(screenPosition))
+                if (!_pressStartedOffUI)
                 {
                     return;
                 }
@@ -122,7 +124,11 @@ namespace Character
                 return;
             }
 
-            if (!pointer.press.isPressed || _hasTriggeredSquadRally)
+            // 이 프레임의 press가 UI 위에서 시작한 것이면(슬라이더 드래그 등), 손을 떼지 않고
+            // squadRallyHoldSeconds를 넘겨도 집결 명령이 발동하면 안 된다 - wasPressedThisFrame
+            // 분기에서 이미 UI 위임을 걸러도, 이 홀드 누적 분기는 그 판정과 무관하게 매 프레임
+            // 그냥 돌기 때문에 별도로 다시 체크해야 한다.
+            if (!_pressStartedOffUI || !pointer.press.isPressed || _hasTriggeredSquadRally)
             {
                 return;
             }
