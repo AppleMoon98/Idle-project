@@ -419,6 +419,10 @@ MonoBehaviour:
   bonusDamagePerSpeed: 2
   knockbackDistance: 2
   knockbackDuration: 0.3
+  allyMonsterLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  allySidestepDistance: 2
 --- !u!114 &1688835667018995271
 MonoBehaviour:
   m_ObjectHideFlags: 0

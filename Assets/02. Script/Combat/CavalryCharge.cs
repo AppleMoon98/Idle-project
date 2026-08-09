@@ -21,6 +21,13 @@ namespace Combat
     /// 끝나면 즉시 Positioning으로 돌아가 다음 돌진을 준비한다. 근접 기본 공격(Attacker+
     /// MeleeAttackBehavior)은 이 컴포넌트와 별개로 그대로 동작한다 — 돌진 사이사이 위협이 우연히
     /// 근접 사거리에 들어오면 평범한 공격도 함께 들어간다.
+    ///
+    /// 돌진을 시작하기 직전, 자기 위치에서 위협까지 직선 경로(자기 몸 반경 폭)에 다른 몬스터
+    /// (allyMonsterLayerMask - 이 컴포넌트의 allyLayerMask는 반대로 "공격 대상" 레이어를 뜻하므로
+    /// 헷갈리지 않도록 이름을 분리했다)가 있으면 그대로 돌진하지 않는다. 대신 위협 방향 기준
+    /// 좌우 측면 후보 지점들을 순서대로 시도해 직선 경로가 막히지 않는 첫 지점으로 이동만 하고,
+    /// 다음 재평가(retargetInterval)에서 다시 판정한다 — 아군이 비켜나거나 자신이 옆으로 이동해
+    /// 경로가 뚫리면 그때 돌진을 시작한다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -85,6 +92,15 @@ namespace Combat
 
         [SerializeField]
         private float knockbackDuration = 0.3f;
+
+        [Header("아군 충돌 회피")]
+        [SerializeField]
+        private LayerMask allyMonsterLayerMask;
+
+        [SerializeField]
+        private float allySidestepDistance = 2f;
+
+        private static readonly float[] AllySidestepOffsets = { 1f, -1f, 2f, -2f };
 
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
@@ -190,7 +206,76 @@ namespace Combat
                 return;
             }
 
+            if (IsChargeLaneBlockedByAlly(transform.position, threat.position))
+            {
+                if (TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
+                {
+                    _retreatAnchor.position = sidestepPoint;
+                    _mover.Target = _retreatAnchor;
+                    _mover.StoppingDistance = 0f;
+                }
+                else
+                {
+                    _mover.Target = null;
+                }
+
+                return;
+            }
+
             BeginCharge(threat.position);
+        }
+
+        /// <summary>
+        /// origin에서 targetPosition까지 직선 경로(자기 몸 반경 폭)에 다른 몬스터가 있는지 확인한다.
+        /// </summary>
+        private bool IsChargeLaneBlockedByAlly(Vector3 origin, Vector3 targetPosition)
+        {
+            float bodyRadius = _separation != null ? _separation.BodyRadius : 0.5f;
+            Vector3 offset = targetPosition - origin;
+            float distance = offset.magnitude;
+
+            if (distance <= 0f)
+            {
+                return false;
+            }
+
+            Vector3 direction = offset / distance;
+            RaycastHit2D[] hits = Physics2D.CircleCastAll(origin, bodyRadius, direction, distance, allyMonsterLayerMask);
+
+            foreach (RaycastHit2D hit in hits)
+            {
+                if (hit.collider != null && hit.collider.gameObject != gameObject)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// 위협 방향을 기준으로 좌우 측면 후보 지점(±1칸, ±2칸)을 순서대로 시도해, 그 지점에서
+        /// 위협까지의 직선 경로가 아군으로 막히지 않는 첫 후보를 반환한다. 하나도 없으면
+        /// false(제자리 대기 - 다음 재평가 때 다시 시도).
+        /// </summary>
+        private bool TryFindClearSidestepPoint(Vector3 targetPosition, out Vector3 sidestepPoint)
+        {
+            Vector3 toTarget = (targetPosition - transform.position).normalized;
+            Vector3 perpendicular = new Vector3(-toTarget.y, toTarget.x, 0f);
+
+            foreach (float multiplier in AllySidestepOffsets)
+            {
+                Vector3 candidate = transform.position + perpendicular * (multiplier * allySidestepDistance);
+
+                if (!IsChargeLaneBlockedByAlly(candidate, targetPosition))
+                {
+                    sidestepPoint = candidate;
+                    return true;
+                }
+            }
+
+            sidestepPoint = Vector3.zero;
+            return false;
         }
 
         private void BeginCharge(Vector3 targetPosition)
