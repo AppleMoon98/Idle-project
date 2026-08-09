@@ -1,3 +1,4 @@
+using Core.Pooling;
 using UnityEngine;
 
 namespace Character
@@ -6,18 +7,25 @@ namespace Character
     /// 이 유닛이 든 방패 — 자기 체력과 별도로 방패 자체의 체력을 가진다. Health.TakeDamage가 이
     /// 컴포넌트가 있으면 먼저 방패로 피해를 흡수시킨다(근접/원거리/돌진 등 피해 종류 구분 없음,
     /// 방향 구분도 없음 — "방패가 기마병 돌격이나 궁병 화살을 막는다"는 요청을 데미지 소스를
-    /// 가리지 않는 단순한 형태로 구현한 v1). 방패가 깨지는 순간 넘친 피해(overflow)는 본체
-    /// 체력에도 그대로 이어지고(Health.TakeDamage가 반환값을 이어받아 처리), SetProtectedUnit으로
-    /// 등록해 둔 뒤쪽 유닛(예: 창병)에도 같은 양만큼 추가로 전달된다 — "방패를 부수면 보병도,
-    /// 그 뒤의 창병도 다친다"는 요청을 그대로 구현한 것.
+    /// 가리지 않는 단순한 형태로 구현한 것). 방패가 다 흡수하지 못한 나머지(overflow)는
+    /// Health.TakeDamage가 반환값을 이어받아 이 유닛 자신의 몸 체력에 적용한다 — 방패는 오직
+    /// 이 유닛 자신만 지킨다. 다른 유닛(예: 대형 뒤에 선 창병)에게 피해를 대신 전달하지
+    /// 않는다 — 방패병과 창병은 서로 다른 개체이므로 데미지를 공유하지 않으며, 창병의 "보호"는
+    /// 순전히 위치(방패병 뒤에 서는 것, Combat.FormationFollower/GuardPositioner)에서만
+    /// 나온다 — 빠른 유닛이 우회해 창병을 직접 노리거나, 애초에 창병이 먼저 표적이 되는 것도
+    /// 자연스러운 결과로 허용한다. shieldVisual(옵션)이 지정돼 있으면 방패가 남아있는 동안만
+    /// 보이고 깨지는 순간 숨겨져, 스프라이트가 같아 구분이 어려운 방패병들 사이에서도 방패가
+    /// 아직 있는지 한눈에 알 수 있다.
     /// </summary>
-    public sealed class ShieldGuard : MonoBehaviour
+    public sealed class ShieldGuard : MonoBehaviour, IPoolable
     {
         [SerializeField]
         private float maxShieldHealth = 25f;
 
+        [SerializeField]
+        private GameObject shieldVisual;
+
         private float _currentShieldHealth;
-        private Health _protectedUnit;
 
         /// <summary>
         /// 방패가 아직 남아있는지(0보다 크면 true).
@@ -28,23 +36,33 @@ namespace Character
 
         private void Awake()
         {
-            _currentShieldHealth = maxShieldHealth;
+            ResetShield();
         }
 
-        /// <summary>
-        /// 이 방패가 지키고 있는 뒤쪽 유닛(예: 창병)을 등록한다. 방패가 깨지는 순간 같은 피해가
-        /// 그 유닛에도 전달된다. 아직 실제 진형 스폰 시스템이 없어(나중에 병법 시스템에서 호출할
-        /// 예정) 지금은 외부에서 직접 호출해 주입해야 한다.
-        /// </summary>
-        public void SetProtectedUnit(Health protectedUnit)
+        void IPoolable.OnSpawned()
         {
-            _protectedUnit = protectedUnit;
+            // 풀에서 재사용되는 인스턴스는 Awake가 다시 실행되지 않으므로, 이전 생에서 방패가
+            // 깨진 채였다면 여기서 다시 채워주지 않으면 영구히 방패 없는 상태로 남는다.
+            ResetShield();
+        }
+
+        void IPoolable.OnDespawned()
+        {
+        }
+
+        private void ResetShield()
+        {
+            _currentShieldHealth = maxShieldHealth;
+
+            if (shieldVisual != null)
+            {
+                shieldVisual.SetActive(true);
+            }
         }
 
         /// <summary>
         /// 들어온 피해를 방패로 흡수하고, 방패가 못 막은 나머지(overflow)를 반환한다. 방패가 이미
-        /// 깨졌으면 전체를 그대로 통과시킨다. 이번 피해로 방패가 막 깨졌다면(overflow가 있다면)
-        /// 등록된 protectedUnit에도 같은 양을 즉시 적용한다.
+        /// 깨졌으면 전체를 그대로 통과시킨다.
         /// </summary>
         public float AbsorbDamage(float amount)
         {
@@ -57,9 +75,9 @@ namespace Character
             _currentShieldHealth -= absorbed;
             float overflow = amount - absorbed;
 
-            if (_currentShieldHealth <= 0f && overflow > 0f && _protectedUnit != null && !_protectedUnit.IsDead)
+            if (_currentShieldHealth <= 0f && shieldVisual != null)
             {
-                _protectedUnit.TakeDamage(overflow);
+                shieldVisual.SetActive(false);
             }
 
             return overflow;

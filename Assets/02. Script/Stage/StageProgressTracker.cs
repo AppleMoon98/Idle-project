@@ -94,6 +94,16 @@ namespace Stage
             }
         }
 
+        /// <summary>
+        /// 이 스테이지에서 실제로 스폰될 총 마릿수를 계산한다. SpawnEntries(일반/엘리트/보스)뿐
+        /// 아니라 TacticEntries(전술 대형)도 반드시 포함해야 한다 - 빠뜨리면 대형 전체를 잡지
+        /// 않고도 스테이지가 클리어로 잘못 판정될 수 있다(_killCount는 대형 유닛의 죽음도
+        /// 그대로 세지만, 이 합계가 그만큼 낮게 잡히면 그보다 훨씬 적게 죽여도 조건을
+        /// 만족해버린다). 전술 쌍의 수는 MonsterSpawner.PrepareFormationLayout과 정확히 같은
+        /// 공식(TotalUnitCount / 2, 정수 나눗셈)으로 계산해야 실제로 스폰되는 마릿수와 어긋나지
+        /// 않는다 - 홀수 총량일 때 원래 값을 그대로 더하면 스포너보다 1 많게 잡혀 영원히
+        /// 클리어할 수 없는 스테이지가 된다.
+        /// </summary>
         private static int CalculateTotal(StageSO stage)
         {
             int total = 0;
@@ -101,6 +111,15 @@ namespace Stage
             foreach (MonsterSpawnEntry entry in stage.SpawnEntries)
             {
                 total += entry.Count;
+            }
+
+            if (stage.TacticEntries != null)
+            {
+                foreach (TacticSpawnEntry tacticEntry in stage.TacticEntries)
+                {
+                    int pairCount = Mathf.Max(tacticEntry.TotalUnitCount / 2, 0);
+                    total += pairCount * 2;
+                }
             }
 
             return total;

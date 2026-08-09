@@ -14,10 +14,9 @@ namespace Stage
     /// 몬스터는 항상 플레이어 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어가
     /// 화면 상단에 있는지 확인해 상단/하단 스폰 지점 중 하나를 고른다. 전술 웨이브
     /// (TacticSpawnEntry)를 먼저 처리하고 - 스테이지에 입장하자마자 대형부터 즉시 구성되도록 -
-    /// 그게 모두 끝나면 이어서 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형 하나를
-    /// 스폰하는 동안은 상/하단 판정을 매번 다시 하지 않고 그 대형을 시작할 때 한 번만 정해서
-    /// 고정한다 - 대형이 스폰되는 도중 플레이어가 화면 중앙을 넘나들어도 같은 쪽에서 계속
-    /// 나와야 "대형"으로 보이기 때문이다.
+    /// 그게 모두 끝나면 이어서 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형은 한 마리씩
+    /// 시간차로 나오지 않고, 한 틱에 리더/추종자 전원이 한꺼번에 스폰된다("뭉텅이로 조금씩"이
+    /// 아니라 "대형이 즉시 갖춰진다").
     /// </summary>
     public sealed class MonsterSpawner : ITickable, IDisposable
     {
@@ -36,6 +35,8 @@ namespace Stage
         private readonly Camera _camera;
         private readonly float _playerNearTopViewportThreshold;
         private readonly float _statMultiplier;
+        private readonly float _tacticUnitSpacing;
+        private readonly float _tacticRowSpacing;
         private readonly List<GameObject> _pendingLeaders = new();
         private readonly List<GameObject> _pendingFollowers = new();
         private readonly List<ITacticFormationGroup> _formationGroups = new();
@@ -44,16 +45,16 @@ namespace Stage
         private int _spawnedInEntry;
         private float _elapsed;
         private int _tacticEntryIndex;
-        private int _pairsSpawnedInEntry;
-        private float _tacticElapsed;
         private int _topCursor;
         private int _bottomCursor;
-        private bool? _tacticFormationSideIsBottom;
+        private Vector3[] _formationLeaderPositions;
+        private Vector3[] _formationFollowerPositions;
 
         /// <summary>
-        /// 모든 웨이브(일반 + 전술)의 스폰이 끝났는지 여부.
+        /// 모든 웨이브(일반 + 전술)의 스폰이 끝났는지 여부. 전술 대형이 아직 전멸하지 않았다면
+        /// (뒤따를 일반 웨이브가 아직 대기 중이므로) 끝난 것으로 보지 않는다.
         /// </summary>
-        public bool IsFinished => _entryIndex >= _entries.Length && _tacticEntryIndex >= _tacticEntries.Length;
+        public bool IsFinished => _entryIndex >= _entries.Length && _tacticEntryIndex >= _tacticEntries.Length && AllFormationGroupsCleared();
 
         public MonsterSpawner(
             StageSO stage,
@@ -63,7 +64,9 @@ namespace Stage
             Transform playerTarget,
             StageProgressTracker tracker,
             float playerNearTopViewportThreshold,
-            float statMultiplier)
+            float statMultiplier,
+            float tacticUnitSpacing,
+            float tacticRowSpacing)
         {
             _entries = stage.SpawnEntries ?? Array.Empty<MonsterSpawnEntry>();
             _tacticEntries = stage.TacticEntries ?? Array.Empty<TacticSpawnEntry>();
@@ -74,6 +77,8 @@ namespace Stage
             _tracker = tracker;
             _playerNearTopViewportThreshold = playerNearTopViewportThreshold;
             _statMultiplier = statMultiplier;
+            _tacticUnitSpacing = tacticUnitSpacing;
+            _tacticRowSpacing = tacticRowSpacing;
             _camera = Camera.main;
         }
 
@@ -81,7 +86,15 @@ namespace Stage
         {
             if (_tacticEntryIndex < _tacticEntries.Length)
             {
-                TickTactics(deltaTime);
+                TickTactics();
+                return;
+            }
+
+            // 전술 대형(예: 방패벽)이 아직 전멸하지 않았다면, 뒤따를 일반 웨이브(엘리트/보스 등)를
+            // 보류한다 - 대형이 살아 움직이는 전장에 엘리트/보스가 끼어들어 대형 사이로
+            // 뒤섞이는 것을 막기 위해서다.
+            if (!AllFormationGroupsCleared())
+            {
                 return;
             }
 
@@ -89,6 +102,19 @@ namespace Stage
             {
                 TickEntries(deltaTime);
             }
+        }
+
+        private bool AllFormationGroupsCleared()
+        {
+            foreach (ITacticFormationGroup group in _formationGroups)
+            {
+                if (!group.IsCleared)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         private void TickEntries(float deltaTime)
@@ -114,58 +140,80 @@ namespace Stage
             }
         }
 
-        private void TickTactics(float deltaTime)
+        /// <summary>
+        /// 남은 전술 엔트리를 전부 즉시(한 틱에) 처리한다 - 각 엔트리는 시간차 없이 리더/추종자
+        /// 전원이 한꺼번에 스폰된다.
+        /// </summary>
+        private void TickTactics()
         {
-            if (_pairsSpawnedInEntry == 0 && _tacticFormationSideIsBottom == null)
+            while (_tacticEntryIndex < _tacticEntries.Length)
             {
-                _tacticFormationSideIsBottom = IsPlayerNearTop();
-            }
-
-            _tacticElapsed += deltaTime;
-
-            TacticSpawnEntry entry = _tacticEntries[_tacticEntryIndex];
-
-            if (_tacticElapsed < entry.SpawnInterval)
-            {
-                return;
-            }
-
-            _tacticElapsed = 0f;
-            SpawnPair(entry);
-
-            _pairsSpawnedInEntry++;
-
-            if (_pairsSpawnedInEntry >= entry.PairCount)
-            {
-                if (TacticStrategies.TryGetValue(entry.Type, out ITacticSpawnStrategy strategy))
-                {
-                    _formationGroups.Add(strategy.CreateFormationGroup(_pendingLeaders, _pendingFollowers));
-                }
-
-                _pendingLeaders.Clear();
-                _pendingFollowers.Clear();
-                _pairsSpawnedInEntry = 0;
-                _tacticFormationSideIsBottom = null;
+                SpawnFormation(_tacticEntries[_tacticEntryIndex]);
                 _tacticEntryIndex++;
             }
         }
 
-        private void SpawnPair(TacticSpawnEntry entry)
+        private void SpawnFormation(TacticSpawnEntry entry)
         {
-            GameObject leader = SpawnInstance(entry.LeaderPrefab, null);
+            bool useBottom = IsPlayerNearTop();
+            int pairCount = PrepareFormationLayout(entry, useBottom);
 
-            GameObject followerPrefab = entry.FollowerPrefab;
-
-            if (entry.AlternateFollowerPrefab != null && UnityEngine.Random.value < entry.AlternateFollowerChance)
+            for (int i = 0; i < pairCount; i++)
             {
-                followerPrefab = entry.AlternateFollowerPrefab;
+                GameObject leader = SpawnInstance(entry.LeaderPrefab, null, _formationLeaderPositions[i]);
+
+                GameObject followerPrefab = entry.FollowerPrefab;
+
+                if (entry.AlternateFollowerPrefab != null && UnityEngine.Random.value < entry.AlternateFollowerChance)
+                {
+                    followerPrefab = entry.AlternateFollowerPrefab;
+                }
+
+                GameObject follower = SpawnInstance(followerPrefab, null, _formationFollowerPositions[i]);
+                ConfigureAsFormationFollower(follower);
+
+                _pendingLeaders.Add(leader);
+                _pendingFollowers.Add(follower);
             }
 
-            GameObject follower = SpawnInstance(followerPrefab, null);
-            ConfigureAsFormationFollower(follower);
+            if (TacticStrategies.TryGetValue(entry.Type, out ITacticSpawnStrategy strategy))
+            {
+                _formationGroups.Add(strategy.CreateFormationGroup(_pendingLeaders, _pendingFollowers));
+            }
 
-            _pendingLeaders.Add(leader);
-            _pendingFollowers.Add(follower);
+            _pendingLeaders.Clear();
+            _pendingFollowers.Clear();
+        }
+
+        /// <summary>
+        /// 전술 대형 한 벌의 스폰 위치를 미리 계산한다 - 리더(1열)는 고정된 스폰 지점 한 줄을
+        /// 따라 나란히, 추종자(2열)는 그보다 rowSpacing만큼 더 화면 밖(플레이어 반대쪽)으로
+        /// 물러난 평행한 줄을 따라 나란히 선다. 기존 NextSpawnPoint()처럼 몇 개 안 되는
+        /// 스폰 지점을 순환 재사용하면 다수의 쌍이 같은 좌표 근처에 뭉쳐 스폰되므로(대형처럼
+        /// 안 보이고, 스플래시 등 광역 판정에도 의도치 않게 한꺼번에 걸림) 전술 스폰만은
+        /// 매 쌍마다 서로 다른 고유 좌표를 미리 계산해 쓴다. entry.TotalUnitCount를 절반으로
+        /// 나눈 쌍의 수를 반환한다.
+        /// </summary>
+        private int PrepareFormationLayout(TacticSpawnEntry entry, bool useBottom)
+        {
+            Transform[] points = useBottom ? _bottomSpawnPoints : _topSpawnPoints;
+            Vector3 anchor = points[0].position;
+            float behindSign = useBottom ? -1f : 1f;
+
+            int pairCount = Mathf.Max(entry.TotalUnitCount / 2, 0);
+            _formationLeaderPositions = new Vector3[pairCount];
+            _formationFollowerPositions = new Vector3[pairCount];
+
+            float startX = anchor.x - (pairCount - 1) * _tacticUnitSpacing * 0.5f;
+
+            for (int i = 0; i < pairCount; i++)
+            {
+                float x = startX + i * _tacticUnitSpacing;
+                _formationLeaderPositions[i] = new Vector3(x, anchor.y, anchor.z);
+                _formationFollowerPositions[i] = new Vector3(x, anchor.y + behindSign * _tacticRowSpacing, anchor.z);
+            }
+
+            return pairCount;
         }
 
         /// <summary>
@@ -191,13 +239,31 @@ namespace Stage
 
         private void SpawnOne(MonsterSpawnEntry entry)
         {
-            SpawnInstance(entry.MonsterPrefab, entry.VisualSet);
+            SpawnInstance(entry.MonsterPrefab, entry.VisualSet, null);
         }
 
-        private GameObject SpawnInstance(GameObject prefab, MonsterVisualSetSO visualSet)
+        /// <summary>
+        /// explicitPosition이 주어지면(전술 대형의 각 자리) 그 좌표에 그대로 스폰하고,
+        /// 아니면(일반 웨이브) 기존처럼 NextSpawnPoint()로 화면 밖 스폰 지점을 순환한다.
+        /// </summary>
+        private GameObject SpawnInstance(GameObject prefab, MonsterVisualSetSO visualSet, Vector3? explicitPosition)
         {
-            Transform spawnPoint = NextSpawnPoint();
-            GameObject instance = _pool.Get(prefab, spawnPoint.position, spawnPoint.rotation);
+            Vector3 position;
+            Quaternion rotation;
+
+            if (explicitPosition.HasValue)
+            {
+                position = explicitPosition.Value;
+                rotation = Quaternion.identity;
+            }
+            else
+            {
+                Transform spawnPoint = NextSpawnPoint();
+                position = spawnPoint.position;
+                rotation = spawnPoint.rotation;
+            }
+
+            GameObject instance = _pool.Get(prefab, position, rotation);
 
             if (instance.TryGetComponent(out StageMonsterScaler scaler))
             {
@@ -222,14 +288,10 @@ namespace Stage
 
         /// <summary>
         /// 플레이어가 화면 상단에 있으면 하단 스폰 지점을, 아니면 상단 스폰 지점을 사용한다.
-        /// 전술 대형을 스폰하는 도중이면(_tacticFormationSideIsBottom 고정됨) 매번 다시 판정하지
-        /// 않고 그 대형이 시작할 때 정한 쪽을 그대로 쓴다.
         /// </summary>
         private Transform NextSpawnPoint()
         {
-            bool useBottom = _tacticFormationSideIsBottom ?? IsPlayerNearTop();
-
-            if (useBottom)
+            if (IsPlayerNearTop())
             {
                 Transform point = _bottomSpawnPoints[_bottomCursor % _bottomSpawnPoints.Length];
                 _bottomCursor++;

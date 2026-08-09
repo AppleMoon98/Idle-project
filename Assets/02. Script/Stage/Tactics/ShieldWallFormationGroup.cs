@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Character;
 using Character.Events;
 using Combat;
 using Core;
@@ -13,15 +12,20 @@ namespace Stage.Tactics
     /// 재배정 규칙: 방패병 수와 창병 수 중 작은 쪽만큼 1:1 페어를 만들고 -
     ///   - 방패병이 남으면: 남는 방패병은 순환 배정으로 기존 페어의 창병 중 하나를 추가로
     ///     보호한다(MonsterTargetSelector를 끄고 GuardPositioner를 켜서 그 창병과 가장 가까운
-    ///     적을 잇는 선 위에 자리 잡는다).
-    ///   - 창병이 남으면: 남는 창병은 리더 없이(FormationFollower.SetLeader(null)) 혼자 싸운다 -
-    ///     이미 FormationFollower 자체에 있는 대체 동작이라 별도 코드가 필요 없다.
+    ///     적을 잇는 선 위에 자리 잡는다) - 이건 순전히 위치로 막는 것이지, 데미지를 대신
+    ///     받아주는 게 아니다(방패병과 창병은 서로 다른 개체이므로 데미지를 공유하지 않는다 -
+    ///     Character.ShieldGuard는 오직 자기 자신만 지킨다).
+    ///   - 창병/궁병이 남으면: 남는 추종자는 FormationFollower를 끄고 RangedKiter를 켜서
+    ///     혼자 카이팅한다(창병도 근접보다 긴 사거리를 가진 만큼, 적이 다가오면 물러나며
+    ///     공격하는 게 기본 동작 - 방패 없이 무작정 붙어 싸우지 않는다).
     /// </summary>
     public sealed class ShieldWallFormationGroup : ITacticFormationGroup
     {
         private readonly List<GameObject> _shieldBearers;
         private readonly List<GameObject> _spearmen;
         private bool _disposed;
+
+        public bool IsCleared => _shieldBearers.Count == 0 && _spearmen.Count == 0;
 
         public ShieldWallFormationGroup(IReadOnlyList<GameObject> shieldBearers, IReadOnlyList<GameObject> spearmen)
         {
@@ -82,7 +86,7 @@ namespace Stage.Tactics
             {
                 for (int i = pairCount; i < spearCount; i++)
                 {
-                    ReleaseSpearmanAlone(_spearmen[i]);
+                    ReleaseFollowerAlone(_spearmen[i]);
                 }
             }
         }
@@ -99,13 +103,14 @@ namespace Stage.Tactics
                 guard.enabled = false;
             }
 
-            if (shieldBearer.TryGetComponent(out ShieldGuard shieldGuard) && spearman.TryGetComponent(out Health spearHealth))
+            if (spearman.TryGetComponent(out RangedKiter kiter))
             {
-                shieldGuard.SetProtectedUnit(spearHealth);
+                kiter.enabled = false;
             }
 
             if (spearman.TryGetComponent(out FormationFollower follower))
             {
+                follower.enabled = true;
                 follower.SetLeader(shieldBearer.transform);
             }
         }
@@ -122,11 +127,6 @@ namespace Stage.Tactics
                 guard.SetProtectedUnit(protectedSpearman.transform);
                 guard.enabled = true;
             }
-
-            if (shieldBearer.TryGetComponent(out ShieldGuard shieldGuard) && protectedSpearman.TryGetComponent(out Health spearHealth))
-            {
-                shieldGuard.SetProtectedUnit(spearHealth);
-            }
         }
 
         private static void ReleaseShieldBearerAlone(GameObject shieldBearer)
@@ -141,18 +141,25 @@ namespace Stage.Tactics
                 guard.SetProtectedUnit(null);
                 guard.enabled = false;
             }
-
-            if (shieldBearer.TryGetComponent(out ShieldGuard shieldGuard))
-            {
-                shieldGuard.SetProtectedUnit(null);
-            }
         }
 
-        private static void ReleaseSpearmanAlone(GameObject spearman)
+        /// <summary>
+        /// 보호해줄 방패병이 없는 추종자(창병 또는 대체로 들어간 궁병)를 혼자 카이팅하는
+        /// 상태로 전환한다 - FormationFollower를 끄고 RangedKiter를 켠다. 궁병은 원래
+        /// RangedKiter가 기본이라 사실상 원상복구고, 창병도 같은 컴포넌트로 "사거리 유지하며
+        /// 물러나기" 동작을 그대로 재사용한다.
+        /// </summary>
+        private static void ReleaseFollowerAlone(GameObject follower)
         {
-            if (spearman.TryGetComponent(out FormationFollower follower))
+            if (follower.TryGetComponent(out FormationFollower formationFollower))
             {
-                follower.SetLeader(null);
+                formationFollower.SetLeader(null);
+                formationFollower.enabled = false;
+            }
+
+            if (follower.TryGetComponent(out RangedKiter kiter))
+            {
+                kiter.enabled = true;
             }
         }
 

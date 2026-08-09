@@ -6,8 +6,10 @@ namespace Stage
     /// <summary>
     /// 스테이지 내 하나의 전술(Tactic) 웨이브를 정의한다. MonsterSpawnEntry와 달리 한 종류의
     /// 프리팹을 N마리 스폰하는 게 아니라, 리더(leaderPrefab)와 추종자(followerPrefab)를
-    /// pairCount쌍만큼 짝지어 스폰한다 - 실제 페어링/재배정 로직은 type에 대응하는
-    /// Stage.Tactics.ITacticSpawnStrategy가 담당한다.
+    /// totalUnitCount / 2쌍만큼 짝지어 한꺼번에(즉시) 스폰한다 - "이 웨이브에서 잡아야 하는
+    /// 유닛 수"를 그대로 담는 값이 totalUnitCount이고(1열+2열 합산), 절반씩 나눠 리더/추종자가
+    /// 된다 - 실제 페어링/재배정 로직은 type에 대응하는 Stage.Tactics.ITacticSpawnStrategy가
+    /// 담당한다.
     /// </summary>
     [Serializable]
     public sealed class TacticSpawnEntry
@@ -29,10 +31,7 @@ namespace Stage
         private float alternateFollowerChance;
 
         [SerializeField]
-        private int pairCount;
-
-        [SerializeField]
-        private float spawnInterval;
+        private int totalUnitCount;
 
         /// <summary>
         /// 전술 종류.
@@ -60,13 +59,9 @@ namespace Stage
         public float AlternateFollowerChance => alternateFollowerChance;
 
         /// <summary>
-        /// 스폰할 쌍의 수.
+        /// 이 웨이브에서 잡아야 하는 총 유닛 수(1열+2열 합산). 절반이 리더, 절반이 추종자로
+        /// 스폰된다.
         /// </summary>
-        public int PairCount => pairCount;
-
-        /// <summary>
-        /// 쌍 하나씩 스폰되는 간격(초).
-        /// </summary>
-        public float SpawnInterval => spawnInterval;
+        public int TotalUnitCount => totalUnitCount;
     }
 }

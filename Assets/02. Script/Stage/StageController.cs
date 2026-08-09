@@ -37,6 +37,12 @@ namespace Stage
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
 
+        [SerializeField]
+        private float tacticUnitSpacing = 1.5f;
+
+        [SerializeField]
+        private float tacticRowSpacing = 2f;
+
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
         private StageProgression _progression;
@@ -117,15 +123,31 @@ namespace Stage
             {
                 foreach (TacticSpawnEntry tacticEntry in stage.TacticEntries)
                 {
-                    pool.EnsurePool(tacticEntry.LeaderPrefab, tacticEntry.PairCount, tacticEntry.PairCount);
-                    pool.EnsurePool(tacticEntry.FollowerPrefab, tacticEntry.PairCount, tacticEntry.PairCount);
+                    int pairCount = tacticEntry.TotalUnitCount / 2;
+                    pool.EnsurePool(tacticEntry.LeaderPrefab, pairCount, pairCount);
+                    pool.EnsurePool(tacticEntry.FollowerPrefab, pairCount, pairCount);
+
+                    if (tacticEntry.AlternateFollowerPrefab != null)
+                    {
+                        pool.EnsurePool(tacticEntry.AlternateFollowerPrefab, pairCount, pairCount);
+                    }
                 }
             }
 
             float statMultiplier = GetStatMultiplier(stage);
 
             _tracker = new StageProgressTracker(stage, GameBootstrapper.Events);
-            _spawner = new MonsterSpawner(stage, pool, topSpawnPoints, bottomSpawnPoints, playerTarget, _tracker, playerNearTopViewportThreshold, statMultiplier);
+            _spawner = new MonsterSpawner(
+                stage,
+                pool,
+                topSpawnPoints,
+                bottomSpawnPoints,
+                playerTarget,
+                _tracker,
+                playerNearTopViewportThreshold,
+                statMultiplier,
+                tacticUnitSpacing,
+                tacticRowSpacing);
 
             TickerRegistration.Register(_spawner);
 

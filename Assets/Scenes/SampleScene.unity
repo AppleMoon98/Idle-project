@@ -36755,6 +36755,8 @@ MonoBehaviour:
   catalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   maxRegressionDistance: 20
   difficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}
+  tacticUnitSpacing: 1.5
+  tacticRowSpacing: 2
 --- !u!4 &1663688276
 Transform:
   m_ObjectHideFlags: 0

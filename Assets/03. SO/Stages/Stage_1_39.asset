@@ -25,6 +25,5 @@ MonoBehaviour:
     followerPrefab: {fileID: 3104091886448902630, guid: 2bf238906febe384d95ef5403d51d9f6, type: 3}
     alternateFollowerPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
     alternateFollowerChance: 0.3
-    pairCount: 15
-    spawnInterval: 0.15
+    totalUnitCount: 30
   equipmentDrops: []
