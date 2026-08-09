@@ -94,6 +94,7 @@ namespace Character
         {
             IsDead = false;
             SetCurrent(_statsProvider.Stats.MaxHealth);
+            _shieldGuard?.ResetShield();
         }
 
         void IPoolable.OnSpawned()

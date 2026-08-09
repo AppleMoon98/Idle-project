@@ -98,3 +98,11 @@ CLAUDE.md의 "### BZ. ..."부터 이어지는 상세 구현 기록입니다. 섹
 - **`MonsterSpawnEntry.SpawnWithTactics`**(신규 `bool`) — 켜져 있으면 그 항목의 `Count` 전부를 시간차 없이 전술 웨이브와 같은 틱에 즉시 스폰한다. `MonsterSpawner.SpawnImmediateEntries()`가 `TickTactics()`(대형 배치 직후, 같은 틱)에서 호출되며, `spawnEntries` 배열 **앞쪽부터** 이 플래그가 켜진 항목이 이어지는 동안만 처리하고 `_entryIndex`를 그만큼 건너뛴다 — 이후 `TickEntries`는 남은 항목부터 기존처럼 시간차로 처리한다. 즉 즉시 스폰 항목은 항상 배열 맨 앞에 몰아서 배치해야 한다.
 - `MonsterSpawner.PrepareFormationLayout`이 대형 배치의 앵커/축/방향(`_lastFormationAnchor`/`_lastFormationAlongX`/`_lastFormationOutwardSign`)을 인스턴스 필드에 캐싱해두고, `BehindTacticFormation`은 그 값에 `tacticRowSpacing × 2`(추종자 열보다 한 겹 더 뒤)만큼 더 물러난 좌표를 계산한다 — `SpawnImmediateEntries()`가 대형 배치 **직후**(같은 틱) 호출되므로 방금 계산된 좌표를 그대로 쓸 수 있다. 그 스테이지에 전술 웨이브가 아예 없으면(캐싱된 값 없음) `NextSpawnPoint()`로 방어적 대체한다.
 - `Stage_1_40`/`Stage_2_40`에 적용: 기마병(Cavalry) 항목 = `spawnWithTactics=1, placement=LeftOrRight`, 기사(Knight) 항목 = `spawnWithTactics=1, placement=BehindTacticFormation`.
+
+### CO. War Climax Warmup Now Actually Pauses Monster Spawning/Movement
+`Assets/02. Script/War/WarBattleController.cs` — N-40 진입 시 3초 워밍업 카운트다운(`climaxWarmupDuration`) 동안 몬스터가 이미 스폰되어 움직이고 있는 문제가 실사용 중 발견됐다. 원인: `Stage.MonsterSpawner`는 `StageChangedEvent`만으로 즉시 스폰/이동을 시작하며 War 워밍업과는 완전히 무관하다 — 워밍업은 War 목표(`IWarObjective`) 판정만 지연시킬 뿐, 스테이지 자체의 스폰/전투는 아무것도 막지 않았다.
+- `WarBattleController`에 `stageController` 참조를 추가해, 워밍업 시작 시 `StageController.PauseForOverlay()`(던전 오버레이가 쓰는 것과 같은 매커니즘 — 스포너 틱 해제 + 생존 몬스터 비활성화)를 호출하고, 워밍업이 끝나 목표를 실제로 활성화하는 시점에 `ResumeAfterOverlay()`로 되돌린다. `PauseForOverlay()` 호출 시점이 `MonsterSpawner`가 그 스테이지에서 단 한 번도 틱하기 전(같은 프레임 내 `StageChangedEvent` 발행 직후)이라, 이미 스폰된 걸 되돌릴 필요 없이 깔끔하게 막힌다.
+
+### CP. Shield Health Scales With the Bearer's Own MaxHealth
+`Assets/02. Script/Character/ShieldGuard.cs`/`Health.cs` — 방패 최대 체력이 고정값(`Monster_ShieldBearer.prefab`에서 25) 대신 이 유닛 자신의 `Stats.MaxHealth × shieldHealthMultiplier`(기본 1.5)로 매번 계산되도록 바꿨다 — 스테이지 난이도 배율(`StageMonsterScaler`)로 몸 체력이 커지면 방패도 같은 비율로 함께 커진다.
+- `ShieldGuard.ResetShield()`(공개, 매개변수 없음)가 자기 자신의 `CharacterStatsProvider.Stats.MaxHealth`를 그때그때 읽어 재계산한다. `Health.Revive()`가 이 메서드를 함께 호출하도록 해서, `StageMonsterScaler.ApplyScale()`이 스케일된 `MaxHealth`를 확정한 뒤 다시 부르는 `Revive()`에서 방패도 정확한 최종 값 기준으로 갱신된다(스폰 시퀀스 초반의 `ShieldGuard.OnSpawned()` 자체 리셋은 아직 스케일 전 값이라 임시값일 뿐 — 이후 `Revive()` 호출들이 덮어쓴다).

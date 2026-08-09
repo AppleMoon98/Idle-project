@@ -59,6 +59,9 @@ namespace War
         private Health playerHealth;
 
         [SerializeField]
+        private StageController stageController;
+
+        [SerializeField]
         private GameObject warZoneRoot;
 
         [SerializeField]
@@ -135,11 +138,19 @@ namespace War
             // 실제 활성화(ActivateObjective)는 Tick()에서 워밍업이 끝났을 때 수행한다. 다만 구조물/
             // 수하물 같은 전장 소품은 워밍업 중에도 이미 보여야 하므로(warZoneRoot와 같은 타이밍),
             // _activeType이 정해지는 즉시 그에 맞는 소품만 SetWarZonePropsActive로 켠다.
+            //
+            // MonsterSpawner는 StageChangedEvent만으로 즉시 스폰/이동을 시작하므로(War 워밍업과
+            // 완전히 무관), 워밍업 카운트다운 중에도 몹이 이미 움직이는 문제가 있었다(실사용 중
+            // 발견). StageController.PauseForOverlay()(던전 오버레이가 쓰는 것과 같은 매커니즘)로
+            // 스포너 틱을 묶어 카운트다운 동안은 아무것도 스폰/이동하지 않게 한다 - 이 시점은
+            // LoadStage()가 아직 스포너를 한 번도 틱하지 않은 채라(StageChangedEvent 발행 직후,
+            // 같은 프레임) 이미 스폰된 걸 되돌릴 필요 없이 깔끔하게 막힌다.
             _activeType = ResolveObjectiveType(evt.Chapter);
             SetWarZonePropsActive(_activeType);
             _isActive = false;
             _isWarmingUp = true;
             _warmupRemaining = climaxWarmupDuration;
+            stageController?.PauseForOverlay();
             GameBootstrapper.Events?.Publish(new WarClimaxWarmupStartedEvent(_activeType, evt.Chapter, climaxWarmupDuration));
         }
 
@@ -155,6 +166,7 @@ namespace War
                 }
 
                 _isWarmingUp = false;
+                stageController?.ResumeAfterOverlay();
                 _activeObjective = ActivateObjective(_activeType);
                 _isActive = _activeObjective != null;
                 _lastPublishedProgress = -1f;

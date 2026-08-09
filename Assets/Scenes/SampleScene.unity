@@ -36104,6 +36104,7 @@ MonoBehaviour:
   chapterObjectives: []
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   playerHealth: {fileID: 762544238}
+  stageController: {fileID: 1663688275}
   warZoneRoot: {fileID: 1632300256}
   structureCaptureProps: {fileID: 1275394183}
   cargoProtectionProps: {fileID: 261813621}
