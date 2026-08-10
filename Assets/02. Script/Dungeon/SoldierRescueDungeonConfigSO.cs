@@ -32,13 +32,7 @@ namespace Dungeon
         private int ticketsPerClearPerStage = 5;
 
         [SerializeField]
-        private float extraStrengthMultiplier = 1.5f;
-
-        [SerializeField]
         private StageCatalogSO stageCatalog;
-
-        [SerializeField]
-        private StageDifficultyConfigSO difficultyConfig;
 
         [SerializeField]
         private float spawnViewportMargin = 0.2f;
@@ -88,30 +82,6 @@ namespace Dungeon
         /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5). 기마병 스폰에 쓴다.
         /// </summary>
         public float SpawnViewportMargin => spawnViewportMargin;
-
-        /// <summary>
-        /// StoneDungeonConfigSO.CalculateBossStatMultiplier와 동일한 계산 — 선택한 단계 N을
-        /// "챕터 N의 N-40 스테이지" 난이도 배율 × extraStrengthMultiplier로 해석한다.
-        /// </summary>
-        public float CalculateCavalryStatMultiplier(int stageNumber)
-        {
-            if (stageCatalog == null || difficultyConfig == null)
-            {
-                return extraStrengthMultiplier;
-            }
-
-            StageSO referenceStage = GetReferenceStage(stageNumber);
-
-            if (referenceStage == null)
-            {
-                return extraStrengthMultiplier;
-            }
-
-            int stageIndex = stageCatalog.IndexOf(referenceStage);
-            float storyMultiplier = difficultyConfig.GetMultiplier(stageIndex);
-
-            return storyMultiplier * extraStrengthMultiplier;
-        }
 
         /// <summary>
         /// 선택한 단계 N의 기준 스테이지(챕터 N의 -40 스테이지)를 반환한다. 존재하지 않으면

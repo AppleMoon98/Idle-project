@@ -1,5 +1,6 @@
 using Core;
 using UnityEngine;
+using War.Boss;
 using War.Events;
 
 namespace War
@@ -21,6 +22,9 @@ namespace War
         [SerializeField]
         private LayerMask enemyLayerMask;
 
+        [SerializeField]
+        private WarBossTelegraphIndicator rangeIndicator;
+
         private float _elapsed;
 
         /// <summary>
@@ -32,6 +36,25 @@ namespace War
         /// 점령 완료 여부. 한 번 완료되면 되돌아가지 않는다.
         /// </summary>
         public bool IsCaptured { get; private set; }
+
+        /// <summary>
+        /// 점령 판정 반경. 자동 이동(Character.CaptureZoneAutoNavigator) 등 외부에서 "이 범위
+        /// 안에 서면 된다"를 알아야 하는 소비자를 위해 노출한다.
+        /// </summary>
+        public float ActivationRadius => definition != null ? definition.ActivationRadius : 0f;
+
+        /// <summary>
+        /// War 보스 광역기 예고(WarBossTelegraphIndicator)를 그대로 재사용해, 점령 판정 반경을
+        /// 보스 공격 범위처럼 항상 표시해둔다 - ActivationRadius는 구조물이 존재하는 동안 변하지
+        /// 않으므로 한 번만 Show()하면 된다(자식이라 위치는 부모를 따라 자동으로 맞는다).
+        /// </summary>
+        private void Awake()
+        {
+            if (rangeIndicator != null && definition != null)
+            {
+                rangeIndicator.Show(transform.position, definition.ActivationRadius);
+            }
+        }
 
         private void OnEnable()
         {

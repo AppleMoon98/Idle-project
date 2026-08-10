@@ -33,6 +33,11 @@ namespace Dungeon
     {
         private const int MaxPlacementAttemptsPerZone = 30;
 
+        /// <summary>
+        /// 기마병 이동속도 = BaseStats.MoveSpeed + 단계 × 이 값 (요청 사양 - 배율이 아니라 덧셈).
+        /// </summary>
+        private const float MoveSpeedPerStage = 0.1f;
+
         [SerializeField]
         private SoldierRescueDungeonConfigSO config;
 
@@ -47,6 +52,9 @@ namespace Dungeon
 
         [SerializeField]
         private GameObject structurePrefab;
+
+        [SerializeField]
+        private CaptureZoneAutoNavigator captureNavigator;
 
         private readonly List<WarStructure> _activeZones = new();
         private readonly List<GameObject> _activeCavalry = new();
@@ -164,6 +172,7 @@ namespace Dungeon
             _lastPublishedProgress = -1f;
 
             SpawnZones();
+            captureNavigator?.Activate(_activeZones);
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Register(this);
@@ -298,9 +307,20 @@ namespace Dungeon
             Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(config.SpawnViewportMargin);
             GameObject instance = pool.Get(config.CavalryPrefab, spawnPosition, Quaternion.identity);
 
-            if (instance.TryGetComponent(out StageMonsterScaler scaler))
+            // 체력/공격력은 프리팹 자체(MonsterStats_Cavalry_Rescue: 체력 90000/공격력 1)에 고정돼
+            // 있어 단계와 무관하다 - 단계에 비례해 세지는 건 넉백뿐이다(요청 사양).
+            if (instance.TryGetComponent(out CharacterStatsProvider statsProvider))
             {
-                scaler.ApplyScale(config.CalculateCavalryStatMultiplier(_stageNumber));
+                statsProvider.Stats.MoveSpeed = statsProvider.BaseStats.MoveSpeed + _stageNumber * MoveSpeedPerStage;
+            }
+
+            if (instance.TryGetComponent(out CavalryCharge cavalryCharge))
+            {
+                cavalryCharge.SetKnockbackMultiplier(_stageNumber);
+
+                // 공격력은 프리팹 고정값(1) 그대로 둔다 - 돌진 속도 비례 추가 데미지까지 더해지면
+                // 더 이상 "거의 무해한" 공격력이 아니게 되므로, 이 던전의 기마병만 꺼둔다.
+                cavalryCharge.SetBonusDamagePerSpeedMultiplier(0f);
             }
 
             if (instance.TryGetComponent(out IMonsterMovementInitializer movementInitializer))
@@ -403,6 +423,7 @@ namespace Dungeon
         {
             _isFighting = false;
 
+            captureNavigator?.Deactivate();
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Unregister(this);
         }

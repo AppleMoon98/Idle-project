@@ -289,14 +289,23 @@ namespace Stage
         /// 기존 NextSpawnPoint()처럼 몇 개 안 되는 스폰 지점을 순환 재사용하면 다수의 쌍이 같은
         /// 좌표 근처에 뭉쳐 스폰되므로(대형처럼 안 보이고, 스플래시 등 광역 판정에도 의도치 않게
         /// 한꺼번에 걸림) 전술 스폰만은 매 쌍마다 서로 다른 고유 좌표를 미리 계산해 쓴다.
-        /// entry.TotalUnitCount를 절반으로 나눈 쌍의 수를 반환한다.
+        /// 줄의 중심은 그 방향 스폰 지점들의 along축 좌표 평균이다(points[0]만 기준으로 삼으면
+        /// 그 지점이 화면 중앙이 아닌 한쪽 끝(예: SpawnPoint_Top_Left)에 있을 때 대형 전체가
+        /// 그쪽으로 쏠려 배치된다). 배열 순서(=스폰 순서)도 중심에서 바깥으로(0, +1칸, -1칸,
+        /// +2칸, -2칸, ...) 나가도록 채워, 대형이 한쪽 끝이 아니라 중앙에서부터 나타나 좌우로
+        /// 벌어지는 것처럼 보이게 한다. entry.TotalUnitCount를 절반으로 나눈 쌍의 수를 반환한다.
         /// </summary>
         private int PrepareFormationLayout(TacticSpawnEntry entry, SpawnSide side)
         {
             Transform[] points = GetSpawnPoints(side);
-            Vector3 anchor = points[0].position;
             bool alongX = side == SpawnSide.Top || side == SpawnSide.Bottom;
             float outwardSign = side == SpawnSide.Top || side == SpawnSide.Right ? 1f : -1f;
+
+            float anchorAlong = AverageAlong(points, alongX);
+            float anchorOffAxis = alongX ? points[0].position.y : points[0].position.x;
+            Vector3 anchor = alongX
+                ? new Vector3(anchorAlong, anchorOffAxis, points[0].position.z)
+                : new Vector3(anchorOffAxis, anchorAlong, points[0].position.z);
 
             _lastFormationAnchor = anchor;
             _lastFormationAlongX = alongX;
@@ -307,26 +316,40 @@ namespace Stage
             _formationLeaderPositions = new Vector3[pairCount];
             _formationFollowerPositions = new Vector3[pairCount];
 
-            float anchorAlong = alongX ? anchor.x : anchor.y;
-            float start = anchorAlong - (pairCount - 1) * _tacticUnitSpacing * 0.5f;
-
-            for (int i = 0; i < pairCount; i++)
+            for (int k = 0; k < pairCount; k++)
             {
-                float along = start + i * _tacticUnitSpacing;
+                int ring = (k + 1) / 2;
+                int ringSign = k % 2 == 1 ? 1 : -1;
+                float along = anchorAlong + ring * ringSign * _tacticUnitSpacing;
 
                 if (alongX)
                 {
-                    _formationLeaderPositions[i] = new Vector3(along, anchor.y, anchor.z);
-                    _formationFollowerPositions[i] = new Vector3(along, anchor.y + outwardSign * _tacticRowSpacing, anchor.z);
+                    _formationLeaderPositions[k] = new Vector3(along, anchor.y, anchor.z);
+                    _formationFollowerPositions[k] = new Vector3(along, anchor.y + outwardSign * _tacticRowSpacing, anchor.z);
                 }
                 else
                 {
-                    _formationLeaderPositions[i] = new Vector3(anchor.x, along, anchor.z);
-                    _formationFollowerPositions[i] = new Vector3(anchor.x + outwardSign * _tacticRowSpacing, along, anchor.z);
+                    _formationLeaderPositions[k] = new Vector3(anchor.x, along, anchor.z);
+                    _formationFollowerPositions[k] = new Vector3(anchor.x + outwardSign * _tacticRowSpacing, along, anchor.z);
                 }
             }
 
             return pairCount;
+        }
+
+        /// <summary>
+        /// 스폰 지점 배열의 along축(가로 또는 세로) 좌표 평균 - 대형 줄의 중심으로 쓴다.
+        /// </summary>
+        private static float AverageAlong(Transform[] points, bool alongX)
+        {
+            float sum = 0f;
+
+            foreach (Transform point in points)
+            {
+                sum += alongX ? point.position.x : point.position.y;
+            }
+
+            return sum / points.Length;
         }
 
         /// <summary>

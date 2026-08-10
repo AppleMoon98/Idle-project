@@ -17996,6 +17996,7 @@ GameObject:
   - component: {fileID: 762544254}
   - component: {fileID: 762544255}
   - component: {fileID: 843023033926465275}
+  - component: {fileID: 843023033926465276}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -18003,19 +18004,6 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &843023033926465275
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762544235}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a58b0c5efd424e219219365f95221ac9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Character.ClimaxStagePositionResetter
-  soldierSpawner: {fileID: 1606090361}
 --- !u!4 &762544236
 Transform:
   m_ObjectHideFlags: 0
@@ -18213,7 +18201,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
-  weaponSwing: {fileID: 140417263}
+  weaponMotion: {fileID: 140417263}
 --- !u!114 &762544244
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -22907,6 +22895,7 @@ MonoBehaviour:
   soldierSpawner: {fileID: 1606090361}
   playerTransform: {fileID: 762544236}
   structurePrefab: {fileID: 8480391494377752689, guid: ad0ae9340b5949a45a7294eeb4db2b61, type: 3}
+  captureNavigator: {fileID: 843023033926465276}
 --- !u!4 &966188449
 Transform:
   m_ObjectHideFlags: 0
@@ -38315,6 +38304,54 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1620833382}
   m_CullTransparentMesh: 1
+--- !u!1 &1621393080
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1621393082}
+  - component: {fileID: 1621393081}
+  m_Layer: 0
+  m_Name: ClimaxReinforcementSpawner
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1621393081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1621393080}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7a21c8f9664407849b6f58acf9baaebc, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::War.ClimaxReinforcementSpawner
+  reinforcementPrefab: {fileID: 7100000000000020, guid: 8b3f1d6a4c9e4b2f9a7c5e1d3b6f0a82, type: 3}
+  playerTarget: {fileID: 762544236}
+  unitCount: 20
+  spawnRadius: 3
+--- !u!4 &1621393082
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1621393080}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &1622828830
 GameObject:
   m_ObjectHideFlags: 0
@@ -50940,6 +50977,32 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2147140124}
   m_CullTransparentMesh: 1
+--- !u!114 &843023033926465275
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a58b0c5efd424e219219365f95221ac9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.ClimaxStagePositionResetter
+  soldierSpawner: {fileID: 1606090361}
+--- !u!114 &843023033926465276
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e131e86db042f6d40a994afcf8ff0551, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CaptureZoneAutoNavigator
+  retargetInterval: 0.5
 --- !u!1001 &2296313086806946606
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -51110,3 +51173,4 @@ SceneRoots:
   - {fileID: 1821784528}
   - {fileID: 1446502507}
   - {fileID: 966188449}
+  - {fileID: 1621393082}
