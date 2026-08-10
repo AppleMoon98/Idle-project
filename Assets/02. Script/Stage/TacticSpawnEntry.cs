@@ -6,10 +6,10 @@ namespace Stage
     /// <summary>
     /// 스테이지 내 하나의 전술(Tactic) 웨이브를 정의한다. MonsterSpawnEntry와 달리 한 종류의
     /// 프리팹을 N마리 스폰하는 게 아니라, 리더(leaderPrefab)와 추종자(followerPrefab)를
-    /// totalUnitCount / 2쌍만큼 짝지어 한꺼번에(즉시) 스폰한다 - "이 웨이브에서 잡아야 하는
-    /// 유닛 수"를 그대로 담는 값이 totalUnitCount이고(1열+2열 합산), 절반씩 나눠 리더/추종자가
-    /// 된다 - 실제 페어링/재배정 로직은 type에 대응하는 Stage.Tactics.ITacticSpawnStrategy가
-    /// 담당한다.
+    /// totalUnitCount / 2쌍만큼 짝지어 pairSpawnInterval 간격으로 스폰한다 - "이 웨이브에서
+    /// 잡아야 하는 유닛 수"를 그대로 담는 값이 totalUnitCount이고(1열+2열 합산), 절반씩 나눠
+    /// 리더/추종자가 된다 - 실제 페어링/재배정 로직은 type에 대응하는
+    /// Stage.Tactics.ITacticSpawnStrategy가 담당한다.
     /// </summary>
     [Serializable]
     public sealed class TacticSpawnEntry
@@ -32,6 +32,9 @@ namespace Stage
 
         [SerializeField]
         private int totalUnitCount;
+
+        [SerializeField]
+        private float pairSpawnInterval;
 
         /// <summary>
         /// 전술 종류.
@@ -63,5 +66,12 @@ namespace Stage
         /// 스폰된다.
         /// </summary>
         public int TotalUnitCount => totalUnitCount;
+
+        /// <summary>
+        /// 쌍(리더+추종자) 하나가 스폰된 뒤 다음 쌍이 스폰되기까지의 간격(초). 0(기본값)이면
+        /// 기존과 동일하게 모든 쌍이 한 틱에 동시 스폰된다 - 41마리가 한꺼번에 교전 가능해지는
+        /// 상황(예: N-40 방패벽)을 완화하고 싶을 때만 0보다 크게 설정한다.
+        /// </summary>
+        public float PairSpawnInterval => pairSpawnInterval;
     }
 }

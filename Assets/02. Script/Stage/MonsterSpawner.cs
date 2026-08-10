@@ -14,10 +14,11 @@ namespace Stage
     /// 몬스터는 항상 플레이어 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어의 뷰포트 좌표가
     /// 중심(0.5, 0.5)에서 세로/가로 중 어느 축으로 더 벗어나 있는지 보고 그 축의 반대쪽
     /// (상/하/좌/우 4방향 중 하나) 스폰 지점을 고른다. 전술 웨이브(TacticSpawnEntry)를 먼저
-    /// 처리하고 - 스테이지에 입장하자마자 대형부터 즉시 구성되도록 - 그게 모두 끝나면 이어서
-    /// 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형은 한 마리씩 시간차로 나오지 않고,
-    /// 한 틱에 리더/추종자 전원이 한꺼번에 스폰된다("뭉텅이로 조금씩"이 아니라 "대형이 즉시
-    /// 갖춰진다").
+    /// 처리하고 - 스테이지에 입장하자마자 대형부터 구성되도록 - 그게 모두 끝나면 이어서
+    /// 일반 웨이브(MonsterSpawnEntry)를 처리한다. 전술 대형은 쌍(리더+추종자) 단위로
+    /// <see cref="TacticSpawnEntry.PairSpawnInterval"/>만큼 시간차를 두고 스폰된다 - 이
+    /// 값이 0(기본값)이면 한 틱에 전원이 한꺼번에 스폰되어(대형이 즉시 갖춰짐), 0보다 크면
+    /// 쌍마다 그 간격만큼 늦춰 스폰돼 대형 전체가 한꺼번에 교전 가능해지는 상황을 완화한다.
     /// </summary>
     public sealed class MonsterSpawner : ITickable, IDisposable
     {
@@ -65,6 +66,9 @@ namespace Stage
         private int _spawnedInEntry;
         private float _elapsed;
         private int _tacticEntryIndex;
+        private bool _tacticEntryStarted;
+        private int _tacticPairIndex;
+        private float _tacticPairElapsed;
         private int _topCursor;
         private int _bottomCursor;
         private int _leftCursor;
@@ -114,7 +118,7 @@ namespace Stage
         {
             if (_tacticEntryIndex < _tacticEntries.Length)
             {
-                TickTactics();
+                TickTactics(deltaTime);
                 return;
             }
 
@@ -169,18 +173,90 @@ namespace Stage
         }
 
         /// <summary>
-        /// 남은 전술 엔트리를 전부 즉시(한 틱에) 처리한다 - 각 엔트리는 시간차 없이 리더/추종자
-        /// 전원이 한꺼번에 스폰된다.
+        /// 현재 전술 엔트리를 쌍(리더+추종자) 단위로 시간차를 두고 스폰한다.
+        /// <see cref="TacticSpawnEntry.PairSpawnInterval"/>이 0(기본값)이면 첫 틱에 모든 쌍이
+        /// 즉시 스폰되어 기존 동작과 동일하다 - 0보다 크면 그 간격만큼 쌍마다 시간차를 둬서,
+        /// 대형 전체가 한꺼번에 교전 가능해지는 상황(예: N-40 방패벽의 41마리 동시 피격)을
+        /// 완화한다. 마지막 전술 엔트리의 마지막 쌍까지 다 스폰되면 이어서
+        /// spawnWithTactics 일반 웨이브(기마병/기사 등)를 처리한다.
         /// </summary>
-        private void TickTactics()
+        private void TickTactics(float deltaTime)
         {
-            while (_tacticEntryIndex < _tacticEntries.Length)
+            TacticSpawnEntry entry = _tacticEntries[_tacticEntryIndex];
+
+            if (!_tacticEntryStarted)
             {
-                SpawnFormation(_tacticEntries[_tacticEntryIndex]);
-                _tacticEntryIndex++;
+                SpawnSide side = DetermineSpawnSide();
+                PrepareFormationLayout(entry, side);
+                _tacticPairIndex = 0;
+                _tacticPairElapsed = entry.PairSpawnInterval;
+                _tacticEntryStarted = true;
+
+                if (_formationLeaderPositions.Length == 0)
+                {
+                    FinishTacticEntry(entry);
+                    return;
+                }
             }
 
-            SpawnImmediateEntries();
+            int totalPairs = _formationLeaderPositions.Length;
+            _tacticPairElapsed += deltaTime;
+
+            while (_tacticPairIndex < totalPairs && _tacticPairElapsed >= entry.PairSpawnInterval)
+            {
+                _tacticPairElapsed -= entry.PairSpawnInterval;
+                SpawnFormationPair(entry, _tacticPairIndex);
+                _tacticPairIndex++;
+            }
+
+            if (_tacticPairIndex >= totalPairs)
+            {
+                FinishTacticEntry(entry);
+            }
+        }
+
+        /// <summary>
+        /// 대형의 쌍(리더+추종자) 하나를 index 자리에 스폰한다.
+        /// </summary>
+        private void SpawnFormationPair(TacticSpawnEntry entry, int index)
+        {
+            GameObject leader = SpawnInstance(entry.LeaderPrefab, null, _formationLeaderPositions[index]);
+
+            GameObject followerPrefab = entry.FollowerPrefab;
+
+            if (entry.AlternateFollowerPrefab != null && UnityEngine.Random.value < entry.AlternateFollowerChance)
+            {
+                followerPrefab = entry.AlternateFollowerPrefab;
+            }
+
+            GameObject follower = SpawnInstance(followerPrefab, null, _formationFollowerPositions[index]);
+            ConfigureAsFormationFollower(follower);
+
+            _pendingLeaders.Add(leader);
+            _pendingFollowers.Add(follower);
+        }
+
+        /// <summary>
+        /// 현재 전술 엔트리의 모든 쌍이 다 스폰된 뒤 대형 그룹을 확정하고, 다음 전술 엔트리로
+        /// 넘어간다(더 없으면 spawnWithTactics 일반 웨이브를 이어서 처리).
+        /// </summary>
+        private void FinishTacticEntry(TacticSpawnEntry entry)
+        {
+            if (TacticStrategies.TryGetValue(entry.Type, out ITacticSpawnStrategy strategy))
+            {
+                _formationGroups.Add(strategy.CreateFormationGroup(_pendingLeaders, _pendingFollowers));
+            }
+
+            _pendingLeaders.Clear();
+            _pendingFollowers.Clear();
+
+            _tacticEntryIndex++;
+            _tacticEntryStarted = false;
+
+            if (_tacticEntryIndex >= _tacticEntries.Length)
+            {
+                SpawnImmediateEntries();
+            }
         }
 
         /// <summary>
@@ -202,38 +278,6 @@ namespace Stage
 
                 _entryIndex++;
             }
-        }
-
-        private void SpawnFormation(TacticSpawnEntry entry)
-        {
-            SpawnSide side = DetermineSpawnSide();
-            int pairCount = PrepareFormationLayout(entry, side);
-
-            for (int i = 0; i < pairCount; i++)
-            {
-                GameObject leader = SpawnInstance(entry.LeaderPrefab, null, _formationLeaderPositions[i]);
-
-                GameObject followerPrefab = entry.FollowerPrefab;
-
-                if (entry.AlternateFollowerPrefab != null && UnityEngine.Random.value < entry.AlternateFollowerChance)
-                {
-                    followerPrefab = entry.AlternateFollowerPrefab;
-                }
-
-                GameObject follower = SpawnInstance(followerPrefab, null, _formationFollowerPositions[i]);
-                ConfigureAsFormationFollower(follower);
-
-                _pendingLeaders.Add(leader);
-                _pendingFollowers.Add(follower);
-            }
-
-            if (TacticStrategies.TryGetValue(entry.Type, out ITacticSpawnStrategy strategy))
-            {
-                _formationGroups.Add(strategy.CreateFormationGroup(_pendingLeaders, _pendingFollowers));
-            }
-
-            _pendingLeaders.Clear();
-            _pendingFollowers.Clear();
         }
 
         /// <summary>
