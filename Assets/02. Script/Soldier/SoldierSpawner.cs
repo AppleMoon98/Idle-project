@@ -78,6 +78,15 @@ namespace Soldier
             _respawner?.SetActiveAll(active);
         }
 
+        /// <summary>
+        /// 현재 스폰된 병사 전부를 각자의 슬롯 스폰 지점으로 되돌린다. 아직 한 번도 스폰되지
+        /// 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
+        /// </summary>
+        public void ResetSoldierPositions()
+        {
+            _respawner?.ResetPositions();
+        }
+
         private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
         {
             if (!_spawned)

@@ -85,6 +85,24 @@ namespace Soldier
         }
 
         /// <summary>
+        /// 현재 추적 중인(살아있는) 병사 전부를 각자의 슬롯 스폰 지점으로 순간이동시킨다.
+        /// SetActiveAll과 같은 성격의 유틸리티로, 사망/루팅/재소환 파이프라인은 건드리지 않고
+        /// 위치/회전만 되돌린다(예: N-40 진입 시 전투 시작 위치를 예측 가능하게 맞추기 위함).
+        /// </summary>
+        public void ResetPositions()
+        {
+            foreach (KeyValuePair<GameObject, SoldierSpawnSlot> pair in _activeSoldiers)
+            {
+                if (pair.Key == null || pair.Value.SpawnPoint == null)
+                {
+                    continue;
+                }
+
+                pair.Key.transform.SetPositionAndRotation(pair.Value.SpawnPoint.position, pair.Value.SpawnPoint.rotation);
+            }
+        }
+
+        /// <summary>
         /// slotIndex를 즉시 비운다 — 대기 중인 리스폰 타이머를 취소하고, 지금 그 슬롯을 차지하고
         /// 있는 살아있는 인스턴스가 있으면 사망 처리 없이(루팅 등 부수효과 없이) 풀로 반환한다.
         /// 배치 재편성으로 슬롯의 배정이 바뀌거나 해제됐을 때, SoldierSpawner가 새로 스폰하기
