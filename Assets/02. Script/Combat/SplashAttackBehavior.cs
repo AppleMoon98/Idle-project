@@ -1,5 +1,6 @@
 using Character;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Combat
 {
@@ -15,8 +16,9 @@ namespace Combat
     [RequireComponent(typeof(Attacker))]
     public sealed class SplashAttackBehavior : MonoBehaviour, IAttackBehavior
     {
+        [FormerlySerializedAs("weaponSwing")]
         [SerializeField]
-        private WeaponSwing weaponSwing;
+        private WeaponMotion weaponMotion;
 
         [SerializeField]
         private float splashRadius = 2.5f;
@@ -46,9 +48,9 @@ namespace Combat
                 }
             }
 
-            if (weaponSwing != null)
+            if (weaponMotion != null)
             {
-                weaponSwing.Play();
+                weaponMotion.Play();
             }
         }
     }

@@ -6,7 +6,7 @@ namespace Combat
     /// <summary>
     /// 무기 소켓을 부채꼴로 휘두르는 시각 효과. 타격 판정에는 관여하지 않는다.
     /// </summary>
-    public sealed class WeaponSwing : MonoBehaviour, ITickable
+    public sealed class WeaponSwing : WeaponMotion, ITickable
     {
         [SerializeField]
         private float swingAngle = 90f;
@@ -34,7 +34,7 @@ namespace Combat
         /// <summary>
         /// 스윙 모션을 처음부터 재생한다.
         /// </summary>
-        public void Play()
+        public override void Play()
         {
             _elapsed = 0f;
 
