@@ -16,27 +16,99 @@ MonoBehaviour:
   entries:
   - soldier: {fileID: 11400000, guid: 15b49ad07b948de4fb76c26062b8d7df, type: 2}
     weight: 100
-  - soldier: {fileID: 11400000, guid: d66010d676694284299848fb21b1a90e, type: 2}
-    weight: 100
   - soldier: {fileID: 11400000, guid: 1b928e3e79fd88b4abb69fe6fe80c727, type: 2}
-    weight: 70
-  - soldier: {fileID: 11400000, guid: 308c468b39183fd4aa60b8604e6b652d, type: 2}
     weight: 70
   - soldier: {fileID: 11400000, guid: f11ff516cfd558845a08ba1b446b98bd, type: 2}
     weight: 45
-  - soldier: {fileID: 11400000, guid: 4704a1c958f22b54ab5e76e323320d9e, type: 2}
-    weight: 45
   - soldier: {fileID: 11400000, guid: 6d541287640ed77479ec32241ef7b58c, type: 2}
-    weight: 25
-  - soldier: {fileID: 11400000, guid: 8d0fa0bc0bac3dc4b85ca425a8cba3b9, type: 2}
     weight: 25
   - soldier: {fileID: 11400000, guid: abbfe055c67aa1047b6f3950414a9cfe, type: 2}
     weight: 12
-  - soldier: {fileID: 11400000, guid: 546b055b5b655ab4cb050798e7ccdd86, type: 2}
-    weight: 12
   - soldier: {fileID: 11400000, guid: d73f486ede5a8a54ca10fc0a35b94477, type: 2}
     weight: 5
+  - soldier: {fileID: 11400000, guid: d66010d676694284299848fb21b1a90e, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 308c468b39183fd4aa60b8604e6b652d, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 4704a1c958f22b54ab5e76e323320d9e, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 8d0fa0bc0bac3dc4b85ca425a8cba3b9, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 546b055b5b655ab4cb050798e7ccdd86, type: 2}
+    weight: 12
   - soldier: {fileID: 11400000, guid: 33515ca321a919f48b5525ca260a1a65, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 507e31f8a6e04c6bbf6046f73aae33da, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: b46ecf4c98dd4a9bb0574badd7c0d479, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 9783ea17a2904716878b972d994b0c27, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 4c56b6797c9d48eea7bcdb4874edfcd0, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 13fd5a60a4e143edba9ebfdb99578c7f, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: 85481292720140fd805980c03a871f9f, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 69e2451696bb40e4904b9a547a7d95f2, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 11900af8bedc458cb928ef2b5cd9fb4b, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: a9b1dcd7bbfb463db3e86b037db1ec41, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 42622d203a4d47faba45090430c1ca67, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: b37a287f493c4af08ac3de0b5de77ab8, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: fa3b1e51f87046b6ad485fba6fcbd501, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 797f82673f634aeb9f6cc51d66d41715, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 6956c3b5f79f41cb90548d0de9f3a02e, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 46d795a8697f4e7a96328ceae45807fd, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 09f0459e0e3c490dac167332ffa6d665, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 4b0212d8717a4b3991d11282db8ad6d0, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: 399a7b6858284238b2f83b28f4b5254f, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 6028dbdcbabc439cb80406de7dfbf631, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 7c8b2f5184274aaa99ab3e35e9999267, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: d638a666ea9846bc9ab3e9f326da19a5, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 7f0e94f0e24c41d79b587db1ee249e9a, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: d47366af83084dee84e7778be4114e18, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: a4ec78d35242488e80b339c5c6acc1ee, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: ed24026bb3ab414dab614690077e7b65, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: a44ca0d684074db098de58d24be7eea1, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 547e66321841407cbef988690064d266, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: fd43bef6d2ce49b0891b866f9b71f1d3, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 17569687266f45009af1c0d16735532f, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: de88edce515a44c8bf373da672e4963f, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 46ccf0b1f93b4ea7b7ffb0a2b4c94159, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 156e5711872d4bdbbe1cd58b8efa2f34, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 6984ed53535f44cab8492c04486dff7e, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 852f7d4884ca4ada9fadc50641f7dbde, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 476c77874ff94f528b318b9704f5bfef, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: 3507adf487a347e691e3203539fd17f5, type: 2}
     weight: 5
   ticketCostPerPull: 0
   currencyType: 1

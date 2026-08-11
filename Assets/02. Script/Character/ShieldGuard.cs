@@ -19,6 +19,15 @@ namespace Character
     /// 보이고 깨지는 순간 숨겨져, 스프라이트가 같아 구분이 어려운 방패병들 사이에서도 방패가
     /// 아직 있는지 한눈에 알 수 있다.
     /// </summary>
+    /// <remarks>
+    /// 같은 GameObject의 다른 컴포넌트(예: SoldierStatReceiver)가 자신의 OnEnable에서
+    /// Health.Revive()를 거쳐 이 컴포넌트의 ResetShield()를 간접 호출할 수 있는데, Unity는
+    /// 같은 GameObject 위 컴포넌트들의 Awake/OnEnable을 선언 순서대로 인터리브해서 실행한다
+    /// (Character.CharacterStatsProvider가 Stats를 지연 초기화하는 것과 같은 이유, section C) —
+    /// 이 컴포넌트가 SoldierStatReceiver보다 뒤에 선언되면 아직 자신의 Awake가 돌기 전에
+    /// ResetShield가 호출될 수 있다. 그래서 _statsProvider를 Awake에서만 캐싱하지 않고
+    /// StatsProvider 프로퍼티로 지연 조회한다(호출 순서와 무관하게 항상 안전).
+    /// </remarks>
     [RequireComponent(typeof(CharacterStatsProvider))]
     public sealed class ShieldGuard : MonoBehaviour, IPoolable
     {
@@ -31,6 +40,8 @@ namespace Character
         private CharacterStatsProvider _statsProvider;
         private float _currentShieldHealth;
 
+        private CharacterStatsProvider StatsProvider => _statsProvider != null ? _statsProvider : (_statsProvider = GetComponent<CharacterStatsProvider>());
+
         /// <summary>
         /// 방패가 아직 남아있는지(0보다 크면 true).
         /// </summary>
@@ -40,7 +51,6 @@ namespace Character
 
         private void Awake()
         {
-            _statsProvider = GetComponent<CharacterStatsProvider>();
             ResetShield();
         }
 
@@ -66,7 +76,7 @@ namespace Character
         /// </summary>
         public void ResetShield()
         {
-            _currentShieldHealth = _statsProvider.Stats.MaxHealth * shieldHealthMultiplier;
+            _currentShieldHealth = StatsProvider.Stats.MaxHealth * shieldHealthMultiplier;
 
             if (shieldVisual != null)
             {

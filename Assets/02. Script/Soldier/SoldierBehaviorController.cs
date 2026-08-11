@@ -49,10 +49,15 @@ namespace Soldier
         private EnemyTracker _enemyTracker;
         private Attacker _attacker;
         private RangedAttackBehavior _rangedAttack;
+        private CavalryCharge _cavalryCharge;
+        private OrbitKiter _orbitKiter;
+        private FormationFollower _formationFollower;
+        private RangedKiter _formationKiter;
         private SoldierRosterService _roster;
         private CameraFollowService _cameraFollowService;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
+        private Transform _playerTransform;
 
         private int _instanceId;
         private Transform _retreatPoint;
@@ -67,6 +72,10 @@ namespace Soldier
             _enemyTracker = GetComponent<EnemyTracker>();
             _attacker = GetComponent<Attacker>();
             _rangedAttack = GetComponent<RangedAttackBehavior>();
+            _cavalryCharge = GetComponent<CavalryCharge>();
+            _orbitKiter = GetComponent<OrbitKiter>();
+            _formationFollower = GetComponent<FormationFollower>();
+            _formationKiter = GetComponent<RangedKiter>();
             GameBootstrapper.Services?.TryGet(out _roster);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
 
@@ -122,14 +131,35 @@ namespace Soldier
 
         /// <summary>
         /// 이 유닛이 어떤 로스터 유닛(instanceId)이고, 후퇴 시 어디로 갈지(retreatPoint)를 주입하고
-        /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다.
+        /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다. playerTransform은
+        /// CavalryCharge/OrbitKiter/FormationFollower처럼 "탐지 범위 안에 아무 대상도 없을 때의
+        /// 기본 위협"이 필요한 이동 컴포넌트에 한 번만 주입한다(몬스터 쪽 MonsterSpawner.SpawnOne이
+        /// IMonsterMovementInitializer.Initialize(playerTransform)를 호출하는 것과 같은 이유·같은
+        /// 타이밍) — 이 컴포넌트들이 없는 병과(보병/궁병 등)에서는 자연히 아무 일도 하지 않는다.
         /// </summary>
-        public void Initialize(int instanceId, Transform retreatPoint)
+        public void Initialize(int instanceId, Transform retreatPoint, Transform playerTransform)
         {
             _instanceId = instanceId;
             _retreatPoint = retreatPoint;
+            _playerTransform = playerTransform;
             _elapsed = 0f;
             _postAttackLockRemaining = 0f;
+
+            if (_cavalryCharge != null)
+            {
+                _cavalryCharge.Initialize(_playerTransform);
+            }
+
+            if (_orbitKiter != null)
+            {
+                _orbitKiter.Initialize(_playerTransform);
+            }
+
+            if (_formationFollower != null)
+            {
+                _formationFollower.Initialize(_playerTransform);
+            }
+
             Evaluate();
         }
 
@@ -217,7 +247,42 @@ namespace Soldier
             switch (mode)
             {
                 case BehaviorMode.Engage:
-                    if (_rangedAttack != null)
+                    if (_cavalryCharge != null)
+                    {
+                        if (_enemyTracker != null)
+                        {
+                            _enemyTracker.enabled = false;
+                        }
+
+                        _cavalryCharge.enabled = true;
+                    }
+                    else if (_orbitKiter != null)
+                    {
+                        if (_enemyTracker != null)
+                        {
+                            _enemyTracker.enabled = false;
+                        }
+
+                        _orbitKiter.enabled = true;
+                    }
+                    else if (_formationFollower != null)
+                    {
+                        if (_enemyTracker != null)
+                        {
+                            _enemyTracker.enabled = false;
+                        }
+
+                        // FormationFollower가 이미 RangedKiter로 넘긴 상태(Combat.FormationFollower의
+                        // 되돌리지 않는 일회성 전환, section CT)라면 다시 켜서 되돌리지 않는다 —
+                        // 그 상태에서 그대로 두는 것이 곧 "카이팅 유지"다.
+                        bool alreadyHandedOff = _formationKiter != null && _formationKiter.enabled;
+
+                        if (!alreadyHandedOff)
+                        {
+                            _formationFollower.enabled = true;
+                        }
+                    }
+                    else if (_rangedAttack != null)
                     {
                         if (_enemyTracker != null)
                         {
@@ -233,21 +298,49 @@ namespace Soldier
                     break;
 
                 case BehaviorMode.Hold:
-                    if (_enemyTracker != null)
-                    {
-                        _enemyTracker.enabled = false;
-                    }
+                    DisableAllMovementDrivers();
                     _mover.Target = null;
                     break;
 
                 case BehaviorMode.Retreat:
-                    if (_enemyTracker != null)
-                    {
-                        _enemyTracker.enabled = false;
-                    }
+                    DisableAllMovementDrivers();
                     _mover.Target = _retreatPoint;
                     _mover.StoppingDistance = 0f;
                     break;
+            }
+        }
+
+        /// <summary>
+        /// Hold/Retreat 진입 시 어떤 병과든 이동을 완전히 멈추도록, 이 컨트롤러가 조율하는 이동
+        /// 드라이버를 전부 끈다. FormationFollower가 이미 RangedKiter로 넘긴 상태였더라도 여기서는
+        /// 둘 다 끈다 — 다음에 다시 Engage로 돌아오면 대형 추종부터 새로 시작하는 게 자연스럽다
+        /// (카이팅 중이던 자리를 그대로 재개하지 않음).
+        /// </summary>
+        private void DisableAllMovementDrivers()
+        {
+            if (_enemyTracker != null)
+            {
+                _enemyTracker.enabled = false;
+            }
+
+            if (_cavalryCharge != null)
+            {
+                _cavalryCharge.enabled = false;
+            }
+
+            if (_orbitKiter != null)
+            {
+                _orbitKiter.enabled = false;
+            }
+
+            if (_formationFollower != null)
+            {
+                _formationFollower.enabled = false;
+            }
+
+            if (_formationKiter != null)
+            {
+                _formationKiter.enabled = false;
             }
         }
 
