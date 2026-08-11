@@ -1,28 +1,32 @@
 using System.Collections.Generic;
 using Core;
 using Gacha.Events;
+using Loot;
 using Soldier;
 
 namespace Gacha
 {
     /// <summary>
-    /// 병사 소환권을 소모해 가챠를 실행하는 서비스. SoldierSO/SoldierRosterService를 직접
-    /// 참조해 새 유닛을 로스터에 추가하지만(Loot이 Equipment 타입을 참조하는 것과 같은 방향),
-    /// Soldier 도메인은 이 서비스의 존재를 전혀 모른다. 티어(일반/고급/유료 등)별로 확률 테이블이
-    /// 따로 있고, 몇 번째 티어인지는 호출자(UI)가 인덱스로 지정한다 — 티어 추가는 tiers 배열에
-    /// 에셋 하나 더 넣는 것만으로 끝나고 이 서비스는 손댈 필요가 없다.
+    /// 병사 소환권 또는 골드를 소모해 가챠를 실행하는 서비스(테이블별 CurrencyType으로 결정).
+    /// SoldierSO/SoldierRosterService를 직접 참조해 새 유닛을 로스터에 추가하지만(Loot이
+    /// Equipment 타입을 참조하는 것과 같은 방향), Soldier 도메인은 이 서비스의 존재를 전혀
+    /// 모른다. 티어(골드/티켓/픽업 등)별로 확률 테이블이 따로 있고, 몇 번째 티어인지는
+    /// 호출자(UI)가 인덱스로 지정한다 — 티어 추가는 tiers 배열에 에셋 하나 더 넣는 것만으로
+    /// 끝나고 이 서비스는 손댈 필요가 없다.
     /// </summary>
     public sealed class GachaService : IManager, IService
     {
         private readonly EventBus _events;
         private readonly SoldierTicketService _tickets;
+        private readonly CurrencyService _currency;
         private readonly SoldierRosterService _roster;
         private readonly GachaTableSO[] _tiers;
 
-        public GachaService(EventBus events, SoldierTicketService tickets, SoldierRosterService roster, GachaTableSO[] tiers)
+        public GachaService(EventBus events, SoldierTicketService tickets, CurrencyService currency, SoldierRosterService roster, GachaTableSO[] tiers)
         {
             _events = events;
             _tickets = tickets;
+            _currency = currency;
             _roster = roster;
             _tiers = tiers;
         }
@@ -85,7 +89,11 @@ namespace Gacha
                 return false;
             }
 
-            if (!_tickets.TrySpendTickets(table.TicketCostPerPull))
+            bool spent = table.CurrencyType == GachaCurrencyType.Gold
+                ? _currency.TrySpendGold(table.GoldCostPerPull)
+                : _tickets.TrySpendTickets(table.TicketCostPerPull);
+
+            if (!spent)
             {
                 return false;
             }

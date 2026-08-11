@@ -1,18 +1,22 @@
 using Core;
 using Gacha;
 using Gacha.Events;
+using Loot;
+using Loot.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
 namespace UI
 {
     /// <summary>
-    /// 가챠 팝업의 "병사 뽑기" 카테고리 안, 티어 하나(일반/고급/유료 등)의 패널. 이 패널이 몇 번째
+    /// 가챠 팝업의 "병사 뽑기" 카테고리 안, 티어 하나(골드/티켓/픽업 등)의 패널. 이 패널이 몇 번째
     /// 티어를 대표하는지는 tierIndex로 지정하고, GachaService.Tiers[tierIndex]에서 비용/표시
     /// 이름을 그대로 읽어온다 — 티어가 늘어나도 이 스크립트는 손댈 필요가 없다. pullButtons[i]는
     /// pullCounts[i]개를 한 번에 뽑는 버튼이다(1/10/30개 등, 배열 길이만큼 자유롭게 구성).
-    /// 소환권을 얻을 정식 경로가 아직 없어 디버그 지급 버튼으로 테스트한다(추후 진짜 획득
-    /// 시스템이 생기면 이 버튼만 제거하면 된다).
+    /// useGoldCurrency로 이 패널 인스턴스가 골드/티켓 중 어느 재화를 표시할지 정한다(같은 클래스를
+    /// 골드 탭/티켓 탭 인스턴스 둘 다에 재사용 — EquipmentGachaTierPanelUI가 이미 골드만 쓰던
+    /// 것과 이 패널의 기존 티켓 표시를 한 컴포넌트로 합친 것). 소환권을 얻을 정식 경로가 아직
+    /// 없어 디버그 지급 버튼으로 테스트한다(골드 탭은 이미 실제 골드 재화가 있어 필요 없음).
     /// </summary>
     public sealed class SoldierGachaTierPanelUI : MonoBehaviour
     {
@@ -20,7 +24,10 @@ namespace UI
         private int tierIndex;
 
         [SerializeField]
-        private Text ticketText;
+        private bool useGoldCurrency;
+
+        [SerializeField]
+        private Text currencyText;
 
         [SerializeField]
         private Button[] pullButtons;
@@ -47,22 +54,40 @@ namespace UI
 
         private void OnEnable()
         {
+            if (useGoldCurrency)
+            {
+                GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnGoldChanged);
+
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
+                {
+                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)}");
+                }
+
+                return;
+            }
+
             GameBootstrapper.Events?.Subscribe<SoldierTicketChangedEvent>(OnTicketChanged);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierTicketService tickets))
             {
-                SetTicketText(tickets.CurrentTickets);
+                SetCurrencyText($"소환권: {tickets.CurrentTickets}");
             }
         }
 
         private void OnDisable()
         {
+            GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
             GameBootstrapper.Events?.Unsubscribe<SoldierTicketChangedEvent>(OnTicketChanged);
+        }
+
+        private void OnGoldChanged(GoldChangedEvent evt)
+        {
+            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)}");
         }
 
         private void OnTicketChanged(SoldierTicketChangedEvent evt)
         {
-            SetTicketText(evt.CurrentTickets);
+            SetCurrencyText($"소환권: {evt.CurrentTickets}");
         }
 
         private void OnPullClicked(int count)
@@ -81,9 +106,9 @@ namespace UI
             }
         }
 
-        private void SetTicketText(int amount)
+        private void SetCurrencyText(string text)
         {
-            ticketText.text = $"소환권: {amount}";
+            currencyText.text = text;
         }
     }
 }

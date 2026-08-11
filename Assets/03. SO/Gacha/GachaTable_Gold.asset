@@ -1,0 +1,43 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 34672c35f4f7c1b489bf5ebbb5422e8f, type: 3}
+  m_Name: GachaTable_Gold
+  m_EditorClassIdentifier: Assembly-CSharp::Gacha.GachaTableSO
+  displayName: "골드 뽑기"
+  entries:
+  - soldier: {fileID: 11400000, guid: 15b49ad07b948de4fb76c26062b8d7df, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: d66010d676694284299848fb21b1a90e, type: 2}
+    weight: 100
+  - soldier: {fileID: 11400000, guid: 1b928e3e79fd88b4abb69fe6fe80c727, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: 308c468b39183fd4aa60b8604e6b652d, type: 2}
+    weight: 70
+  - soldier: {fileID: 11400000, guid: f11ff516cfd558845a08ba1b446b98bd, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 4704a1c958f22b54ab5e76e323320d9e, type: 2}
+    weight: 45
+  - soldier: {fileID: 11400000, guid: 6d541287640ed77479ec32241ef7b58c, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: 8d0fa0bc0bac3dc4b85ca425a8cba3b9, type: 2}
+    weight: 25
+  - soldier: {fileID: 11400000, guid: abbfe055c67aa1047b6f3950414a9cfe, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: 546b055b5b655ab4cb050798e7ccdd86, type: 2}
+    weight: 12
+  - soldier: {fileID: 11400000, guid: d73f486ede5a8a54ca10fc0a35b94477, type: 2}
+    weight: 5
+  - soldier: {fileID: 11400000, guid: 33515ca321a919f48b5525ca260a1a65, type: 2}
+    weight: 5
+  ticketCostPerPull: 0
+  currencyType: 1
+  goldCostPerPull: 100

@@ -1,13 +1,15 @@
 using System.Collections.Generic;
 using Core;
 using Gacha.Events;
+using Loot;
 using Skill;
 using Skill.Events;
 
 namespace Gacha
 {
     /// <summary>
-    /// 스킬 주문서를 소모해 가챠를 실행하는 서비스. GachaService(병사)와 대칭되는 구조로,
+    /// 스킬 주문서 또는 골드를 소모해 가챠를 실행하는 서비스(테이블별 CurrencyType으로 결정).
+    /// GachaService(병사)와 대칭되는 구조로,
     /// 뽑힌 스킬의 보유 개수를 1 늘린다(SkillService.AddCopy) — 스킬은 이미 SkillCatalogSO에
     /// 전부 등재되어 있어 새 슬롯을 만들 필요는 없지만, 그 보유 개수가 레벨업(SkillService.TryLevelUp)의
     /// 재료로 소모된다는 점에서 장비의 "보유 스택"과 같은 역할을 한다. 이미 최대 레벨인 스킬은
@@ -18,13 +20,15 @@ namespace Gacha
     {
         private readonly EventBus _events;
         private readonly SkillScrollService _scrolls;
+        private readonly CurrencyService _currency;
         private readonly SkillService _skills;
         private readonly SkillGachaTableSO[] _tiers;
 
-        public SkillGachaService(EventBus events, SkillScrollService scrolls, SkillService skills, SkillGachaTableSO[] tiers)
+        public SkillGachaService(EventBus events, SkillScrollService scrolls, CurrencyService currency, SkillService skills, SkillGachaTableSO[] tiers)
         {
             _events = events;
             _scrolls = scrolls;
+            _currency = currency;
             _skills = skills;
             _tiers = tiers;
         }
@@ -88,7 +92,11 @@ namespace Gacha
                 return false;
             }
 
-            if (!_scrolls.TrySpendScrolls(table.TicketCostPerPull))
+            bool spent = table.CurrencyType == GachaCurrencyType.Gold
+                ? _currency.TrySpendGold(table.GoldCostPerPull)
+                : _scrolls.TrySpendScrolls(table.TicketCostPerPull);
+
+            if (!spent)
             {
                 return false;
             }

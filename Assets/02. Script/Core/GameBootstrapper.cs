@@ -287,7 +287,7 @@ namespace Core
             Services.Register(soldierTicketService);
             _managers.Add(soldierTicketService);
 
-            var gachaService = new GachaService(Events, soldierTicketService, soldierRosterService, soldierGachaTiers);
+            var gachaService = new GachaService(Events, soldierTicketService, currencyService, soldierRosterService, soldierGachaTiers);
             gachaService.Initialize();
             Services.Register(gachaService);
             _managers.Add(gachaService);
@@ -302,7 +302,7 @@ namespace Core
             Services.Register(skillScrollService);
             _managers.Add(skillScrollService);
 
-            var skillGachaService = new SkillGachaService(Events, skillScrollService, skillService, skillGachaTiers);
+            var skillGachaService = new SkillGachaService(Events, skillScrollService, currencyService, skillService, skillGachaTiers);
             skillGachaService.Initialize();
             Services.Register(skillGachaService);
             _managers.Add(skillGachaService);
