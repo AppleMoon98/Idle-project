@@ -12,12 +12,13 @@ namespace Soldier
     /// 상위 행동 모드를 결정하고, EnemyTracker/CharacterMover를 조합해 실제 움직임으로 옮긴다.
     /// EnemyTracker/Attacker/CharacterMover 자체의 로직은 전혀 건드리지 않고, 활성화 여부와
     /// 이동 목표만 조율한다(합성 원칙 — 기존 Combat 컴포넌트는 Soldier 도메인의 존재를 모른다).
-    /// 프로필 평가보다 먼저, 자기 자신이 화면 밖에 있는지를 최우선으로 확인한다 — 화면 밖에서
-    /// 교전 중이면 몬스터가 영영 도달하지 못하는 상황이 생기므로, 그 경우 다른 어떤 로직보다
-    /// 앞서 화면 안으로 복귀시킨다. 배치 슬롯 스폰 지점(_retreatPoint)은 재사용하지 않는다 —
-    /// 스폰 지점 자체가 화면 밖(대기 구역)에 있을 수 있어, 그리로 보내면 여전히 화면 밖이라
-    /// 이 우선순위가 영원히 해소되지 않는다. 대신 현재 위치를 화면 뷰포트 안쪽으로 클램프한
-    /// 지점(반드시 화면 안)을 계산해 그리로 이동시킨다.
+    /// 프로필 평가보다 먼저, 자기 자신이 최광각 고정 범위(EnemyTracker/Attacker와 동일 기준,
+    /// 줌 배율과 무관) 밖에 있는지를 최우선으로 확인한다 — 그 범위 밖에서 교전 중이면 몬스터가
+    /// 영영 도달하지 못하는 상황이 생기므로, 그 경우 다른 어떤 로직보다 앞서 범위 안으로
+    /// 복귀시킨다. 배치 슬롯 스폰 지점(_retreatPoint)은 재사용하지 않는다 — 스폰 지점 자체가
+    /// 이 범위 밖(대기 구역)에 있을 수 있어, 그리로 보내면 여전히 범위 밖이라 이 우선순위가
+    /// 영원히 해소되지 않는다. 대신 현재 위치를 그 범위 안쪽으로 클램프한 지점(반드시 범위 안)을
+    /// 계산해 그리로 이동시킨다.
     /// </summary>
     [RequireComponent(typeof(Health))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -42,8 +43,6 @@ namespace Soldier
         [SerializeField]
         private float screenReturnMargin = 0.15f;
 
-        private static readonly float[] KiteCandidateAngles = { 0f, 45f, -45f, 90f, -90f };
-
         private Health _health;
         private CharacterStatsProvider _statsProvider;
         private CharacterMover _mover;
@@ -52,7 +51,6 @@ namespace Soldier
         private RangedAttackBehavior _rangedAttack;
         private SoldierRosterService _roster;
         private CameraFollowService _cameraFollowService;
-        private Camera _camera;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
 
@@ -69,7 +67,6 @@ namespace Soldier
             _enemyTracker = GetComponent<EnemyTracker>();
             _attacker = GetComponent<Attacker>();
             _rangedAttack = GetComponent<RangedAttackBehavior>();
-            _camera = Camera.main;
             GameBootstrapper.Services?.TryGet(out _roster);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
 
@@ -156,7 +153,12 @@ namespace Soldier
 
         private void Evaluate()
         {
-            if (!CameraVisibility.IsOnScreen(_camera, transform.position))
+            // 실시간 카메라 화면(줌 배율에 따라 좁아짐)이 아니라 EnemyTracker/Attacker와 동일한
+            // 최광각 고정 범위 기준으로 판정한다 - 그래야 병사가 그 범위 안에 있는데도(=적을
+            // 인지/공격할 수 있는 실제 영역 안인데도) 줌인으로 좁아진 화면 밖이라는 이유만으로
+            // 교전을 계속 건너뛰고 화면 복귀만 반복하는 일이 없다.
+            if (_cameraFollowService != null
+                && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position, screenReturnMargin))
             {
                 ReturnToScreen();
                 return;
@@ -190,9 +192,9 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 화면 밖에 있을 때의 최우선 행동 — 교전 판정을 전부 건너뛰고, 현재 위치를 화면 뷰포트
-        /// 안쪽(마진 포함)으로 클램프한 지점으로 즉시 복귀시킨다. 이 지점은 정의상 항상 화면 안이므로,
-        /// 도착하면 다음 평가 주기에서 이 우선순위가 자연히 해소된다.
+        /// 최광각 고정 범위 밖에 있을 때의 최우선 행동 — 교전 판정을 전부 건너뛰고, 현재 위치를
+        /// 그 범위 안쪽(마진 포함)으로 클램프한 지점으로 즉시 복귀시킨다. 이 지점은 정의상 항상
+        /// 범위 안이므로, 도착하면 다음 평가 주기에서 이 우선순위가 자연히 해소된다.
         /// </summary>
         private void ReturnToScreen()
         {
@@ -201,11 +203,11 @@ namespace Soldier
                 _enemyTracker.enabled = false;
             }
 
-            Vector3 viewportPoint = _camera.WorldToViewportPoint(transform.position);
-            float clampedX = Mathf.Clamp(viewportPoint.x, screenReturnMargin, 1f - screenReturnMargin);
-            float clampedY = Mathf.Clamp(viewportPoint.y, screenReturnMargin, 1f - screenReturnMargin);
-
-            _returnAnchor.position = _camera.ViewportToWorldPoint(new Vector3(clampedX, clampedY, viewportPoint.z));
+            _returnAnchor.position = CameraVisibility.ClampToBounds(
+                _cameraFollowService.HomeLocalPosition,
+                _cameraFollowService.GetWorldBoundsHalfExtent(),
+                transform.position,
+                screenReturnMargin);
             _mover.Target = _returnAnchor;
             _mover.StoppingDistance = 0f;
         }
@@ -325,39 +327,27 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 적 반대 방향을 기준으로 몇 가지 후보 각도(0/±45/±90도)를 시도해, 화면 안(마진 포함)에
-        /// 남는 후보 중 적과 가장 멀어지는 지점을 고른다. 유효한 후보가 하나도 없으면 false.
+        /// Combat.KiteRetreatCalculator에 위임 — 최광각 고정 범위 기준(줌 배율과 무관, 이동속도가
+        /// 스탯인 이상 후퇴 가능 범위가 줌으로 늘거나 줄면 안 된다)으로 적 반대 방향 후보 각도 중
+        /// 적과 가장 멀어지는 지점을 고른다. CameraFollowService를 못 구했으면 후퇴 지점을 계산할
+        /// 수 없으므로 false(호출부가 제자리 사수로 처리).
         /// </summary>
         private bool TryFindKiteRetreatPoint(Vector3 selfPosition, Vector3 enemyPosition, out Vector3 retreatPoint)
         {
-            Vector3 awayDirection = (selfPosition - enemyPosition).normalized;
-
-            Vector3 bestPoint = Vector3.zero;
-            float bestSqrDistance = -1f;
-            bool found = false;
-
-            foreach (float angle in KiteCandidateAngles)
+            if (_cameraFollowService == null)
             {
-                Vector3 candidateDirection = Quaternion.Euler(0f, 0f, angle) * awayDirection;
-                Vector3 candidatePoint = selfPosition + candidateDirection * kiteStepDistance;
-
-                if (!CameraVisibility.IsOnScreen(_camera, candidatePoint, kiteScreenMargin))
-                {
-                    continue;
-                }
-
-                float sqrDistance = (candidatePoint - enemyPosition).sqrMagnitude;
-
-                if (sqrDistance > bestSqrDistance)
-                {
-                    bestSqrDistance = sqrDistance;
-                    bestPoint = candidatePoint;
-                    found = true;
-                }
+                retreatPoint = Vector3.zero;
+                return false;
             }
 
-            retreatPoint = bestPoint;
-            return found;
+            return KiteRetreatCalculator.TryFindRetreatPoint(
+                _cameraFollowService.HomeLocalPosition,
+                _cameraFollowService.GetWorldBoundsHalfExtent(),
+                selfPosition,
+                enemyPosition,
+                kiteStepDistance,
+                kiteScreenMargin,
+                out retreatPoint);
         }
     }
 }

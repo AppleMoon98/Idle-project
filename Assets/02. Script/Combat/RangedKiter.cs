@@ -1,5 +1,6 @@
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -45,7 +46,7 @@ namespace Combat
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
         private Attacker _attacker;
-        private Camera _camera;
+        private CameraFollowService _cameraFollowService;
         private Transform _kiteAnchor;
         private float _elapsed;
         private float _lockRemaining;
@@ -60,7 +61,7 @@ namespace Combat
             _mover = GetComponent<CharacterMover>();
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _attacker = GetComponent<Attacker>();
-            _camera = Camera.main;
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _kiteAnchor = new GameObject("RangedKiterAnchor").transform;
         }
 
@@ -140,7 +141,8 @@ namespace Combat
 
             if (distance < kiteTriggerDistance)
             {
-                if (KiteRetreatCalculator.TryFindRetreatPoint(_camera, transform.position, threat.position, kiteStepDistance, kiteScreenMargin, out Vector3 retreatPoint))
+                if (_cameraFollowService != null
+                    && KiteRetreatCalculator.TryFindRetreatPoint(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position, threat.position, kiteStepDistance, kiteScreenMargin, out Vector3 retreatPoint))
                 {
                     _kiteAnchor.position = retreatPoint;
                     _mover.Target = _kiteAnchor;

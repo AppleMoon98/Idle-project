@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -119,7 +120,7 @@ namespace Combat
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
         private CharacterSeparation _separation;
-        private Camera _camera;
+        private CameraFollowService _cameraFollowService;
         private Transform _retreatAnchor;
         private float _baseKnockbackDistance;
         private float _baseBonusDamagePerSpeed;
@@ -142,7 +143,7 @@ namespace Combat
             _mover = GetComponent<CharacterMover>();
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _separation = GetComponent<CharacterSeparation>();
-            _camera = Camera.main;
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _retreatAnchor = new GameObject("CavalryRetreatAnchor").transform;
             _baseKnockbackDistance = knockbackDistance;
             _baseBonusDamagePerSpeed = bonusDamagePerSpeed;
@@ -232,7 +233,8 @@ namespace Combat
 
             if (distance < chargeStartDistance)
             {
-                if (KiteRetreatCalculator.TryFindRetreatPoint(_camera, transform.position, threat.position, retreatStepDistance, retreatScreenMargin, out Vector3 retreatPoint))
+                if (_cameraFollowService != null
+                    && KiteRetreatCalculator.TryFindRetreatPoint(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position, threat.position, retreatStepDistance, retreatScreenMargin, out Vector3 retreatPoint))
                 {
                     _retreatAnchor.position = retreatPoint;
                     _mover.Target = _retreatAnchor;

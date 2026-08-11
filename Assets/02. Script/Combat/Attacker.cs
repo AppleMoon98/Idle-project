@@ -1,6 +1,7 @@
 using System;
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -23,12 +24,14 @@ namespace Combat
 
         private CharacterStatsProvider _statsProvider;
         private IAttackBehavior _attackBehavior;
+        private CameraFollowService _cameraFollowService;
         private float _elapsed;
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _attackBehavior = GetComponent<IAttackBehavior>();
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
         }
 
         private void OnEnable()
@@ -53,6 +56,16 @@ namespace Combat
             }
 
             _elapsed = 0f;
+
+            // 줌 슬라이더 최광각 기준 고정 범위 밖(스폰 대기 구역 등)에 있는 공격자는 공격을
+            // 실행하지 않는다 - EnemyTracker의 탐지 후보 필터링과 동일 기준(실시간 카메라 뷰포트가
+            // 아닌 고정 범위)을 재사용해, 아직 화면에 들어오지 않은 몬스터가 사거리만으로 화면
+            // 가장자리의 아군을 미리 때리는 것을 막는다.
+            if (_cameraFollowService != null
+                && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position))
+            {
+                return;
+            }
 
             Health target = FindNearestTarget(stats.AttackRange);
 

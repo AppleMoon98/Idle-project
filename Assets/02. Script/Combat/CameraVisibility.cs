@@ -43,5 +43,21 @@ namespace Combat
             return worldPosition.x >= center.x - halfExtent.x + marginX && worldPosition.x <= center.x + halfExtent.x - marginX
                 && worldPosition.y >= center.y - halfExtent.y + marginY && worldPosition.y <= center.y + halfExtent.y - marginY;
         }
+
+        /// <summary>
+        /// worldPosition을 IsWithinBounds와 같은 사각형(center/halfExtent/margin) 안쪽으로 잘라낸
+        /// 좌표를 반환한다. Soldier.SoldierBehaviorController의 화면 복귀 목적지 계산처럼, "고정
+        /// 범위를 벗어났으니 그 범위 안 가장 가까운 지점으로 되돌린다"는 용도에 쓴다.
+        /// </summary>
+        public static Vector3 ClampToBounds(Vector3 center, Vector2 halfExtent, Vector3 worldPosition, float margin = 0f)
+        {
+            float marginX = halfExtent.x * 2f * margin;
+            float marginY = halfExtent.y * 2f * margin;
+
+            float clampedX = Mathf.Clamp(worldPosition.x, center.x - halfExtent.x + marginX, center.x + halfExtent.x - marginX);
+            float clampedY = Mathf.Clamp(worldPosition.y, center.y - halfExtent.y + marginY, center.y + halfExtent.y - marginY);
+
+            return new Vector3(clampedX, clampedY, worldPosition.z);
+        }
     }
 }
