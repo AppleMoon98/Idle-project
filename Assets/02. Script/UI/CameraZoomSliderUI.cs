@@ -20,7 +20,7 @@ namespace UI
         private Slider zoomSlider;
 
         [SerializeField]
-        private float wideOrthographicSize = 16f;
+        private float wideOrthographicSize = 24f;
 
         [SerializeField]
         private float narrowOrthographicSize = 6f;

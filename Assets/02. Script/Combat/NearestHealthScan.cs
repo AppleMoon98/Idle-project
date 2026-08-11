@@ -75,5 +75,29 @@ namespace Combat
 
             return nearest;
         }
+
+        /// <summary>
+        /// FindNearest의 고정 사각형 범위 버전 — origin에서 가장 가깝되, boundsCenter/boundsHalfExtent
+        /// 범위 밖의 후보는 애초에 고려하지 않는다. Combat.CavalryCharge처럼 "범위 밖 대상을 향해
+        /// 무제한으로 돌진/추격하지 않아야" 하는 이동 컴포넌트가 쓴다.
+        /// </summary>
+        public static Health FindNearestInBounds(Vector3 origin, Vector3 boundsCenter, Vector2 boundsHalfExtent, LayerMask layerMask)
+        {
+            Health nearest = null;
+            float nearestSqrDistance = float.MaxValue;
+
+            ForEachAliveCandidateInBounds(boundsCenter, boundsHalfExtent, layerMask, (candidate, health) =>
+            {
+                float sqrDistance = (candidate.transform.position - origin).sqrMagnitude;
+
+                if (sqrDistance < nearestSqrDistance)
+                {
+                    nearestSqrDistance = sqrDistance;
+                    nearest = health;
+                }
+            });
+
+            return nearest;
+        }
     }
 }
