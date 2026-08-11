@@ -120,7 +120,7 @@ namespace UI
                 List<OwnedSoldier> stack = _stacksByDefinition[definition];
 
                 SoldierRosterRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize(stack, OnStackTapped);
+                row.Initialize(definition, stack, OnStackTapped);
 
                 _spawnedRows.Add(row);
             }

@@ -14,6 +14,8 @@ namespace UI
     /// 2개 이상이면 countBadge에 "×N"을 표시한다. 슬롯 전체가 하나의 버튼이라 탭하면
     /// onSlotTapped로 이 스택 전체를 그대로 넘긴다 — 스택이 1개면 SoldierRosterPanelUI가 바로
     /// 액션 팝업을 열고, 여러 개면 먼저 개별 유닛을 고르는 SoldierRosterStackPopupUI를 연다.
+    /// stack이 비어있으면(0개 보유) 회색으로 비활성 표시만 하고 탭을 막는다 — SoldierRosterPanelUI가
+    /// 카탈로그 전체를 순회하며 아직 안 뽑은 병사도 "미보유" 슬롯으로 함께 보여줄 때 쓴다.
     /// </summary>
     public sealed class SoldierRosterRowUI : MonoBehaviour
     {
@@ -38,26 +40,45 @@ namespace UI
         [SerializeField]
         private float gradeTintBlend = 0.35f;
 
+        [SerializeField]
+        private Color ownedLabelColor = new(0.95f, 0.9f, 0.78f, 1f);
+
+        [SerializeField]
+        private Color unownedLabelColor = new(0.55f, 0.55f, 0.55f, 0.7f);
+
+        [SerializeField]
+        private Color unownedIconTint = new(0.5f, 0.5f, 0.5f, 0.5f);
+
+        [SerializeField]
+        private Color unownedBackgroundTint = new(0.15f, 0.15f, 0.15f, 1f);
+
+        [SerializeField]
+        private float unownedBackgroundBlend = 0.6f;
+
         /// <summary>
-        /// 슬롯 데이터를 채운다. stack은 같은 SoldierSO를 가진 유닛 전체(1개 이상)이고,
-        /// onSlotTapped는 슬롯을 탭했을 때 이 스택을 그대로 넘겨달라는 요청 콜백이다.
+        /// 슬롯 데이터를 채운다. definition은 이 슬롯이 나타낼 병사 원형, stack은 그중 실제로
+        /// 보유 중인 유닛들(0개 이상)이다. onSlotTapped는 슬롯을 탭했을 때 이 스택을 그대로
+        /// 넘겨달라는 요청 콜백이며, stack이 비어있으면 슬롯 자체가 비활성화돼 호출되지 않는다.
         /// </summary>
-        public void Initialize(IReadOnlyList<OwnedSoldier> stack, Action<IReadOnlyList<OwnedSoldier>> onSlotTapped)
+        public void Initialize(SoldierSO definition, IReadOnlyList<OwnedSoldier> stack, Action<IReadOnlyList<OwnedSoldier>> onSlotTapped)
         {
-            SoldierSO definition = stack[0].Definition;
+            bool isOwned = stack.Count > 0;
 
             label.text = definition.DisplayName;
+            label.color = isOwned ? ownedLabelColor : unownedLabelColor;
 
             if (iconImage != null)
             {
                 iconImage.sprite = definition.Icon;
                 iconImage.enabled = definition.Icon != null;
+                iconImage.color = isOwned ? Color.white : unownedIconTint;
             }
 
             if (background != null)
             {
                 EquipmentGradeSO grade = definition.Grade;
-                background.color = EquipmentRowUI.ComputeGradeBackground(baseBackgroundColor, grade, gradeTintBlend);
+                Color gradeBackground = EquipmentRowUI.ComputeGradeBackground(baseBackgroundColor, grade, gradeTintBlend);
+                background.color = isOwned ? gradeBackground : Color.Lerp(gradeBackground, unownedBackgroundTint, unownedBackgroundBlend);
             }
 
             if (countBadge != null)
@@ -71,6 +92,7 @@ namespace UI
                 }
             }
 
+            slotButton.interactable = isOwned;
             slotButton.onClick.AddListener(() => onSlotTapped?.Invoke(stack));
         }
     }

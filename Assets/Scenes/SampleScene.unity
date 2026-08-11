@@ -50575,6 +50575,8 @@ MonoBehaviour:
   rowPrefab: {fileID: 100007, guid: c0d6416a49f3470499b8e3db89310d17, type: 3}
   actionPopup: {fileID: 1590332499}
   stackPopup: {fileID: 1504188760}
+  catalog: {fileID: 11400000, guid: 050bd27f755c27f4784b61a88964459c, type: 2}
+  gradeCatalog: {fileID: 11400000, guid: 29a2262f41054a84ca2f97e8db1269c4, type: 2}
 --- !u!114 &1954959820
 MonoBehaviour:
   m_ObjectHideFlags: 0
