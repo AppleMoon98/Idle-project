@@ -264,10 +264,10 @@ RectTransform:
   - {fileID: 1248273621}
   m_Father: {fileID: 58715632}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 257.05847, y: -45}
+  m_SizeDelta: {x: 494.1169, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &24169055
 MonoBehaviour:
@@ -1339,10 +1339,10 @@ RectTransform:
   - {fileID: 36994059}
   m_Father: {fileID: 149043399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 916.4104, y: -75}
+  m_SizeDelta: {x: 203.64676, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &57510779
 MonoBehaviour:
@@ -2170,7 +2170,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 1481068121}
+  m_Father: {fileID: 1693939920}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -2612,7 +2612,7 @@ GameObject:
   - component: {fileID: 95877855}
   - component: {fileID: 95877854}
   m_Layer: 0
-  m_Name: "\uC720\uB8CC\uBF51\uAE30Button"
+  m_Name: "\uD53D\uC5C5\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2790,7 +2790,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uACE0\uAE09 \uBF51\uAE30"
+  m_Text: "\uD2F0\uCF13 \uBF51\uAE30"
 --- !u!222 &97083374
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2962,7 +2962,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC77C\uBC18 \uBF51\uAE30"
+  m_Text: "\uACE8\uB4DC \uBF51\uAE30"
 --- !u!222 &99268056
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3768,7 +3768,7 @@ GameObject:
   - component: {fileID: 126976863}
   - component: {fileID: 126976862}
   m_Layer: 0
-  m_Name: PaidTierPanel
+  m_Name: PickupTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -5332,7 +5332,7 @@ RectTransform:
   m_Children:
   - {fileID: 1061954902}
   - {fileID: 383506030}
-  m_Father: {fileID: 1693939920}
+  m_Father: {fileID: 1481068121}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -8989,7 +8989,7 @@ GameObject:
   - component: {fileID: 353803651}
   - component: {fileID: 353803650}
   m_Layer: 0
-  m_Name: "\uC720\uB8CC\uBF51\uAE30Button"
+  m_Name: "\uD53D\uC5C5\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -9425,7 +9425,6 @@ RectTransform:
   - {fileID: 1972277497}
   - {fileID: 206854210}
   - {fileID: 932680402}
-  - {fileID: 1323356780}
   - {fileID: 2066704182}
   - {fileID: 1570239947}
   - {fileID: 665732547}
@@ -9456,6 +9455,7 @@ RectTransform:
   - {fileID: 947213679}
   - {fileID: 287501699}
   - {fileID: 483739286}
+  - {fileID: 1323356780}
   - {fileID: 827809288}
   - {fileID: 114751481}
   - {fileID: 2098106982}
@@ -10456,10 +10456,10 @@ RectTransform:
   - {fileID: 1188600503}
   m_Father: {fileID: 58715632}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 761.1754, y: -45}
+  m_SizeDelta: {x: 494.1169, y: 70}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &414059875
 MonoBehaviour:
@@ -10958,9 +10958,9 @@ RectTransform:
   - {fileID: 1672044594}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 690, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &435051701
@@ -11522,8 +11522,9 @@ GameObject:
   - component: {fileID: 472055488}
   - component: {fileID: 472055490}
   - component: {fileID: 472055489}
+  - component: {fileID: 472055491}
   m_Layer: 0
-  m_Name: AdvancedTierPanel
+  m_Name: TicketTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -11541,7 +11542,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 895561774}
+  - {fileID: 1063818229}
   m_Father: {fileID: 1102959946}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -11587,6 +11588,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 472055487}
   m_CullTransparentMesh: 1
+--- !u!114 &472055491
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 472055487}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 18ce1ef1f413fdd4785ae63b183d7660, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SkillGachaTierPanelUI
+  tierIndex: 0
+  ticketText: {fileID: 1620833385}
+  pullButtons:
+  - {fileID: 1238848681}
+  - {fileID: 617151035}
+  - {fileID: 680607295}
+  pullCounts: 010000000a0000001e000000
+  debugGrantButton: {fileID: 0}
 --- !u!1 &475911476
 GameObject:
   m_ObjectHideFlags: 0
@@ -12270,7 +12291,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC77C\uBC18 \uBF51\uAE30"
+  m_Text: "\uACE8\uB4DC \uBF51\uAE30"
 --- !u!222 &516096961
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -12292,7 +12313,7 @@ GameObject:
   - component: {fileID: 518571037}
   - component: {fileID: 518571036}
   m_Layer: 0
-  m_Name: "\uC720\uB8CC\uBF51\uAE30Button"
+  m_Name: "\uD53D\uC5C5\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -12636,9 +12657,9 @@ RectTransform:
   - {fileID: 417396193}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 845, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &524678847
@@ -13751,7 +13772,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC720\uB8CC \uBF51\uAE30"
+  m_Text: "\uD53D\uC5C5 \uBF51\uAE30"
 --- !u!222 &571735686
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -16475,9 +16496,9 @@ RectTransform:
   - {fileID: 1474919537}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 321.6169, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &677245811
@@ -17287,7 +17308,7 @@ GameObject:
   - component: {fileID: 720487817}
   - component: {fileID: 720487816}
   m_Layer: 0
-  m_Name: "\uACE0\uAE09\uBF51\uAE30Button"
+  m_Name: "\uD2F0\uCF13\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -18229,7 +18250,6 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
-  detectionRange: 20
   retargetInterval: 0.2
 --- !u!114 &762544246
 MonoBehaviour:
@@ -20001,10 +20021,10 @@ RectTransform:
   - {fileID: 1578165305}
   m_Father: {fileID: 149043399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 712.7637, y: -75}
+  m_SizeDelta: {x: 203.64676, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &835295938
 MonoBehaviour:
@@ -21112,7 +21132,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
-  m_Father: {fileID: 472055488}
+  m_Father: {fileID: 1290371804}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
@@ -21740,9 +21760,9 @@ RectTransform:
   - {fileID: 113185880}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 535, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &922745379
@@ -21840,7 +21860,7 @@ GameObject:
   - component: {fileID: 926470065}
   - component: {fileID: 926470064}
   m_Layer: 0
-  m_Name: "\uC77C\uBC18\uBF51\uAE30Button"
+  m_Name: "\uACE8\uB4DC\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -22202,9 +22222,9 @@ RectTransform:
   - {fileID: 1622828833}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 571.61694, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &937939753
@@ -23609,7 +23629,7 @@ GameObject:
   - component: {fileID: 989530084}
   - component: {fileID: 989530083}
   m_Layer: 0
-  m_Name: AdvancedTierPanel
+  m_Name: TicketTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -25033,7 +25053,7 @@ RectTransform:
   m_Children:
   - {fileID: 1620833383}
   - {fileID: 65132313}
-  m_Father: {fileID: 1290371804}
+  m_Father: {fileID: 472055488}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
@@ -25726,7 +25746,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uACE0\uAE09 \uBF51\uAE30"
+  m_Text: "\uD2F0\uCF13 \uBF51\uAE30"
 --- !u!222 &1099363851
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -27331,7 +27351,7 @@ GameObject:
   - component: {fileID: 1179896939}
   - component: {fileID: 1179896938}
   m_Layer: 0
-  m_Name: "\uC77C\uBC18\uBF51\uAE30Button"
+  m_Name: "\uACE8\uB4DC\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -28288,7 +28308,7 @@ GameObject:
   - component: {fileID: 1215350129}
   - component: {fileID: 1215350128}
   m_Layer: 0
-  m_Name: NormalTierPanel
+  m_Name: GoldTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30325,7 +30345,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC77C\uBC18 \uBF51\uAE30"
+  m_Text: "\uACE8\uB4DC \uBF51\uAE30"
 --- !u!222 &1277470492
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -30518,9 +30538,8 @@ GameObject:
   - component: {fileID: 1290371804}
   - component: {fileID: 1290371807}
   - component: {fileID: 1290371806}
-  - component: {fileID: 1290371805}
   m_Layer: 0
-  m_Name: NormalTierPanel
+  m_Name: GoldTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -30538,7 +30557,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 1063818229}
+  - {fileID: 895561774}
   m_Father: {fileID: 1102959946}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -30546,26 +30565,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1290371805
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1290371803}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 18ce1ef1f413fdd4785ae63b183d7660, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UI.SkillGachaTierPanelUI
-  tierIndex: 0
-  ticketText: {fileID: 1620833385}
-  pullButtons:
-  - {fileID: 1238848681}
-  - {fileID: 617151035}
-  - {fileID: 680607295}
-  pullCounts: 010000000a0000001e000000
-  debugGrantButton: {fileID: 0}
 --- !u!114 &1290371806
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31165,10 +31164,10 @@ RectTransform:
   - {fileID: 861537908}
   m_Father: {fileID: 149043399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 101.82338, y: -75}
+  m_SizeDelta: {x: 203.64676, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1320719684
 MonoBehaviour:
@@ -31675,9 +31674,9 @@ RectTransform:
   - {fileID: 1943754421}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 70, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1357275761
@@ -32092,9 +32091,9 @@ RectTransform:
   - {fileID: 1142970195}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 696.61694, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1400447383
@@ -32984,9 +32983,9 @@ RectTransform:
   - {fileID: 1349902592}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 225, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1450139902
@@ -33836,9 +33835,9 @@ RectTransform:
   - {fileID: 1660480809}
   m_Father: {fileID: 803934869}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 380, y: -110}
   m_SizeDelta: {x: 140, y: 140}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1472103430
@@ -34427,7 +34426,7 @@ GameObject:
   - component: {fileID: 1480349953}
   - component: {fileID: 1480349952}
   m_Layer: 0
-  m_Name: PaidTierPanel
+  m_Name: PickupTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -34644,8 +34643,9 @@ GameObject:
   - component: {fileID: 1481068121}
   - component: {fileID: 1481068123}
   - component: {fileID: 1481068122}
+  - component: {fileID: 1481068124}
   m_Layer: 0
-  m_Name: AdvancedTierPanel
+  m_Name: TicketTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -34663,7 +34663,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 81688400}
+  - {fileID: 209448905}
   m_Father: {fileID: 325324562}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -34709,6 +34709,26 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1481068120}
   m_CullTransparentMesh: 1
+--- !u!114 &1481068124
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1481068120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4af91f1f995db7d429a827f54bbec0e9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.SoldierGachaTierPanelUI
+  tierIndex: 0
+  ticketText: {fileID: 1061954904}
+  pullButtons:
+  - {fileID: 1506156858}
+  - {fileID: 292645234}
+  - {fileID: 1704504120}
+  pullCounts: 010000000a0000001e000000
+  debugGrantButton: {fileID: 0}
 --- !u!1 &1485699431
 GameObject:
   m_ObjectHideFlags: 0
@@ -36064,7 +36084,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uACE0\uAE09 \uBF51\uAE30"
+  m_Text: "\uD2F0\uCF13 \uBF51\uAE30"
 --- !u!222 &1526948348
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -37884,6 +37904,7 @@ MonoBehaviour:
     spawnPoint: {fileID: 1756898781}
   respawnDelay: 5
   requiredRank: {fileID: 11400000, guid: 5b34ed3fcfbdffc40bb74038bf0e39a3, type: 2}
+  playerStats: {fileID: 762544239}
 --- !u!4 &1606090362
 Transform:
   m_ObjectHideFlags: 0
@@ -38575,9 +38596,9 @@ RectTransform:
   - {fileID: 1162465950}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 446.6169, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1632882433
@@ -39529,9 +39550,9 @@ RectTransform:
   - {fileID: 269505611}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 821.61694, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1687938770
@@ -39702,9 +39723,8 @@ GameObject:
   - component: {fileID: 1693939920}
   - component: {fileID: 1693939923}
   - component: {fileID: 1693939922}
-  - component: {fileID: 1693939921}
   m_Layer: 0
-  m_Name: NormalTierPanel
+  m_Name: GoldTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -39722,7 +39742,7 @@ RectTransform:
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children:
-  - {fileID: 209448905}
+  - {fileID: 81688400}
   m_Father: {fileID: 325324562}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
@@ -39730,26 +39750,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1693939921
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1693939919}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4af91f1f995db7d429a827f54bbec0e9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::UI.SoldierGachaTierPanelUI
-  tierIndex: 0
-  ticketText: {fileID: 1061954904}
-  pullButtons:
-  - {fileID: 1506156858}
-  - {fileID: 292645234}
-  - {fileID: 1704504120}
-  pullCounts: 010000000a0000001e000000
-  debugGrantButton: {fileID: 0}
 --- !u!114 &1693939922
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -41954,10 +41954,10 @@ RectTransform:
   - {fileID: 1033855084}
   m_Father: {fileID: 149043399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 305.47015, y: -75}
+  m_SizeDelta: {x: 203.64676, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1790058043
 MonoBehaviour:
@@ -43233,9 +43233,9 @@ RectTransform:
   - {fileID: 288701207}
   m_Father: {fileID: 717323204}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 196.61691, y: -70}
   m_SizeDelta: {x: 110, y: 110}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1841355635
@@ -43409,7 +43409,7 @@ GameObject:
   - component: {fileID: 1845479811}
   - component: {fileID: 1845479810}
   m_Layer: 0
-  m_Name: "\uC77C\uBC18\uBF51\uAE30Button"
+  m_Name: "\uACE8\uB4DC\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -44439,7 +44439,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC720\uB8CC \uBF51\uAE30"
+  m_Text: "\uD53D\uC5C5 \uBF51\uAE30"
 --- !u!222 &1899214510
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -44548,7 +44548,7 @@ GameObject:
   - component: {fileID: 1912514630}
   - component: {fileID: 1912514629}
   m_Layer: 0
-  m_Name: "\uACE0\uAE09\uBF51\uAE30Button"
+  m_Name: "\uD2F0\uCF13\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -44749,7 +44749,7 @@ GameObject:
   - component: {fileID: 1923704241}
   - component: {fileID: 1923704240}
   m_Layer: 0
-  m_Name: "\uACE0\uAE09\uBF51\uAE30Button"
+  m_Name: "\uD2F0\uCF13\uBF51\uAE30Button"
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -49388,7 +49388,7 @@ GameObject:
   - component: {fileID: 2097635231}
   - component: {fileID: 2097635230}
   m_Layer: 0
-  m_Name: PaidTierPanel
+  m_Name: PickupTierPanel
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -50174,7 +50174,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 1
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC720\uB8CC \uBF51\uAE30"
+  m_Text: "\uD53D\uC5C5 \uBF51\uAE30"
 --- !u!222 &2117743071
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -50765,10 +50765,10 @@ RectTransform:
   - {fileID: 1953437349}
   m_Father: {fileID: 149043399}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0, y: 0}
-  m_AnchorMax: {x: 0, y: 0}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 0, y: 1}
+  m_AnchoredPosition: {x: 509.11688, y: -75}
+  m_SizeDelta: {x: 203.64676, y: 150}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2145719268
 MonoBehaviour:

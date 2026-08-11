@@ -162,6 +162,7 @@ GameObject:
   - component: {fileID: 4244513230545591590}
   - component: {fileID: 2692374472471921882}
   - component: {fileID: 5488968294148996119}
+  - component: {fileID: 1418510802863437400}
   m_Layer: 8
   m_Name: Soldier
   m_TagString: Untagged
@@ -297,7 +298,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
-  weaponSwing: {fileID: 2446143283646997398}
+  weaponMotion: {fileID: 2446143283646997398}
 --- !u!114 &198481165696731778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -325,7 +326,6 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
-  detectionRange: 20
   retargetInterval: 0.2
 --- !u!114 &5496438977504568496
 MonoBehaviour:
@@ -463,6 +463,19 @@ MonoBehaviour:
   componentsToSuspend:
   - {fileID: 4203055195105543112}
   - {fileID: 7803980873243631336}
+--- !u!114 &1418510802863437400
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39f993c1879b74d40be10332c58406b0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierGradeScaler
+  config: {fileID: 11400000, guid: 1bb8da3e1491b874fa5c2e553e918630, type: 2}
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0

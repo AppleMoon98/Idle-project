@@ -12,8 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c95f752f11d140b46a3f086bd47c855d, type: 3}
   m_Name: SoldierStats
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsSO
-  maxHealth: 50
-  attackPower: 5
+  maxHealth: 500
+  attackPower: 100
   attackRange: 2.5
   moveSpeed: 2
   attackInterval: 0.8
+  criticalChance: 0
+  criticalDamageMultiplier: 0.5
+  damageReduction: 0

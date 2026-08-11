@@ -1,3 +1,4 @@
+using Equipment;
 using UnityEngine;
 
 namespace Soldier
@@ -19,6 +20,9 @@ namespace Soldier
         [SerializeField]
         private Sprite icon;
 
+        [SerializeField]
+        private EquipmentGradeSO grade;
+
         /// <summary>
         /// 병사 이름(로스터/가챠 결과 UI 표시용).
         /// </summary>
@@ -33,5 +37,13 @@ namespace Soldier
         /// 목록 UI(로스터/배치/피커)에 표시할 아이콘. 아직 지정되지 않았으면 null.
         /// </summary>
         public Sprite Icon => icon;
+
+        /// <summary>
+        /// 병종(Prefab)과 별개의 병사 등급 — Equipment.EquipmentGradeSO를 그대로 재사용해(6개
+        /// 메인 등급의 대표 1티어만 참조), 등급 색조 틴트/이름을 장비와 동일한 데이터로 표시할 수
+        /// 있게 한다. Soldier.SoldierGradeConfigSO가 이 값을 스탯 배율로 변환한다. null이면
+        /// 배율 없음(등급 개념이 없는 구형 항목).
+        /// </summary>
+        public EquipmentGradeSO Grade => grade;
     }
 }

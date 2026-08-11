@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Character;
 using Character.Events;
 using Core;
 using Managers;
@@ -33,16 +34,18 @@ namespace Soldier
         private readonly EventBus _events;
         private readonly PoolManager _pool;
         private readonly SoldierDeploymentService _deployment;
+        private readonly CharacterStatsProvider _playerStats;
         private readonly float _respawnDelay;
         private readonly Dictionary<GameObject, SoldierSpawnSlot> _activeSoldiers = new();
         private readonly Dictionary<int, GameObject> _activeBySlot = new();
         private readonly List<PendingRespawn> _pendingRespawns = new();
 
-        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, float respawnDelay)
+        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, CharacterStatsProvider playerStats, float respawnDelay)
         {
             _events = events;
             _pool = pool;
             _deployment = deployment;
+            _playerStats = playerStats;
             _respawnDelay = respawnDelay;
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
@@ -155,7 +158,7 @@ namespace Soldier
         /// </summary>
         private void Respawn(SoldierSpawnSlot slot)
         {
-            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, out GameObject instance))
+            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, _playerStats, out GameObject instance))
             {
                 return;
             }

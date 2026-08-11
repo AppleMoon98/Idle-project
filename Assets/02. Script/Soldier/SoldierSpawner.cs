@@ -1,3 +1,4 @@
+using Character;
 using Core;
 using Managers;
 using Rank;
@@ -27,6 +28,9 @@ namespace Soldier
 
         [SerializeField]
         private RankSO requiredRank;
+
+        [SerializeField]
+        private CharacterStatsProvider playerStats;
 
         private SoldierRespawner _respawner;
         private PoolManager _pool;
@@ -113,7 +117,7 @@ namespace Soldier
 
             _spawned = true;
 
-            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, respawnDelay);
+            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats, respawnDelay);
             TickerRegistration.Register(_respawner);
 
             foreach (SoldierSpawnSlot slot in slots)
@@ -153,7 +157,7 @@ namespace Soldier
 
         private void SpawnSlot(SoldierSpawnSlot slot)
         {
-            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, out GameObject instance))
+            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, playerStats, out GameObject instance))
             {
                 return;
             }

@@ -32,6 +32,29 @@ namespace Combat
         }
 
         /// <summary>
+        /// boundsCenter/boundsHalfExtent 사각형 범위 안, layerMask에 해당하는 콜라이더 중
+        /// 살아있는 Health만 걸러 visit에 하나씩 전달한다. 거리 반경(range) 대신 고정 사각형
+        /// 범위로 후보를 모으는 버전 — Combat.EnemyTracker처럼 "탐지 거리"라는 별도 스탯 없이
+        /// "그 범위 안에 있으면 후보"만으로 판정해야 하는 경우에 쓴다.
+        /// </summary>
+        public static void ForEachAliveCandidateInBounds(Vector3 boundsCenter, Vector2 boundsHalfExtent, LayerMask layerMask, Action<Collider2D, Health> visit)
+        {
+            Vector2 pointA = new Vector2(boundsCenter.x - boundsHalfExtent.x, boundsCenter.y - boundsHalfExtent.y);
+            Vector2 pointB = new Vector2(boundsCenter.x + boundsHalfExtent.x, boundsCenter.y + boundsHalfExtent.y);
+            Collider2D[] candidates = Physics2D.OverlapAreaAll(pointA, pointB, layerMask);
+
+            foreach (Collider2D candidate in candidates)
+            {
+                if (!candidate.TryGetComponent(out Health health) || health.IsDead)
+                {
+                    continue;
+                }
+
+                visit(candidate, health);
+            }
+        }
+
+        /// <summary>
         /// 위 스캔 결과 중 origin에서 가장 가까운 살아있는 Health 하나만 필요한 경우의 편의 메서드.
         /// </summary>
         public static Health FindNearest(Vector3 origin, float range, LayerMask layerMask)

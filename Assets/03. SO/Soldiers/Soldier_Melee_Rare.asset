@@ -10,9 +10,9 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
-  m_Name: Soldier_Ranged
+  m_Name: Soldier_Melee_Rare
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
-  displayName: "\uCEE4\uBA3C \uC6D0\uAC70\uB9AC \uBCD1\uC0AC"
-  prefab: {fileID: 9114245855020254752, guid: 1ed8bb48a0b599a42942d4c08c2aa3b4, type: 3}
+  displayName: "\uB808\uC5B4 \uADFC\uC811 \uBCD1\uC0AC"
+  prefab: {fileID: 9114245855020254752, guid: 0c3dfd882f0a51940a50014b9e5ab4fd, type: 3}
   icon: {fileID: 21300000, guid: 644f51c82657259449c3fe79ebe8c577, type: 3}
-  grade: {fileID: 11400000, guid: 6b4245a4032c6854a8b7606d782434e4, type: 2}
+  grade: {fileID: 11400000, guid: 4479561f010e776489799bd58e75d92f, type: 2}

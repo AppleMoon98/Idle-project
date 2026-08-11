@@ -265,8 +265,7 @@ namespace Soldier
                 return;
             }
 
-            float detectionRange = _enemyTracker != null ? _enemyTracker.DetectionRange : 20f;
-            Health nearestEnemy = FindNearestTargetableEnemy(detectionRange);
+            Health nearestEnemy = FindNearestTargetableEnemy();
 
             if (nearestEnemy == null)
             {
@@ -298,22 +297,22 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 실시간 카메라 뷰포트가 아니라 최광각 기준 고정 경계로 후보를 거른다(EnemyTracker와
-        /// 동일한 이유 - 줌인으로 화면이 좁아져도 탐지 범위가 같이 줄면 안 된다).
+        /// 별도의 거리 기반 탐지 범위 없이, 최광각 고정 범위(EnemyTracker와 동일 기준) 안의
+        /// 후보만으로 최근접 적을 찾는다. CameraFollowService를 못 구했으면 판정 기준 범위
+        /// 자체가 없으므로 null.
         /// </summary>
-        private Health FindNearestTargetableEnemy(float range)
+        private Health FindNearestTargetableEnemy()
         {
+            if (_cameraFollowService == null)
+            {
+                return null;
+            }
+
             Health nearest = null;
             float nearestSqrDistance = float.MaxValue;
 
-            NearestHealthScan.ForEachAliveCandidate(transform.position, range, enemyLayerMask, (candidate, health) =>
+            NearestHealthScan.ForEachAliveCandidateInBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), enemyLayerMask, (candidate, health) =>
             {
-                if (_cameraFollowService != null
-                    && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), candidate.transform.position))
-                {
-                    return;
-                }
-
                 float sqrDistance = (candidate.transform.position - transform.position).sqrMagnitude;
 
                 if (sqrDistance < nearestSqrDistance)
