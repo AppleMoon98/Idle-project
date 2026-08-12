@@ -446,6 +446,24 @@ namespace Stage
 
             GameObject instance = _pool.Get(prefab, position, rotation);
 
+            // 대형(전술) 편입 스폰이 켜뒀던 FormationFollower/꺼뒀던 RangedKiter 상태가 이후 이
+            // 인스턴스가 전술 없는 일반 웨이브로 재사용될 때 그대로 남아있으면, 죽은(비활성화만
+            // 됐을 뿐 파괴되지 않아 == null이 false인) 이전 리더를 계속 쫓으려 해 제자리에
+            // 얼어붙는다(실사용 중 발견 — Monster_Archer가 창병 대체로 대형에 들어갔다가 리더가
+            // 죽은 뒤 다른 스테이지의 일반 웨이브로 재사용된 경우). 매 스폰마다 먼저 "일반 상태"로
+            // 되돌려두고, 대형 편입이 필요하면 호출부가 ConfigureAsFormationFollower로 바로 다시
+            // 뒤집는다.
+            if (instance.TryGetComponent(out FormationFollower staleFollower))
+            {
+                staleFollower.enabled = false;
+                staleFollower.SetLeader(null);
+            }
+
+            if (instance.TryGetComponent(out RangedKiter staleKiter))
+            {
+                staleKiter.enabled = true;
+            }
+
             if (instance.TryGetComponent(out StageMonsterScaler scaler))
             {
                 scaler.ApplyScale(_statMultiplier);

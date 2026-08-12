@@ -269,22 +269,20 @@ namespace Combat
                 return;
             }
 
-            if (IsChargeLaneBlockedByAlly(transform.position, threat.position))
+            if (IsChargeLaneBlockedByAlly(transform.position, threat.position)
+                && TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
             {
-                if (TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
-                {
-                    _retreatAnchor.position = sidestepPoint;
-                    _mover.Target = _retreatAnchor;
-                    _mover.StoppingDistance = 0f;
-                }
-                else
-                {
-                    _mover.Target = null;
-                }
-
+                _retreatAnchor.position = sidestepPoint;
+                _mover.Target = _retreatAnchor;
+                _mover.StoppingDistance = 0f;
                 return;
             }
 
+            // 측면 후보로도 경로가 안 뚫리면(아군이 밀집해 있거나 위협이 멀 때 실제로 발생 —
+            // 최광각 카메라 범위가 넓어진 뒤 실사용 중 발견) 제자리에서 멈추지 않고 그냥 돌진한다.
+            // 돌진 중에는 CharacterSeparation을 꺼두고 피해 판정도 allyLayerMask(공격 대상)에만
+            // 적용되므로, 막힘 회피 실패가 아군을 관통하는 것 이상의 실질적 피해로 이어지지 않는다
+            // — "가능하면 피하되, 안 되면 영원히 멈추지 않는다"는 원칙.
             BeginCharge(threat.position);
         }
 

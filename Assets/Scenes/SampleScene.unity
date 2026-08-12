@@ -8890,7 +8890,7 @@ MonoBehaviour:
   lockedMessageText: {fileID: 1480148174}
   unlockedContent:
   - {fileID: 1954959817}
-  - {fileID: 0}
+  - {fileID: 950308829}
 --- !u!1 &318121702
 GameObject:
   m_ObjectHideFlags: 0
@@ -21936,7 +21936,6 @@ GameObject:
   - component: {fileID: 762544253}
   - component: {fileID: 762544254}
   - component: {fileID: 762544255}
-  - component: {fileID: 843023033926465275}
   - component: {fileID: 843023033926465276}
   - component: {fileID: 843023033926465277}
   m_Layer: 8
@@ -62554,18 +62553,6 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
---- !u!114 &843023033926465275
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 762544235}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: a58b0c5efd424e219219365f95221ac9, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Character.ClimaxStagePositionResetter
 --- !u!114 &843023033926465276
 MonoBehaviour:
   m_ObjectHideFlags: 0

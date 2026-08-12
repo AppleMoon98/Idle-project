@@ -16,16 +16,13 @@ namespace Soldier
     /// 아직 아무도 배치하지 않았으면) 그 슬롯은 스폰하지 않는다. SoldierDeploymentChangedEvent도
     /// 구독해, 이미 활성화된 뒤에 플레이어가 슬롯을 재편성하면(새로 배정/교체/해제) 그 슬롯만
     /// 즉시 정리하고 다시 스폰한다 — 그렇지 않으면 씬 시작 시점 배정만 영원히 유효하게 된다.
-    /// 스폰한 병사가 사망하면 SoldierRespawner를 통해 respawnDelay 후 그 시점의 배정을 다시
-    /// 확인해 재소환한다.
+    /// 전투 중 사망한 병사는 자동으로 리스폰되지 않는다 — 그 슬롯은 다음 스테이지가 시작될
+    /// 때(OnStageChanged가 SoldierRespawner.ResetForNewStage를 호출)까지 빈 채로 남는다.
     /// </summary>
     public sealed class SoldierSpawner : MonoBehaviour
     {
         [SerializeField]
         private SoldierSpawnSlot[] slots;
-
-        [SerializeField]
-        private float respawnDelay = 5f;
 
         [SerializeField]
         private RankSO requiredRank;
@@ -65,7 +62,6 @@ namespace Soldier
                 return;
             }
 
-            TickerRegistration.Unregister(_respawner);
             _respawner.Dispose();
             _respawner = null;
         }
@@ -77,13 +73,13 @@ namespace Soldier
 
         /// <summary>
         /// 스테이지가 바뀔 때마다(진행/반복/사망 후퇴 전부) 살아있는 병사 전원의 체력을
-        /// 최대치로 되돌린다. Character.PlayerReviveOnStageChanged가 Player에게 하는 것과
-        /// 동일한 목적 — 병사는 사망하지 않는 한 스테이지가 바뀌어도 파괴/재소환되지 않으므로
-        /// 깎인 체력이 그대로 다음 스테이지까지 이어지는 것을 막는다.
+        /// 최대치로 되돌리고, 이번 시도 중 사망해 빈 채로 남아있던 슬롯은 재배치한다.
+        /// 전투 중 사망은 더 이상 자동으로 리스폰되지 않는다 — 스테이지 시작이 슬롯을
+        /// 되돌리는 유일한 시점이다(Soldier.SoldierRespawner.ResetForNewStage 참고).
         /// </summary>
         private void OnStageChanged(StageChangedEvent evt)
         {
-            _respawner?.ReviveActive();
+            _respawner?.ResetForNewStage(slots);
         }
 
         /// <summary>
@@ -131,8 +127,7 @@ namespace Soldier
 
             _spawned = true;
 
-            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats, respawnDelay);
-            TickerRegistration.Register(_respawner);
+            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats);
 
             foreach (SoldierSpawnSlot slot in slots)
             {
