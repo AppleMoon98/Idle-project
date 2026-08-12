@@ -1,5 +1,6 @@
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -31,6 +32,7 @@ namespace Combat
         private LayerMask allyLayerMask;
 
         private CharacterMover _mover;
+        private CameraFollowService _cameraFollowService;
         private Transform _protectedUnit;
         private Transform _guardAnchor;
         private float _elapsed;
@@ -48,6 +50,7 @@ namespace Combat
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _guardAnchor = new GameObject("GuardPositionAnchor").transform;
         }
 
@@ -91,7 +94,9 @@ namespace Combat
                 return;
             }
 
-            Health nearest = NearestHealthScan.FindNearest(_protectedUnit.position, detectionRange, allyLayerMask);
+            Health nearest = _cameraFollowService != null
+                ? NearestHealthScan.FindNearestInBounds(_protectedUnit.position, _cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), allyLayerMask)
+                : NearestHealthScan.FindNearest(_protectedUnit.position, detectionRange, allyLayerMask);
 
             if (nearest == null)
             {

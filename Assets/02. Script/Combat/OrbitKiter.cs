@@ -1,5 +1,6 @@
 using Character;
 using Core;
+using Services;
 using UnityEngine;
 
 namespace Combat
@@ -32,6 +33,7 @@ namespace Combat
         private LayerMask allyLayerMask;
 
         private CharacterMover _mover;
+        private CameraFollowService _cameraFollowService;
         private Transform _orbitAnchor;
         private float _elapsed;
         private float _orbitAngleDegrees;
@@ -44,6 +46,7 @@ namespace Combat
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _orbitAnchor = new GameObject("OrbitKiterAnchor").transform;
         }
 
@@ -87,10 +90,25 @@ namespace Combat
             Retarget(sinceLastRetarget);
         }
 
+        /// <summary>
+        /// 카메라 최광각 고정 범위(줌 배율과 무관) 안의 대상만 위협으로 고려한다 — Combat.CavalryCharge의
+        /// 동일한 수정과 같은 이유: detectionRange만 보고 스캔하면 범위 밖(스폰 대기 구역 등)에 막
+        /// 나타난 대상까지 "가장 가까운 위협"으로 잡아, 실제로는 화면 안에 있는 더 가까운 대상을
+        /// 놔두고 먼 곳으로 향하느라 반응이 늦어 보이는 문제가 있었다. CameraFollowService를
+        /// 못 구했을 때만(방어적 폴백) 기존 raw-radius 스캔으로 대체한다.
+        /// </summary>
+        private Transform FindThreat()
+        {
+            Health nearest = _cameraFollowService != null
+                ? NearestHealthScan.FindNearestInBounds(transform.position, _cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), allyLayerMask)
+                : NearestHealthScan.FindNearest(transform.position, detectionRange, allyLayerMask);
+
+            return nearest != null ? nearest.transform : PlayerTransform;
+        }
+
         private void Retarget(float sinceLastRetarget)
         {
-            Health nearest = NearestHealthScan.FindNearest(transform.position, detectionRange, allyLayerMask);
-            Transform threat = nearest != null ? nearest.transform : PlayerTransform;
+            Transform threat = FindThreat();
 
             if (threat == null)
             {
