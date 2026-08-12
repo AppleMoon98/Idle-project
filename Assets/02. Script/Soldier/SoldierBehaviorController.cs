@@ -32,9 +32,6 @@ namespace Soldier
         private float decisionInterval = 0.5f;
 
         [SerializeField]
-        private float postAttackLockDuration = 0.5f;
-
-        [SerializeField]
         private float kiteStepDistance = 2f;
 
         [SerializeField]
@@ -47,7 +44,6 @@ namespace Soldier
         private CharacterStatsProvider _statsProvider;
         private CharacterMover _mover;
         private EnemyTracker _enemyTracker;
-        private Attacker _attacker;
         private RangedAttackBehavior _rangedAttack;
         private CavalryCharge _cavalryCharge;
         private OrbitKiter _orbitKiter;
@@ -57,12 +53,10 @@ namespace Soldier
         private CameraFollowService _cameraFollowService;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
-        private Transform _playerTransform;
 
         private int _instanceId;
         private Transform _retreatPoint;
         private float _elapsed;
-        private float _postAttackLockRemaining;
 
         private void Awake()
         {
@@ -70,7 +64,6 @@ namespace Soldier
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _mover = GetComponent<CharacterMover>();
             _enemyTracker = GetComponent<EnemyTracker>();
-            _attacker = GetComponent<Attacker>();
             _rangedAttack = GetComponent<RangedAttackBehavior>();
             _cavalryCharge = GetComponent<CavalryCharge>();
             _orbitKiter = GetComponent<OrbitKiter>();
@@ -94,21 +87,11 @@ namespace Soldier
         private void OnEnable()
         {
             TickerRegistration.Register(this);
-
-            if (_attacker != null)
-            {
-                _attacker.AttackPerformed += OnAttackPerformed;
-            }
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
-
-            if (_attacker != null)
-            {
-                _attacker.AttackPerformed -= OnAttackPerformed;
-            }
         }
 
         /// <summary>
@@ -131,33 +114,35 @@ namespace Soldier
 
         /// <summary>
         /// 이 유닛이 어떤 로스터 유닛(instanceId)이고, 후퇴 시 어디로 갈지(retreatPoint)를 주입하고
-        /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다. playerTransform은
-        /// CavalryCharge/OrbitKiter/FormationFollower처럼 "탐지 범위 안에 아무 대상도 없을 때의
-        /// 기본 위협"이 필요한 이동 컴포넌트에 한 번만 주입한다(몬스터 쪽 MonsterSpawner.SpawnOne이
-        /// IMonsterMovementInitializer.Initialize(playerTransform)를 호출하는 것과 같은 이유·같은
-        /// 타이밍) — 이 컴포넌트들이 없는 병과(보병/궁병 등)에서는 자연히 아무 일도 하지 않는다.
+        /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다.
+        /// CavalryCharge/OrbitKiter/FormationFollower는 "탐지 범위 안에 아무 대상(몬스터)도 없을 때의
+        /// 기본 위협"으로 플레이어를 주입받도록 설계돼 있지만(몬스터 쪽 MonsterSpawner.SpawnOne이
+        /// IMonsterMovementInitializer.Initialize(playerTransform)를 호출하는 것과 같은 코드 형태),
+        /// 그건 몬스터 입장(적이 없으면 플레이어를 향해 간다)에서만 의미가 있다. 병사에게 그대로
+        /// 적용하면 스테이지 시작 직후처럼 근처에 몬스터가 하나도 없을 때 아군인 플레이어를
+        /// "위협"으로 삼아 쫓아가거나 주위를 도는 버그가 된다(실사용 중 발견) — 그래서 병사 쪽은
+        /// 항상 null을 넘겨, 각 컴포넌트에 이미 있는 "위협 없음 → 제자리 대기" 폴백을 그대로
+        /// 타도록 한다. 이 컴포넌트들이 없는 병과(보병/궁병 등)에서는 자연히 아무 일도 하지 않는다.
         /// </summary>
-        public void Initialize(int instanceId, Transform retreatPoint, Transform playerTransform)
+        public void Initialize(int instanceId, Transform retreatPoint)
         {
             _instanceId = instanceId;
             _retreatPoint = retreatPoint;
-            _playerTransform = playerTransform;
             _elapsed = 0f;
-            _postAttackLockRemaining = 0f;
 
             if (_cavalryCharge != null)
             {
-                _cavalryCharge.Initialize(_playerTransform);
+                _cavalryCharge.Initialize(null);
             }
 
             if (_orbitKiter != null)
             {
-                _orbitKiter.Initialize(_playerTransform);
+                _orbitKiter.Initialize(null);
             }
 
             if (_formationFollower != null)
             {
-                _formationFollower.Initialize(_playerTransform);
+                _formationFollower.Initialize(null);
             }
 
             Evaluate();
@@ -174,11 +159,6 @@ namespace Soldier
 
             _elapsed = 0f;
             Evaluate();
-        }
-
-        private void OnAttackPerformed()
-        {
-            _postAttackLockRemaining = postAttackLockDuration;
         }
 
         private void Evaluate()
@@ -346,18 +326,12 @@ namespace Soldier
 
         /// <summary>
         /// 원거리 병사 전용 이동 로직 — EnemyTracker를 대신해 이 컨트롤러가 직접 타겟을 찾고,
-        /// 사거리 밖이면 접근, 사거리 안이면 대기, 공격 직후에는 잠깐 경직 후 최근접 적 반대
-        /// 방향으로 후퇴한다(카이팅). 매 decisionInterval마다 재평가된다.
+        /// 사거리 밖이면 접근, 사거리 안이면 대기, 사거리 안으로 적이 너무 가까워지면 반대
+        /// 방향으로 후퇴한다(카이팅). 공격 직후에도 멈추지 않고 계속 움직인다(공격 후 경직
+        /// 패널티 없음 — 실사용 피드백으로 제거됨). 매 decisionInterval마다 재평가된다.
         /// </summary>
         private void TickRangedKiting()
         {
-            if (_postAttackLockRemaining > 0f)
-            {
-                _postAttackLockRemaining -= decisionInterval;
-                _mover.Target = null;
-                return;
-            }
-
             Health nearestEnemy = FindNearestTargetableEnemy();
 
             if (nearestEnemy == null)

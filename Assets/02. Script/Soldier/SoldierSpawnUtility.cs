@@ -30,7 +30,7 @@ namespace Soldier
 
             if (instance.TryGetComponent(out SoldierBehaviorController controller))
             {
-                controller.Initialize(owned.InstanceId, slot.SpawnPoint, playerStats != null ? playerStats.transform : null);
+                controller.Initialize(owned.InstanceId, slot.SpawnPoint);
             }
 
             if (instance.TryGetComponent(out SoldierGradeScaler gradeScaler))
