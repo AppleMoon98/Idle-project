@@ -1,4 +1,6 @@
 using Character;
+using Combat;
+using Core;
 using Managers;
 using UnityEngine;
 
@@ -36,6 +38,12 @@ namespace Soldier
             if (instance.TryGetComponent(out SoldierGradeScaler gradeScaler))
             {
                 gradeScaler.Initialize(playerStats, owned.Definition.Grade);
+            }
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadMovementSyncService squadSync))
+            {
+                bool isExempt = instance.GetComponent<CavalryCharge>() != null || instance.GetComponent<OrbitKiter>() != null;
+                squadSync.Register(instance, slot.SlotIndex, isExempt);
             }
 
             return true;

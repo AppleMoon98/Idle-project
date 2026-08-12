@@ -35,6 +35,9 @@ namespace UI
         private Button slotButton;
 
         [SerializeField]
+        private GameObject selectedHighlight;
+
+        [SerializeField]
         private Color baseBackgroundColor = Color.white;
 
         [SerializeField]
@@ -94,6 +97,21 @@ namespace UI
 
             slotButton.interactable = isOwned;
             slotButton.onClick.AddListener(() => onSlotTapped?.Invoke(stack));
+
+            SetSelected(false);
+        }
+
+        /// <summary>
+        /// 선택 테두리를 켜고 끈다 — 이 슬롯 자체는 "선택" 개념을 모르는 채 요청받은 대로 표시만
+        /// 한다(SoldierDeploymentPanelUI가 "부대 편성" 팝업의 배치 대상 선택 흐름에서 호출한다).
+        /// 기본 로스터 패널(SoldierRosterPanelUI)은 이 메서드를 호출하지 않으므로 항상 꺼져 있다.
+        /// </summary>
+        public void SetSelected(bool selected)
+        {
+            if (selectedHighlight != null)
+            {
+                selectedHighlight.SetActive(selected);
+            }
         }
     }
 }

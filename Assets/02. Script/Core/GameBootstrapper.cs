@@ -169,6 +169,21 @@ namespace Core
             Services.Register(soldierDeploymentService);
             _managers.Add(soldierDeploymentService);
 
+            var squadMovementSyncService = new SquadMovementSyncService(Events);
+            squadMovementSyncService.Initialize();
+            Services.Register(squadMovementSyncService);
+            _managers.Add(squadMovementSyncService);
+
+            var squadTacticService = new SquadTacticService(Events);
+            squadTacticService.Initialize();
+            Services.Register(squadTacticService);
+            _managers.Add(squadTacticService);
+
+            var squadShieldWallCoordinator = new SquadShieldWallCoordinator(Events, squadTacticService, squadMovementSyncService);
+            squadShieldWallCoordinator.Initialize();
+            Services.Register(squadShieldWallCoordinator);
+            _managers.Add(squadShieldWallCoordinator);
+
             var soldierEquipmentInventoryService = new SoldierEquipmentInventoryService(Events);
             soldierEquipmentInventoryService.Initialize();
             Services.Register(soldierEquipmentInventoryService);

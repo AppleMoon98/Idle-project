@@ -51,6 +51,7 @@ namespace Soldier
         private RangedKiter _formationKiter;
         private SoldierRosterService _roster;
         private CameraFollowService _cameraFollowService;
+        private SquadMovementSyncService _squadMovementSync;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
 
@@ -71,6 +72,7 @@ namespace Soldier
             _formationKiter = GetComponent<RangedKiter>();
             GameBootstrapper.Services?.TryGet(out _roster);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
+            GameBootstrapper.Services?.TryGet(out _squadMovementSync);
 
             // 이동 목표로 쓸 앵커는 병사의 자식으로 붙이면 안 된다 — 자식이면 부모(병사)가 움직일
             // 때마다 같은 상대 오프셋을 유지하며 같이 이동해버려서, CharacterMover가 "항상 같은
@@ -170,6 +172,10 @@ namespace Soldier
             if (_cameraFollowService != null
                 && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position, screenReturnMargin))
             {
+                // 화면 복귀 중에도 부대 최저속 동기화 대상이다 — 애초에 이 기능은 여러 병사가
+                // 화면 밖에서 각자 다른 속도로 복귀하며 뭉쳐 보이던 문제를 해소하려는 것이라,
+                // 이 경로에서 클램프를 풀어버리면 정작 그 문제가 그대로 남는다.
+                _squadMovementSync?.SetMarching(gameObject, true);
                 ReturnToScreen();
                 return;
             }
@@ -197,6 +203,12 @@ namespace Soldier
                     }
                 }
             }
+
+            // Engage 모드인데 아직 주변에 교전할 적을 못 찾았을 때만 "행군 중"으로 취급해 부대
+            // 최저속 클램프 대상이 된다 — Hold/Retreat이거나 이미 적을 감지했으면(각 이동 드라이버가
+            // 뒤이어 그 적을 실제로 쫓기 시작하므로) 즉시 클램프를 풀어 자기 본연 속도로 돌아간다.
+            bool isMarching = mode == BehaviorMode.Engage && FindNearestTargetableEnemy() == null;
+            _squadMovementSync?.SetMarching(gameObject, isMarching);
 
             ApplyMode(mode);
         }

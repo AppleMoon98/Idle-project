@@ -10,7 +10,7 @@ namespace Soldier
     /// 배치 슬롯(SoldierSpawnSlot.SlotIndex)마다 로스터의 어떤 유닛이 나가 있는지 기록한다.
     /// EquippedGearService와 같은 성격 — 배정은 로스터에서 유닛을 "빼지" 않고 슬롯이 InstanceId를
     /// 가리키게만 한다(유닛은 배치 여부와 무관하게 항상 보유 상태를 유지). 슬롯 잠금 해제 수는
-    /// 현재 랭크(RankSO.MaxDeployableSoldiers)를 그대로 따른다 — SoldierSpawner가 이미
+    /// 현재 랭크(RankSO.MaxDeployableSquads × SlotsPerSquad)를 그대로 따른다 — SoldierSpawner가 이미
     /// RankService.IsAtLeast()를 직접 참조하는 것과 같은 방향의 의존성이다.
     /// </summary>
     public sealed class SoldierDeploymentService : IManager, IService
@@ -25,6 +25,17 @@ namespace Soldier
             public int InstanceId;
         }
 
+        /// <summary>
+        /// UI가 flat 슬롯 인덱스를 "부대" 단위(부대당 20명 = 부대 편성 팝업 상단 4x5 배치 그리드,
+        /// 총 6부대)로 묶어 보여줄 때 쓰는 공용 상수 — 부대 N(0-based)은 슬롯 [N*SlotsPerSquad,
+        /// (N+1)*SlotsPerSquad) 구간이다. 배정 로직(TryAssign 등)은 이 구분을 전혀 모른다 — 여전히
+        /// flat 인덱스로만 동작한다. 원래 12(단순 세로 목록 12줄)였다가, 그 목록이 실제 배치
+        /// 대상인 4x5 그리드로 바뀌면서(section DI) 그리드 칸 수에 맞춰 20으로 늘었다.
+        /// </summary>
+        public const int SlotsPerSquad = 20;
+
+        public const int SquadCount = 6;
+
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
         private readonly RankService _rankService;
@@ -38,11 +49,13 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 현재 랭크에서 동시에 배치할 수 있는 슬롯 수. 랭크 정보가 없으면(설정 누락) 0.
+        /// 현재 랭크에서 동시에 배치할 수 있는 슬롯 수 — RankSO.MaxDeployableSquads(완전히 꾸릴 수
+        /// 있는 부대 수) × SlotsPerSquad로 환산한다. 랭크 정보가 없으면(설정 누락) 0.
         /// </summary>
         public int GetMaxUnlockedSlotCount()
         {
-            return _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeployableSoldiers : 0;
+            int squads = _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeployableSquads : 0;
+            return squads * SlotsPerSquad;
         }
 
         public void Initialize()
