@@ -106,6 +106,28 @@ namespace Soldier
         }
 
         /// <summary>
+        /// 현재 추적 중인(살아있는) 병사 전부의 체력을 최대치로 되돌린다.
+        /// Character.PlayerReviveOnStageChanged가 Player에게 하는 것과 동일한 목적으로,
+        /// 스테이지가 바뀔 때(진행/반복/사망 후퇴 전부) 살아남은 병사도 깎인 체력 그대로
+        /// 다음 스테이지에 들어가지 않도록 SoldierSpawner가 호출한다.
+        /// </summary>
+        public void ReviveActive()
+        {
+            foreach (GameObject soldier in _activeSoldiers.Keys)
+            {
+                if (soldier == null)
+                {
+                    continue;
+                }
+
+                if (soldier.TryGetComponent(out Health health))
+                {
+                    health.Revive();
+                }
+            }
+        }
+
+        /// <summary>
         /// slotIndex를 즉시 비운다 — 대기 중인 리스폰 타이머를 취소하고, 지금 그 슬롯을 차지하고
         /// 있는 살아있는 인스턴스가 있으면 사망 처리 없이(루팅 등 부수효과 없이) 풀로 반환한다.
         /// 배치 재편성으로 슬롯의 배정이 바뀌거나 해제됐을 때, SoldierSpawner가 새로 스폰하기

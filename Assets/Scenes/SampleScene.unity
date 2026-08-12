@@ -19428,6 +19428,7 @@ GameObject:
   - component: {fileID: 762544255}
   - component: {fileID: 843023033926465275}
   - component: {fileID: 843023033926465276}
+  - component: {fileID: 843023033926465277}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -56511,6 +56512,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.ClimaxStagePositionResetter
   soldierSpawner: {fileID: 1606090361}
+  _startLocalPosition: {x: 0, y: 0, z: 0}
 --- !u!114 &843023033926465276
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -56524,6 +56526,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CaptureZoneAutoNavigator
   retargetInterval: 0.5
+--- !u!114 &843023033926465277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 49d71926a06b66442a4a446798e81509, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.StagePositionResetter
+  soldierSpawner: {fileID: 1606090361}
 --- !u!1001 &2296313086806946606
 PrefabInstance:
   m_ObjectHideFlags: 0

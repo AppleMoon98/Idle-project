@@ -4,6 +4,7 @@ using Managers;
 using Rank;
 using Rank.Events;
 using Soldier.Events;
+using Stage.Events;
 using UnityEngine;
 
 namespace Soldier
@@ -48,6 +49,7 @@ namespace Soldier
             GameBootstrapper.Services.TryGet(out _deployment);
             GameBootstrapper.Events?.Subscribe<RankChangedEvent>(OnRankChanged);
             GameBootstrapper.Events?.Subscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
+            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
 
             TrySpawn();
         }
@@ -56,6 +58,7 @@ namespace Soldier
         {
             GameBootstrapper.Events?.Unsubscribe<RankChangedEvent>(OnRankChanged);
             GameBootstrapper.Events?.Unsubscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
+            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
 
             if (_respawner == null)
             {
@@ -70,6 +73,17 @@ namespace Soldier
         private void OnRankChanged(RankChangedEvent evt)
         {
             TrySpawn();
+        }
+
+        /// <summary>
+        /// 스테이지가 바뀔 때마다(진행/반복/사망 후퇴 전부) 살아있는 병사 전원의 체력을
+        /// 최대치로 되돌린다. Character.PlayerReviveOnStageChanged가 Player에게 하는 것과
+        /// 동일한 목적 — 병사는 사망하지 않는 한 스테이지가 바뀌어도 파괴/재소환되지 않으므로
+        /// 깎인 체력이 그대로 다음 스테이지까지 이어지는 것을 막는다.
+        /// </summary>
+        private void OnStageChanged(StageChangedEvent evt)
+        {
+            _respawner?.ReviveActive();
         }
 
         /// <summary>
