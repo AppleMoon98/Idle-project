@@ -32,7 +32,7 @@ namespace UI
         private SquadDeploymentSlotGridUI slotGrid;
 
         [SerializeField]
-        private SquadTacticToggleUI tacticToggle;
+        private SquadTacticDropdownUI tacticToggle;
 
         [SerializeField]
         private SoldierDeploymentPopupUI squadDetailPopup;

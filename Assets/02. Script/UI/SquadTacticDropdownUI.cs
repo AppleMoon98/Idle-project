@@ -7,17 +7,24 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 부대 편성 팝업(SquadDetailPopup)의 전술 선택 버튼 — 지금 보고 있는 부대의 전술을 버튼
-    /// 하나로 순환(없음 → 방패벽 → 없음 ...) 전환한다. 선택지가 두 가지뿐이라 버튼 하나로
-    /// 충분하고, 전술이 늘어나면(계획된 특수 기동형 전술들) 그때 목록형 피커 UI로 승격한다.
+    /// 부대 편성 팝업(SquadDetailPopup)의 전술 선택 버튼 — 탭하면 SquadTacticOptionPopupUI가
+    /// 전체 전술 목록을 드롭다운처럼 띄운다(뽑기 화면의 카테고리 버튼과 같은 "탭 → 목록 팝업"
+    /// 형태). 이전엔 선택지가 두 가지뿐이라 버튼 하나로 순환 토글했지만(section DL), 전술
+    /// 종류가 앞으로 계속 늘어날 예정이라(section DL이 예고한 "특수 기동형" 전술들) 그때 가서
+    /// 선택하기 어려워지기 전에 미리 목록형으로 승격했다. 이 컴포넌트 자체는 "지금 선택된
+    /// 전술이 무엇인지 라벨로 보여주고, 탭하면 목록을 연다"는 것만 안다 — 실제 선택 처리는
+    /// SquadTacticOptionPopupUI가 담당한다.
     /// </summary>
-    public sealed class SquadTacticToggleUI : MonoBehaviour
+    public sealed class SquadTacticDropdownUI : MonoBehaviour
     {
         [SerializeField]
         private Button tacticButton;
 
         [SerializeField]
         private Text tacticLabel;
+
+        [SerializeField]
+        private SquadTacticOptionPopupUI optionPopup;
 
         private int _squadIndex;
 
@@ -60,8 +67,7 @@ namespace UI
                 return;
             }
 
-            SquadTacticType next = SquadTacticService.GetNext(tactics.GetTactic(_squadIndex));
-            tactics.SetTactic(_squadIndex, next);
+            optionPopup.Open(_squadIndex, tactics.GetTactic(_squadIndex));
         }
 
         private void Refresh()
@@ -77,16 +83,7 @@ namespace UI
                 return;
             }
 
-            tacticLabel.text = "전술: " + DisplayName(tactics.GetTactic(_squadIndex));
-        }
-
-        private static string DisplayName(SquadTacticType tactic)
-        {
-            return tactic switch
-            {
-                SquadTacticType.ShieldWall => "방패벽",
-                _ => "없음",
-            };
+            tacticLabel.text = "전술: " + SquadTacticDisplayNames.Get(tactics.GetTactic(_squadIndex));
         }
     }
 }

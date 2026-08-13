@@ -126,6 +126,46 @@ namespace Soldier
         }
 
         /// <summary>
+        /// slotA와 slotB의 배정을 서로 맞바꾼다. 한쪽만 채워져 있으면 그 유닛이 반대쪽으로 옮겨가고
+        /// 원래 자리는 빈 칸이 되는 것(이동)과 결과적으로 동일하다 — "스왑"과 "이동"을 굳이 나누지
+        /// 않고 한 메서드로 처리한다. 두 슬롯 다 비어있으면 아무 일도 일어나지 않는다(이벤트도
+        /// 발행하지 않는다). TryAssign과 달리 잠금 해제 여부(GetMaxUnlockedSlotCount)를 확인하지
+        /// 않는다 — 이미 배정이 존재하는 슬롯끼리(또는 그런 슬롯과 인접한 빈 슬롯) 주고받는
+        /// 것이라, 애초에 슬롯이 잠겨 있었다면 그 자리에 배정이 있을 수 없다.
+        /// </summary>
+        public void Swap(int slotA, int slotB)
+        {
+            bool hasA = _slotToInstanceId.TryGetValue(slotA, out int instanceAtA);
+            bool hasB = _slotToInstanceId.TryGetValue(slotB, out int instanceAtB);
+
+            if (!hasA && !hasB)
+            {
+                return;
+            }
+
+            if (hasA)
+            {
+                _slotToInstanceId[slotB] = instanceAtA;
+            }
+            else
+            {
+                _slotToInstanceId.Remove(slotB);
+            }
+
+            if (hasB)
+            {
+                _slotToInstanceId[slotA] = instanceAtB;
+            }
+            else
+            {
+                _slotToInstanceId.Remove(slotA);
+            }
+
+            _events.Publish(new SoldierDeploymentChangedEvent(slotA));
+            _events.Publish(new SoldierDeploymentChangedEvent(slotB));
+        }
+
+        /// <summary>
         /// slotIndex에 배정된 유닛을 반환한다. 배정이 없거나 배정된 유닛이 로스터에서 사라졌으면 false.
         /// </summary>
         public bool TryGetAssigned(int slotIndex, out OwnedSoldier owned)

@@ -54,19 +54,5 @@ namespace Soldier
             _tactics[squadIndex] = tactic;
             _events?.Publish(new SquadTacticChangedEvent(squadIndex, tactic));
         }
-
-        /// <summary>
-        /// 다음으로 순환할 전술. 지금은 None/ShieldWall 두 가지뿐이라 버튼 하나로 토글하는 UI가
-        /// 이 메서드를 그대로 쓴다 — 전술 종류가 늘어나면 이 나열 순서를 확장하거나, 그 시점에
-        /// 목록형 피커 UI로 승격한다.
-        /// </summary>
-        public static SquadTacticType GetNext(SquadTacticType current)
-        {
-            return current switch
-            {
-                SquadTacticType.None => SquadTacticType.ShieldWall,
-                _ => SquadTacticType.None,
-            };
-        }
     }
 }

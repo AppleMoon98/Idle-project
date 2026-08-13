@@ -26,6 +26,9 @@ namespace UI
         private Button slotButton;
 
         [SerializeField]
+        private GameObject selectedHighlight;
+
+        [SerializeField]
         private Color emptyColor = new(0.35f, 0.35f, 0.4f, 0.6f);
 
         [SerializeField]
@@ -67,6 +70,20 @@ namespace UI
             slotButton.interactable = !isLocked;
             slotButton.onClick.RemoveAllListeners();
             slotButton.onClick.AddListener(() => onTapped?.Invoke(_slotIndex));
+
+            SetSelected(false);
+        }
+
+        /// <summary>
+        /// 이동/해제를 기다리는 "선택" 테두리를 켜고 끈다 — 이 슬롯 자체는 선택 상태를 스스로
+        /// 관리하지 않고 요청받은 대로 표시만 한다(SquadDeploymentSlotGridUI가 소유한다).
+        /// </summary>
+        public void SetSelected(bool selected)
+        {
+            if (selectedHighlight != null)
+            {
+                selectedHighlight.SetActive(selected);
+            }
         }
     }
 }
