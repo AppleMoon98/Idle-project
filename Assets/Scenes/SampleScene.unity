@@ -46728,7 +46728,6 @@ MonoBehaviour:
     spawnPoint: {fileID: 1228969164}
   - slotIndex: 71
     spawnPoint: {fileID: 1389060989}
-  respawnDelay: 5
   requiredRank: {fileID: 11400000, guid: 5b34ed3fcfbdffc40bb74038bf0e39a3, type: 2}
   playerStats: {fileID: 762544239}
 --- !u!4 &1606090362
