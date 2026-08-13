@@ -385,8 +385,12 @@ namespace Core
             _equipmentStatService?.RecomputeAndPublish();
             _equipmentPossessionService?.RecomputeAndPublish();
 
-            _rankService?.RestoreLevel(_initialSave.RankIndex);
+            // SeedHighestCleared를 RestoreLevel보다 먼저 호출해야 한다 - RestoreLevel이 발행하는
+            // RankChangedEvent를 RankUpAvailableTextUI가 받아 IsNextRankAvailable()을 재계산하는데,
+            // 그 시점에 _highestClearedIndex가 아직 시딩 전(-1)이면 이미 요구 스테이지를 넘어선
+            // 세이브도 승급 가능 버튼이 뜨지 않는다(새로 스테이지를 클리어해야만 다시 체크됨).
             _rankService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
+            _rankService?.RestoreLevel(_initialSave.RankIndex);
         }
 
         private void OnApplicationPause(bool pauseStatus)

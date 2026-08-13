@@ -213,6 +213,17 @@ namespace Stage
         /// 죽었다면(예: 던전 보스에게 사망) StageChangedEvent가 없어 PlayerReviveOnStageChanged가
         /// 대신 되살려주지 못하므로 여기서 직접 부활시킨다.
         /// </summary>
+        /// <summary>
+        /// 현재 스테이지를 역대 최고 클리어 스테이지로 옮긴다. StageProgression.JumpToHighestCleared로
+        /// 위임한다 - Stage 밖(예: 랭크 승급 가능 자동 반복 전환)에서 StageProgression을 직접
+        /// 참조하지 않고 이 창구를 통해서만 호출하게 하기 위함(PauseForOverlay/ResumeAfterOverlay와
+        /// 같은 이유).
+        /// </summary>
+        public void JumpCurrentToHighestCleared()
+        {
+            _progression?.JumpToHighestCleared();
+        }
+
         public void ResumeAfterOverlay()
         {
             _progression?.SetSuppressed(false);

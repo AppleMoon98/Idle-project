@@ -80,6 +80,23 @@ namespace Stage
             _isSuppressed = suppressed;
         }
 
+        /// <summary>
+        /// 현재 스테이지를 역대 최고 클리어 스테이지로 옮긴다(예: 랭크 승급 가능 시 자동 반복
+        /// 전환, section AY/AZ 이후 추가 기능). 이미 그 자리라면(예: 방금 그 스테이지를 클리어해
+        /// highest==current가 된 직후) 아무 일도 하지 않는다 - OnStageCleared 안에서 재진입으로
+        /// 호출돼도 중복 LoadStage가 발생하지 않도록 하기 위함.
+        /// </summary>
+        public void JumpToHighestCleared()
+        {
+            if (_currentIndex == _highestClearedIndex)
+            {
+                return;
+            }
+
+            _currentIndex = _highestClearedIndex;
+            _controller.LoadStage(_catalog.GetAt(_currentIndex));
+        }
+
         private void OnStageCleared(StageClearedEvent evt)
         {
             if (_isSuppressed)

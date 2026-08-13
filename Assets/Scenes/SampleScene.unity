@@ -50897,6 +50897,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1663688276}
   - component: {fileID: 1663688275}
+  - component: {fileID: 1663688277}
   m_Layer: 0
   m_Name: StageController
   m_TagString: Untagged
@@ -50962,6 +50963,19 @@ Transform:
   - {fileID: 65276092}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1663688277
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1663688274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8938b0671d3a09541abff1c720cc3d3e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Stage.AutoRepeatOnRankPromotionAvailable
+  stageController: {fileID: 1663688275}
 --- !u!1 &1667497107
 GameObject:
   m_ObjectHideFlags: 0
@@ -63632,6 +63646,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UI.StageModeToggleUI
   toggleButton: {fileID: 2073761122}
   modeLabelText: {fileID: 242144991}
+  battleController: {fileID: 1821784527}
 --- !u!114 &2073761121
 MonoBehaviour:
   m_ObjectHideFlags: 0
