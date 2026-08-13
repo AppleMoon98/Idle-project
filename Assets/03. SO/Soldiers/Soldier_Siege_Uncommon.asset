@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "언커먼 공성병"
   prefab: {fileID: 9114245855020254752, guid: 61411941cc768c942a87c4ca50f94b3c, type: 3}
-  icon: {fileID: 21300000, guid: 644f51c82657259449c3fe79ebe8c577, type: 3}
+  icon: {fileID: 21300000, guid: cec9e94b460fe7d41bf4b37e2ce1c434, type: 3}
   grade: {fileID: 11400000, guid: 67637058d05750e4d843c5c5d67d31db, type: 2}

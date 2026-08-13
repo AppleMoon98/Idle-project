@@ -10,7 +10,8 @@ namespace UI
     /// <summary>
     /// 부대 편성 팝업 상단의 4x5(SoldierDeploymentService.SlotsPerSquad개) 배치 그리드 —
     /// 선택된 부대(SoldierSquadSelectorUI가 고른 squadIndex)의 실제 배치 슬롯을 보여주고,
-    /// 빈 칸을 탭하면 배치를 확정한다. "누구를 배치할지"는 스스로 모른다 — 아래 병사 선택
+    /// 빈 칸을 탭하면 배치를 확정하고, 채워진 칸을 두 번 연속 탭하면 배치를 해제한다.
+    /// "누구를 배치할지"는 스스로 모른다 — 아래 병사 선택
     /// 패널(SoldierDeploymentPanelUI)에서 미리 선택해둔 SelectedInstanceId를 그대로 소비한다
     /// (선택 → 배치를 두 컴포넌트가 나눠 갖는 구조, 각자 상대방의 존재는 최소한만 안다).
     /// </summary>
@@ -22,7 +23,12 @@ namespace UI
         [SerializeField]
         private SoldierDeploymentPanelUI availablePanel;
 
+        [SerializeField]
+        private float unassignDoubleTapWindowSeconds = 0.5f;
+
         private int _squadIndex;
+        private int _pendingUnassignSlotIndex = -1;
+        private float _pendingUnassignTapTime;
 
         private void OnEnable()
         {
@@ -53,6 +59,7 @@ namespace UI
         public void ShowSquad(int squadIndex)
         {
             _squadIndex = squadIndex;
+            _pendingUnassignSlotIndex = -1;
             Refresh();
         }
 
@@ -72,16 +79,18 @@ namespace UI
                 bool isLocked = slotIndex >= unlockedCount;
                 deployment.TryGetAssigned(slotIndex, out OwnedSoldier occupant);
 
-                slots[i].Initialize(slotIndex, isLocked, occupant, OnSlotTapped);
+                slots[i].Initialize(slotIndex, i + 1, isLocked, occupant, OnSlotTapped);
             }
         }
 
         /// <summary>
-        /// 이미 채워진 칸을 탭하면 아무 일도 하지 않는다(해제는 로스터 쪽 "배치 해제" 토글로
-        /// 한다, section DH). 빈 칸인데 선택된 유닛이 없으면도 아무 일도 하지 않는다. 선택된
-        /// 유닛이 있으면 배정을 확정하고 선택을 지운다. 선택된 유닛이 있는데 이미 이 부대가
-        /// 가득 찬 경우는 애초에 빈 칸이 없어 이 메서드 자체가 호출될 수 없으므로 별도 처리가
-        /// 필요 없다 — 가득 참 토스트는 그래도 방어적으로 한 번 더 안내한다.
+        /// 이미 채워진 칸은 같은 슬롯을 unassignDoubleTapWindowSeconds 안에 두 번 연속 탭하면
+        /// 배치를 해제한다(첫 탭은 확인 대기만 걸고 토스트로 안내, 실제 해제는 두 번째 탭에서).
+        /// 다른 슬롯을 탭하거나 시간 안에 두 번째 탭이 없으면 대기가 풀린다 — 실수로 한 번
+        /// 스친 탭에 바로 해제되지 않도록 하는 안전장치. 빈 칸인데 선택된 유닛이 없으면 아무
+        /// 일도 하지 않는다. 선택된 유닛이 있으면 배정을 확정하고 선택을 지운다. 선택된 유닛이
+        /// 있는데 이미 이 부대가 가득 찬 경우는 애초에 빈 칸이 없어 이 메서드 자체가 호출될 수
+        /// 없으므로 별도 처리가 필요 없다 — 가득 참 토스트는 그래도 방어적으로 한 번 더 안내한다.
         /// </summary>
         private void OnSlotTapped(int slotIndex)
         {
@@ -92,6 +101,21 @@ namespace UI
 
             if (deployment.TryGetAssigned(slotIndex, out _))
             {
+                bool isConfirmingUnassign = _pendingUnassignSlotIndex == slotIndex
+                    && Time.unscaledTime - _pendingUnassignTapTime <= unassignDoubleTapWindowSeconds;
+
+                if (isConfirmingUnassign)
+                {
+                    _pendingUnassignSlotIndex = -1;
+                    deployment.Unassign(slotIndex);
+                }
+                else
+                {
+                    _pendingUnassignSlotIndex = slotIndex;
+                    _pendingUnassignTapTime = Time.unscaledTime;
+                    GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("한 번 더 탭하면 배치가 해제됩니다."));
+                }
+
                 return;
             }
 

@@ -21,9 +21,10 @@ namespace UI
 
         /// <summary>
         /// 행 데이터를 채운다. onSelected는 선택 버튼을 눌렀을 때 호출되는 콜백이다.
-        /// icon이 null이면 아이콘 이미지를 숨긴다.
+        /// icon이 null이면 아이콘 이미지를 숨긴다. iconColor(기본 흰색)는 등급 틴트 등으로
+        /// 아이콘 자체에 색을 입히고 싶을 때 넘긴다.
         /// </summary>
-        public void Initialize(string displayText, Action onSelected, Sprite icon = null)
+        public void Initialize(string displayText, Action onSelected, Sprite icon = null, Color? iconColor = null)
         {
             label.text = displayText;
             selectButton.onClick.AddListener(() => onSelected?.Invoke());
@@ -32,6 +33,7 @@ namespace UI
             {
                 iconImage.sprite = icon;
                 iconImage.enabled = icon != null;
+                iconImage.color = iconColor ?? Color.white;
             }
         }
     }

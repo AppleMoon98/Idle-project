@@ -67,6 +67,8 @@ namespace UI
         {
             bool isOwned = stack.Count > 0;
 
+            EquipmentGradeSO grade = definition.Grade;
+
             label.text = definition.DisplayName;
             label.color = isOwned ? ownedLabelColor : unownedLabelColor;
 
@@ -74,12 +76,12 @@ namespace UI
             {
                 iconImage.sprite = definition.Icon;
                 iconImage.enabled = definition.Icon != null;
-                iconImage.color = isOwned ? Color.white : unownedIconTint;
+                Color gradeIconTint = grade != null ? grade.TintColor : Color.white;
+                iconImage.color = isOwned ? gradeIconTint : unownedIconTint;
             }
 
             if (background != null)
             {
-                EquipmentGradeSO grade = definition.Grade;
                 Color gradeBackground = EquipmentRowUI.ComputeGradeBackground(baseBackgroundColor, grade, gradeTintBlend);
                 background.color = isOwned ? gradeBackground : Color.Lerp(gradeBackground, unownedBackgroundTint, unownedBackgroundBlend);
             }

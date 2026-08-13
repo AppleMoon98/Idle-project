@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "슈퍼레어 기사"
   prefab: {fileID: 9114245855020254752, guid: a8ba64c54a4689946bd07c45df413c3e, type: 3}
-  icon: {fileID: 21300000, guid: 644f51c82657259449c3fe79ebe8c577, type: 3}
+  icon: {fileID: 21300000, guid: 9acc31f4a9a10374c88cdab183855420, type: 3}
   grade: {fileID: 11400000, guid: 496aa1851a5ca564c979dcce23e0dc5d, type: 2}

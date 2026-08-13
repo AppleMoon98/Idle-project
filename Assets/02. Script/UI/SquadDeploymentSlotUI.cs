@@ -20,6 +20,9 @@ namespace UI
         private Image iconImage;
 
         [SerializeField]
+        private Text numberLabel;
+
+        [SerializeField]
         private Button slotButton;
 
         [SerializeField]
@@ -34,10 +37,12 @@ namespace UI
         private int _slotIndex;
 
         /// <summary>
-        /// 슬롯 데이터를 채운다. occupant가 null이면 빈 칸으로 표시한다. onTapped는 잠기지
-        /// 않은 슬롯을 탭했을 때 이 슬롯의 slotIndex를 그대로 넘겨달라는 요청 콜백이다.
+        /// 슬롯 데이터를 채운다. occupant가 null이면 빈 칸으로 표시한다. displayNumber는 이
+        /// 그리드 안에서 좌측 상단부터 매긴 1부터 시작하는 순번(그리드 표시용, 전역 slotIndex와
+        /// 다르다)이다. onTapped는 잠기지 않은 슬롯을 탭했을 때 이 슬롯의 slotIndex를 그대로
+        /// 넘겨달라는 요청 콜백이다.
         /// </summary>
-        public void Initialize(int slotIndex, bool isLocked, OwnedSoldier occupant, Action<int> onTapped)
+        public void Initialize(int slotIndex, int displayNumber, bool isLocked, OwnedSoldier occupant, Action<int> onTapped)
         {
             _slotIndex = slotIndex;
 
@@ -51,6 +56,12 @@ namespace UI
                 Sprite icon = occupant?.Definition.Icon;
                 iconImage.sprite = icon;
                 iconImage.enabled = icon != null;
+                iconImage.color = occupant?.Definition.Grade != null ? occupant.Definition.Grade.TintColor : Color.white;
+            }
+
+            if (numberLabel != null)
+            {
+                numberLabel.text = displayNumber.ToString();
             }
 
             slotButton.interactable = !isLocked;

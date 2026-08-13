@@ -14,5 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "레어 창병"
   prefab: {fileID: 9114245855020254752, guid: 93cd0ae1b8dba664eacbfb6fbe530ded, type: 3}
-  icon: {fileID: 21300000, guid: 644f51c82657259449c3fe79ebe8c577, type: 3}
+  icon: {fileID: 21300000, guid: 9ffa3ab35f949754f9a7f09ed23e4591, type: 3}
   grade: {fileID: 11400000, guid: 4479561f010e776489799bd58e75d92f, type: 2}

@@ -51,7 +51,8 @@ namespace UI
             foreach (OwnedSoldier owned in stack)
             {
                 SoldierPickerRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize($"{owned.Definition.DisplayName} (#{owned.InstanceId})", () => OnPicked(owned), owned.Definition.Icon);
+                Color? iconColor = owned.Definition.Grade != null ? owned.Definition.Grade.TintColor : null;
+                row.Initialize($"{owned.Definition.DisplayName} (#{owned.InstanceId})", () => OnPicked(owned), owned.Definition.Icon, iconColor);
 
                 _spawnedRows.Add(row);
             }
