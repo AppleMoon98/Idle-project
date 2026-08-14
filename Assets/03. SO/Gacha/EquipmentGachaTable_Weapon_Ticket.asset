@@ -10,38 +10,58 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 2cff0b5a210011946b8f1b5b1b9bb23c, type: 3}
-  m_Name: EquipmentGachaTable_Weapon_Normal
+  m_Name: EquipmentGachaTable_Weapon_Ticket
   m_EditorClassIdentifier: Assembly-CSharp::Gacha.EquipmentGachaTableSO
-  displayName: "\uC77C\uBC18 \uBF51\uAE30"
+  displayName: "\uD2F0\uCF13 \uBF51\uAE30"
   entries:
   - equipment: {fileID: 11400000, guid: 00d09296a27b0e949aa76e536a67e930, type: 2}
-    weight: 78
+    weight: 18
   - equipment: {fileID: 11400000, guid: eab621393e5468a42b3219e3aa87c0fb, type: 2}
-    weight: 65
-  - equipment: {fileID: 11400000, guid: 9037e2f6a3638194abc1e6f1f152d682, type: 2}
-    weight: 52
-  - equipment: {fileID: 11400000, guid: 32379002ce3dc5e4283fd0c54c767c30, type: 2}
-    weight: 39
-  - equipment: {fileID: 11400000, guid: afad1e5aefc909b41a2c570407d75150, type: 2}
-    weight: 26
-  - equipment: {fileID: 11400000, guid: 2681953077de55b43b8dae006afef348, type: 2}
-    weight: 30
-  - equipment: {fileID: 11400000, guid: b1195221cfc6a23479aa3fde2bb42a8f, type: 2}
-    weight: 25
-  - equipment: {fileID: 11400000, guid: 4ca9a93e88cbd034393512d1e95714d3, type: 2}
-    weight: 20
-  - equipment: {fileID: 11400000, guid: 27f9f0de2342cce4088a0f59c7dcac98, type: 2}
     weight: 15
-  - equipment: {fileID: 11400000, guid: d062e6abbdc5dea448e259eaf3ffee4b, type: 2}
-    weight: 10
-  - equipment: {fileID: 11400000, guid: 6f081c1c06d82fd488178d8cdcb7334d, type: 2}
+  - equipment: {fileID: 11400000, guid: 9037e2f6a3638194abc1e6f1f152d682, type: 2}
     weight: 12
-  - equipment: {fileID: 11400000, guid: 7a1458744cdbdae42878476b321f858c, type: 2}
-    weight: 10
-  - equipment: {fileID: 11400000, guid: 775f69134df339342ae978a032a71c87, type: 2}
-    weight: 8
-  - equipment: {fileID: 11400000, guid: b1123f3cda903a442b85822985305869, type: 2}
+  - equipment: {fileID: 11400000, guid: 32379002ce3dc5e4283fd0c54c767c30, type: 2}
+    weight: 9
+  - equipment: {fileID: 11400000, guid: afad1e5aefc909b41a2c570407d75150, type: 2}
     weight: 6
+  - equipment: {fileID: 11400000, guid: 2681953077de55b43b8dae006afef348, type: 2}
+    weight: 36
+  - equipment: {fileID: 11400000, guid: b1195221cfc6a23479aa3fde2bb42a8f, type: 2}
+    weight: 30
+  - equipment: {fileID: 11400000, guid: 4ca9a93e88cbd034393512d1e95714d3, type: 2}
+    weight: 24
+  - equipment: {fileID: 11400000, guid: 27f9f0de2342cce4088a0f59c7dcac98, type: 2}
+    weight: 18
+  - equipment: {fileID: 11400000, guid: d062e6abbdc5dea448e259eaf3ffee4b, type: 2}
+    weight: 12
+  - equipment: {fileID: 11400000, guid: 6f081c1c06d82fd488178d8cdcb7334d, type: 2}
+    weight: 36
+  - equipment: {fileID: 11400000, guid: 7a1458744cdbdae42878476b321f858c, type: 2}
+    weight: 30
+  - equipment: {fileID: 11400000, guid: 775f69134df339342ae978a032a71c87, type: 2}
+    weight: 24
+  - equipment: {fileID: 11400000, guid: b1123f3cda903a442b85822985305869, type: 2}
+    weight: 18
   - equipment: {fileID: 11400000, guid: d9587625ca8296c4d8e59f0c48dee1b4, type: 2}
+    weight: 12
+  - equipment: {fileID: 11400000, guid: a2356fe96ca87824589edb525ea9db05, type: 2}
+    weight: 18
+  - equipment: {fileID: 11400000, guid: 040a385a9d5774e4585ee462899afe23, type: 2}
+    weight: 15
+  - equipment: {fileID: 11400000, guid: df80c32d465ad5544807d80a059a96dd, type: 2}
+    weight: 12
+  - equipment: {fileID: 11400000, guid: f28705eef4f75e4488d630cfdf4259d8, type: 2}
+    weight: 9
+  - equipment: {fileID: 11400000, guid: 3f6d833d12ebcce46a3d3d7f872cb576, type: 2}
+    weight: 6
+  - equipment: {fileID: 11400000, guid: d2b2138f9f7a4f348b5c7ac4a25faf5c, type: 2}
+    weight: 12
+  - equipment: {fileID: 11400000, guid: 14de35a128b4b224eac69bb9c0580fe7, type: 2}
+    weight: 10
+  - equipment: {fileID: 11400000, guid: fa13b20870f4ae6459ddd53703df7633, type: 2}
+    weight: 8
+  - equipment: {fileID: 11400000, guid: d4a490aa225b8cc4aa02c17e12402897, type: 2}
+    weight: 6
+  - equipment: {fileID: 11400000, guid: 5f040b7faa018ad409f085e26ab34a0c, type: 2}
     weight: 4
-  goldCostPerPull: 100
+  goldCostPerPull: 0

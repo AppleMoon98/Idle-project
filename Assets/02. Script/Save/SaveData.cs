@@ -161,6 +161,11 @@ namespace Save
         /// </summary>
         public string SkillCountsJson { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 보유 무기 뽑기권. 기록이 없으면 0.
+        /// </summary>
+        public int EquipmentGachaTicketCount { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -190,7 +195,8 @@ namespace Save
             string skillLoadoutJson,
             string skillEnabledJson,
             int skillScrollCount,
-            string skillCountsJson)
+            string skillCountsJson,
+            int equipmentGachaTicketCount)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -221,6 +227,7 @@ namespace Save
             SkillEnabledJson = skillEnabledJson;
             SkillScrollCount = skillScrollCount;
             SkillCountsJson = skillCountsJson;
+            EquipmentGachaTicketCount = equipmentGachaTicketCount;
         }
     }
 }

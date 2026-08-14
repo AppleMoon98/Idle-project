@@ -93,6 +93,9 @@ namespace Core
         private EquipmentGachaSlotTiers[] equipmentGachaSlots;
 
         [SerializeField]
+        private EquipmentGachaTableSO weaponTicketTable;
+
+        [SerializeField]
         private SkillGachaTableSO[] skillGachaTiers;
 
         [SerializeField]
@@ -123,6 +126,7 @@ namespace Core
 
         private LootDropper _lootDropper;
         private DamageNumberSpawner _damageNumberSpawner;
+        private RareGachaTicketDropService _rareGachaTicketDropService;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
         private EquipmentStatService _equipmentStatService;
@@ -307,7 +311,12 @@ namespace Core
             Services.Register(gachaService);
             _managers.Add(gachaService);
 
-            var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaSlots);
+            var equipmentGachaTicketService = new EquipmentGachaTicketService(Events, save.EquipmentGachaTicketCount);
+            equipmentGachaTicketService.Initialize();
+            Services.Register(equipmentGachaTicketService);
+            _managers.Add(equipmentGachaTicketService);
+
+            var equipmentGachaService = new EquipmentGachaService(Events, currencyService, equipmentGachaSlots, equipmentGachaTicketService, weaponTicketTable);
             equipmentGachaService.Initialize();
             Services.Register(equipmentGachaService);
             _managers.Add(equipmentGachaService);
@@ -360,6 +369,7 @@ namespace Core
 
             _lootDropper = new LootDropper(Events, stageCatalog);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
+            _rareGachaTicketDropService = new RareGachaTicketDropService(Events, stageCatalog, equipmentGachaTicketService, soldierTicketService, skillScrollService);
         }
 
         private void Start()
@@ -390,6 +400,7 @@ namespace Core
             // 그 시점에 _highestClearedIndex가 아직 시딩 전(-1)이면 이미 요구 스테이지를 넘어선
             // 세이브도 승급 가능 버튼이 뜨지 않는다(새로 스테이지를 클리어해야만 다시 체크됨).
             _rankService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
+            _rareGachaTicketDropService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
             _rankService?.RestoreLevel(_initialSave.RankIndex);
         }
 
@@ -416,6 +427,9 @@ namespace Core
 
             _damageNumberSpawner?.Dispose();
             _damageNumberSpawner = null;
+
+            _rareGachaTicketDropService?.Dispose();
+            _rareGachaTicketDropService = null;
 
             for (int i = 0; i < _managers.Count; i++)
             {

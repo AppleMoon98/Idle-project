@@ -110,6 +110,7 @@ namespace Save
         private const string SkillEnabledJsonKey = "Save.SkillEnabledJson";
         private const string SkillScrollCountKey = "Save.SkillScrollCount";
         private const string SkillCountsJsonKey = "Save.SkillCountsJson";
+        private const string EquipmentGachaTicketCountKey = "Save.EquipmentGachaTicketCount";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -154,6 +155,7 @@ namespace Save
         private string _skillEnabledJson = "";
         private int _skillScrollCount;
         private string _skillCountsJson = "";
+        private int _equipmentGachaTicketCount;
 
         public SaveService(
             EventBus events,
@@ -221,6 +223,7 @@ namespace Save
             _skillEnabledJson = save.SkillEnabledJson;
             _skillScrollCount = save.SkillScrollCount;
             _skillCountsJson = save.SkillCountsJson;
+            _equipmentGachaTicketCount = save.EquipmentGachaTicketCount;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -242,6 +245,7 @@ namespace Save
             _events.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
             _events.Subscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
+            _events.Subscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
         }
 
         public void Shutdown()
@@ -266,6 +270,7 @@ namespace Save
             _events.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
             _events.Unsubscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
             _events.Unsubscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
+            _events.Unsubscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
         }
 
         /// <summary>
@@ -302,6 +307,7 @@ namespace Save
             string skillEnabledJson = PlayerPrefs.GetString(SkillEnabledJsonKey, "");
             int skillScrollCount = PlayerPrefs.GetInt(SkillScrollCountKey, 0);
             string skillCountsJson = PlayerPrefs.GetString(SkillCountsJsonKey, "");
+            int equipmentGachaTicketCount = PlayerPrefs.GetInt(EquipmentGachaTicketCountKey, 0);
 
             return new SaveData(
                 gold,
@@ -332,7 +338,8 @@ namespace Save
                 skillLoadoutJson,
                 skillEnabledJson,
                 skillScrollCount,
-                skillCountsJson);
+                skillCountsJson,
+                equipmentGachaTicketCount);
         }
 
         /// <summary>
@@ -385,6 +392,7 @@ namespace Save
             PlayerPrefs.SetString(SkillEnabledJsonKey, _skillEnabledJson);
             PlayerPrefs.SetInt(SkillScrollCountKey, _skillScrollCount);
             PlayerPrefs.SetString(SkillCountsJsonKey, _skillCountsJson);
+            PlayerPrefs.SetInt(EquipmentGachaTicketCountKey, _equipmentGachaTicketCount);
             PlayerPrefs.Save();
         }
 
@@ -633,6 +641,12 @@ namespace Save
         private void OnSoldierTicketChanged(SoldierTicketChangedEvent evt)
         {
             _soldierTicketCount = evt.CurrentTickets;
+            Save();
+        }
+
+        private void OnEquipmentGachaTicketChanged(EquipmentGachaTicketChangedEvent evt)
+        {
+            _equipmentGachaTicketCount = evt.CurrentTickets;
             Save();
         }
 
