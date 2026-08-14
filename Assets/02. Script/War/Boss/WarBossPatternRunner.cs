@@ -85,6 +85,17 @@ namespace War.Boss
 
         void ITickable.Tick(float deltaTime)
         {
+            // GameTicker의 등록 해제는 그 프레임의 순회가 다 끝난 뒤에야 적용된다(section AP의
+            // WeaponSwing과 동일한 함정) - 같은 프레임 안에서 이 보스가 죽어 OnDespawned()로
+            // 이미 정리(및 비활성화)된 뒤에도, 아직 _tickables에 남아있는 이 컴포넌트가 그 프레임
+            // 안에서 한 번 더 Tick()을 받을 수 있다. 그 상태로 아래 로직을 그대로 타면 이미
+            // 반납된(비활성화된) 보스에서 TryStartPattern()이 실행돼 아무도 정리하지 않는 새
+            // 예고 표시가 생기거나, 이미 null이 된 _activePattern을 참조해 예외가 날 수 있다.
+            if (!gameObject.activeInHierarchy)
+            {
+                return;
+            }
+
             if (patterns == null || patterns.Length == 0)
             {
                 return;
@@ -153,20 +164,33 @@ namespace War.Boss
 
         private void ResolvePattern()
         {
-            Collider2D[] hits = Physics2D.OverlapCircleAll(_telegraphPosition, _activePattern.Radius, allyLayerMask);
-
-            foreach (Collider2D hit in hits)
-            {
-                if (hit.TryGetComponent(out Health health) && !health.IsDead)
-                {
-                    health.TakeDamage(_activePattern.Damage);
-                }
-            }
+            // 데미지 계산에 필요한 값을 지역 변수로 미리 스냅샷해두고, 실제 피해 적용보다 먼저
+            // 이 컴포넌트 자신의 상태(_activePattern/_isTelegraphing/인디케이터)부터 정리한다.
+            // TakeDamage가 대상을 죽이면 CharacterDiedEvent가 동기적으로 재진입해(이 보스 자신이
+            // 강제로 풀에 반납되는 경로를 타면) OnDespawned()가 같은 프레임 안에서 이 메서드가
+            // 아직 참조 중인 _activePattern을 먼저 null로 만들어버릴 수 있다 - 순서를 바꾸지
+            // 않으면 hits 배열의 두 번째 이후 대상을 처리할 때 이미 null이 된 _activePattern을
+            // 읽어 NullReferenceException이 나고(그 프레임에 남아있던 뒤쪽 대상은 피해도 못 받음),
+            // 그 예외가 Tick()까지 새어나가 GameTicker의 안전장치(section CH)에 걸려 이 컴포넌트가
+            // 그 전투 내내 조용히 멈춰버린다.
+            Vector3 position = _telegraphPosition;
+            float radius = _activePattern.Radius;
+            float damage = _activePattern.Damage;
 
             ReleaseIndicator();
             _activePattern = null;
             _isTelegraphing = false;
             _elapsedSinceLastCast = 0f;
+
+            Collider2D[] hits = Physics2D.OverlapCircleAll(position, radius, allyLayerMask);
+
+            foreach (Collider2D hit in hits)
+            {
+                if (hit.TryGetComponent(out Health health) && !health.IsDead)
+                {
+                    health.TakeDamage(damage);
+                }
+            }
         }
 
         private void CancelActivePattern()
