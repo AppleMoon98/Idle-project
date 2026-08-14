@@ -3,6 +3,7 @@ using Core;
 using Gacha.Events;
 using Loot;
 using Soldier;
+using UI.Events;
 
 namespace Gacha
 {
@@ -54,6 +55,19 @@ namespace Gacha
         {
             var results = new List<OwnedSoldier>();
 
+            if (count <= 0 || tierIndex < 0 || tierIndex >= _tiers.Length)
+            {
+                return results;
+            }
+
+            // 1회분조차 못 낼 잔액이면 굴려보지도 않고 안내만 하고 끝낸다 - "N회 뽑기"를 눌렀는데
+            // 조용히 0개만 나오는 것보다 명확하다.
+            if (!CanAffordOnePull(_tiers[tierIndex]))
+            {
+                _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
+                return results;
+            }
+
             for (int i = 0; i < count; i++)
             {
                 if (!TryPullOne(tierIndex, out OwnedSoldier result))
@@ -70,6 +84,16 @@ namespace Gacha
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// table의 소모 재화(골드 또는 소환권) 잔액이 1회분 비용 이상인지.
+        /// </summary>
+        private bool CanAffordOnePull(GachaTableSO table)
+        {
+            return table.CurrencyType == GachaCurrencyType.Gold
+                ? _currency.CanAfford(table.GoldCostPerPull)
+                : _tickets.CurrentTickets >= table.TicketCostPerPull;
         }
 
         private bool TryPullOne(int tierIndex, out OwnedSoldier result)

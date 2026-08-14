@@ -4,6 +4,7 @@ using Equipment;
 using Gacha.Events;
 using Loot;
 using Loot.Events;
+using UI.Events;
 
 namespace Gacha
 {
@@ -75,6 +76,18 @@ namespace Gacha
             var results = new List<EquipmentSO>();
             EquipmentGachaTableSO[] tiers = GetTiers(slot);
 
+            if (count <= 0 || tierIndex < 0 || tierIndex >= tiers.Length)
+            {
+                return results;
+            }
+
+            // 1회분조차 못 낼 골드면 굴려보지도 않고 안내만 하고 끝낸다.
+            if (!_currency.CanAfford(tiers[tierIndex].GoldCostPerPull))
+            {
+                _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
+                return results;
+            }
+
             for (int i = 0; i < count; i++)
             {
                 if (!TryPullOne(tiers, tierIndex, out EquipmentSO picked))
@@ -128,6 +141,18 @@ namespace Gacha
         public IReadOnlyList<EquipmentSO> PullWithTicket(int count)
         {
             var results = new List<EquipmentSO>();
+
+            if (count <= 0)
+            {
+                return results;
+            }
+
+            // 1회분조차 없는 뽑기권이면 굴려보지도 않고 안내만 하고 끝낸다.
+            if (_ticketService == null || _ticketService.CurrentTickets < 1)
+            {
+                _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
+                return results;
+            }
 
             for (int i = 0; i < count; i++)
             {

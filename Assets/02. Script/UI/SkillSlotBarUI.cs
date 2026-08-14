@@ -8,9 +8,15 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 6개 스킬 장착 슬롯을 한 줄로 보여준다. 슬롯을 탭하면 팝업을 여는 대신 그 슬롯을
-    /// "선택" 상태로 만든다(테두리 강조) — 실제 장착은 아래 SkillGridUI에서 스킬 아이콘을
-    /// 탭했을 때 이 SelectedSlotIndex를 대상으로 이뤄진다.
+    /// 6개 스킬 장착 슬롯을 한 줄로 보여준다. 슬롯 탭 상호작용은 UI.SquadDeploymentSlotGridUI와
+    /// 같은 "선택 → 같은 슬롯 재탭=해제 / 다른 슬롯 탭=자리교환" 모델을 쓴다: 빈/채워진 슬롯
+    /// 아무거나 탭하면 선택(테두리)되고, 그 상태에서 같은 슬롯을 다시 탭하면 장착 해제, 다른
+    /// 슬롯을 탭하면 두 슬롯의 내용이 서로 바뀐다(SkillLoadoutService.Swap).
+    ///
+    /// "어떤 스킬을 장착할지"는 여전히 아래 SkillGridUI → SkillDetailPopupUI의 장착 버튼에서
+    /// 정해진다 - 슬롯이 미리 선택돼 있으면 그 슬롯에 바로 장착하고, 선택된 슬롯이 없으면 이
+    /// 컴포넌트에 "대기 중인 스킬"로 넘겨(RequestEquipTarget) selectSlotPromptText를 띄운 채
+    /// 다음 슬롯 탭을 기다렸다가 그 슬롯에 장착한다.
     /// </summary>
     public sealed class SkillSlotBarUI : MonoBehaviour
     {
@@ -30,6 +36,15 @@ namespace UI
         private Color emptySlotIconColor = new(0.3f, 0.3f, 0.3f, 1f);
 
         /// <summary>
+        /// SubTabBar와 이 슬롯 바 사이에 배치된 안내 텍스트("스킬을 장착할 슬롯을 선택해주세요.") -
+        /// 다른 오브젝트 위치는 그대로 두고 이 텍스트만 켜고 끈다.
+        /// </summary>
+        [SerializeField]
+        private GameObject selectSlotPromptText;
+
+        private SkillSO _pendingEquipSkill;
+
+        /// <summary>
         /// 현재 선택된 슬롯 인덱스. 아직 아무것도 선택하지 않았으면 -1.
         /// </summary>
         public int SelectedSlotIndex { get; private set; } = -1;
@@ -39,25 +54,19 @@ namespace UI
             for (int i = 0; i < slots.Length; i++)
             {
                 int slotIndex = i;
-                slots[i].Button.onClick.AddListener(() => SelectSlot(slotIndex));
+                slots[i].Button.onClick.AddListener(() => OnSlotTapped(slotIndex));
             }
         }
 
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
-            Refresh();
 
-            // 탭이 열리면 바로 스킬을 고를 수 있도록 첫 슬롯을 기본 선택해둔다
-            // (EquippedSlotBarUI가 첫 슬롯 팝업을 자동으로 여는 것과 같은 이유).
-            if (SelectedSlotIndex < 0 && slots.Length > 0)
-            {
-                SelectSlot(0);
-            }
-            else
-            {
-                UpdateHighlights();
-            }
+            SelectedSlotIndex = -1;
+            _pendingEquipSkill = null;
+            SetPromptVisible(false);
+
+            Refresh();
         }
 
         private void OnDisable()
@@ -70,10 +79,76 @@ namespace UI
             Refresh();
         }
 
-        private void SelectSlot(int slotIndex)
+        /// <summary>
+        /// SkillDetailPopupUI의 장착 버튼이 선택된 슬롯 없이 눌렸을 때 호출한다. 이 스킬을
+        /// "대기" 상태로 넘겨두고 안내 텍스트를 띄운다 - 이후 어떤 슬롯이든 탭되는 순간
+        /// (OnSlotTapped의 "선택된 슬롯 없음" 분기) 그 슬롯에 장착되고 안내는 사라진다.
+        /// </summary>
+        public void RequestEquipTarget(SkillSO definition)
         {
+            _pendingEquipSkill = definition;
+            SetPromptVisible(true);
+        }
+
+        /// <summary>
+        /// 선택 상태를 해제한다. SkillDetailPopupUI가 이미 선택된 슬롯에 바로 장착을 완료했을 때
+        /// 호출한다 - 장착 후에도 선택이 계속 남아있으면, 다음에 다른 스킬을 장착하려고 다른
+        /// 슬롯을 탭했을 때 "새로 선택"이 아니라 "방금 장착한 슬롯과 자리 교환"으로 잘못
+        /// 해석되어 방금 장착한 스킬이 엉뚱한 슬롯으로 옮겨간 것처럼 보이는 문제가 있었다.
+        /// </summary>
+        public void ClearSelection()
+        {
+            SelectedSlotIndex = -1;
+            UpdateHighlights();
+        }
+
+        private void OnSlotTapped(int slotIndex)
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            {
+                return;
+            }
+
+            if (SelectedSlotIndex == slotIndex)
+            {
+                SelectedSlotIndex = -1;
+                loadout.Unequip(slotIndex);
+                UpdateHighlights();
+                return;
+            }
+
+            if (SelectedSlotIndex != -1)
+            {
+                int sourceSlotIndex = SelectedSlotIndex;
+                SelectedSlotIndex = -1;
+                loadout.Swap(sourceSlotIndex, slotIndex);
+                UpdateHighlights();
+                return;
+            }
+
+            // 대기 중인 스킬이 있으면 이 탭으로 바로 장착하고 끝낸다 - 선택 상태로 남겨두지
+            // 않는다(장착 완료 후에도 선택이 남아있으면 다음 슬롯 탭이 "새 선택"이 아니라
+            // "이 슬롯과 자리 교환"으로 잘못 해석되는 문제가 있었다, ClearSelection 참고).
+            if (_pendingEquipSkill != null)
+            {
+                loadout.TryEquip(slotIndex, _pendingEquipSkill);
+                _pendingEquipSkill = null;
+                SetPromptVisible(false);
+                SelectedSlotIndex = -1;
+                UpdateHighlights();
+                return;
+            }
+
             SelectedSlotIndex = slotIndex;
             UpdateHighlights();
+        }
+
+        private void SetPromptVisible(bool visible)
+        {
+            if (selectSlotPromptText != null)
+            {
+                selectSlotPromptText.SetActive(visible);
+            }
         }
 
         private void UpdateHighlights()

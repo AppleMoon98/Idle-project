@@ -102,6 +102,33 @@ namespace Skill
         }
 
         /// <summary>
+        /// 두 슬롯의 장착 스킬을 서로 맞바꾼다(Soldier.SoldierDeploymentService.Swap과 동일한 규칙) -
+        /// 한쪽만 채워져 있으면 그쪽으로 이동하고 반대쪽은 빈 칸이 되며, 둘 다 채워져 있으면
+        /// 완전히 자리가 바뀐다. 둘 다 비어있으면 아무 일도 하지 않는다(이벤트 발행 없음).
+        /// </summary>
+        public void Swap(int slotA, int slotB)
+        {
+            if (!IsValidSlot(slotA) || !IsValidSlot(slotB) || slotA == slotB)
+            {
+                return;
+            }
+
+            SkillSO atA = _slots[slotA];
+            SkillSO atB = _slots[slotB];
+
+            if (atA == null && atB == null)
+            {
+                return;
+            }
+
+            _slots[slotA] = atB;
+            _slots[slotB] = atA;
+
+            _events.Publish(new SkillLoadoutChangedEvent(slotA, atB));
+            _events.Publish(new SkillLoadoutChangedEvent(slotB, atA));
+        }
+
+        /// <summary>
         /// slotIndex가 "자동" 상태인지("수동"이면 false). 자동/수동 둘 다 HUD 탭으로 수동 발동
         /// (SkillSlot.TryManualCast)은 항상 가능하다 - 이 값은 SkillSlot.Tick의 자동 발동 여부만
         /// 가른다. 잘못된 인덱스면 false.

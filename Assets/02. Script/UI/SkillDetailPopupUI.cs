@@ -16,7 +16,8 @@ namespace UI
     /// <summary>
     /// 스킬 하나의 상세 정보(아이콘/레벨/스펙/다음 강화 재료)와 레벨업/장착 버튼을 보여주는 팝업.
     /// SkillGridUI가 칸을 탭하면 이 팝업을 연다. 장착 버튼은 SkillSlotBarUI에서 현재 선택된
-    /// (테두리 있는) 슬롯에 이 스킬을 장착한다.
+    /// (테두리 있는) 슬롯이 있으면 그 슬롯에 바로 장착하고, 선택된 슬롯이 없으면 SkillSlotBarUI에
+    /// "대기 중인 스킬"로 넘겨 사용자가 다음에 탭하는 슬롯에 장착되도록 한다(OnEquipClicked 참고).
     /// </summary>
     public sealed class SkillDetailPopupUI : MonoBehaviour
     {
@@ -169,22 +170,33 @@ namespace UI
             }
         }
 
-        // SkillSlotBarUI에서 현재 선택된(테두리 있는) 슬롯에 이 스킬을 장착한다. 그리드에서
-        // 칸을 탭했을 때 바로 장착되던 것을 이 버튼으로 옮겼다 - 어떤 스킬인지 먼저 상세를 보고
-        // 나서 장착 여부를 결정할 수 있게 하기 위함이다.
+        // SkillSlotBarUI에서 현재 선택된(테두리 있는) 슬롯이 있으면 이 스킬을 바로 그 슬롯에
+        // 장착한다. 선택된 슬롯이 없으면 즉시 실패하는 대신, 이 스킬을 SkillSlotBarUI에 "대기 중인
+        // 스킬"로 넘겨(RequestEquipTarget) 안내 텍스트를 띄우고 팝업을 닫는다 - 이후 사용자가
+        // 슬롯 바에서 어떤 슬롯이든 탭하면 그 슬롯에 장착된다(SkillSlotBarUI.OnSlotTapped 참고).
         private void OnEquipClicked()
         {
-            if (slotBar == null || slotBar.SelectedSlotIndex < 0
-                || GameBootstrapper.Services == null
-                || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
             {
                 return;
             }
 
-            if (loadout.TryEquip(slotBar.SelectedSlotIndex, _definition))
+            if (slotBar != null && slotBar.SelectedSlotIndex >= 0)
             {
-                Close();
+                if (loadout.TryEquip(slotBar.SelectedSlotIndex, _definition))
+                {
+                    // 장착 완료 후 선택을 해제한다 - 남겨두면 다음에 다른 스킬을 장착하려고
+                    // 다른 슬롯을 탭했을 때 "새 선택"이 아니라 "자리 교환"으로 잘못 해석된다
+                    // (SkillSlotBarUI.ClearSelection 참고).
+                    slotBar.ClearSelection();
+                    Close();
+                }
+
+                return;
             }
+
+            slotBar?.RequestEquipTarget(_definition);
+            Close();
         }
 
         private void Refresh()
@@ -212,8 +224,9 @@ namespace UI
             levelUpButton.interactable = !isMax && count >= requiredCount
                 && (level == 0 || HasEnoughCurrency(level));
 
-            // 미습득(레벨 0) 스킬이거나 선택된 슬롯이 없으면 장착할 수 없다.
-            equipButton.interactable = level >= 1 && slotBar != null && slotBar.SelectedSlotIndex >= 0;
+            // 미습득(레벨 0) 스킬만 장착할 수 없다 - 슬롯 미선택은 더 이상 버튼을 막지 않고,
+            // OnEquipClicked에서 "슬롯 선택 대기" 흐름으로 넘어간다.
+            equipButton.interactable = level >= 1;
         }
 
         // 효과 타입에 따라 의미 있는 스펙만 나열한다 - 예를 들어 지속시간은 SelfBuff에만 있는

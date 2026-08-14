@@ -48,6 +48,15 @@ namespace Loot
         }
 
         /// <summary>
+        /// amount를 지금 당장 소비할 수 있는 잔액인지(실제로 소비하지는 않음). 뽑기 등에서 시도 전에
+        /// "1회분도 부족한지" 미리 확인할 때 쓴다.
+        /// </summary>
+        public bool CanAfford(BigNumber amount)
+        {
+            return amount <= _currentGold;
+        }
+
+        /// <summary>
         /// 골드 소비를 시도한다. 잔액이 부족하면 아무 변화 없이 false를 반환한다.
         /// </summary>
         public bool TrySpendGold(BigNumber amount)

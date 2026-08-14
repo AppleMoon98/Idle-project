@@ -4,6 +4,7 @@ using Gacha.Events;
 using Loot;
 using Skill;
 using Skill.Events;
+using UI.Events;
 
 namespace Gacha
 {
@@ -56,6 +57,18 @@ namespace Gacha
         {
             var results = new List<SkillSO>();
 
+            if (count <= 0 || tierIndex < 0 || tierIndex >= _tiers.Length)
+            {
+                return results;
+            }
+
+            // 1회분조차 못 낼 잔액이면 굴려보지도 않고 안내만 하고 끝낸다.
+            if (!CanAffordOnePull(_tiers[tierIndex]))
+            {
+                _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
+                return results;
+            }
+
             for (int i = 0; i < count; i++)
             {
                 if (!TryPullOne(tierIndex, out SkillSO result))
@@ -72,6 +85,16 @@ namespace Gacha
             }
 
             return results;
+        }
+
+        /// <summary>
+        /// table의 소모 재화(골드 또는 스킬 주문서) 잔액이 1회분 비용 이상인지.
+        /// </summary>
+        private bool CanAffordOnePull(SkillGachaTableSO table)
+        {
+            return table.CurrencyType == GachaCurrencyType.Gold
+                ? _currency.CanAfford(table.GoldCostPerPull)
+                : _scrolls.CurrentScrolls >= table.TicketCostPerPull;
         }
 
         private bool TryPullOne(int tierIndex, out SkillSO result)
