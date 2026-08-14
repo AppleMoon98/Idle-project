@@ -35,6 +35,9 @@ namespace UI
         private SquadTacticDropdownUI tacticToggle;
 
         [SerializeField]
+        private SquadDeploymentCountUI deploymentCount;
+
+        [SerializeField]
         private SoldierDeploymentPopupUI squadDetailPopup;
 
         private void Awake()
@@ -53,6 +56,7 @@ namespace UI
             deploymentPanel.ShowSquad(0);
             slotGrid.ShowSquad(0);
             tacticToggle?.ShowSquad(0);
+            deploymentCount?.ShowSquad(0);
         }
 
         private void OnDisable()
@@ -70,6 +74,7 @@ namespace UI
             deploymentPanel.ShowSquad(squadIndex);
             slotGrid.ShowSquad(squadIndex);
             tacticToggle?.ShowSquad(squadIndex);
+            deploymentCount?.ShowSquad(squadIndex);
             squadDetailPopup.Open();
         }
 

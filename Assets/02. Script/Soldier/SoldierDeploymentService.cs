@@ -121,9 +121,10 @@ namespace Soldier
         }
 
         /// <summary>
-        /// squadIndex(SlotsPerSquad개 슬롯 구간)에 현재 배정이 있는 슬롯 수.
+        /// squadIndex(SlotsPerSquad개 슬롯 구간)에 현재 배정이 있는 슬롯 수. UI(예: 부대 편성
+        /// 팝업의 "n/MaxDeployedPerSquad" 표시)가 그대로 읽을 수 있도록 공개한다.
         /// </summary>
-        private int GetOccupiedCount(int squadIndex)
+        public int GetOccupiedCount(int squadIndex)
         {
             int start = squadIndex * SlotsPerSquad;
             int end = start + SlotsPerSquad;
