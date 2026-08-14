@@ -14,6 +14,8 @@ namespace UI
     /// 실제 클리어 조건과 무관한 "남은 몬스터" 수치가 오해를 줄 수 있어 그 줄만 숨긴다.
     /// 돌파/반복 표시는 더 이상 여기서 하지 않는다 — StageModeToggleUI가 "현재 모드 표시 + 전환"을
     /// 겸하는 인터랙티브 버튼으로 그 역할을 대신한다(같은 정보를 두 곳에서 따로 동기화할 필요가 없도록).
+    /// 반복 대상 스테이지 선택 팝업(StageRepeatPickerPopupUI)도 더 이상 이 텍스트를 탭해서 여는 게
+    /// 아니라, StageModeToggleUI에서 돌파→반복으로 전환하는 바로 그 순간 자동으로 연다.
     /// </summary>
     public sealed class StageInfoUI : MonoBehaviour
     {

@@ -27,6 +27,12 @@ namespace UI
         [SerializeField]
         private RankPromotionBattleController battleController;
 
+        [SerializeField]
+        private StageRepeatPickerPopupUI repeatPickerPopup;
+
+        [SerializeField]
+        private StageController stageController;
+
         private bool _isPromotionBattleActive;
 
         private void OnEnable()
@@ -59,10 +65,24 @@ namespace UI
                 return;
             }
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out StageModeService modeService))
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out StageModeService modeService))
             {
-                modeService.Toggle();
+                return;
             }
+
+            if (modeService.CurrentMode == StageProgressionMode.Breakthrough)
+            {
+                // 돌파 -> 반복 전환은 이 시점에 바로 확정하지 않는다 - 팝업에서 실제로 반복할
+                // 스테이지를 골라야 비로소 모드가 반복으로 바뀐다(StageRepeatPickerPopupUI.OnPicked
+                // 참고). 팝업을 닫기만 하고 아무것도 안 고르면 돌파 모드 그대로 남는다.
+                repeatPickerPopup?.Open();
+                return;
+            }
+
+            // 반복 -> 돌파는 선택 절차 없이 즉시 전환하되, 방금까지 반복하던 스테이지에 그대로
+            // 머무르지 않고 실제 돌파 프론티어(역대 최고 기록 + 1)로 되돌아간다.
+            modeService.Toggle();
+            stageController?.JumpCurrentToBreakthroughFrontier();
         }
 
         private void OnStageModeChanged(StageModeChangedEvent evt)

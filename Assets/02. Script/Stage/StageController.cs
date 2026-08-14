@@ -261,6 +261,55 @@ namespace Stage
             _progression?.JumpToHighestCleared();
         }
 
+        /// <summary>
+        /// 현재 스테이지를 역대 최고 클리어 스테이지의 다음(돌파 프론티어)으로 옮긴다.
+        /// StageProgression.JumpToBreakthroughFrontier로 위임한다(반복 모드에서 돌파 모드로
+        /// 되돌아갈 때 StageModeToggleUI가 호출하는 창구, JumpCurrentToHighestCleared와 같은 이유
+        /// 로 StageProgression을 외부에 직접 노출하지 않는다).
+        /// </summary>
+        public void JumpCurrentToBreakthroughFrontier()
+        {
+            _progression?.JumpToBreakthroughFrontier();
+        }
+
+        /// <summary>
+        /// 현재 스테이지를 stage로 직접 옮긴다(반복 모드 스테이지 선택 팝업 전용 창구,
+        /// JumpCurrentToHighestCleared와 같은 이유로 StageProgression을 외부에 직접 노출하지
+        /// 않는다). 아직 클리어하지 않은 스테이지면 아무 일도 하지 않고 false.
+        /// </summary>
+        public bool JumpCurrentToStage(StageSO stage)
+        {
+            return _progression != null && _progression.JumpTo(stage);
+        }
+
+        /// <summary>
+        /// 역대 최고 클리어 스테이지를 포함해 최대 count개(최고 기록부터 내림차순)의 이미 클리어한
+        /// 스테이지 목록을 반환한다. 반복 모드 스테이지 선택 팝업이 고를 수 있는 후보 목록으로 쓴다.
+        /// </summary>
+        public StageSO[] GetRepeatableStages(int count)
+        {
+            if (_progression == null || catalog == null)
+            {
+                return System.Array.Empty<StageSO>();
+            }
+
+            int highest = _progression.HighestClearedIndex;
+            int floor = Mathf.Max(0, highest - (count - 1));
+            var result = new System.Collections.Generic.List<StageSO>();
+
+            for (int i = highest; i >= floor; i--)
+            {
+                StageSO stage = catalog.GetAt(i);
+
+                if (stage != null)
+                {
+                    result.Add(stage);
+                }
+            }
+
+            return result.ToArray();
+        }
+
         public void ResumeAfterOverlay()
         {
             _progression?.SetSuppressed(false);

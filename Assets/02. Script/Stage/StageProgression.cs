@@ -69,6 +69,37 @@ namespace Stage
         public bool IsBreakthrough => _modeService == null || _modeService.CurrentMode == StageProgressionMode.Breakthrough;
 
         /// <summary>
+        /// 역대 최고 클리어 스테이지의 카탈로그 인덱스. 반복 모드 스테이지 선택 팝업이 후보 목록
+        /// (이 인덱스부터 내림차순)을 만들 때 쓴다.
+        /// </summary>
+        public int HighestClearedIndex => _highestClearedIndex;
+
+        /// <summary>
+        /// 지정한 스테이지로 현재 위치를 직접 옮긴다(반복 모드 스테이지 선택 팝업 전용). 아직
+        /// 클리어하지 않은 스테이지(최고 기록보다 앞선 인덱스)로는 이동할 수 없다 - 반복 모드는
+        /// 이미 증명된 난이도만 반복한다는 기존 전제(OfflineProgressService와 동일)를 그대로
+        /// 따른다. 이미 그 자리라면 재로드 없이 성공만 반환한다. 성공하면 true.
+        /// </summary>
+        public bool JumpTo(StageSO stage)
+        {
+            int index = _catalog.IndexOf(stage);
+
+            if (index < 0 || index > _highestClearedIndex)
+            {
+                return false;
+            }
+
+            if (index == _currentIndex)
+            {
+                return true;
+            }
+
+            _currentIndex = index;
+            _controller.LoadStage(_catalog.GetAt(_currentIndex));
+            return true;
+        }
+
+        /// <summary>
         /// true인 동안 StageClearedEvent/Player CharacterDiedEvent를 완전히 무시한다. 던전 등
         /// 오버레이가 화면을 차지하는 동안(StageController.PauseForOverlay~ResumeAfterOverlay)
         /// 그 안에서 벌어지는 죽음/클리어가 실제 스테이지 진행도(돌파/후퇴)에 새어 들어가
@@ -94,6 +125,27 @@ namespace Stage
             }
 
             _currentIndex = _highestClearedIndex;
+            _controller.LoadStage(_catalog.GetAt(_currentIndex));
+        }
+
+        /// <summary>
+        /// 현재 위치를 역대 최고 클리어 스테이지의 "다음" 스테이지(돌파 프론티어)로 옮긴다.
+        /// 반복 모드에서 스테이지 선택 팝업으로 특정 스테이지를 골라 반복하다가 다시 돌파 모드로
+        /// 되돌아갈 때 쓴다 - 방금까지 반복하던 스테이지에 그대로 머무르지 않고 실제 돌파해야 할
+        /// 지점으로 복귀시킨다. 다음 스테이지가 없으면(카탈로그 마지막 스테이지가 곧 최고 기록인
+        /// 경우) 최고 기록 자리 그대로 둔다 - OnStageCleared의 돌파 전진 fallback과 동일하다.
+        /// </summary>
+        public void JumpToBreakthroughFrontier()
+        {
+            StageSO next = _catalog.GetAt(_highestClearedIndex + 1);
+            int targetIndex = next != null ? _highestClearedIndex + 1 : _highestClearedIndex;
+
+            if (targetIndex == _currentIndex)
+            {
+                return;
+            }
+
+            _currentIndex = targetIndex;
             _controller.LoadStage(_catalog.GetAt(_currentIndex));
         }
 
