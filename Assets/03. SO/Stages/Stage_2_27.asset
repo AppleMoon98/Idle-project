@@ -19,25 +19,87 @@ MonoBehaviour:
     count: 7
     spawnInterval: 0.7
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
     count: 5
     spawnInterval: 0.7
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: 49ceaa60f3ac8f54da82791f1e3480ab, type: 3}
     count: 5
     spawnInterval: 0.7
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: ce2afb4318eab8847ab33b317432204b, type: 3}
     count: 4
     spawnInterval: 0.7
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: 5ee334b8c18931c4d8dbd6242de82e81, type: 3}
     count: 4
     spawnInterval: 0.7
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: a45eb0f8382bc974bb246c8a4fede3af, type: 3}
     count: 9
     spawnInterval: 1.3
     visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
   tacticEntries: []
-  equipmentDrops: []
+  equipmentDrops:
+  - equipment: {fileID: 11400000, guid: 00d09296a27b0e949aa76e536a67e930, type: 2}
+    dropChance: 0.0058
+  - equipment: {fileID: 11400000, guid: eab621393e5468a42b3219e3aa87c0fb, type: 2}
+    dropChance: 0.0036
+  - equipment: {fileID: 11400000, guid: 9037e2f6a3638194abc1e6f1f152d682, type: 2}
+    dropChance: 0.005
+  - equipment: {fileID: 11400000, guid: 32379002ce3dc5e4283fd0c54c767c30, type: 2}
+    dropChance: 0.0104
+  - equipment: {fileID: 11400000, guid: afad1e5aefc909b41a2c570407d75150, type: 2}
+    dropChance: 0.0252
+  - equipment: {fileID: 11400000, guid: 1d934f15d8efb94468be6c689ffff2f0, type: 2}
+    dropChance: 0.0058
+  - equipment: {fileID: 11400000, guid: 35427c29a2a75e142b3d84f767a853dc, type: 2}
+    dropChance: 0.0036
+  - equipment: {fileID: 11400000, guid: 493c94d84cbcd2d47884b4d81773c12c, type: 2}
+    dropChance: 0.005
+  - equipment: {fileID: 11400000, guid: 246cdd0ff3331264fb5074009c2f38ee, type: 2}
+    dropChance: 0.0104
+  - equipment: {fileID: 11400000, guid: 907f45d87504d2442a323c83350d9f4d, type: 2}
+    dropChance: 0.0252
+  - equipment: {fileID: 11400000, guid: 8d84a4c13c87ed340839e90904b1fc32, type: 2}
+    dropChance: 0.0058
+  - equipment: {fileID: 11400000, guid: f6139ee65572cfc49aa6861bc0f59d27, type: 2}
+    dropChance: 0.0036
+  - equipment: {fileID: 11400000, guid: 3101847f2c1183649928b708241e26a7, type: 2}
+    dropChance: 0.005
+  - equipment: {fileID: 11400000, guid: 18d9a8bf548e8434f81d4e395f30c4fb, type: 2}
+    dropChance: 0.0104
+  - equipment: {fileID: 11400000, guid: ad0a23f5d0debbb4d845a69c6b60427b, type: 2}
+    dropChance: 0.0252
+  - equipment: {fileID: 11400000, guid: 0504afec8d8a81b4e8d9bcc04f4dd6e2, type: 2}
+    dropChance: 0.0058
+  - equipment: {fileID: 11400000, guid: e8a33fb8d8e0c2d44a88135efd5ee2ec, type: 2}
+    dropChance: 0.0036
+  - equipment: {fileID: 11400000, guid: 59232e56a58c79540ab8db4c0a815986, type: 2}
+    dropChance: 0.005
+  - equipment: {fileID: 11400000, guid: ea4f2ac6b432ed843abac659dabe6359, type: 2}
+    dropChance: 0.0104
+  - equipment: {fileID: 11400000, guid: bad990df45215af4683df99448847f37, type: 2}
+    dropChance: 0.0252
+  - equipment: {fileID: 11400000, guid: 7827988fab5093a478117580bcd6f40e, type: 2}
+    dropChance: 0.0058
+  - equipment: {fileID: 11400000, guid: 548d712a7c8ef1e46a3b2b9cf5920b8d, type: 2}
+    dropChance: 0.0036
+  - equipment: {fileID: 11400000, guid: 7c1e9e9ba6e7b1b4797c4a63f4587c16, type: 2}
+    dropChance: 0.005
+  - equipment: {fileID: 11400000, guid: aacf726b285b718428fa02bcce743114, type: 2}
+    dropChance: 0.0104
+  - equipment: {fileID: 11400000, guid: fd14f373561cf884bba0acfe71084da2, type: 2}
+    dropChance: 0.0252
