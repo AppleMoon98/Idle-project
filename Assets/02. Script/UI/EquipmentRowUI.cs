@@ -13,6 +13,9 @@ namespace UI
     /// </summary>
     public sealed class EquipmentRowUI : MonoBehaviour
     {
+        private static readonly Color LockedTextColor = new(0.55f, 0.55f, 0.55f, 1f);
+        private const float LockedBackgroundAlphaMultiplier = 0.5f;
+
         [SerializeField]
         private Image background;
 
@@ -53,16 +56,44 @@ namespace UI
         }
 
         /// <summary>
-        /// 행 데이터를 채운다. 장착은 EquipmentEquippedEvent를 통해 목록이 알아서 갱신되므로
-        /// 팝업을 닫는 등의 후속 동작은 필요 없다. onDetailRequested는 이름 라벨을 탭했을 때
-        /// (장착과 별개 동작) 상세 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
+        /// 행 데이터를 채운다. owned가 null이면(한 번도 획득한 적 없는 장비) 이름만 흐리게 표시하고
+        /// 모든 버튼을 비활성화한 "미보유" 행으로 그린다 - 아직 획득 못 한 장비도 목록에 항상
+        /// 보여줘서 "무엇이 존재하는지"를 알 수 있게 하되, 실제로 가진 게 없으니 아무 동작도 할 수
+        /// 없게 막는다. owned가 있으면(개수가 0이어도) 기존과 동일하게 정상적으로 상호작용 가능한
+        /// 행으로 그린다 - 개수 0은 InventoryService가 더 이상 라인을 지우지 않으므로 "한 번이라도
+        /// 획득했다"는 뜻이고, 장착은 개수를 소모하지 않으니 계속 장착할 수 있어야 한다.
+        ///
+        /// 장착은 EquipmentEquippedEvent를 통해 목록이 알아서 갱신되므로 팝업을 닫는 등의 후속
+        /// 동작은 필요 없다. onDetailRequested는 이름 라벨을 탭했을 때(장착과 별개 동작) 상세
+        /// 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
         /// onEnhanceRequested는 강화 버튼을 눌렀을 때 강화 팝업을 열어달라는 요청 콜백이다
         /// (없으면 null, 이 경우 예전처럼 즉시 EquipmentEnhancementService.TryEnhance를 호출한다).
         /// </summary>
-        public void Initialize(OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null, Action<OwnedEquipment> onEnhanceRequested = null)
+        public void Initialize(EquipmentSO definition, OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null, Action<OwnedEquipment> onEnhanceRequested = null)
         {
             _owned = owned;
+
+            if (owned == null)
+            {
+                background.color = new Color(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a * LockedBackgroundAlphaMultiplier);
+                label.color = LockedTextColor;
+                label.text = definition.ItemName;
+
+                equipButton.interactable = false;
+                equipButtonLabel.text = "미보유";
+                fuseButton.interactable = false;
+                enhanceButton.interactable = false;
+
+                if (nameButton != null)
+                {
+                    nameButton.interactable = false;
+                }
+
+                return;
+            }
+
             background.color = backgroundColor;
+            label.color = Color.white;
 
             string equippedTag = isEquipped ? "✓ " : "";
             label.text = $"{equippedTag}{owned.Definition.ItemName} x{owned.Count} (강화 {owned.EnhancementLevel})";

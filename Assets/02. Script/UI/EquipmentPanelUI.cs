@@ -81,7 +81,7 @@ namespace UI
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
 
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize(owned, isEquipped, backgroundColor);
+                row.Initialize(owned.Definition, owned, isEquipped, backgroundColor);
 
                 _spawnedRows.Add(row);
             }

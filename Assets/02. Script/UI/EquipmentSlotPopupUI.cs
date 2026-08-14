@@ -44,6 +44,9 @@ namespace UI
         private EquipmentGradeCatalogSO gradeCatalog;
 
         [SerializeField]
+        private EquipmentCatalogSO equipmentCatalog;
+
+        [SerializeField]
         private GameObject equippedSlotBar;
 
         [SerializeField]
@@ -174,22 +177,29 @@ namespace UI
 
             if (GameBootstrapper.Services == null
                 || !GameBootstrapper.Services.TryGet(out InventoryService inventory)
-                || !GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear))
+                || !GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear)
+                || equipmentCatalog == null)
             {
                 return;
             }
 
             OwnedEquipment currentlyEquipped = equippedGear.GetEquipped(_openSlot);
 
-            IEnumerable<OwnedEquipment> matching = inventory.Items
-                .Where(owned => owned.Definition.EquipmentType == _openSlot)
-                .OrderBy(owned => gradeCatalog.IndexOf(owned.Definition.Grade));
+            // 보유한 라인뿐 아니라 이 슬롯에 존재하는 장비 원형 전체를 나열한다 - 한 번도 획득하지
+            // 못한 장비도 "무엇이 있는지" 미리 보여주기 위함(EquipmentRowUI가 owned==null이면
+            // 비활성 상태로 그린다). 개수 0인 라인은 InventoryService가 더 이상 지우지 않으므로
+            // inventory.TryGet으로 정상적으로 조회된다.
+            IEnumerable<EquipmentSO> definitionsInSlot = equipmentCatalog.Items
+                .Where(item => item != null && item.EquipmentType == _openSlot)
+                .OrderBy(item => gradeCatalog.IndexOf(item.Grade));
 
-            foreach (OwnedEquipment owned in matching)
+            foreach (EquipmentSO definition in definitionsInSlot)
             {
+                inventory.TryGet(definition, out OwnedEquipment owned);
+
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
-                Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, owned.Definition.Grade, gradeTintBlend);
-                row.Initialize(owned, owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target));
+                Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, definition.Grade, gradeTintBlend);
+                row.Initialize(definition, owned, owned != null && owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target));
 
                 _spawnedRows.Add(row);
             }

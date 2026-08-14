@@ -8,7 +8,11 @@ namespace Inventory
 {
     /// <summary>
     /// 슬롯별로 지금 어떤 보유 장비 라인이 장착되어 있는지 기록한다. 장착은 보유 개수를
-    /// 소모하지 않는다 — 스택 중 하나를 "지금 착용 중"으로 가리키는 참조일 뿐이다.
+    /// 소모하지 않는다 — 스택 중 하나를 "지금 착용 중"으로 가리키는 참조일 뿐이다. 장착 중인
+    /// 라인이 합성 등으로 재료 소모되어 보유 개수가 0이 되어도 장착은 그대로 유지된다 -
+    /// InventoryService가 더 이상 라인을 완전히 제거하지 않으므로(한 번 획득한 장비는 개수 0이
+    /// 되어도 계속 장착 가능해야 한다는 정책), 참조가 끊길 일이 없어 예전처럼 자동 해제할
+    /// 필요가 없다.
     /// </summary>
     public sealed class EquippedGearService : IManager, IService
     {
@@ -33,35 +37,10 @@ namespace Inventory
 
         public void Initialize()
         {
-            _events.Subscribe<InventoryChangedEvent>(OnInventoryChanged);
         }
 
         public void Shutdown()
         {
-            _events.Unsubscribe<InventoryChangedEvent>(OnInventoryChanged);
-        }
-
-        /// <summary>
-        /// 장착 중인 라인이 재료로 전부 소모되어(합성 등) 보유 개수가 0이 된 경우 그 슬롯의 장착을
-        /// 해제한다. 장착은 보유 개수를 소모하지 않지만, 보유 자체가 사라지면 더 이상 존재하지 않는
-        /// 장비를 장착 중인 것처럼 보이는 상태(스탯 계산에도 반영됨)가 되므로 여기서 정리한다.
-        /// InventoryService가 라인을 완전히 제거할 때만 Changed.Count가 0으로 발행되므로,
-        /// 그 경우이면서 지금 장착 중인 바로 그 인스턴스일 때만 해제한다.
-        /// </summary>
-        private void OnInventoryChanged(InventoryChangedEvent evt)
-        {
-            if (evt.Changed.Count > 0)
-            {
-                return;
-            }
-
-            EquipmentType slot = evt.Changed.Definition.EquipmentType;
-
-            if (_equipped.TryGetValue(slot, out OwnedEquipment equipped) && equipped == evt.Changed)
-            {
-                _equipped.Remove(slot);
-                _events.Publish(new EquipmentEquippedEvent(slot));
-            }
         }
 
         /// <summary>

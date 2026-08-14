@@ -60,7 +60,9 @@ namespace Inventory
 
         /// <summary>
         /// definition을 amount개 소모한다(합성/강화 재료). 보유량이 부족하면 아무 변화 없이 false.
-        /// 소모 후 0개가 되면 라인 자체를 제거한다.
+        /// 0개가 되어도 라인 자체는 제거하지 않고 그대로 둔다 - 한 번이라도 획득한 장비는 개수가
+        /// 0이 되어도 목록에 남아 장착 가능해야 한다는 정책(EquipmentSlotPopupUI/EquippedGearService
+        /// 참고) 때문에, "보유한 적이 있다"는 사실 자체를 잃지 않는다.
         /// </summary>
         public bool TryConsume(EquipmentSO definition, int amount)
         {
@@ -70,11 +72,6 @@ namespace Inventory
             }
 
             owned.Count -= amount;
-
-            if (owned.Count <= 0)
-            {
-                _owned.Remove(definition);
-            }
 
             _events.Publish(new InventoryChangedEvent(owned, _owned.Count));
             return true;

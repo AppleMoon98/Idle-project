@@ -49712,6 +49712,7 @@ MonoBehaviour:
   detailPopup: {fileID: 2132696807}
   enhancementPopup: {fileID: 2026005801}
   gradeCatalog: {fileID: 11400000, guid: 29a2262f41054a84ca2f97e8db1269c4, type: 2}
+  equipmentCatalog: {fileID: 11400000, guid: 89b101767d07ac448af2982bc3376cf5, type: 2}
   equippedSlotBar: {fileID: 2066704181}
   cardBaseColor: {r: 0.13, g: 0.1, b: 0.08, a: 0.92}
   gradeTintBlend: 0.35
