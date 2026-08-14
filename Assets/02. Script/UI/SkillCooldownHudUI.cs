@@ -11,9 +11,13 @@ namespace UI
     /// BottomMenu 위에 상시 떠 있는, 장착된 6개 스킬의 쿨다운을 보여주는 HUD. 아이콘은 장착이
     /// 바뀔 때만(SkillLoadoutChangedEvent) 갱신하고, 쿨다운 진행률은 매 틱 해당 SkillSlot의
     /// CooldownProgress01을 읽어 원형 마스크로 표시한다(HealthBarUI와 같은 ITickable 방식 —
-    /// 판정은 SkillSlot이 갖고 이 컴포넌트는 그리기만 한다). 슬롯을 탭하면 자동 발동 켜짐/꺼짐을
-    /// 토글하고(Border로 표시, 기본값 켜짐), 실제 판정은 SkillLoadoutService.IsEnabled를 SkillSlot이
-    /// 직접 확인해서 걸러낸다 - 이 컴포넌트는 그 상태를 보여주고 토글만 요청할 뿐이다.
+    /// 판정은 SkillSlot이 갖고 이 컴포넌트는 그리기만 한다).
+    ///
+    /// 슬롯 탭 상호작용은 LongPressPointerHandler로 둘로 나뉜다 - 짧게 탭하면 SkillSlot.TryManualCast로
+    /// 즉시 발동을 시도하고(대상이 없어도 쿨다운만 찼으면 일단 사용됨), 길게 누르면 그 슬롯의
+    /// 자동/수동 상태를 토글한다(Border로 표시, 기본값 자동=켜짐). 실제 자동 발동 판정은
+    /// SkillLoadoutService.IsEnabled를 SkillSlot이 직접 확인해서 걸러낸다 - 이 컴포넌트는 그 상태를
+    /// 보여주고 토글/수동 발동 요청만 할 뿐이다.
     /// </summary>
     public sealed class SkillCooldownHudUI : MonoBehaviour, ITickable
     {
@@ -21,6 +25,7 @@ namespace UI
         private struct SlotUI
         {
             public Button Button;
+            public LongPressPointerHandler PressHandler;
             public Image Icon;
             public Image CooldownOverlay;
             public GameObject Border;
@@ -43,7 +48,12 @@ namespace UI
             for (int i = 0; i < slots.Length; i++)
             {
                 int slotIndex = i;
-                slots[i].Button.onClick.AddListener(() => ToggleSlot(slotIndex));
+
+                if (slots[i].PressHandler != null)
+                {
+                    slots[i].PressHandler.OnShortPress += () => CastSlotNow(slotIndex);
+                    slots[i].PressHandler.OnLongPress += () => ToggleSlot(slotIndex);
+                }
             }
         }
 
@@ -90,6 +100,17 @@ namespace UI
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
             {
                 loadout.ToggleEnabled(slotIndex);
+            }
+        }
+
+        /// <summary>
+        /// 짧은 탭 - 그 슬롯의 SkillSlot에 즉시 발동을 요청한다(대상 유무와 무관, 쿨다운만 확인).
+        /// </summary>
+        private void CastSlotNow(int slotIndex)
+        {
+            if (slotIndex >= 0 && slotIndex < casterSlots.Length && casterSlots[slotIndex] != null)
+            {
+                casterSlots[slotIndex].TryManualCast();
             }
         }
 

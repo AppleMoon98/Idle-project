@@ -13,6 +13,11 @@ namespace Skill
     /// 어떤 스킬이든 장착될 수 있으므로 세 가지 ISkillEffect 구현체를 전부 들고 있다가
     /// SkillSO.EffectType으로 그때그때 알맞은 것을 골라 실행한다(Character.RuntimeStatApplier와
     /// 같은 "enum → 구현체" 테이블 패턴).
+    ///
+    /// 발동 경로는 둘이다 - 자동(Tick, SkillLoadoutService.IsEnabled가 켜져 있고 쿨다운이 다 찼고
+    /// ISkillEffect.HasTargetInRange일 때만) / 수동(TryManualCast, UI.SkillCooldownHudUI의 탭 요청 -
+    /// 쿨다운만 확인하고 대상 존재 여부는 확인하지 않는다, 대상이 없어도 일단 사용된다). 두 경로
+    /// 모두 같은 Cast() 헬퍼로 수렴해 쿨다운 리셋/이펙트 실행/카메라 흔들림 로직이 갈라지지 않는다.
     /// </summary>
     public sealed class SkillSlot : MonoBehaviour, ITickable
     {
@@ -76,10 +81,9 @@ namespace Skill
 
             SkillSO definition = loadout.GetEquipped(slotIndex);
 
-            // 비어있거나(장착 안 함), 방어적으로 레벨이 0이거나, 플레이어가 HUD에서 꺼둔 슬롯은
-            // 발동하지 않고, 다음에 다시 조건이 충족됐을 때 쿨다운이 처음부터 새로 시작하도록
-            // 진행도를 리셋해둔다.
-            if (definition == null || skillService.GetLevel(definition) <= 0 || !loadout.IsEnabled(slotIndex))
+            // 비어있거나(장착 안 함) 방어적으로 레벨이 0이면 쿨다운 자체가 의미 없으니 매 틱
+            // 리셋해둔다 - 나중에 장착/레벨업되면 쿨다운이 처음부터 새로 시작한다.
+            if (definition == null || skillService.GetLevel(definition) <= 0)
             {
                 _elapsed = 0f;
                 CooldownProgress01 = 0f;
@@ -90,6 +94,14 @@ namespace Skill
             CooldownProgress01 = Mathf.Clamp01(_elapsed / definition.Cooldown);
 
             if (_elapsed < definition.Cooldown)
+            {
+                return;
+            }
+
+            // 자동(IsEnabled) 상태가 아니면(수동) 쿨다운이 다 찼어도 스스로 발동하지 않는다 - HUD
+            // 탭(TryManualCast)으로만 발동한다. 쿨다운 진행도 자체는 자동/수동과 무관하게 계속
+            // 차오르므로, 수동 모드에서도 HUD 게이지가 정확한 발동 가능 여부를 보여준다.
+            if (!loadout.IsEnabled(slotIndex))
             {
                 return;
             }
@@ -106,6 +118,43 @@ namespace Skill
                 return;
             }
 
+            Cast(definition, effect, skillService);
+        }
+
+        /// <summary>
+        /// HUD 슬롯을 탭하는 등 플레이어가 명시적으로 요청했을 때 즉시 발동을 시도한다. 자동(Tick)과
+        /// 달리 ISkillEffect.HasTargetInRange를 확인하지 않는다 - 대상이 없어도 일단 사용된다(각
+        /// ISkillEffect.Execute 구현체는 대상이 없을 때도 안전하게 아무 효과 없이 끝난다, 예:
+        /// AreaDamageSkillEffect는 범위 안에 아무도 없으면 그냥 아무도 안 맞고 넘어감). 쿨다운이
+        /// 덜 찼으면 그대로 실패(false) - 수동이라고 쿨다운까지 무시하지는 않는다(스팸 방지).
+        /// </summary>
+        public bool TryManualCast()
+        {
+            if (GameBootstrapper.Services == null
+                || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout)
+                || !GameBootstrapper.Services.TryGet(out SkillService skillService))
+            {
+                return false;
+            }
+
+            SkillSO definition = loadout.GetEquipped(slotIndex);
+
+            if (definition == null || skillService.GetLevel(definition) <= 0 || CooldownProgress01 < 1f)
+            {
+                return false;
+            }
+
+            if (!_effectsByType.TryGetValue(definition.EffectType, out ISkillEffect effect) || effect == null)
+            {
+                return false;
+            }
+
+            Cast(definition, effect, skillService);
+            return true;
+        }
+
+        private void Cast(SkillSO definition, ISkillEffect effect, SkillService skillService)
+        {
             _elapsed = 0f;
             CooldownProgress01 = 0f;
 

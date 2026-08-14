@@ -21525,6 +21525,7 @@ GameObject:
   - component: {fileID: 677245812}
   - component: {fileID: 677245811}
   - component: {fileID: 677245813}
+  - component: {fileID: 677245814}
   m_Layer: 0
   m_Name: Slot_1
   m_TagString: Untagged
@@ -21636,6 +21637,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &677245814
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 677245809}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &680607292
 GameObject:
   m_ObjectHideFlags: 0
@@ -22358,26 +22372,32 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UI.SkillCooldownHudUI
   slots:
   - Button: {fileID: 1841355637}
+    PressHandler: {fileID: 1841355638}
     Icon: {fileID: 491847111}
     CooldownOverlay: {fileID: 1468458165}
     Border: {fileID: 288701204}
   - Button: {fileID: 677245813}
+    PressHandler: {fileID: 677245814}
     Icon: {fileID: 76451277}
     CooldownOverlay: {fileID: 1747212059}
     Border: {fileID: 1474919534}
   - Button: {fileID: 1632882435}
+    PressHandler: {fileID: 1632882436}
     Icon: {fileID: 980603308}
     CooldownOverlay: {fileID: 763898313}
     Border: {fileID: 1162465947}
   - Button: {fileID: 937939755}
+    PressHandler: {fileID: 937939756}
     Icon: {fileID: 908966635}
     CooldownOverlay: {fileID: 1760555086}
     Border: {fileID: 1622828830}
   - Button: {fileID: 1400447385}
+    PressHandler: {fileID: 1400447386}
     Icon: {fileID: 1462422593}
     CooldownOverlay: {fileID: 1678201717}
     Border: {fileID: 1142970192}
   - Button: {fileID: 1687938772}
+    PressHandler: {fileID: 1687938773}
     Icon: {fileID: 43047153}
     CooldownOverlay: {fileID: 867173827}
     Border: {fileID: 269505608}
@@ -29052,6 +29072,7 @@ GameObject:
   - component: {fileID: 937939754}
   - component: {fileID: 937939753}
   - component: {fileID: 937939755}
+  - component: {fileID: 937939756}
   m_Layer: 0
   m_Name: Slot_3
   m_TagString: Untagged
@@ -29163,6 +29184,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &937939756
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 937939751}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &940026421
 GameObject:
   m_ObjectHideFlags: 0
@@ -43072,6 +43106,7 @@ GameObject:
   - component: {fileID: 1400447384}
   - component: {fileID: 1400447383}
   - component: {fileID: 1400447385}
+  - component: {fileID: 1400447386}
   m_Layer: 0
   m_Name: Slot_4
   m_TagString: Untagged
@@ -43183,6 +43218,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1400447386
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1400447381}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &1408185354
 GameObject:
   m_ObjectHideFlags: 0
@@ -53123,6 +53171,7 @@ GameObject:
   - component: {fileID: 1632882434}
   - component: {fileID: 1632882433}
   - component: {fileID: 1632882435}
+  - component: {fileID: 1632882436}
   m_Layer: 0
   m_Name: Slot_2
   m_TagString: Untagged
@@ -53234,6 +53283,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1632882436
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1632882431}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &1649820060
 GameObject:
   m_ObjectHideFlags: 0
@@ -54402,6 +54464,7 @@ GameObject:
   - component: {fileID: 1687938771}
   - component: {fileID: 1687938770}
   - component: {fileID: 1687938772}
+  - component: {fileID: 1687938773}
   m_Layer: 0
   m_Name: Slot_5
   m_TagString: Untagged
@@ -54513,6 +54576,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1687938773
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1687938768}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &1693667363
 GameObject:
   m_ObjectHideFlags: 0
@@ -59815,6 +59891,7 @@ GameObject:
   - component: {fileID: 1841355636}
   - component: {fileID: 1841355635}
   - component: {fileID: 1841355637}
+  - component: {fileID: 1841355638}
   m_Layer: 0
   m_Name: Slot_0
   m_TagString: Untagged
@@ -59926,6 +60003,19 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1841355638
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1841355633}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ff9ba4c7bf1e72041803e8c7ef760dc3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.LongPressPointerHandler
+  longPressThreshold: 0.4
 --- !u!1 &1843221038
 GameObject:
   m_ObjectHideFlags: 0

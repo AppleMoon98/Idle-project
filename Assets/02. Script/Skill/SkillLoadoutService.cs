@@ -102,7 +102,9 @@ namespace Skill
         }
 
         /// <summary>
-        /// slotIndex가 자동 발동 대상인지. 잘못된 인덱스면 false.
+        /// slotIndex가 "자동" 상태인지("수동"이면 false). 자동/수동 둘 다 HUD 탭으로 수동 발동
+        /// (SkillSlot.TryManualCast)은 항상 가능하다 - 이 값은 SkillSlot.Tick의 자동 발동 여부만
+        /// 가른다. 잘못된 인덱스면 false.
         /// </summary>
         public bool IsEnabled(int slotIndex)
         {
@@ -110,7 +112,7 @@ namespace Skill
         }
 
         /// <summary>
-        /// slotIndex의 자동 발동 켜짐/꺼짐을 지정한다. 실제로 값이 바뀔 때만 이벤트를 발행한다.
+        /// slotIndex의 자동/수동 상태를 지정한다. 실제로 값이 바뀔 때만 이벤트를 발행한다.
         /// </summary>
         public void SetEnabled(int slotIndex, bool enabled)
         {
@@ -124,7 +126,7 @@ namespace Skill
         }
 
         /// <summary>
-        /// slotIndex의 켜짐/꺼짐을 반전시킨다. HUD의 슬롯 클릭이 호출한다.
+        /// slotIndex의 자동/수동 상태를 반전시킨다. HUD의 슬롯 길게 누르기가 호출한다.
         /// </summary>
         public void ToggleEnabled(int slotIndex)
         {
