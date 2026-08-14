@@ -14,3 +14,5 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Stage.StageDifficultyConfigSO
   baseMultiplier: 1
   multiplierPerStageIndex: 0.15
+  goldBaseMultiplier: 1
+  goldMultiplierPerStageIndex: 0.08

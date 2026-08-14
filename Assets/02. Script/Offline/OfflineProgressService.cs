@@ -114,9 +114,11 @@ namespace Offline
 
             int rewardedKills = Mathf.RoundToInt(totalMonstersKilled * _rewardMultiplier);
 
+            float goldMultiplier = _difficultyConfig != null ? _difficultyConfig.GetGoldMultiplier(_catalog.IndexOf(repeatStage)) : 1f;
+
             BigNumber totalGold = BigNumber.Zero;
             var equipmentEarned = new List<EquipmentSO>();
-            RollLoot(repeatStage, totalMonsterCount, rewardedKills, ref totalGold, equipmentEarned);
+            RollLoot(repeatStage, totalMonsterCount, rewardedKills, goldMultiplier, ref totalGold, equipmentEarned);
 
             if (totalGold > 0)
             {
@@ -193,7 +195,7 @@ namespace Offline
         /// monstersKilled가 totalMonsterCount보다 커도(여러 번 반복 클리어한 합계) 비율 배분은
         /// 그대로 성립한다.
         /// </summary>
-        private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, ref BigNumber totalGold, List<EquipmentSO> equipmentEarned)
+        private static void RollLoot(StageSO stage, int totalMonsterCount, int monstersKilled, float goldMultiplier, ref BigNumber totalGold, List<EquipmentSO> equipmentEarned)
         {
             foreach (MonsterSpawnEntry entry in stage.SpawnEntries)
             {
@@ -206,7 +208,7 @@ namespace Offline
 
                 for (int i = 0; i < killsForEntry; i++)
                 {
-                    int? gold = LootRoller.RollGold(provider.Loot);
+                    int? gold = LootRoller.RollGold(provider.Loot, goldMultiplier);
 
                     if (gold.HasValue)
                     {

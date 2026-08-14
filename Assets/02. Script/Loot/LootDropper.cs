@@ -17,12 +17,14 @@ namespace Loot
     {
         private readonly EventBus _events;
         private readonly StageCatalogSO _stageCatalog;
+        private readonly StageDifficultyConfigSO _difficultyConfig;
         private StageSO _currentStage;
 
-        public LootDropper(EventBus events, StageCatalogSO stageCatalog)
+        public LootDropper(EventBus events, StageCatalogSO stageCatalog, StageDifficultyConfigSO difficultyConfig)
         {
             _events = events;
             _stageCatalog = stageCatalog;
+            _difficultyConfig = difficultyConfig;
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             _events.Subscribe<StageChangedEvent>(OnStageChanged);
@@ -61,7 +63,11 @@ namespace Loot
 
         private void DropGold(MonsterLootSO loot)
         {
-            int? amount = LootRoller.RollGold(loot);
+            float multiplier = _difficultyConfig != null && _currentStage != null
+                ? _difficultyConfig.GetGoldMultiplier(_stageCatalog.IndexOf(_currentStage))
+                : 1f;
+
+            int? amount = LootRoller.RollGold(loot, multiplier);
 
             if (amount.HasValue)
             {

@@ -12,16 +12,19 @@ namespace Loot
     public static class LootRoller
     {
         /// <summary>
-        /// 골드 드롭을 판정한다. 실패하면 null.
+        /// 골드 드롭을 판정한다. 실패하면 null. multiplier(기본 1)는 MonsterLootSO의 기본
+        /// Min/Max 범위로 굴린 값에 그대로 곱해진다 - Stage.StageDifficultyConfigSO.GetGoldMultiplier로
+        /// 스테이지가 진행될수록 점진적으로 더 많은 골드를 주도록 스케일링할 때 쓴다.
         /// </summary>
-        public static int? RollGold(MonsterLootSO loot)
+        public static int? RollGold(MonsterLootSO loot, float multiplier = 1f)
         {
             if (Random.value > loot.DropChance)
             {
                 return null;
             }
 
-            return Random.Range(loot.MinGold, loot.MaxGold + 1);
+            int baseAmount = Random.Range(loot.MinGold, loot.MaxGold + 1);
+            return Mathf.Max(1, Mathf.RoundToInt(baseAmount * multiplier));
         }
 
         /// <summary>

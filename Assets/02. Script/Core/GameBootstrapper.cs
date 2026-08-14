@@ -367,7 +367,7 @@ namespace Core
                 maxOfflineHours * 3600f,
                 offlineRewardMultiplier);
 
-            _lootDropper = new LootDropper(Events, stageCatalog);
+            _lootDropper = new LootDropper(Events, stageCatalog, stageDifficultyConfig);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
             _rareGachaTicketDropService = new RareGachaTicketDropService(Events, stageCatalog, equipmentGachaTicketService, soldierTicketService, skillScrollService);
         }
