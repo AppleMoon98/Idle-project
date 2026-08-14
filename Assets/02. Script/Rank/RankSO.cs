@@ -22,6 +22,9 @@ namespace Rank
         [SerializeField]
         private GameObject bossPrefab;
 
+        [SerializeField]
+        private float playerStatBonusPercent;
+
         /// <summary>
         /// 화면에 표시할 랭크 이름.
         /// </summary>
@@ -47,5 +50,13 @@ namespace Rank
         /// 승급 가능 버튼이 뜨지 않는다(RankService.IsNextRankAvailable 참고).
         /// </summary>
         public GameObject BossPrefab => bossPrefab;
+
+        /// <summary>
+        /// 이 랭크에서 플레이어 자신의 공격력/체력에 적용되는 보너스 비율(기본 스탯 대비, 예:
+        /// 0.5 = +50%). 병사(부대) 스탯에는 영향을 주지 않는다 - Character.RankStatReceiver가
+        /// Player 오브젝트에만 부착돼 적용하며, Soldier 쪽은 완전히 별개인
+        /// SoldierEnhancementService/SoldierStatReceiver 트랙을 그대로 쓴다. 기본값 0(보너스 없음).
+        /// </summary>
+        public float PlayerStatBonusPercent => playerStatBonusPercent;
     }
 }
