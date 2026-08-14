@@ -220,6 +220,12 @@ namespace UI
         // 값이라 다른 타입에는 표시하지 않는다. 데미지 계열(AreaDamage/SingleTargetStrike)은
         // 실전에서 (공격력 + magnitude)로 들어가므로(각 이펙트의 Execute와 동일한 공식), 그 합계를
         // 내역과 함께 보여줘 스킬이 평타보다 항상 세다는 걸 바로 확인할 수 있게 한다.
+        // 모든 케이스의 첫 줄은 예외 없이 "대상: X" 형식으로 통일한다 - 데미지/디버프 계열은
+        // 화면에 굳이 안 적어도 "적"이 대상인 게 자명해 보이지만, SelfBuff/PartyHeal처럼 실제로는
+        // 플레이어 본인뿐 아니라 병사 전체에게도 같은 비율로 적용되는 경우(SkillSelfBuffAppliedEvent/
+        // SkillPartyHealAppliedEvent를 Soldier.SoldierStatReceiver가 구독)는 수치만 보면 플레이어
+        // 전용처럼 오해하기 쉬웠다 - 한쪽만 명시하면 형식이 들쭉날쭉해 오히려 더 헷갈리므로,
+        // 모든 효과 타입에 예외 없이 대상 줄을 넣는다.
         private string BuildStatsText(float magnitude, int level)
         {
             float attackPower = playerStats != null ? playerStats.Stats.AttackPower : 0f;
@@ -227,11 +233,25 @@ namespace UI
             switch (_definition.EffectType)
             {
                 case SkillEffectType.AreaDamage:
-                    return $"데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n범위 {_definition.AreaRadius:F1}";
+                    return $"대상: 적\n데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n범위 {_definition.AreaRadius:F1}";
                 case SkillEffectType.SingleTargetStrike:
-                    return $"데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n공격 거리 {_definition.StrikeRange:F1}";
+                    return $"대상: 적\n데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n공격 거리 {_definition.StrikeRange:F1}";
                 case SkillEffectType.SelfBuff:
-                    return $"공격력 증가 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초";
+                    return $"대상: 플레이어+병사\n공격력 증가 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초";
+                case SkillEffectType.Poison:
+                    return $"대상: 적\n독 데미지 {attackPower + magnitude:F0}/{_definition.TickInterval:F1}초 (공격력 {attackPower:F0} + {magnitude:F0})\n지속시간 {_definition.GetBuffDuration(level):F1}초\n사거리 {_definition.StrikeRange:F1}";
+                case SkillEffectType.Whirlwind:
+                    return $"대상: 적\n데미지 {attackPower + magnitude:F0}/{_definition.TickInterval:F1}초 (공격력 {attackPower:F0} + {magnitude:F0})\n범위 {_definition.AreaRadius:F1}\n지속시간 {_definition.GetBuffDuration(level):F1}초";
+                case SkillEffectType.Meteor:
+                    return $"대상: 적\n포탄당 데미지 {attackPower + magnitude:F0} (공격력 {attackPower:F0} + {magnitude:F0})\n포탄 수 {_definition.MeteorShellCount}개\n범위 {_definition.AreaRadius:F1}\n예고 시간 {_definition.MeteorTelegraphDuration:F1}초";
+                case SkillEffectType.Debuff:
+                    return $"대상: 적\n이동속도/공격속도 감소 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초\n사거리 {_definition.StrikeRange:F1}";
+                case SkillEffectType.Curse:
+                    return $"대상: 적\n최대체력/공격력 감소 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초\n사거리 {_definition.StrikeRange:F1}";
+                case SkillEffectType.SoldierBuff:
+                    return $"대상: 병사\n이동속도/공격속도 증가 {magnitude * 100f:F0}%\n지속시간 {_definition.GetBuffDuration(level):F1}초";
+                case SkillEffectType.PartyHeal:
+                    return $"대상: 플레이어+병사\n공격력 증가 {magnitude * 100f:F0}%\n초당 회복 {_definition.GetHealPercentPerSecond(level) * 100f:F1}%\n지속시간 {_definition.GetBuffDuration(level):F1}초";
                 default:
                     return "";
             }
