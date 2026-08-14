@@ -88,7 +88,13 @@ namespace Services
             float x = Random.Range(center.x - halfExtent.x + marginX, center.x + halfExtent.x - marginX);
             float y = Random.Range(center.y - halfExtent.y + marginY, center.y + halfExtent.y - marginY);
 
-            return new Vector3(x, y, center.z);
+            // z는 카메라 자신의 depth(center.z, 보통 -10)가 아니라 게임 평면인 0이어야 한다 - 카메라와
+            // 같은 z에 스프라이트를 놓으면 근평면(near clip) 안쪽이라 아예 렌더링되지 않는다. 몬스터
+            // 스폰처럼 스폰 직후 CharacterMover가 Player(z=0) 쪽으로 움직이는 경우는 z도 같이 빠르게
+            // 보정돼 잠깐만 안 보이고 넘어가지만, Skill.Effects.MeteorSkillEffect의 예고 표시처럼 한 번
+            // 배치된 뒤 전혀 움직이지 않는 정지 비주얼은 계속 카메라 z에 박혀 영원히 안 보이는 채로
+            // 남는다 - 실사용 중 "포탄 낙하 범위가 안 보인다"는 리포트로 발견됨.
+            return new Vector3(x, y, 0f);
         }
 
         void ITickable.Tick(float deltaTime)
