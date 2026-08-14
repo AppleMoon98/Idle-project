@@ -214,6 +214,43 @@ namespace Stage
         /// 대신 되살려주지 못하므로 여기서 직접 부활시킨다.
         /// </summary>
         /// <summary>
+        /// 좌측 스폰 지점 중 index를 순환 인덱싱해 반환한다. MonsterSpawner가 내부적으로 쓰는 것과
+        /// 같은 배열을 그대로 재사용한다 - 병사 습격 전술(Soldier.SquadRaidCoordinator)처럼 Stage
+        /// 밖에서도 이 화면 가장자리 좌표가 필요한 경우를 위한 공개 창구. 배열이 비어있으면 null.
+        /// </summary>
+        public Transform GetLeftSpawnPoint(int index)
+        {
+            return GetCyclicSpawnPoint(leftSpawnPoints, index);
+        }
+
+        /// <summary>
+        /// GetLeftSpawnPoint와 동일하되 우측 스폰 지점 배열을 순환 인덱싱한다.
+        /// </summary>
+        public Transform GetRightSpawnPoint(int index)
+        {
+            return GetCyclicSpawnPoint(rightSpawnPoints, index);
+        }
+
+        /// <summary>
+        /// GetLeftSpawnPoint와 동일하되 상단 스폰 지점 배열을 순환 인덱싱한다.
+        /// </summary>
+        public Transform GetTopSpawnPoint(int index)
+        {
+            return GetCyclicSpawnPoint(topSpawnPoints, index);
+        }
+
+        private static Transform GetCyclicSpawnPoint(Transform[] points, int index)
+        {
+            if (points == null || points.Length == 0)
+            {
+                return null;
+            }
+
+            int wrapped = ((index % points.Length) + points.Length) % points.Length;
+            return points[wrapped];
+        }
+
+        /// <summary>
         /// 현재 스테이지를 역대 최고 클리어 스테이지로 옮긴다. StageProgression.JumpToHighestCleared로
         /// 위임한다 - Stage 밖(예: 랭크 승급 가능 자동 반복 전환)에서 StageProgression을 직접
         /// 참조하지 않고 이 창구를 통해서만 호출하게 하기 위함(PauseForOverlay/ResumeAfterOverlay와

@@ -30,6 +30,9 @@ namespace Soldier
         [SerializeField]
         private CharacterStatsProvider playerStats;
 
+        [SerializeField]
+        private SquadRaidCoordinator raidCoordinator;
+
         private SoldierRespawner _respawner;
         private PoolManager _pool;
         private SoldierDeploymentService _deployment;
@@ -80,6 +83,7 @@ namespace Soldier
         private void OnStageChanged(StageChangedEvent evt)
         {
             _respawner?.ResetForNewStage(slots);
+            raidCoordinator?.OnStageStarted();
         }
 
         /// <summary>
@@ -133,6 +137,8 @@ namespace Soldier
             {
                 SpawnSlot(slot);
             }
+
+            raidCoordinator?.OnStageStarted();
         }
 
         /// <summary>

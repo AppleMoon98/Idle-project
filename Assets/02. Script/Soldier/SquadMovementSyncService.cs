@@ -111,6 +111,22 @@ namespace Soldier
         }
 
         /// <summary>
+        /// instance가 현재 등록된 인스턴스라면 그 슬롯 인덱스를 반환한다(예: 좌우 습격 전술이
+        /// 부대원을 슬롯 상대 번호 홀/짝으로 나눌 때 사용). 등록돼 있지 않으면 false.
+        /// </summary>
+        public bool TryGetSlotIndex(GameObject instance, out int slotIndex)
+        {
+            if (instance != null && _members.TryGetValue(instance, out Member member))
+            {
+                slotIndex = member.SlotIndex;
+                return true;
+            }
+
+            slotIndex = -1;
+            return false;
+        }
+
+        /// <summary>
         /// SoldierBehaviorController가 매 결정 주기마다 호출한다 — Engage 모드이면서 아직 교전
         /// 상대를 찾지 못한 상태만 true(부대 클램프 대상), 그 외(Hold/Retreat, 또는 이미 교전 시작)는
         /// false(자기 본연 속도로 즉시 복귀).

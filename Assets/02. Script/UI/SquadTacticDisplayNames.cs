@@ -14,6 +14,8 @@ namespace UI
             return tactic switch
             {
                 SquadTacticType.ShieldWall => "방패벽",
+                SquadTacticType.LeftRightRaid => "좌우 습격",
+                SquadTacticType.RearRaid => "후방 습격",
                 _ => "없음",
             };
         }
