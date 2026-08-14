@@ -38,7 +38,14 @@ namespace Skill
             {
                 { SkillEffectType.AreaDamage, GetComponent<AreaDamageSkillEffect>() },
                 { SkillEffectType.SingleTargetStrike, GetComponent<SingleTargetStrikeSkillEffect>() },
-                { SkillEffectType.SelfBuff, GetComponent<SelfBuffSkillEffect>() }
+                { SkillEffectType.SelfBuff, GetComponent<SelfBuffSkillEffect>() },
+                { SkillEffectType.Poison, GetComponent<PoisonSkillEffect>() },
+                { SkillEffectType.Whirlwind, GetComponent<WhirlwindSkillEffect>() },
+                { SkillEffectType.Meteor, GetComponent<MeteorSkillEffect>() },
+                { SkillEffectType.Debuff, GetComponent<DebuffSkillEffect>() },
+                { SkillEffectType.Curse, GetComponent<CurseSkillEffect>() },
+                { SkillEffectType.SoldierBuff, GetComponent<SoldierBuffSkillEffect>() },
+                { SkillEffectType.PartyHeal, GetComponent<PartyHealBuffSkillEffect>() }
             };
         }
 

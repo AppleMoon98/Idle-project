@@ -22,11 +22,18 @@ namespace Character.Events
         /// </summary>
         public bool IsCritical { get; }
 
-        public DamageAppliedEvent(GameObject target, float amount, bool isCritical)
+        /// <summary>
+        /// 독(지속 피해) 여부. 데미지 숫자를 평소와 다른 색으로 표시하는 데 쓰인다
+        /// (Combat.DamageNumber.Show 참고).
+        /// </summary>
+        public bool IsPoison { get; }
+
+        public DamageAppliedEvent(GameObject target, float amount, bool isCritical, bool isPoison = false)
         {
             Target = target;
             Amount = amount;
             IsCritical = isCritical;
+            IsPoison = isPoison;
         }
     }
 }

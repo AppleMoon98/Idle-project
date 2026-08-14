@@ -38,8 +38,10 @@ namespace Combat
 
         /// <summary>
         /// 지정된 위치에서 데미지 숫자 표시를 시작한다. 풀에서 꺼낸 직후 호출되어야 한다.
+        /// isPoison이 true면 isCritical과 무관하게 독(지속 피해) 색상으로 표시한다 - 평소(흰색/
+        /// 치명타 빨간색)와 다르게 초록색으로 보여서 지속 피해임을 한눈에 구분할 수 있게 한다.
         /// </summary>
-        public void Show(Vector3 worldPosition, float amount, bool isCritical)
+        public void Show(Vector3 worldPosition, float amount, bool isCritical, bool isPoison = false)
         {
             _startPosition = worldPosition + Vector3.up * config.SpawnHeightOffset;
             transform.position = _startPosition;
@@ -47,7 +49,7 @@ namespace Combat
 
             _textMesh.text = Mathf.RoundToInt(amount).ToString();
             _textMesh.fontSize = config.FontSize;
-            _textMesh.color = isCritical ? config.CriticalColor : config.NormalColor;
+            _textMesh.color = isPoison ? config.PoisonColor : (isCritical ? config.CriticalColor : config.NormalColor);
         }
 
         void ITickable.Tick(float deltaTime)

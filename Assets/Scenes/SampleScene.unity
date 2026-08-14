@@ -2616,6 +2616,13 @@ GameObject:
   - component: {fileID: 82877833}
   - component: {fileID: 82877832}
   - component: {fileID: 82877831}
+  - component: {fileID: 82877838}
+  - component: {fileID: 82877837}
+  - component: {fileID: 82877836}
+  - component: {fileID: 82877835}
+  - component: {fileID: 82877841}
+  - component: {fileID: 82877840}
+  - component: {fileID: 82877839}
   m_Layer: 0
   m_Name: SkillCastSlot_3
   m_TagString: Untagged
@@ -2699,6 +2706,121 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSlot
   slotIndex: 3
+--- !u!114 &82877835
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &82877836
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &82877837
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &82877838
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &82877839
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &82877840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &82877841
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 82877829}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &90003734
 GameObject:
   m_ObjectHideFlags: 0
@@ -32188,6 +32310,13 @@ GameObject:
   - component: {fileID: 1061280278}
   - component: {fileID: 1061280277}
   - component: {fileID: 1061280276}
+  - component: {fileID: 1061280283}
+  - component: {fileID: 1061280282}
+  - component: {fileID: 1061280281}
+  - component: {fileID: 1061280280}
+  - component: {fileID: 1061280286}
+  - component: {fileID: 1061280285}
+  - component: {fileID: 1061280284}
   m_Layer: 0
   m_Name: SkillCastSlot_5
   m_TagString: Untagged
@@ -32271,6 +32400,121 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSlot
   slotIndex: 5
+--- !u!114 &1061280280
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &1061280281
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1061280282
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1061280283
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1061280284
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1061280285
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1061280286
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1061280274}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &1061954901
 GameObject:
   m_ObjectHideFlags: 0
@@ -35396,6 +35640,13 @@ GameObject:
   - component: {fileID: 1151127056}
   - component: {fileID: 1151127059}
   - component: {fileID: 1151127058}
+  - component: {fileID: 1151127063}
+  - component: {fileID: 1151127062}
+  - component: {fileID: 1151127061}
+  - component: {fileID: 1151127060}
+  - component: {fileID: 1151127066}
+  - component: {fileID: 1151127065}
+  - component: {fileID: 1151127064}
   m_Layer: 0
   m_Name: SkillCastSlot_1
   m_TagString: Untagged
@@ -35479,6 +35730,121 @@ MonoBehaviour:
     m_Bits: 512
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+--- !u!114 &1151127060
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &1151127061
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1151127062
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1151127063
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1151127064
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1151127065
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1151127066
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1151127054}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &1151288974
 GameObject:
   m_ObjectHideFlags: 0
@@ -37397,6 +37763,13 @@ GameObject:
   - component: {fileID: 1207186226}
   - component: {fileID: 1207186225}
   - component: {fileID: 1207186224}
+  - component: {fileID: 1207186231}
+  - component: {fileID: 1207186230}
+  - component: {fileID: 1207186229}
+  - component: {fileID: 1207186228}
+  - component: {fileID: 1207186234}
+  - component: {fileID: 1207186233}
+  - component: {fileID: 1207186232}
   m_Layer: 0
   m_Name: SkillCastSlot_4
   m_TagString: Untagged
@@ -37480,6 +37853,121 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSlot
   slotIndex: 4
+--- !u!114 &1207186228
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &1207186229
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1207186230
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1207186231
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1207186232
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1207186233
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1207186234
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1207186222}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &1210373661
 GameObject:
   m_ObjectHideFlags: 0
@@ -43210,6 +43698,13 @@ GameObject:
   - component: {fileID: 1437565077}
   - component: {fileID: 1437565080}
   - component: {fileID: 1437565079}
+  - component: {fileID: 1437565084}
+  - component: {fileID: 1437565083}
+  - component: {fileID: 1437565082}
+  - component: {fileID: 1437565081}
+  - component: {fileID: 1437565087}
+  - component: {fileID: 1437565086}
+  - component: {fileID: 1437565085}
   m_Layer: 0
   m_Name: SkillCastSlot_0
   m_TagString: Untagged
@@ -43293,6 +43788,121 @@ MonoBehaviour:
     m_Bits: 512
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+--- !u!114 &1437565081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &1437565082
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1437565083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1437565084
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1437565085
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1437565086
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1437565087
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1437565075}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &1441238642
 GameObject:
   m_ObjectHideFlags: 0
@@ -52850,6 +53460,13 @@ GameObject:
   - component: {fileID: 1683189639}
   - component: {fileID: 1683189642}
   - component: {fileID: 1683189641}
+  - component: {fileID: 1683189646}
+  - component: {fileID: 1683189645}
+  - component: {fileID: 1683189644}
+  - component: {fileID: 1683189643}
+  - component: {fileID: 1683189649}
+  - component: {fileID: 1683189648}
+  - component: {fileID: 1683189647}
   m_Layer: 0
   m_Name: SkillCastSlot_2
   m_TagString: Untagged
@@ -52933,6 +53550,121 @@ MonoBehaviour:
     m_Bits: 512
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+--- !u!114 &1683189643
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1d4538436168c484ebe89760c269d7a8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.DebuffSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
+--- !u!114 &1683189644
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c32456ad45e7652439c88dd5fb5949a9, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.MeteorSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  spawnMargin: 0.1
+  telegraphPoolCapacity: 4
+  telegraphPoolMaxSize: 8
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1683189645
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a6036565637785c4e8f5f4dd7c862b1a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.WhirlwindSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1683189646
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 61ad486dd9cf8c24198ad6c9ca9f09df, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PoisonSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1683189647
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 4a62cf21ead75df4ba4d0bf5b398fe8d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.PartyHealBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1683189648
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 32dacc5ed7f38004c8feebbe264b1ed3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.SoldierBuffSkillEffect
+  vfxPoolCapacity: 2
+  vfxPoolMaxSize: 4
+--- !u!114 &1683189649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1683189637}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0252e5fe3b633ef46a5ecf61c013410d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Skill.Effects.CurseSkillEffect
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  maxPercentReduction: 0.9
 --- !u!1 &1684823563
 GameObject:
   m_ObjectHideFlags: 0

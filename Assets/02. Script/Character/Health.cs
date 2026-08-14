@@ -40,7 +40,7 @@ namespace Character
         /// (창병 진형의 방패 보병 등) → 그러고도 남은 만큼만 실제 체력을 깎는다. 어느 단계에서든
         /// 0 이하로 떨어지면 완전히 무효화된 것으로 취급한다(이벤트 발행도, 체력 변화도 없음).
         /// </summary>
-        public void TakeDamage(float amount, bool isCritical = false)
+        public void TakeDamage(float amount, bool isCritical = false, bool isPoison = false)
         {
             if (IsDead || amount <= 0f)
             {
@@ -65,7 +65,7 @@ namespace Character
             }
 
             SetCurrent(_current - mitigatedAmount);
-            GameBootstrapper.Events?.Publish(new DamageAppliedEvent(gameObject, mitigatedAmount, isCritical));
+            GameBootstrapper.Events?.Publish(new DamageAppliedEvent(gameObject, mitigatedAmount, isCritical, isPoison));
 
             if (_current <= 0f)
             {

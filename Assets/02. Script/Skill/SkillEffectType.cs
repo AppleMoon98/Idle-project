@@ -8,6 +8,13 @@ namespace Skill
     {
         AreaDamage,
         SingleTargetStrike,
-        SelfBuff
+        SelfBuff,
+        Poison,
+        Whirlwind,
+        Meteor,
+        Debuff,
+        Curse,
+        SoldierBuff,
+        PartyHeal
     }
 }

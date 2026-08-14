@@ -26,6 +26,9 @@ namespace Combat
         [SerializeField]
         private Color criticalColor = Color.red;
 
+        [SerializeField]
+        private Color poisonColor = Color.green;
+
         /// <summary>
         /// 스폰 위치로부터 위로 이동하는 총 거리.
         /// </summary>
@@ -55,5 +58,10 @@ namespace Combat
         /// 치명타 데미지 색상.
         /// </summary>
         public Color CriticalColor => criticalColor;
+
+        /// <summary>
+        /// 독(지속 피해) 데미지 색상. 치명타 색상보다 우선한다(Combat.DamageNumber.Show 참고).
+        /// </summary>
+        public Color PoisonColor => poisonColor;
     }
 }

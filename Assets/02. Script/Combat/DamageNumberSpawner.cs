@@ -45,7 +45,7 @@ namespace Combat
             }
 
             GameObject instance = _pool.Get(_damageNumberPrefab, evt.Target.transform.position, Quaternion.identity);
-            instance.GetComponent<DamageNumber>().Show(evt.Target.transform.position, evt.Amount, evt.IsCritical);
+            instance.GetComponent<DamageNumber>().Show(evt.Target.transform.position, evt.Amount, evt.IsCritical, evt.IsPoison);
         }
     }
 }

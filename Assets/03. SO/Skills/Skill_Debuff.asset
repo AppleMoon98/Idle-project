@@ -10,31 +10,33 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
-  m_Name: Skill_WhirlwindSlash
+  m_Name: Skill_Debuff
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
-  displayName: "\uD68C\uC624\uB9AC\uBCA0\uAE30"
+  displayName: "\uC1E0\uC57D"
   grade: 0
   icon: {fileID: 21300000, guid: 58540b804e4c9e948997681ed575049d, type: 3}
-  iconTint: {r: 0.95, g: 0.45, b: 0.15, a: 1}
-  cooldown: 8
+  iconTint: {r: 0.55, g: 0.25, b: 0.65, a: 1}
+  cooldown: 12
   maxLevel: 20
-  goldCostBase: 100
-  goldCostIncreasePerLevel: 50
+  goldCostBase: 130
+  goldCostIncreasePerLevel: 65
   stoneCostBase: 5
   stoneCostIncreasePerLevel: 2
-  effectValueBase: 15
-  effectValuePerLevel: 3
-  effectType: 4
+  effectValueBase: 0.15
+  effectValuePerLevel: 0.01
+  effectType: 6
   areaRadius: 3
-  strikeRange: 2.5
-  buffDuration: 5
+  strikeRange: 3
+  buffDuration: 6
   buffDurationPerLevel: 0
-  vfxPrefab: {fileID: 8395996467037409061, guid: 9d651c99864ce604480657d0b8fa6e33, type: 3}
+  vfxPrefab: {fileID: 8226800553723968347, guid: 190b91b63029338489011355bca698af, type: 3}
   vfxFollowCaster: 0
   vfxHeightOffset: 0
   shakeCamera: 0
   shakeDuration: 0.3
   shakeMagnitude: 0.2
-  tickInterval: 0.5
+  tickInterval: 1
   meteorShellCount: 4
   meteorTelegraphDuration: 1
+  healPercentPerSecondBase: 0.02
+  healPercentPerSecondPerLevel: 0.002

@@ -80,6 +80,21 @@ namespace Skill
         [SerializeField]
         private float shakeMagnitude = 0.2f;
 
+        [SerializeField]
+        private float tickInterval = 1f;
+
+        [SerializeField]
+        private int meteorShellCount = 4;
+
+        [SerializeField]
+        private float meteorTelegraphDuration = 1f;
+
+        [SerializeField]
+        private float healPercentPerSecondBase = 0.02f;
+
+        [SerializeField]
+        private float healPercentPerSecondPerLevel = 0.002f;
+
         /// <summary>
         /// 스킬 이름(UI 표시용).
         /// </summary>
@@ -183,6 +198,32 @@ namespace Skill
         /// 카메라 흔들림 강도. ShakeCamera가 false면 쓰이지 않는다.
         /// </summary>
         public float ShakeMagnitude => shakeMagnitude;
+
+        /// <summary>
+        /// 주기적으로 효과를 반복하는 스킬(Poison의 독 틱, Whirlwind의 타격 펄스)의 반복 간격(초).
+        /// 다른 EffectType의 스킬에서는 쓰이지 않는다.
+        /// </summary>
+        public float TickInterval => tickInterval;
+
+        /// <summary>
+        /// Meteor 스킬이 동시에 떨어뜨리는 포탄 개수. 다른 EffectType의 스킬에서는 쓰이지 않는다.
+        /// </summary>
+        public int MeteorShellCount => meteorShellCount;
+
+        /// <summary>
+        /// Meteor 스킬의 포탄 하나당 예고(텔레그래프) 표시 시간(초). 다른 EffectType의 스킬에서는
+        /// 쓰이지 않는다.
+        /// </summary>
+        public float MeteorTelegraphDuration => meteorTelegraphDuration;
+
+        /// <summary>
+        /// 레벨에 따른 초당 회복 비율(자기 자신의 최대체력 대비, 예: 0.02 = 초당 2%). PartyHeal
+        /// 스킬(전투찬가)에서만 쓰인다. GetMagnitude와 동일한 선형 공식.
+        /// </summary>
+        public float GetHealPercentPerSecond(int level)
+        {
+            return healPercentPerSecondBase + healPercentPerSecondPerLevel * level;
+        }
 
         /// <summary>
         /// 다음 레벨(level -> level+1)로 올리는 데 필요한 골드 비용.
