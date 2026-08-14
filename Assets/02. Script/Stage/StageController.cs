@@ -199,6 +199,8 @@ namespace Stage
         /// </summary>
         public void PauseForOverlay()
         {
+            IsOverlayActive = true;
+
             if (_spawner != null)
             {
                 TickerRegistration.Unregister(_spawner);
@@ -207,6 +209,17 @@ namespace Stage
             _tracker?.SetActiveAll(false);
             _progression?.SetSuppressed(true);
         }
+
+        /// <summary>
+        /// 골드/강화석/스킬/병사 구출 던전, 랭크 승급전 등 PauseForOverlay를 쓰는 오버레이 중
+        /// 하나라도 현재 진행 중인지 여부. 각 오버레이의 진입 메서드(Enter 등)는 이 값을 자기
+        /// 자신의 _isActive와 함께 확인해, 이미 다른 오버레이가 켜져 있으면 중복 진입을 막아야
+        /// 한다 - 이게 없으면(예: 골드 던전 진행 중에 강화석 던전 팝업의 입장 버튼을 누르는 것)
+        /// PauseForOverlay/ResumeAfterOverlay가 서로 안 맞물려 호출돼(참조 카운트가 아니라 단순
+        /// on/off라) 어느 한쪽이 먼저 끝나면 다른 쪽이 아직 진행 중인데도 스테이지가 재개되는 등
+        /// 상태가 완전히 꼬인다.
+        /// </summary>
+        public bool IsOverlayActive { get; private set; }
 
         /// <summary>
         /// PauseForOverlay로 숨겨둔 현재 스테이지를 그대로 되돌린다. 오버레이 도중 Player가
@@ -312,6 +325,8 @@ namespace Stage
 
         public void ResumeAfterOverlay()
         {
+            IsOverlayActive = false;
+
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
 

@@ -39,10 +39,13 @@ namespace Rank
 
         /// <summary>
         /// targetRank로의 승급전을 시작한다. targetRank나 그 보스 프리팹이 없으면 무시한다.
+        /// 이미 진행 중이거나(자기 자신) 다른 오버레이(던전 등)가 이미 켜져 있으면(stageController.
+        /// IsOverlayActive) 무시한다 — Dungeon.GoldDungeonSessionController.Enter와 동일한 이유
+        /// (오버레이 중복 진입 방지).
         /// </summary>
         public void Enter(RankSO targetRank)
         {
-            if (_isActive || targetRank == null || targetRank.BossPrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive) || targetRank == null || targetRank.BossPrefab == null)
             {
                 return;
             }

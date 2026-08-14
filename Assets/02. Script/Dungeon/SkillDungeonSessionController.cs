@@ -39,11 +39,13 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
-        /// 스킬 던전을 시작한다. stageNumber는 보스 강함/보상 계산에 쓰인다. 이미 진행 중이면 무시한다.
+        /// 스킬 던전을 시작한다. stageNumber는 보스 강함/보상 계산에 쓰인다. 이미 진행 중이거나
+        /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시한다
+        /// — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || config == null || config.BossPrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.BossPrefab == null)
             {
                 return;
             }

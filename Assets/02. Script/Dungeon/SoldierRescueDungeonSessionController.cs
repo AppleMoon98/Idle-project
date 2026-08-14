@@ -110,11 +110,13 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// 병사 구출 던전을 시작한다. 이미 진행 중이면 무시한다.
+        /// 병사 구출 던전을 시작한다. 이미 진행 중이거나(자기 자신) 다른 오버레이가 이미 켜져
+        /// 있으면(stageController.IsOverlayActive) 무시한다 — GoldDungeonSessionController.Enter와
+        /// 동일한 이유(던전 중복 진입 방지).
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || config == null || config.CavalryPrefab == null || structurePrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.CavalryPrefab == null || structurePrefab == null)
             {
                 return;
             }
