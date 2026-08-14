@@ -96,6 +96,14 @@ namespace Skill.Effects
             }
         }
 
+        /// <summary>
+        /// 자기 자신에게 거는 버프라 공격 대상이 필요 없다 - 항상 발동 가능하다.
+        /// </summary>
+        public bool HasTargetInRange(Transform origin, SkillSO definition)
+        {
+            return true;
+        }
+
         private void RevertBonus()
         {
             if (_appliedBonus <= 0f)

@@ -71,5 +71,10 @@ namespace Skill.Effects
             nearest.TakeDamage(_statsProvider.Stats.AttackPower + magnitude);
             SkillEffectVfx.SpawnAndPlay(_pool, definition, hitPosition, vfxPoolCapacity, vfxPoolMaxSize);
         }
+
+        public bool HasTargetInRange(Transform origin, SkillSO definition)
+        {
+            return Combat.NearestHealthScan.FindNearest(origin.position, definition.StrikeRange, targetLayerMask) != null;
+        }
     }
 }

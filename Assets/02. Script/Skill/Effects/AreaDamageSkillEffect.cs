@@ -56,5 +56,10 @@ namespace Skill.Effects
             // 프리팹은 radius=1 기준으로 제작하고, 실제 데미지 반경에 맞춰 스케일만 조정한다.
             SkillEffectVfx.SpawnAndPlay(_pool, definition, origin.position, vfxPoolCapacity, vfxPoolMaxSize, definition.AreaRadius);
         }
+
+        public bool HasTargetInRange(Transform origin, SkillSO definition)
+        {
+            return Combat.NearestHealthScan.FindNearest(origin.position, definition.AreaRadius, targetLayerMask) != null;
+        }
     }
 }

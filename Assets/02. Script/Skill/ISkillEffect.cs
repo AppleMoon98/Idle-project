@@ -14,5 +14,13 @@ namespace Skill
         /// 이펙트 프리팹 등 스킬 고유 수치는 여기서 읽는다). magnitude: SkillSO.GetMagnitude(현재 레벨) 결과값.
         /// </summary>
         void Execute(Transform origin, SkillSO definition, float magnitude);
+
+        /// <summary>
+        /// 쿨다운이 다 찼을 때 실제로 발동할 만한 대상이 있는지(공격형 스킬은 사거리 안 살아있는
+        /// 적 존재 여부, 자기 버프처럼 대상이 필요 없는 스킬은 항상 true). SkillSlot이 쿨다운 완료
+        /// 시점에 이 값으로 발동 여부를 결정한다 - 대상이 없으면 Execute를 아예 호출하지 않고
+        /// 쿨다운을 소모하지도 않는다(다음 틱에 다시 확인, 대상이 나타나는 즉시 발동).
+        /// </summary>
+        bool HasTargetInRange(Transform origin, SkillSO definition);
     }
 }

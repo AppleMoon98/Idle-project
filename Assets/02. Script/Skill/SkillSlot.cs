@@ -79,7 +79,7 @@ namespace Skill
                 return;
             }
 
-            _elapsed += deltaTime;
+            _elapsed = Mathf.Min(_elapsed + deltaTime, definition.Cooldown);
             CooldownProgress01 = Mathf.Clamp01(_elapsed / definition.Cooldown);
 
             if (_elapsed < definition.Cooldown)
@@ -87,17 +87,26 @@ namespace Skill
                 return;
             }
 
+            if (!_effectsByType.TryGetValue(definition.EffectType, out ISkillEffect effect) || effect == null)
+            {
+                return;
+            }
+
+            // 쿨다운은 다 찼지만 발동할 대상이 사거리 안에 없으면 소모하지 않고 대기한다(진행도는
+            // 가득 찬 채로 유지) - 다음 틱에 다시 확인해 대상이 나타나는 즉시 발동한다.
+            if (!effect.HasTargetInRange(transform, definition))
+            {
+                return;
+            }
+
             _elapsed = 0f;
             CooldownProgress01 = 0f;
 
-            if (_effectsByType.TryGetValue(definition.EffectType, out ISkillEffect effect) && effect != null)
-            {
-                effect.Execute(transform, definition, definition.GetMagnitude(skillService.GetLevel(definition)));
+            effect.Execute(transform, definition, definition.GetMagnitude(skillService.GetLevel(definition)));
 
-                if (definition.ShakeCamera)
-                {
-                    GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(definition.ShakeDuration, definition.ShakeMagnitude));
-                }
+            if (definition.ShakeCamera)
+            {
+                GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(definition.ShakeDuration, definition.ShakeMagnitude));
             }
         }
     }
