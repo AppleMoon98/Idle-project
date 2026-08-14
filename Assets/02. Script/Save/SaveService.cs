@@ -9,6 +9,7 @@ using Gacha.Events;
 using Inventory;
 using Inventory.Events;
 using Loot.Events;
+using Managers;
 using Rank.Events;
 using Skill;
 using Skill.Events;
@@ -31,8 +32,18 @@ namespace Save
     /// SoldierEquippedGearService/SoldierEquipmentCatalogSO를 직접 참조한다(EnhancementService가
     /// CurrencyService를 참조하는 것과 같은 성격의 합성 의존성 — 순수 이벤트 구독만으로는 가변 길이
     /// 컬렉션 전체를 스냅샷할 수 없다).
+    ///
+    /// 추적 대상 이벤트(골드/장비/스킬/병사 등 20여 종)가 올 때마다 매번 즉시 PlayerPrefs.Save()
+    /// (동기 디스크 flush, 이 클래스에서 가장 비싼 호출)까지 실행하면, 골드 뽑기 300연처럼 같은
+    /// 프레임 안에서 InventoryChangedEvent가 수백 번 몰아치는 상황에서 그만큼 반복 실행돼 눈에
+    /// 띄는 멈춤이 생긴다(실사용 중 발견 — 보유 장비 종류가 많을수록 스냅샷 재직렬화 비용까지
+    /// 더해져 심해짐). EquipmentSlotPopupUI의 Refresh() 디바운스(section CL)와 같은 방향으로,
+    /// 이벤트 핸들러들은 실제 PlayerPrefs 기록 대신 MarkDirty()로 더티 플래그만 세우고, Tick()이
+    /// 프레임당 최대 한 번만 진짜 Save()를 수행한다. 다만 공개 Save()는 그대로 즉시 동기 실행을
+    /// 유지한다 — GameBootstrapper.OnApplicationPause/OnApplicationQuit이 앱이 꺼지기 직전
+    /// 마지막 상태를 반드시 기록하기 위해 직접 호출하는 안전장치라, 여기 손대면 그 보장이 깨진다.
     /// </summary>
-    public sealed class SaveService : IManager, IService
+    public sealed class SaveService : IManager, IService, ITickable
     {
         [Serializable]
         private class InventorySaveBlob
@@ -156,6 +167,7 @@ namespace Save
         private int _skillScrollCount;
         private string _skillCountsJson = "";
         private int _equipmentGachaTicketCount;
+        private bool _isDirty;
 
         public SaveService(
             EventBus events,
@@ -246,10 +258,14 @@ namespace Save
             _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
             _events.Subscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
             _events.Subscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
+
+            TickerRegistration.Register(this);
         }
 
         public void Shutdown()
         {
+            TickerRegistration.Unregister(this);
+
             _events.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Unsubscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
             _events.Unsubscribe<StageChangedEvent>(OnStageChanged);
@@ -359,7 +375,12 @@ namespace Save
         }
 
         /// <summary>
-        /// 지금까지 추적한 값과 현재 시각을 PlayerPrefs에 즉시 기록한다.
+        /// 지금까지 추적한 값과 현재 시각을 PlayerPrefs에 즉시(동기) 기록한다 — PlayerPrefs.Save()의
+        /// 디스크 flush를 포함하므로 이 클래스에서 가장 비싼 호출이다. 게임플레이 이벤트 핸들러는
+        /// 이 메서드를 직접 부르지 않고 MarkDirty()만 호출한다(Tick()이 프레임당 최대 한 번으로
+        /// 묶어서 대신 호출) — 이 공개 메서드 자체는 GameBootstrapper.OnApplicationPause/
+        /// OnApplicationQuit이 앱 종료 직전 마지막 상태를 확실히 기록하려고 직접 호출하는
+        /// 안전장치이므로 즉시 실행 동작을 그대로 유지해야 한다.
         /// </summary>
         public void Save()
         {
@@ -394,6 +415,26 @@ namespace Save
             PlayerPrefs.SetString(SkillCountsJsonKey, _skillCountsJson);
             PlayerPrefs.SetInt(EquipmentGachaTicketCountKey, _equipmentGachaTicketCount);
             PlayerPrefs.Save();
+
+            _isDirty = false;
+        }
+
+        /// <summary>
+        /// 게임플레이 이벤트 핸들러가 실제 저장을 요청하는 창구. 즉시 Save()하지 않고 더티
+        /// 플래그만 세운다 - 같은 프레임에 여러 이벤트가 몰아쳐도(예: 골드 뽑기 300연의
+        /// InventoryChangedEvent) 실제 PlayerPrefs 기록/디스크 flush는 Tick()에서 한 번만 일어난다.
+        /// </summary>
+        private void MarkDirty()
+        {
+            _isDirty = true;
+        }
+
+        void ITickable.Tick(float deltaTime)
+        {
+            if (_isDirty)
+            {
+                Save();
+            }
         }
 
         /// <summary>
@@ -525,27 +566,27 @@ namespace Save
         private void OnGoldChanged(GoldChangedEvent evt)
         {
             _gold = evt.CurrentGold;
-            Save();
+            MarkDirty();
         }
 
         private void OnEnhancementStoneChanged(EnhancementStoneChangedEvent evt)
         {
             _enhancementStones = evt.CurrentStones;
-            Save();
+            MarkDirty();
         }
 
         private void OnStageChanged(StageChangedEvent evt)
         {
             _chapter = evt.Chapter;
             _stageNumber = evt.StageNumber;
-            Save();
+            MarkDirty();
         }
 
         private void OnHighestStageCleared(HighestStageClearedEvent evt)
         {
             _highestClearedChapter = evt.Chapter;
             _highestClearedStageNumber = evt.StageNumber;
-            Save();
+            MarkDirty();
         }
 
         private void OnStatEnhanced(StatEnhancedEvent evt)
@@ -572,7 +613,7 @@ namespace Save
                     break;
             }
 
-            Save();
+            MarkDirty();
         }
 
         private void OnSoldierStatEnhanced(SoldierStatEnhancedEvent evt)
@@ -599,55 +640,55 @@ namespace Save
                     break;
             }
 
-            Save();
+            MarkDirty();
         }
 
         private void OnSkillLoadoutChanged(SkillLoadoutChangedEvent evt)
         {
             RebuildSkillLoadoutSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSkillSlotEnabledChanged(SkillSlotEnabledChangedEvent evt)
         {
             RebuildSkillEnabledSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSkillScrollChanged(SkillScrollChangedEvent evt)
         {
             _skillScrollCount = evt.CurrentScrolls;
-            Save();
+            MarkDirty();
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
         {
             RebuildInventorySnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
         {
             RebuildInventorySnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnRankChanged(RankChangedEvent evt)
         {
             _rankIndex = evt.NewRankIndex;
-            Save();
+            MarkDirty();
         }
 
         private void OnSoldierTicketChanged(SoldierTicketChangedEvent evt)
         {
             _soldierTicketCount = evt.CurrentTickets;
-            Save();
+            MarkDirty();
         }
 
         private void OnEquipmentGachaTicketChanged(EquipmentGachaTicketChangedEvent evt)
         {
             _equipmentGachaTicketCount = evt.CurrentTickets;
-            Save();
+            MarkDirty();
         }
 
         private void OnSoldierRosterChanged(SoldierRosterChangedEvent evt)
@@ -668,31 +709,31 @@ namespace Save
         private void RebuildRosterSnapshotAndSave()
         {
             RebuildSoldierRosterSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSoldierEquipmentInventoryChanged(SoldierEquipmentInventoryChangedEvent evt)
         {
             RebuildSoldierEquipmentSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSoldierEquipmentEquipped(SoldierEquipmentEquippedEvent evt)
         {
             RebuildSoldierEquipmentSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
         {
             RebuildSkillSnapshot();
-            Save();
+            MarkDirty();
         }
 
         private void OnSkillCountChanged(SkillCountChangedEvent evt)
         {
             RebuildSkillCountSnapshot();
-            Save();
+            MarkDirty();
         }
 
         /// <summary>
