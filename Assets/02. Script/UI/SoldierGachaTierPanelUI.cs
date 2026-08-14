@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using Core;
 using Gacha;
 using Gacha.Events;
 using Loot;
 using Loot.Events;
+using Soldier;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -16,10 +18,14 @@ namespace UI
     /// useGoldCurrency로 이 패널 인스턴스가 골드/티켓 중 어느 재화를 표시할지 정한다(같은 클래스를
     /// 골드 탭/티켓 탭 인스턴스 둘 다에 재사용 — EquipmentGachaTierPanelUI가 이미 골드만 쓰던
     /// 것과 이 패널의 기존 티켓 표시를 한 컴포넌트로 합친 것). 소환권을 얻을 정식 경로가 아직
-    /// 없어 디버그 지급 버튼으로 테스트한다(골드 탭은 이미 실제 골드 재화가 있어 필요 없음).
+    /// 없어 디버그 지급 버튼으로 테스트한다(골드 탭은 이미 실제 골드 재화가 있어 필요 없음). 뽑기
+    /// 결과는 팝업(SoldierPulledPopup, 이제 미사용) 대신 resultReveal이 이 패널 안에서 슬롯으로
+    /// 하나씩 보여준다.
     /// </summary>
     public sealed class SoldierGachaTierPanelUI : MonoBehaviour
     {
+        private static readonly Color NeutralBorderColor = new(0.35f, 0.35f, 0.35f, 1f);
+
         [SerializeField]
         private int tierIndex;
 
@@ -37,6 +43,9 @@ namespace UI
 
         [SerializeField]
         private Button debugGrantButton;
+
+        [SerializeField]
+        private GachaResultRevealController resultReveal;
 
         private void Awake()
         {
@@ -92,10 +101,26 @@ namespace UI
 
         private void OnPullClicked(int count)
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GachaService gacha))
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out GachaService gacha))
             {
-                gacha.Pull(tierIndex, count);
+                return;
             }
+
+            IReadOnlyList<OwnedSoldier> results = gacha.Pull(tierIndex, count);
+            resultReveal.Reveal(BuildVisuals(results));
+        }
+
+        private static List<GachaResultVisual> BuildVisuals(IReadOnlyList<OwnedSoldier> results)
+        {
+            var visuals = new List<GachaResultVisual>(results.Count);
+
+            foreach (OwnedSoldier owned in results)
+            {
+                Color border = owned.Definition.Grade != null ? owned.Definition.Grade.TintColor : NeutralBorderColor;
+                visuals.Add(new GachaResultVisual(owned.Definition.Icon, border));
+            }
+
+            return visuals;
         }
 
         private void OnDebugGrantClicked()

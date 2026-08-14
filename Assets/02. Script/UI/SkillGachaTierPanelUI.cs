@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using Core;
 using Gacha;
 using Gacha.Events;
 using Loot;
 using Loot.Events;
+using Skill;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,7 +17,10 @@ namespace UI
     /// pullButtons[i]는 pullCounts[i]개를 한 번에 뽑는 버튼이다. useGoldCurrency로 이 패널
     /// 인스턴스가 골드/주문서 중 어느 재화를 표시할지 정한다(같은 클래스를 골드 탭/티켓 탭
     /// 인스턴스 둘 다에 재사용). 주문서를 얻을 정식 경로(스킬 던전)가 있지만, 초기 테스트
-    /// 편의를 위해 디버그 지급 버튼도 함께 둔다(골드 탭은 필요 없음).
+    /// 편의를 위해 디버그 지급 버튼도 함께 둔다(골드 탭은 필요 없음). 뽑기 결과는 팝업
+    /// (SkillPulledPopup, 이제 미사용) 대신 resultReveal이 이 패널 안에서 슬롯으로 하나씩
+    /// 보여준다 - 스킬은 등급→색 매핑이 없어(SkillSO.Grade는 분류용 enum일 뿐) 테두리 색은
+    /// SkillSO.IconTint(스킬별 수작업 지정 색)를 그대로 쓴다.
     /// </summary>
     public sealed class SkillGachaTierPanelUI : MonoBehaviour
     {
@@ -36,6 +41,9 @@ namespace UI
 
         [SerializeField]
         private Button debugGrantButton;
+
+        [SerializeField]
+        private GachaResultRevealController resultReveal;
 
         private void Awake()
         {
@@ -91,10 +99,25 @@ namespace UI
 
         private void OnPullClicked(int count)
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillGachaService gacha))
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillGachaService gacha))
             {
-                gacha.Pull(tierIndex, count);
+                return;
             }
+
+            IReadOnlyList<SkillSO> results = gacha.Pull(tierIndex, count);
+            resultReveal.Reveal(BuildVisuals(results));
+        }
+
+        private static List<GachaResultVisual> BuildVisuals(IReadOnlyList<SkillSO> results)
+        {
+            var visuals = new List<GachaResultVisual>(results.Count);
+
+            foreach (SkillSO skill in results)
+            {
+                visuals.Add(new GachaResultVisual(skill.Icon, skill.IconTint));
+            }
+
+            return visuals;
         }
 
         private void OnDebugGrantClicked()
