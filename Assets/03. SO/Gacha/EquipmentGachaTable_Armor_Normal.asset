@@ -12,26 +12,36 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2cff0b5a210011946b8f1b5b1b9bb23c, type: 3}
   m_Name: EquipmentGachaTable_Armor_Normal
   m_EditorClassIdentifier: Assembly-CSharp::Gacha.EquipmentGachaTableSO
-  displayName: "\uC77C\uBC18 \uBF51\uAE30"
+  displayName: "일반 뽑기"
   entries:
   - equipment: {fileID: 11400000, guid: 8d84a4c13c87ed340839e90904b1fc32, type: 2}
-    weight: 100
+    weight: 78
   - equipment: {fileID: 11400000, guid: f6139ee65572cfc49aa6861bc0f59d27, type: 2}
-    weight: 90
+    weight: 65
   - equipment: {fileID: 11400000, guid: 3101847f2c1183649928b708241e26a7, type: 2}
-    weight: 80
+    weight: 52
   - equipment: {fileID: 11400000, guid: 18d9a8bf548e8434f81d4e395f30c4fb, type: 2}
-    weight: 70
+    weight: 39
   - equipment: {fileID: 11400000, guid: ad0a23f5d0debbb4d845a69c6b60427b, type: 2}
-    weight: 60
+    weight: 26
   - equipment: {fileID: 11400000, guid: 2b728d7ebba9f3a4fb23e830fadd8f0f, type: 2}
-    weight: 50
-  - equipment: {fileID: 11400000, guid: 89d85c13c838e12408bae2b9f00f5964, type: 2}
-    weight: 40
-  - equipment: {fileID: 11400000, guid: 96c7637ae13f4e04e9a104ec2a2abb56, type: 2}
     weight: 30
-  - equipment: {fileID: 11400000, guid: dbd30c6b353dc1c4cba4be9c00dc6917, type: 2}
+  - equipment: {fileID: 11400000, guid: 89d85c13c838e12408bae2b9f00f5964, type: 2}
+    weight: 25
+  - equipment: {fileID: 11400000, guid: 96c7637ae13f4e04e9a104ec2a2abb56, type: 2}
     weight: 20
+  - equipment: {fileID: 11400000, guid: dbd30c6b353dc1c4cba4be9c00dc6917, type: 2}
+    weight: 15
   - equipment: {fileID: 11400000, guid: db4ecc2d3a31f9d4b9befd90614c4baa, type: 2}
     weight: 10
+  - equipment: {fileID: 11400000, guid: 41ff67cdab3f74046adfd83dfb7ac6e8, type: 2}
+    weight: 12
+  - equipment: {fileID: 11400000, guid: 9c0e55dcc5843f340ba6b19149785cd3, type: 2}
+    weight: 10
+  - equipment: {fileID: 11400000, guid: e5b61727d8586ae43bb67597626d2236, type: 2}
+    weight: 8
+  - equipment: {fileID: 11400000, guid: 9d2aed54098581849a812e0b756b37e3, type: 2}
+    weight: 6
+  - equipment: {fileID: 11400000, guid: f3f80cd909025ea4f96c45f1a71fd478, type: 2}
+    weight: 4
   goldCostPerPull: 100
