@@ -36,6 +36,13 @@ namespace Soldier
 
         public const int SquadCount = 6;
 
+        /// <summary>
+        /// 한 부대(SlotsPerSquad개 슬롯)에 동시에 배치할 수 있는 실제 인원 상한. 슬롯 칸 수(20,
+        /// 부대 편성 팝업의 4x5 그리드)와는 별개 개념 — 그리드 칸은 전부 보이지만 실제로 채울 수
+        /// 있는 인원은 이 값까지만이다.
+        /// </summary>
+        public const int MaxDeployedPerSquad = 12;
+
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
         private readonly RankService _rankService;
@@ -85,7 +92,24 @@ namespace Soldier
                 return false;
             }
 
-            if (TryGetSlotOf(instanceId, out int existingSlot) && existingSlot != slotIndex)
+            bool hasExistingSlot = TryGetSlotOf(instanceId, out int existingSlot);
+
+            // slotIndex가 이미 비어있는 자리를 새로 채우는 경우에만 인원 상한을 확인한다 - 이미
+            // 채워진 슬롯을 덮어쓰거나(부대원 교체) 같은 부대 안에서 옮기는 경우는 부대 전체 인원이
+            // 늘어나지 않으므로 막을 이유가 없다.
+            if (!_slotToInstanceId.ContainsKey(slotIndex))
+            {
+                int squadIndex = slotIndex / SlotsPerSquad;
+                bool vacatesWithinSameSquad = hasExistingSlot && existingSlot != slotIndex && existingSlot / SlotsPerSquad == squadIndex;
+                int projectedCount = GetOccupiedCount(squadIndex) + 1 - (vacatesWithinSameSquad ? 1 : 0);
+
+                if (projectedCount > MaxDeployedPerSquad)
+                {
+                    return false;
+                }
+            }
+
+            if (hasExistingSlot && existingSlot != slotIndex)
             {
                 _slotToInstanceId.Remove(existingSlot);
                 _events.Publish(new SoldierDeploymentChangedEvent(existingSlot));
@@ -94,6 +118,26 @@ namespace Soldier
             _slotToInstanceId[slotIndex] = instanceId;
             _events.Publish(new SoldierDeploymentChangedEvent(slotIndex));
             return true;
+        }
+
+        /// <summary>
+        /// squadIndex(SlotsPerSquad개 슬롯 구간)에 현재 배정이 있는 슬롯 수.
+        /// </summary>
+        private int GetOccupiedCount(int squadIndex)
+        {
+            int start = squadIndex * SlotsPerSquad;
+            int end = start + SlotsPerSquad;
+            int count = 0;
+
+            foreach (int occupiedSlot in _slotToInstanceId.Keys)
+            {
+                if (occupiedSlot >= start && occupiedSlot < end)
+                {
+                    count++;
+                }
+            }
+
+            return count;
         }
 
         /// <summary>
