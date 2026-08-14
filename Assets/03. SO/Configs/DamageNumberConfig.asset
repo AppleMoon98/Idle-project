@@ -16,5 +16,7 @@ MonoBehaviour:
   lifetime: 0.8
   spawnHeightOffset: 0.5
   fontSize: 32
+  referenceOrthographicSize: 8
   normalColor: {r: 1, g: 1, b: 1, a: 1}
   criticalColor: {r: 1, g: 0, b: 0, a: 1}
+  poisonColor: {r: 0, g: 1, b: 0, a: 1}

@@ -21,6 +21,9 @@ namespace Combat
         private int fontSize = 32;
 
         [SerializeField]
+        private float referenceOrthographicSize = 8f;
+
+        [SerializeField]
         private Color normalColor = Color.white;
 
         [SerializeField]
@@ -48,6 +51,14 @@ namespace Combat
         /// TextMesh 폰트 크기.
         /// </summary>
         public int FontSize => fontSize;
+
+        /// <summary>
+        /// 이 폰트 크기가 화면상 의도한 크기로 보이도록 튜닝된 기준 Camera.orthographicSize.
+        /// DamageNumber가 매 틱 Camera.main.orthographicSize / ReferenceOrthographicSize 비율로
+        /// 자기 자신의 localScale을 보정해, 카메라 줌 슬라이더(UI.CameraZoomSliderUI)로 시야를
+        /// 확대/축소해도 데미지 숫자의 화면상 크기가 항상 일정하게 유지되도록 한다.
+        /// </summary>
+        public float ReferenceOrthographicSize => referenceOrthographicSize;
 
         /// <summary>
         /// 일반 데미지 색상.

@@ -19,6 +19,7 @@ namespace Combat
 
         private TextMesh _textMesh;
         private MeshRenderer _meshRenderer;
+        private Camera _camera;
         private Vector3 _startPosition;
         private float _elapsed;
 
@@ -26,6 +27,7 @@ namespace Combat
         {
             _textMesh = GetComponent<TextMesh>();
             _meshRenderer = GetComponent<MeshRenderer>();
+            _camera = Camera.main;
 
             // 폰트가 동적(Dynamic) 폰트라 아직 쓰인 적 없는 문자가 요청되면 내부 아틀라스
             // 텍스처가 통째로 재생성될 수 있다 - 그 경우 아웃라인 머티리얼이 들고 있던 텍스처
@@ -58,10 +60,14 @@ namespace Combat
             _textMesh.text = Mathf.RoundToInt(amount).ToString();
             _textMesh.fontSize = config.FontSize;
             _textMesh.color = isPoison ? config.PoisonColor : (isCritical ? config.CriticalColor : config.NormalColor);
+
+            ApplyZoomCompensation();
         }
 
         void ITickable.Tick(float deltaTime)
         {
+            ApplyZoomCompensation();
+
             _elapsed += deltaTime;
 
             float progress01 = config.Lifetime <= 0f ? 1f : Mathf.Clamp01(_elapsed / config.Lifetime);
@@ -84,6 +90,23 @@ namespace Combat
             {
                 pool.Release(gameObject);
             }
+        }
+
+        /// <summary>
+        /// 카메라 줌 슬라이더(UI.CameraZoomSliderUI)로 Camera.orthographicSize가 바뀌어도 데미지
+        /// 숫자의 화면상 크기가 항상 일정해 보이도록, 현재 orthographicSize와 config가 튜닝된
+        /// 기준 크기의 비율만큼 자기 자신의 localScale을 보정한다 - 월드 스페이스 TextMesh라
+        /// 아무 보정 없이는 확대(orthographicSize 작아짐)할수록 커 보이고 축소할수록 작아 보인다.
+        /// </summary>
+        private void ApplyZoomCompensation()
+        {
+            if (_camera == null || config.ReferenceOrthographicSize <= 0f)
+            {
+                return;
+            }
+
+            float scale = _camera.orthographicSize / config.ReferenceOrthographicSize;
+            transform.localScale = Vector3.one * scale;
         }
     }
 }
