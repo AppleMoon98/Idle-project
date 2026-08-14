@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Character;
 using Core;
 using Services;
+using Stage.Events;
 using UnityEngine;
 
 namespace Combat
@@ -182,11 +183,36 @@ namespace Combat
         private void OnEnable()
         {
             TickerRegistration.Register(this);
+            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
+            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
+        }
+
+        /// <summary>
+        /// 몬스터 쪽은 스테이지 종료 시 이미 풀로 반환·비활성화된 뒤라 이 이벤트를 받을 일이 없다
+        /// - 실질적으로는 병사(Soldier_Cavalry)처럼 스테이지 전환에도 파괴되지 않고 그 자리에서
+        /// 순간이동만 당하는 경우를 위한 것이다. Charging 상태로 돌진 중이던 유닛을 텔레포트만
+        /// 시키고 _chargeDirection/_chargeSpeed 등 내부 상태를 그대로 두면, 다음 틱에 텔레포트된
+        /// 새 위치에서 이전 방향 그대로 다시 튀어나가 "잠깐 계속 움직이는" 것처럼 보인다(실사용 중
+        /// 발견) - 텔레포트 전후 순서와 무관하게(이 핸들러는 위치가 아니라 자기 내부 상태만
+        /// 리셋한다) 즉시 Positioning으로 되돌리고 이동을 멈춘다.
+        /// </summary>
+        private void OnStageChanged(StageChangedEvent evt)
+        {
+            _state = ChargeState.Positioning;
+            _mover.Target = null;
+            _chargeSpeed = 0f;
+            _hasHitThisCharge = false;
+            _hitTargetsThisCharge.Clear();
+
+            if (_separation != null)
+            {
+                _separation.enabled = true;
+            }
         }
 
         private void OnDestroy()

@@ -20,16 +20,16 @@ namespace Soldier
         private StageController stageController;
 
         [SerializeField]
-        private float leftRightRaidDelayCavalry = 2f;
+        private float leftRightRaidDelayCavalry = 4f;
 
         [SerializeField]
-        private float leftRightRaidDelayOther = 4f;
+        private float leftRightRaidDelayOther = 8f;
 
         [SerializeField]
-        private float rearRaidDelayCavalry = 4f;
+        private float rearRaidDelayCavalry = 8f;
 
         [SerializeField]
-        private float rearRaidDelayOther = 8f;
+        private float rearRaidDelayOther = 16f;
 
         private readonly float[] _remaining = new float[SoldierDeploymentService.SquadCount];
         private readonly bool[] _isPending = new bool[SoldierDeploymentService.SquadCount];

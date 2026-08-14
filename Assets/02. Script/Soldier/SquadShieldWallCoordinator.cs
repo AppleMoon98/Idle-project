@@ -8,16 +8,18 @@ using UnityEngine;
 namespace Soldier
 {
     /// <summary>
-    /// SquadTacticType.ShieldWall이 배정된 부대에서, 현재 배치·생존 중인 방패보병(Character.
-    /// ShieldGuard 보유)/창병(Combat.FormationFollower 보유) 인스턴스를 1:1로 짝짓는다.
-    /// Stage.Tactics.ShieldWallFormationGroup(몬스터용, 스폰 시점에 고정된 그룹)과 같은 짝짓기
-    /// 규칙을 재사용하지만, 이쪽은 배치 UI로 언제든 구성이 바뀔 수 있어 고정 그룹을 만들지
-    /// 않는다 — 대신 관련 이벤트가 올 때마다 그 시점의 SquadMovementSyncService.GetSquadMembers로
-    /// 다시 조회해 대상 부대를 완전히 새로 계산한다(부분 diff 없음 — 이 프로젝트 전반의 "매번
-    /// 깨끗하게 재계산" 관례, StageMonsterScaler.ApplyScale/ShieldWallFormationGroup.Rebalance와
-    /// 동일한 방향). 여분 방패병이 남은 창병을 대신 지키는 "extra guard"(GuardPositioner) 확장은
-    /// 아직 하지 않는다 — 1:1로 짝지어지지 않는 남는 유닛은 그냥 평범하게(방패병은 원래 행동대로,
-    /// 창병은 리더 없이 혼자 카이팅) 움직인다.
+    /// SquadTacticType.ShieldWall이 배정된 부대에서, 현재 배치·생존 중인 창병/궁병(Combat.
+    /// FormationFollower 보유)마다 부대 편성 배치 그리드상 자기 슬롯의 "앞줄" 슬롯
+    /// (SoldierDeploymentService.GetProtectorSlotIndex)에 방패보병(Character.ShieldGuard 보유)이
+    /// 있으면 그 방패보병을 리더로 짝짓는다 - 몬스터 쪽 Stage.Tactics.ShieldWallFormationGroup이
+    /// 등록 순서로 아무 방패병이나 나란히 짝짓는 것과 달리, 플레이어 부대는 배치 UI에서 실제로
+    /// "누구를 누구 뒤에 세웠는지"가 그대로 반영돼야 하므로 슬롯 위치 기준으로 짝짓는다. 배치 UI로
+    /// 언제든 구성이 바뀔 수 있어 고정 그룹을 만들지 않고, 관련 이벤트가 올 때마다 그 시점의
+    /// SquadMovementSyncService.GetSquadMembers로 다시 조회해 대상 부대를 완전히 새로 계산한다
+    /// (부분 diff 없음 — 이 프로젝트 전반의 "매번 깨끗하게 재계산" 관례, StageMonsterScaler.
+    /// ApplyScale/ShieldWallFormationGroup.Rebalance와 동일한 방향). 앞줄에 방패병이 없거나(빈
+    /// 슬롯/다른 병종) 자기가 이미 부대 내 마지막 행(가장 앞줄)이면 짝지어지지 않고 평범하게
+    /// (리더 없이 혼자 카이팅) 움직인다.
     /// </summary>
     public sealed class SquadShieldWallCoordinator : IManager, IService
     {
@@ -83,36 +85,42 @@ namespace Soldier
         {
             IReadOnlyList<GameObject> members = _movementSync.GetSquadMembers(squadIndex);
 
-            var shieldBearers = new List<GameObject>();
-            var spearmen = new List<GameObject>();
+            // 슬롯 인덱스로 즉시 조회할 수 있도록 먼저 맵을 만든다.
+            var bySlot = new Dictionary<int, GameObject>();
 
             foreach (GameObject member in members)
             {
-                if (member == null)
+                if (member != null && _movementSync.TryGetSlotIndex(member, out int slotIndex))
+                {
+                    bySlot[slotIndex] = member;
+                }
+            }
+
+            foreach (GameObject member in members)
+            {
+                if (member == null || !member.TryGetComponent(out FormationFollower _))
                 {
                     continue;
                 }
 
-                if (member.GetComponent<Character.ShieldGuard>() != null)
+                if (!_movementSync.TryGetSlotIndex(member, out int slotIndex))
                 {
-                    shieldBearers.Add(member);
+                    Unpair(member);
+                    continue;
                 }
-                else if (member.GetComponent<FormationFollower>() != null)
+
+                int? protectorSlot = SoldierDeploymentService.GetProtectorSlotIndex(slotIndex);
+
+                if (protectorSlot.HasValue
+                    && bySlot.TryGetValue(protectorSlot.Value, out GameObject protector)
+                    && protector.GetComponent<Character.ShieldGuard>() != null)
                 {
-                    spearmen.Add(member);
+                    Pair(protector, member);
                 }
-            }
-
-            int pairCount = Mathf.Min(shieldBearers.Count, spearmen.Count);
-
-            for (int i = 0; i < pairCount; i++)
-            {
-                Pair(shieldBearers[i], spearmen[i]);
-            }
-
-            for (int i = pairCount; i < spearmen.Count; i++)
-            {
-                Unpair(spearmen[i]);
+                else
+                {
+                    Unpair(member);
+                }
             }
         }
 

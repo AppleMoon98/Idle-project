@@ -26,13 +26,25 @@ namespace Soldier
         }
 
         /// <summary>
-        /// UI가 flat 슬롯 인덱스를 "부대" 단위(부대당 20명 = 부대 편성 팝업 상단 4x5 배치 그리드,
-        /// 총 6부대)로 묶어 보여줄 때 쓰는 공용 상수 — 부대 N(0-based)은 슬롯 [N*SlotsPerSquad,
-        /// (N+1)*SlotsPerSquad) 구간이다. 배정 로직(TryAssign 등)은 이 구분을 전혀 모른다 — 여전히
-        /// flat 인덱스로만 동작한다. 원래 12(단순 세로 목록 12줄)였다가, 그 목록이 실제 배치
-        /// 대상인 4x5 그리드로 바뀌면서(section DI) 그리드 칸 수에 맞춰 20으로 늘었다.
+        /// 부대 편성 팝업 상단 배치 그리드의 열 수. 실제 씬의 TacticSlotGrid(GridLayoutGroup)는
+        /// FixedRowCount=4로 설정돼 있어 20칸이 5열×4행으로 채워진다("4열×5행"이라는 옛 기록은
+        /// 오기 — 씬 설정이 항상 기준이다).
         /// </summary>
-        public const int SlotsPerSquad = 20;
+        public const int GridColumns = 5;
+
+        /// <summary>
+        /// 부대 편성 팝업 상단 배치 그리드의 행 수.
+        /// </summary>
+        public const int GridRows = 4;
+
+        /// <summary>
+        /// UI가 flat 슬롯 인덱스를 "부대" 단위(부대당 GridColumns×GridRows칸 = 부대 편성 팝업 상단
+        /// 배치 그리드, 총 6부대)로 묶어 보여줄 때 쓰는 공용 상수 — 부대 N(0-based)은 슬롯
+        /// [N*SlotsPerSquad, (N+1)*SlotsPerSquad) 구간이다. 배정 로직(TryAssign 등)은 이 구분을
+        /// 전혀 모른다 — 여전히 flat 인덱스로만 동작한다. 원래 12(단순 세로 목록 12줄)였다가, 그
+        /// 목록이 실제 배치 대상인 그리드로 바뀌면서(section DI) 그리드 칸 수에 맞춰 20으로 늘었다.
+        /// </summary>
+        public const int SlotsPerSquad = GridColumns * GridRows;
 
         public const int SquadCount = 6;
 
@@ -208,6 +220,25 @@ namespace Soldier
 
             _events.Publish(new SoldierDeploymentChangedEvent(slotA));
             _events.Publish(new SoldierDeploymentChangedEvent(slotB));
+        }
+
+        /// <summary>
+        /// slotIndex(전역)의 "방어자" 슬롯 - 같은 부대 안에서 한 행 아래(그리드상 더 앞줄)의 같은
+        /// 열 슬롯을 가리킨다. 방패벽 전술에서 "이 슬롯 유닛을 지키는 방패병이 있다면 몇 번
+        /// 슬롯인가"를 구하는 데 쓴다(SquadShieldWallCoordinator 참고). slotIndex가 이미 부대 내
+        /// 마지막 행(가장 앞줄)이면 그보다 더 앞이 없으므로 null.
+        /// </summary>
+        public static int? GetProtectorSlotIndex(int slotIndex)
+        {
+            int relative = slotIndex % SlotsPerSquad;
+            int row = relative / GridColumns;
+
+            if (row >= GridRows - 1)
+            {
+                return null;
+            }
+
+            return slotIndex + GridColumns;
         }
 
         /// <summary>

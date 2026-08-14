@@ -1,6 +1,7 @@
 using Character;
 using Core;
 using Services;
+using Stage.Events;
 using UnityEngine;
 
 namespace Combat
@@ -55,11 +56,25 @@ namespace Combat
             // 같은 스테이지에 여러 마리가 스폰돼도 전부 같은 위상에서 돌지 않도록 시작 각을 무작위화한다.
             _orbitAngleDegrees = Random.Range(0f, 360f);
             TickerRegistration.Register(this);
+            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
+            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
+        }
+
+        /// <summary>
+        /// Combat.CavalryCharge.OnStageChanged와 같은 이유 - 스테이지 전환에도 파괴되지 않고 순간
+        /// 이동만 당하는 병사(Soldier_MountedArcher)가, 텔레포트 직후에도 이전 위협 기준으로 계속
+        /// 갱신되던 궤도 목표(_orbitAnchor)를 향해 CharacterMover가 그대로 움직이려 해 잠깐 계속
+        /// 움직이는 것처럼 보이는 문제를 막는다. Target을 즉시 비우면 다음 Retarget(최대
+        /// retargetInterval 뒤)이 새 위치 기준으로 다시 계산할 때까지 제자리에 멈춘다.
+        /// </summary>
+        private void OnStageChanged(StageChangedEvent evt)
+        {
+            _mover.Target = null;
         }
 
         private void OnDestroy()
