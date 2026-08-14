@@ -15,7 +15,7 @@ MonoBehaviour:
   monsterPrefab: {fileID: 3104091886448902630, guid: 724df522bbc353343b3c3f54950d34a6, type: 3}
   monsterCount: 50
   timeLimitSeconds: 60
-  baseLoot: {fileID: 11400000, guid: eda6a68ad44da0b49b549b3492ed5039, type: 2}
+  baseLoot: {fileID: 11400000, guid: 9ea834b81bd85a14b85f40993f7dfa55, type: 2}
   goldMultiplierBonus: 15
   spawnViewportMargin: 0.08
   extraStrengthMultiplier: 1.2

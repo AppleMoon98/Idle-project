@@ -40,30 +40,5 @@ namespace Stage
             int clampedIndex = Mathf.Max(stageIndex, 0);
             return goldBaseMultiplier + goldMultiplierPerStageIndex * clampedIndex;
         }
-
-        /// <summary>
-        /// GetGoldMultiplier(stageIndex)와 같지만, 0부터 stageIndex까지 중 가장 높았던 배율을
-        /// 대신 반환한다 - 현재 공식은 선형 증가라 사실상 GetGoldMultiplier(stageIndex)와 동일한
-        /// 값이지만, 이 공식이 나중에 챕터별로 비선형/역전 가능한 값으로 바뀌더라도 "더 낮은 인덱스
-        /// 스테이지 기준일 때보다 보상이 줄어드는" 일이 없도록 보장한다(골드 던전처럼 "실제 최고
-        /// 클리어 스테이지에서 몇 칸 뒤"를 기준 스테이지로 삼는 소비자를 위한 안전장치).
-        /// </summary>
-        public float GetGoldMultiplierWithFloor(int stageIndex)
-        {
-            int clampedIndex = Mathf.Max(stageIndex, 0);
-            float best = goldBaseMultiplier;
-
-            for (int i = 0; i <= clampedIndex; i++)
-            {
-                float candidate = goldBaseMultiplier + goldMultiplierPerStageIndex * i;
-
-                if (candidate > best)
-                {
-                    best = candidate;
-                }
-            }
-
-            return best;
-        }
     }
 }

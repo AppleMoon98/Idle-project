@@ -1,4 +1,3 @@
-using Loot;
 using Stage;
 using UnityEngine;
 
@@ -20,16 +19,13 @@ namespace Dungeon
         private float timeLimitSeconds = 60f;
 
         [SerializeField]
-        private MonsterLootSO baseLoot;
-
-        [SerializeField]
-        private float goldMultiplierBonus = 15f;
-
-        [SerializeField]
         private float spawnViewportMargin = 0.08f;
 
         [SerializeField]
         private float extraStrengthMultiplier = 1f;
+
+        [SerializeField]
+        private float goldMultiplierBonus = 15f;
 
         [SerializeField]
         private StageCatalogSO stageCatalog;
@@ -51,13 +47,6 @@ namespace Dungeon
         /// 제한시간(초).
         /// </summary>
         public float TimeLimitSeconds => timeLimitSeconds;
-
-        /// <summary>
-        /// 몬스터 1마리 처치당 골드를 굴릴 때 쓰는 기준 드롭 데이터(일반 몬스터 기준,
-        /// MonsterLoot_Basic) - 실제 지급액은 이 min~max에 CalculateGoldMultiplier의 배율을
-        /// 곱해 Loot.LootRoller.RollGold로 굴린다(GoldDungeonSessionController가 호출).
-        /// </summary>
-        public MonsterLootSO BaseLoot => baseLoot;
 
         /// <summary>
         /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5).
@@ -110,28 +99,66 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// GetReferenceStage가 가리키는 스테이지의 골드 배율(StageDifficultyConfigSO.
-        /// GetGoldMultiplierWithFloor - 더 낮은 인덱스 스테이지보다 배율이 떨어지지 않도록 보장하는
-        /// 안전장치 버전)에 goldMultiplierBonus(기본 15, "그 스테이지의 15배")를 곱한다.
+        /// 몬스터 1마리 처치당 지급할 골드의 최소~최대 범위 - "GetReferenceStage가 가리키는
+        /// 스테이지를 실제로 클리어했을 때 얻는 총 골드"에 goldMultiplierBonus(기본 15, "그
+        /// 총합의 15배")를 곱한 값을 기본으로 삼되, 0번부터 그 스테이지까지 전체를 훑어 그중
+        /// 가장 높았던 값으로 대체한다.
+        ///
+        /// 골드 배율(StageDifficultyConfigSO.GetGoldMultiplier)은 인덱스에 선형 비례해 항상
+        /// 증가하지만, 스테이지의 몬스터 마릿수·구성(Stage.StageGoldRangeCalculator가 합산하는
+        /// SpawnEntries/TacticEntries)은 스테이지마다 크게 다르다 - 특히 챕터 클라이맥스(N-40)는
+        /// 방패벽 대형 등으로 마릿수가 훨씬 많아, 배율만 보면 더 나중 스테이지인데도 실제 총
+        /// 골드는 더 낮게 나오는 역행이 실제로 발생했다(2-10이 1-40보다 카탈로그상 뒤인데도 총
+        /// 골드는 더 낮았음, 실사용 중 발견). 배율에만 안전장치(GetGoldMultiplierWithFloor)를
+        /// 두는 것으로는 부족해서, 최종 결과(배율까지 곱한 뒤) 자체를 0..stageIndex 구간
+        /// 전체에서 훑어 min/max 각각 가장 높았던 값으로 대체한다 - 실질적으로는 각 챕터의 N-40이
+        /// 지역 최댓값이 되는 경우가 대부분이라, 전체를 훑어도 비교 대상은 몇 개의 N-40 스테이지로
+        /// 좁혀지는 셈이다.
         /// </summary>
-        public float CalculateGoldMultiplier(int tier, int highestClearedIndex, int maxStageNumber)
+        public void CalculateGoldRange(int tier, int highestClearedIndex, int maxStageNumber, out int min, out int max)
         {
-            if (stageCatalog == null || difficultyConfig == null)
+            min = 0;
+            max = 0;
+
+            if (stageCatalog == null || difficultyConfig == null || stageCatalog.Stages == null)
             {
-                return goldMultiplierBonus;
+                return;
             }
 
             StageSO referenceStage = GetReferenceStage(tier, highestClearedIndex, maxStageNumber);
 
             if (referenceStage == null)
             {
-                return goldMultiplierBonus;
+                return;
             }
 
             int stageIndex = stageCatalog.IndexOf(referenceStage);
-            float stageGoldMultiplier = difficultyConfig.GetGoldMultiplierWithFloor(stageIndex);
 
-            return stageGoldMultiplier * goldMultiplierBonus;
+            for (int i = 0; i <= stageIndex; i++)
+            {
+                StageSO candidateStage = stageCatalog.GetAt(i);
+
+                if (candidateStage == null)
+                {
+                    continue;
+                }
+
+                float candidateMultiplier = difficultyConfig.GetGoldMultiplier(i) * goldMultiplierBonus;
+                StageGoldRangeCalculator.Calculate(candidateStage, out int rawMin, out int rawMax);
+
+                int candidateMin = Mathf.Max(1, Mathf.RoundToInt(rawMin * candidateMultiplier));
+                int candidateMax = Mathf.Max(candidateMin, Mathf.RoundToInt(rawMax * candidateMultiplier));
+
+                if (candidateMin > min)
+                {
+                    min = candidateMin;
+                }
+
+                if (candidateMax > max)
+                {
+                    max = candidateMax;
+                }
+            }
         }
     }
 }

@@ -3,7 +3,6 @@ using Character;
 using Character.Events;
 using Core;
 using Dungeon.Events;
-using Loot;
 using Loot.Events;
 using Managers;
 using Rank;
@@ -13,12 +12,13 @@ using UnityEngine;
 namespace Dungeon
 {
     /// <summary>
-    /// 골드 던전 한 판의 진행을 관리한다. 화면 안 랜덤 위치에 비공격 몬스터를 스폰하고,
-    /// 처치할 때마다 고정 골드(GoldPerKillPerStage × 선택 단계)를 지급하며, 전멸하거나
-    /// 제한시간이 끝나면 원래 스테이지로 복귀시킨다. StageSO/StageProgression 파이프라인은
-    /// 전혀 건드리지 않는다 — StageController.PauseForOverlay/ResumeAfterOverlay로 기존
-    /// 스테이지를 잠깐 숨기고 되돌릴 뿐이다. 죽은 몬스터 자신의 반납은 PoolReleaseOnDeath가
-    /// 처리하므로, 여기서는 시간 종료로 남아있는 몬스터만 직접 반납한다.
+    /// 골드 던전 한 판의 진행을 관리한다. 화면 안 랜덤 위치에 비공격 몬스터를 스폰하고, 처치할
+    /// 때마다 기준 스테이지 클리어 총 골드(config.CalculateGoldRange, Enter 시점에 한 번만 계산해
+    /// 캐싱) 범위 안에서 랜덤 골드를 지급하며, 전멸하거나 제한시간이 끝나면 원래 스테이지로
+    /// 복귀시킨다. StageSO/StageProgression 파이프라인은 전혀 건드리지 않는다 —
+    /// StageController.PauseForOverlay/ResumeAfterOverlay로 기존 스테이지를 잠깐 숨기고 되돌릴
+    /// 뿐이다. 죽은 몬스터 자신의 반납은 PoolReleaseOnDeath가 처리하므로, 여기서는 시간 종료로
+    /// 남아있는 몬스터만 직접 반납한다.
     /// </summary>
     public sealed class GoldDungeonSessionController : MonoBehaviour, ITickable
     {
@@ -32,6 +32,8 @@ namespace Dungeon
 
         private int _stageNumber;
         private int _highestClearedIndex;
+        private int _goldPerKillMin;
+        private int _goldPerKillMax;
         private float _remainingTime;
         private bool _isActive;
 
@@ -110,6 +112,8 @@ namespace Dungeon
                 ? rankService.HighestClearedIndex
                 : -1;
 
+            config.CalculateGoldRange(_stageNumber, _highestClearedIndex, MaxStageNumber, out _goldPerKillMin, out _goldPerKillMax);
+
             stageController?.PauseForOverlay();
 
             SpawnMonsters();
@@ -166,17 +170,8 @@ namespace Dungeon
                 return;
             }
 
-            if (config.BaseLoot != null)
-            {
-                float goldMultiplier = config.CalculateGoldMultiplier(_stageNumber, _highestClearedIndex, MaxStageNumber);
-                int? amount = LootRoller.RollGold(config.BaseLoot, goldMultiplier);
-
-                if (amount.HasValue)
-                {
-                    GameBootstrapper.Events?.Publish(new GoldEarnedEvent(amount.Value));
-                }
-            }
-
+            int amount = Random.Range(_goldPerKillMin, _goldPerKillMax + 1);
+            GameBootstrapper.Events?.Publish(new GoldEarnedEvent(amount));
             GameBootstrapper.Events?.Publish(new GoldDungeonProgressChangedEvent(_aliveMonsters.Count));
 
             if (_aliveMonsters.Count <= 0)
