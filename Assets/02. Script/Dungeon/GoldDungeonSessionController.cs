@@ -3,6 +3,7 @@ using Character;
 using Character.Events;
 using Core;
 using Dungeon.Events;
+using Loot;
 using Loot.Events;
 using Managers;
 using Rank;
@@ -30,6 +31,7 @@ namespace Dungeon
         private readonly HashSet<GameObject> _aliveMonsters = new();
 
         private int _stageNumber;
+        private int _highestClearedIndex;
         private float _remainingTime;
         private bool _isActive;
 
@@ -66,19 +68,22 @@ namespace Dungeon
         /// </summary>
         public bool IsStageUnlocked(int stageNumber, out StageSO requiredStage)
         {
-            requiredStage = config != null ? config.GetReferenceStage(stageNumber) : null;
+            requiredStage = null;
+
+            if (config == null || GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out RankService rankService))
+            {
+                return false;
+            }
+
+            int maxStageNumber = Mathf.Max(1, rankService.HighestClearedChapter);
+            requiredStage = config.GetReferenceStage(stageNumber, rankService.HighestClearedIndex, maxStageNumber);
 
             if (requiredStage == null)
             {
                 return true;
             }
 
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService))
-            {
-                return rankService.HasClearedStage(requiredStage);
-            }
-
-            return false;
+            return rankService.HasClearedStage(requiredStage);
         }
 
         /// <summary>
@@ -100,6 +105,10 @@ namespace Dungeon
             _isActive = true;
             _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
             _remainingTime = config.TimeLimitSeconds;
+
+            _highestClearedIndex = GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService)
+                ? rankService.HighestClearedIndex
+                : -1;
 
             stageController?.PauseForOverlay();
 
@@ -128,7 +137,7 @@ namespace Dungeon
 
                 if (instance.TryGetComponent(out StageMonsterScaler scaler))
                 {
-                    scaler.ApplyScale(config.CalculateMonsterStatMultiplier(_stageNumber));
+                    scaler.ApplyScale(config.CalculateMonsterStatMultiplier(_stageNumber, _highestClearedIndex, MaxStageNumber));
                 }
 
                 _aliveMonsters.Add(instance);
@@ -157,7 +166,17 @@ namespace Dungeon
                 return;
             }
 
-            GameBootstrapper.Events?.Publish(new GoldEarnedEvent(config.GoldPerKillPerStage * _stageNumber));
+            if (config.BaseLoot != null)
+            {
+                float goldMultiplier = config.CalculateGoldMultiplier(_stageNumber, _highestClearedIndex, MaxStageNumber);
+                int? amount = LootRoller.RollGold(config.BaseLoot, goldMultiplier);
+
+                if (amount.HasValue)
+                {
+                    GameBootstrapper.Events?.Publish(new GoldEarnedEvent(amount.Value));
+                }
+            }
+
             GameBootstrapper.Events?.Publish(new GoldDungeonProgressChangedEvent(_aliveMonsters.Count));
 
             if (_aliveMonsters.Count <= 0)

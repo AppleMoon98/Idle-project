@@ -214,7 +214,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47ad1ee486edb41a606cd511485bd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Loot.MonsterLootProvider
-  loot: {fileID: 11400000, guid: 41023c51a866f684c8383d88c1eeaa3b, type: 2}
+  loot: {fileID: 11400000, guid: a352d0e12915845449de753c317c86a1, type: 2}
 --- !u!114 &9182623924751491497
 MonoBehaviour:
   m_ObjectHideFlags: 0

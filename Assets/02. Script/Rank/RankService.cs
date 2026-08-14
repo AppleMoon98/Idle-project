@@ -57,6 +57,13 @@ namespace Rank
         }
 
         /// <summary>
+        /// 역대 최고 클리어 스테이지의 카탈로그 인덱스(0부터). 아직 아무것도 클리어하지 않았으면 -1.
+        /// HighestClearedChapter(챕터 단위)보다 더 세밀한 위치가 필요한 소비자(예: 골드 던전의
+        /// "실제 최고 클리어 스테이지에서 몇 칸 뒤" 기준 계산)를 위한 공개 접근자.
+        /// </summary>
+        public int HighestClearedIndex => _highestClearedIndex;
+
+        /// <summary>
         /// 현재 랭크가 rank 이상인지 판정한다. rank가 null이면 조건 없음으로 간주해 항상 true
         /// (해금 조건을 아직 안 정한 시스템이 이 값을 그대로 써도 항상 열려 있도록).
         /// rank가 카탈로그에 없으면(설정 실수) false.

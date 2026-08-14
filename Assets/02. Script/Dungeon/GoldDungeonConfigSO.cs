@@ -1,3 +1,4 @@
+using Loot;
 using Stage;
 using UnityEngine;
 
@@ -19,7 +20,10 @@ namespace Dungeon
         private float timeLimitSeconds = 60f;
 
         [SerializeField]
-        private int goldPerKillPerStage = 10000;
+        private MonsterLootSO baseLoot;
+
+        [SerializeField]
+        private float goldMultiplierBonus = 15f;
 
         [SerializeField]
         private float spawnViewportMargin = 0.08f;
@@ -32,12 +36,6 @@ namespace Dungeon
 
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
-
-        /// <summary>
-        /// 선택한 단계 N을 "챕터 N, N-20 스테이지"의 몬스터 체력 기준으로 해석할 때 쓰는 고정 스테이지
-        /// 번호. 20 자체는 "챕터 하나를 대표하는 후반 스테이지"라는 의미로 고른 값이라 상수로 둔다.
-        /// </summary>
-        private const int ReferenceStageNumber = 20;
 
         /// <summary>
         /// 스폰할 던전 몬스터 프리팹.
@@ -55,9 +53,11 @@ namespace Dungeon
         public float TimeLimitSeconds => timeLimitSeconds;
 
         /// <summary>
-        /// 몬스터 1마리 처치당 지급 골드 = goldPerKillPerStage × 선택한 단계.
+        /// 몬스터 1마리 처치당 골드를 굴릴 때 쓰는 기준 드롭 데이터(일반 몬스터 기준,
+        /// MonsterLoot_Basic) - 실제 지급액은 이 min~max에 CalculateGoldMultiplier의 배율을
+        /// 곱해 Loot.LootRoller.RollGold로 굴린다(GoldDungeonSessionController가 호출).
         /// </summary>
-        public int GoldPerKillPerStage => goldPerKillPerStage;
+        public MonsterLootSO BaseLoot => baseLoot;
 
         /// <summary>
         /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5).
@@ -65,22 +65,38 @@ namespace Dungeon
         public float SpawnViewportMargin => spawnViewportMargin;
 
         /// <summary>
-        /// 선택한 단계 N을 "챕터 N의 N-20 스테이지" 몬스터 체력 기준으로 해석한다(예: 1단계 → 1-20,
-        /// 2단계 → 2-20). N 자체가 유효한 범위인지(콘텐츠 존재 여부, 플레이어 진행도)는 호출하는 쪽
-        /// (GoldDungeonSessionController)이 미리 클램프해서 넘겨야 한다 — 이 데이터 에셋은 런타임
-        /// 서비스(랭크/진행도)를 모르므로 순수하게 "주어진 단계를 스테이지로 해석"만 담당한다.
-        /// 카탈로그에 해당 챕터가 없으면 존재하는 마지막 챕터의 -20 스테이지로 대체한다(방어적 처리).
-        /// 여기서 구한 스테이지의 난이도 배율에 extraStrengthMultiplier(기본 1.2, "스토리보다 1.2배
-        /// 강하게")만 곱해 최종 배율을 낸다.
+        /// 선택한 단계(tier)를 "플레이어의 실제 역대 최고 클리어 스테이지에서 (maxStageNumber - tier)
+        /// 칸 뒤" 스테이지로 해석한다(예: 최고 클리어가 2-20이고 maxStageNumber=2일 때 tier=1 →
+        /// 2-19, tier=2(=maxStageNumber) → 2-20 그 자체). 예전엔 "챕터 N의 고정 -20 스테이지"였는데,
+        /// 실제 진행도에 맞춰 체력/보상이 매끄럽게 이어지도록 바꿨다. highestClearedIndex/
+        /// maxStageNumber는 이 에셋이 모르는 런타임 진행도라 호출하는 쪽(GoldDungeonSessionController,
+        /// RankService.HighestClearedIndex와 자신의 MaxStageNumber를 가져옴)이 넘겨줘야 한다.
+        /// 카탈로그 범위를 벗어나면 양 끝으로 클램프한다(방어적 처리).
         /// </summary>
-        public float CalculateMonsterStatMultiplier(int stageNumber)
+        public StageSO GetReferenceStage(int tier, int highestClearedIndex, int maxStageNumber)
+        {
+            if (stageCatalog == null || stageCatalog.Stages == null || stageCatalog.Stages.Length == 0)
+            {
+                return null;
+            }
+
+            int referenceIndex = highestClearedIndex - (maxStageNumber - tier);
+            referenceIndex = Mathf.Clamp(referenceIndex, 0, stageCatalog.Stages.Length - 1);
+            return stageCatalog.GetAt(referenceIndex);
+        }
+
+        /// <summary>
+        /// GetReferenceStage가 가리키는 스테이지의 난이도 배율에 extraStrengthMultiplier(기본 1.2,
+        /// "스토리보다 1.2배 강하게")를 곱한다.
+        /// </summary>
+        public float CalculateMonsterStatMultiplier(int tier, int highestClearedIndex, int maxStageNumber)
         {
             if (stageCatalog == null || difficultyConfig == null)
             {
                 return extraStrengthMultiplier;
             }
 
-            StageSO referenceStage = GetReferenceStage(stageNumber);
+            StageSO referenceStage = GetReferenceStage(tier, highestClearedIndex, maxStageNumber);
 
             if (referenceStage == null)
             {
@@ -94,27 +110,28 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// 선택한 단계 N의 기준 스테이지(챕터 N의 -20 스테이지)를 반환한다. 존재하지 않으면 카탈로그에
-        /// 실제로 존재하는 가장 높은 챕터의 -20 스테이지로 대체한다(콘텐츠가 줄어도 항상 유효한 기준
-        /// 스테이지를 반환하기 위함). 공개 API인 이유: 입장 조건 판정(해당 스테이지를 실제로
-        /// 클리어했는지)을 위해 GoldDungeonSessionController가 이 스테이지 자체를 필요로 한다.
+        /// GetReferenceStage가 가리키는 스테이지의 골드 배율(StageDifficultyConfigSO.
+        /// GetGoldMultiplierWithFloor - 더 낮은 인덱스 스테이지보다 배율이 떨어지지 않도록 보장하는
+        /// 안전장치 버전)에 goldMultiplierBonus(기본 15, "그 스테이지의 15배")를 곱한다.
         /// </summary>
-        public StageSO GetReferenceStage(int stageNumber)
+        public float CalculateGoldMultiplier(int tier, int highestClearedIndex, int maxStageNumber)
         {
-            if (stageCatalog == null)
+            if (stageCatalog == null || difficultyConfig == null)
             {
-                return null;
+                return goldMultiplierBonus;
             }
 
-            int chapter = Mathf.Max(1, stageNumber);
-            StageSO stage = stageCatalog.Find(chapter, ReferenceStageNumber);
+            StageSO referenceStage = GetReferenceStage(tier, highestClearedIndex, maxStageNumber);
 
-            if (stage != null)
+            if (referenceStage == null)
             {
-                return stage;
+                return goldMultiplierBonus;
             }
 
-            return stageCatalog.Find(stageCatalog.GetMaxChapter(), ReferenceStageNumber);
+            int stageIndex = stageCatalog.IndexOf(referenceStage);
+            float stageGoldMultiplier = difficultyConfig.GetGoldMultiplierWithFloor(stageIndex);
+
+            return stageGoldMultiplier * goldMultiplierBonus;
         }
     }
 }

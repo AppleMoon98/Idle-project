@@ -15,7 +15,8 @@ MonoBehaviour:
   monsterPrefab: {fileID: 3104091886448902630, guid: 724df522bbc353343b3c3f54950d34a6, type: 3}
   monsterCount: 50
   timeLimitSeconds: 60
-  goldPerKillPerStage: 10000
+  baseLoot: {fileID: 11400000, guid: eda6a68ad44da0b49b549b3492ed5039, type: 2}
+  goldMultiplierBonus: 15
   spawnViewportMargin: 0.08
   extraStrengthMultiplier: 1.2
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}

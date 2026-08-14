@@ -231,7 +231,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47ad1ee486edb41a606cd511485bd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Loot.MonsterLootProvider
-  loot: {fileID: 11400000, guid: 41023c51a866f684c8383d88c1eeaa3b, type: 2}
+  loot: {fileID: 11400000, guid: 202431efca5656a43afde549f1f05b51, type: 2}
 --- !u!114 &1474452836388337801
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -300,7 +300,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
-  weaponSwing: {fileID: 8252673918857408087}
+  weaponMotion: {fileID: 8252673918857408087}
 --- !u!114 &7914894287243995459
 MonoBehaviour:
   m_ObjectHideFlags: 0

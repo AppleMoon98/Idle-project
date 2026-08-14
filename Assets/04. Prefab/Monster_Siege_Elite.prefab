@@ -321,7 +321,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47ad1ee486edb41a606cd511485bd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Loot.MonsterLootProvider
-  loot: {fileID: 11400000, guid: eda6a68ad44da0b49b549b3492ed5039, type: 2}
+  loot: {fileID: 11400000, guid: 46dcf8cb100647c4d98c461063e90de4, type: 2}
 --- !u!114 &1474452836388337801
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -403,7 +403,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c089e8d10b3d91c40b47912645981975, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.SplashAttackBehavior
-  weaponSwing: {fileID: 7316833083525167024}
+  weaponMotion: {fileID: 7316833083525167024}
   splashRadius: 2.5
   splashDamageMultiplier: 0.5
   splashLayerMask:

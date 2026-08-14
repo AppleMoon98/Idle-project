@@ -322,7 +322,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5f47ad1ee486edb41a606cd511485bd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Loot.MonsterLootProvider
-  loot: {fileID: 11400000, guid: eda6a68ad44da0b49b549b3492ed5039, type: 2}
+  loot: {fileID: 11400000, guid: 6585080e347663543a0b62a92c0045b2, type: 2}
 --- !u!114 &54522853668950333
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -362,7 +362,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 32086ae073b05eb46a5f0f9d04e1d4d4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
-  weaponSwing: {fileID: 7316833083525167024}
+  weaponMotion: {fileID: 7316833083525167024}
 --- !u!114 &1143015433925478683
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -426,6 +426,8 @@ MonoBehaviour:
   allyLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  postAttackLockFraction: 0.5
+  enablePostAttackLock: 1
 --- !u!1 &5626639420520912746
 GameObject:
   m_ObjectHideFlags: 0
