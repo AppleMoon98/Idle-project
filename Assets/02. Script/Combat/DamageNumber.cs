@@ -18,12 +18,20 @@ namespace Combat
         private DamageNumberConfigSO config;
 
         private TextMesh _textMesh;
+        private MeshRenderer _meshRenderer;
         private Vector3 _startPosition;
         private float _elapsed;
 
         private void Awake()
         {
             _textMesh = GetComponent<TextMesh>();
+            _meshRenderer = GetComponent<MeshRenderer>();
+
+            // 폰트가 동적(Dynamic) 폰트라 아직 쓰인 적 없는 문자가 요청되면 내부 아틀라스
+            // 텍스처가 통째로 재생성될 수 있다 - 그 경우 아웃라인 머티리얼이 들고 있던 텍스처
+            // 참조가 낡아버리므로, 항상 폰트의 현재 텍스처로 다시 맞춰둔다(숫자만 표시하는
+            // 컴포넌트라 실제로 재생성이 일어날 일은 거의 없지만, 방어적으로 한 번 동기화).
+            _meshRenderer.sharedMaterial.mainTexture = _textMesh.font.material.mainTexture;
         }
 
         private void OnEnable()
