@@ -7,6 +7,7 @@ using Loot.Events;
 using Managers;
 using Rank;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -34,6 +35,8 @@ namespace Dungeon
         private int _highestClearedIndex;
         private int _goldPerKillMin;
         private int _goldPerKillMax;
+        private StageSO _referenceStage;
+        private int _totalGoldEarned;
         private float _remainingTime;
         private bool _isActive;
 
@@ -113,6 +116,8 @@ namespace Dungeon
                 : -1;
 
             config.CalculateGoldRange(_stageNumber, _highestClearedIndex, MaxStageNumber, out _goldPerKillMin, out _goldPerKillMax);
+            _referenceStage = config.GetReferenceStage(_stageNumber, _highestClearedIndex, MaxStageNumber);
+            _totalGoldEarned = 0;
 
             stageController?.PauseForOverlay();
 
@@ -171,6 +176,7 @@ namespace Dungeon
             }
 
             int amount = Random.Range(_goldPerKillMin, _goldPerKillMax + 1);
+            _totalGoldEarned += amount;
             GameBootstrapper.Events?.Publish(new GoldEarnedEvent(amount));
             GameBootstrapper.Events?.Publish(new GoldDungeonProgressChangedEvent(_aliveMonsters.Count));
 
@@ -187,11 +193,37 @@ namespace Dungeon
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Unregister(this);
 
+            if (cleared)
+            {
+                PublishClearSummary();
+            }
+
             ReleaseRemainingMonsters();
 
             stageController?.ResumeAfterOverlay();
 
             GameBootstrapper.Events?.Publish(new GoldDungeonSessionEndedEvent(cleared));
+        }
+
+        /// <summary>
+        /// 전멸 클리어 시(시간 초과 실패는 제외) 기준 스테이지/소요시간/획득 골드를 토스트로
+        /// 보여준다. 별도 팝업을 새로 만들지 않고 기존 Toast 인프라(UI.Events.
+        /// ToastMessageRequestedEvent - Gacha 서비스들도 도메인 코드에서 직접 발행하는 전례가
+        /// 있다)를 그대로 재사용한다.
+        /// </summary>
+        private void PublishClearSummary()
+        {
+            float elapsed = Mathf.Max(0f, config.TimeLimitSeconds - _remainingTime);
+            int minutes = Mathf.FloorToInt(elapsed / 60f);
+            int seconds = Mathf.FloorToInt(elapsed % 60f);
+
+            string stageLabel = _referenceStage != null
+                ? $"{_referenceStage.Chapter}-{_referenceStage.StageNumber}"
+                : "알 수 없음";
+
+            string message = $"골드 던전 클리어! (기준 스테이지: {stageLabel} / 소요시간: {minutes}분 {seconds}초 / 획득 골드: {_totalGoldEarned:N0})";
+
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent(message));
         }
 
         private void ReleaseRemainingMonsters()
