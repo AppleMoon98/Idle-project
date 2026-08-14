@@ -136,6 +136,14 @@ namespace Core
 
         private void Awake()
         {
+            // 방치형 게임 특성상 화면을 만지지 않고 켜두는 시간이 길어, 기기의 화면 꺼짐/잠금
+            // 타이머(SleepTimeout.SystemSetting, 기본값)를 그대로 두면 몇십 초~몇 분 만에 화면이
+            // 잠기고 앱이 백그라운드로 밀려 실질적으로 오프라인 처리된다. 앱이 실제로
+            // 백그라운드로 전환/종료되는 것(전원 버튼, 앱 전환)까지는 막을 수 없지만 - 그 경우는
+            // 기존 OfflineProgressService가 재접속 시 보상으로 커버한다 - 화면을 켜둔 채 아무
+            // 조작이 없어서 잠기는 경우만큼은 이걸로 막는다.
+            Screen.sleepTimeout = SleepTimeout.NeverSleep;
+
             Services = new ServiceLocator();
             Events = new EventBus();
 
