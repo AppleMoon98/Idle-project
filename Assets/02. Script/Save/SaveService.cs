@@ -91,6 +91,12 @@ namespace Save
             public int[] DisabledSlots;
         }
 
+        [Serializable]
+        private class SquadTacticSaveBlob
+        {
+            public SquadTacticService.SquadTacticSnapshotEntry[] Entries;
+        }
+
         private const string GoldKey = "Save.Gold"; // 레거시(BigNumber 도입 전) int 저장 키 — 하위호환 읽기 전용
         private const string GoldBigKey = "Save.Gold.Big"; // BigNumber 라운드트립 문자열 저장 키
         private const string EnhancementStonesKey = "Save.EnhancementStones";
@@ -122,6 +128,7 @@ namespace Save
         private const string SkillScrollCountKey = "Save.SkillScrollCount";
         private const string SkillCountsJsonKey = "Save.SkillCountsJson";
         private const string EquipmentGachaTicketCountKey = "Save.EquipmentGachaTicketCount";
+        private const string SquadTacticsJsonKey = "Save.SquadTacticsJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -137,6 +144,7 @@ namespace Save
         private readonly SkillService _skill;
         private readonly SkillCatalogSO _skillCatalog;
         private readonly SkillLoadoutService _skillLoadout;
+        private readonly SquadTacticService _squadTactic;
 
         private BigNumber _gold;
         private int _enhancementStones;
@@ -167,6 +175,7 @@ namespace Save
         private int _skillScrollCount;
         private string _skillCountsJson = "";
         private int _equipmentGachaTicketCount;
+        private string _squadTacticsJson = "";
         private bool _isDirty;
 
         public SaveService(
@@ -183,7 +192,8 @@ namespace Save
             SoldierEquipmentCatalogSO soldierEquipmentCatalog,
             SkillService skill,
             SkillCatalogSO skillCatalog,
-            SkillLoadoutService skillLoadout)
+            SkillLoadoutService skillLoadout,
+            SquadTacticService squadTactic)
         {
             _events = events;
             _inventory = inventory;
@@ -199,6 +209,7 @@ namespace Save
             _skill = skill;
             _skillCatalog = skillCatalog;
             _skillLoadout = skillLoadout;
+            _squadTactic = squadTactic;
         }
 
         public void Initialize()
@@ -236,6 +247,7 @@ namespace Save
             _skillScrollCount = save.SkillScrollCount;
             _skillCountsJson = save.SkillCountsJson;
             _equipmentGachaTicketCount = save.EquipmentGachaTicketCount;
+            _squadTacticsJson = save.SquadTacticsJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -258,6 +270,7 @@ namespace Save
             _events.Subscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
             _events.Subscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
             _events.Subscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
+            _events.Subscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
 
             TickerRegistration.Register(this);
         }
@@ -287,6 +300,7 @@ namespace Save
             _events.Unsubscribe<SkillSlotEnabledChangedEvent>(OnSkillSlotEnabledChanged);
             _events.Unsubscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
             _events.Unsubscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
+            _events.Unsubscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
         }
 
         /// <summary>
@@ -324,6 +338,7 @@ namespace Save
             int skillScrollCount = PlayerPrefs.GetInt(SkillScrollCountKey, 0);
             string skillCountsJson = PlayerPrefs.GetString(SkillCountsJsonKey, "");
             int equipmentGachaTicketCount = PlayerPrefs.GetInt(EquipmentGachaTicketCountKey, 0);
+            string squadTacticsJson = PlayerPrefs.GetString(SquadTacticsJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -355,7 +370,8 @@ namespace Save
                 skillEnabledJson,
                 skillScrollCount,
                 skillCountsJson,
-                equipmentGachaTicketCount);
+                equipmentGachaTicketCount,
+                squadTacticsJson);
         }
 
         /// <summary>
@@ -414,6 +430,7 @@ namespace Save
             PlayerPrefs.SetInt(SkillScrollCountKey, _skillScrollCount);
             PlayerPrefs.SetString(SkillCountsJsonKey, _skillCountsJson);
             PlayerPrefs.SetInt(EquipmentGachaTicketCountKey, _equipmentGachaTicketCount);
+            PlayerPrefs.SetString(SquadTacticsJsonKey, _squadTacticsJson);
             PlayerPrefs.Save();
 
             _isDirty = false;
@@ -554,6 +571,22 @@ namespace Save
         }
 
         /// <summary>
+        /// save.SquadTacticsJson으로 부대별 배정된 전술을 복원한다. GameBootstrapper.Awake()에서
+        /// SquadTacticService 생성 직후, Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreSquadTactics(SaveData save)
+        {
+            SquadTacticSaveBlob blob = ParseBlobOrNull<SquadTacticSaveBlob>(save.SquadTacticsJson);
+
+            if (blob == null)
+            {
+                return;
+            }
+
+            _squadTactic.RestoreSnapshot(blob.Entries);
+        }
+
+        /// <summary>
         /// "비어있으면 복원할 게 없고, 아니면 JSON을 역직렬화한다"는 6개 Restore* 메서드가 공유하는
         /// 파싱 절차. JsonUtility.FromJson은 빈 문자열을 넘기면 예외 대신 그냥 null이 아닌 기본
         /// 인스턴스를 반환할 수 있어, 빈 문자열 체크를 JsonUtility 호출보다 먼저 해야 한다.
@@ -688,6 +721,12 @@ namespace Save
         private void OnEquipmentGachaTicketChanged(EquipmentGachaTicketChangedEvent evt)
         {
             _equipmentGachaTicketCount = evt.CurrentTickets;
+            MarkDirty();
+        }
+
+        private void OnSquadTacticChanged(SquadTacticChangedEvent evt)
+        {
+            RebuildSquadTacticSnapshot();
             MarkDirty();
         }
 
@@ -833,6 +872,20 @@ namespace Save
             };
 
             _soldierEquipmentJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// SquadTacticService의 현재 부대별 전술 배정 전체를 JSON으로 다시 직렬화한다.
+        /// RebuildInventorySnapshot과 같은 이유.
+        /// </summary>
+        private void RebuildSquadTacticSnapshot()
+        {
+            var blob = new SquadTacticSaveBlob
+            {
+                Entries = _squadTactic.ExportSnapshot()
+            };
+
+            _squadTacticsJson = JsonUtility.ToJson(blob);
         }
     }
 }

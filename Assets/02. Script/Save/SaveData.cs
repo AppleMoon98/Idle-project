@@ -166,6 +166,13 @@ namespace Save
         /// </summary>
         public int EquipmentGachaTicketCount { get; }
 
+        /// <summary>
+        /// 부대별 배정된 전술(None 제외)을 직렬화한 JSON. InventoryJson과 같은 이유로 통째로
+        /// 문자열 하나로 저장한다(SaveService.RestoreSquadTactics가 파싱/복원한다). 기록이 없으면
+        /// 빈 문자열(= 전 부대 전술 없음).
+        /// </summary>
+        public string SquadTacticsJson { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -196,7 +203,8 @@ namespace Save
             string skillEnabledJson,
             int skillScrollCount,
             string skillCountsJson,
-            int equipmentGachaTicketCount)
+            int equipmentGachaTicketCount,
+            string squadTacticsJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -228,6 +236,7 @@ namespace Save
             SkillScrollCount = skillScrollCount;
             SkillCountsJson = skillCountsJson;
             EquipmentGachaTicketCount = equipmentGachaTicketCount;
+            SquadTacticsJson = squadTacticsJson;
         }
     }
 }

@@ -10,8 +10,9 @@ using UnityEngine;
 namespace Stage
 {
     /// <summary>
-    /// StageSO에 정의된 스폰 웨이브를 순서대로 시간차 실행해 몬스터를 생성한다.
-    /// 몬스터는 항상 플레이어 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어의 뷰포트 좌표가
+    /// StageSO에 정의된 스폰 웨이브를 순서대로 생성한다. 일반 웨이브(MonsterSpawnEntry)는 각
+    /// 엔트리의 Count 전부를 시간차 없이 한 틱에 즉시 스폰한다 - 몬스터는 항상 플레이어
+    /// 반대편(화면 밖)에서 등장하도록, 스폰마다 플레이어의 뷰포트 좌표가
     /// 중심(0.5, 0.5)에서 세로/가로 중 어느 축으로 더 벗어나 있는지 보고 그 축의 반대쪽
     /// (상/하/좌/우 4방향 중 하나) 스폰 지점을 고른다. 전술 웨이브(TacticSpawnEntry)를 먼저
     /// 처리하고 - 스테이지에 입장하자마자 대형부터 구성되도록 - 그게 모두 끝나면 이어서
@@ -63,8 +64,6 @@ namespace Stage
         private const float BehindFormationDistanceMultiplier = 2f;
 
         private int _entryIndex;
-        private int _spawnedInEntry;
-        private float _elapsed;
         private int _tacticEntryIndex;
         private bool _tacticEntryStarted;
         private int _tacticPairIndex;
@@ -177,25 +176,23 @@ namespace Stage
             return true;
         }
 
+        /// <summary>
+        /// 남은 일반 웨이브 전체(모든 엔트리의 Count 전부)를 시간차 없이 한 틱에 즉시 스폰한다.
+        /// entry.SpawnInterval은 더 이상 이 경로에서 쓰이지 않는다(기존 스테이지 데이터 호환을
+        /// 위해 필드 자체는 남겨둠) - SpawnImmediateEntries()가 spawnWithTactics 플래그 엔트리에
+        /// 이미 쓰던 "Count 전부를 한 번에" 패턴을 나머지 엔트리에도 그대로 적용한 것.
+        /// </summary>
         private void TickEntries(float deltaTime)
         {
-            _elapsed += deltaTime;
-
-            MonsterSpawnEntry entry = _entries[_entryIndex];
-
-            if (_elapsed < entry.SpawnInterval)
+            while (_entryIndex < _entries.Length)
             {
-                return;
-            }
+                MonsterSpawnEntry entry = _entries[_entryIndex];
 
-            _elapsed = 0f;
-            SpawnOne(entry);
+                for (int i = 0; i < entry.Count; i++)
+                {
+                    SpawnOne(entry);
+                }
 
-            _spawnedInEntry++;
-
-            if (_spawnedInEntry >= entry.Count)
-            {
-                _spawnedInEntry = 0;
                 _entryIndex++;
             }
         }
