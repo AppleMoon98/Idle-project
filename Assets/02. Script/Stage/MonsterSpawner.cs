@@ -69,6 +69,9 @@ namespace Stage
         private bool _tacticEntryStarted;
         private int _tacticPairIndex;
         private float _tacticPairElapsed;
+        private bool _waitingForImmediateEntries;
+        private float _immediateEntryDelay;
+        private float _immediateEntryElapsed;
         private int _topCursor;
         private int _bottomCursor;
         private int _leftCursor;
@@ -122,6 +125,12 @@ namespace Stage
                 return;
             }
 
+            if (_waitingForImmediateEntries)
+            {
+                TickImmediateEntryDelay(deltaTime);
+                return;
+            }
+
             // 전술 대형(예: 방패벽)이 아직 전멸하지 않았다면, 뒤따를 일반 웨이브(엘리트/보스 등)를
             // 보류한다 - 대형이 살아 움직이는 전장에 엘리트/보스가 끼어들어 대형 사이로
             // 뒤섞이는 것을 막기 위해서다.
@@ -134,6 +143,25 @@ namespace Stage
             {
                 TickEntries(deltaTime);
             }
+        }
+
+        /// <summary>
+        /// 마지막 전술 엔트리가 끝난 뒤 spawnWithTactics 웨이브를 곧바로 스폰하지 않고
+        /// TacticSpawnEntry.ImmediateEntryDelay만큼 기다린다(0이면 다음 틱에 바로 스폰되어
+        /// 기존과 사실상 동일). 대형이 갖춰진 뒤 별도의 지연 시간을 두고 지원군(기마병/보스 등)이
+        /// 합류하는 연출을 위한 것.
+        /// </summary>
+        private void TickImmediateEntryDelay(float deltaTime)
+        {
+            _immediateEntryElapsed += deltaTime;
+
+            if (_immediateEntryElapsed < _immediateEntryDelay)
+            {
+                return;
+            }
+
+            _waitingForImmediateEntries = false;
+            SpawnImmediateEntries();
         }
 
         private bool AllFormationGroupsCleared()
@@ -238,7 +266,8 @@ namespace Stage
 
         /// <summary>
         /// 현재 전술 엔트리의 모든 쌍이 다 스폰된 뒤 대형 그룹을 확정하고, 다음 전술 엔트리로
-        /// 넘어간다(더 없으면 spawnWithTactics 일반 웨이브를 이어서 처리).
+        /// 넘어간다(더 없으면 entry.ImmediateEntryDelay만큼 기다렸다가 spawnWithTactics 일반
+        /// 웨이브를 처리 - TickImmediateEntryDelay 참고).
         /// </summary>
         private void FinishTacticEntry(TacticSpawnEntry entry)
         {
@@ -255,7 +284,9 @@ namespace Stage
 
             if (_tacticEntryIndex >= _tacticEntries.Length)
             {
-                SpawnImmediateEntries();
+                _immediateEntryDelay = entry.ImmediateEntryDelay;
+                _immediateEntryElapsed = 0f;
+                _waitingForImmediateEntries = true;
             }
         }
 

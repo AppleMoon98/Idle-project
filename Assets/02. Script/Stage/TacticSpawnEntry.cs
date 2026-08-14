@@ -36,6 +36,9 @@ namespace Stage
         [SerializeField]
         private float pairSpawnInterval;
 
+        [SerializeField]
+        private float immediateEntryDelay;
+
         /// <summary>
         /// 전술 종류.
         /// </summary>
@@ -73,5 +76,13 @@ namespace Stage
         /// 상황(예: N-40 방패벽)을 완화하고 싶을 때만 0보다 크게 설정한다.
         /// </summary>
         public float PairSpawnInterval => pairSpawnInterval;
+
+        /// <summary>
+        /// 이 전술 웨이브(마지막 전술 엔트리일 때만 의미 있음)의 대형이 다 갖춰진 뒤,
+        /// spawnWithTactics로 묶인 일반 웨이브(예: N-40의 기마병/보스)를 스폰하기까지 기다리는
+        /// 시간(초). 0(기본값)이면 기존과 동일하게 대형이 갖춰지자마자(같은 프레임 내) 바로
+        /// 스폰된다.
+        /// </summary>
+        public float ImmediateEntryDelay => immediateEntryDelay;
     }
 }
