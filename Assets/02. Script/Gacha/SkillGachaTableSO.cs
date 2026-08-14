@@ -1,9 +1,14 @@
+using Skill;
 using UnityEngine;
 
 namespace Gacha
 {
     /// <summary>
-    /// 스킬 가챠 한 판의 확률 테이블과 주문서 소모량을 정의하는 데이터 에셋.
+    /// 스킬 가챠 한 판의 확률 테이블과 주문서 소모량을 정의하는 데이터 에셋. 항목(entries)을
+    /// 인스펙터에 직접 나열하던 예전 방식은, 새 스킬이 SkillCatalogSO에 추가돼도 이 테이블을
+    /// 손으로 갱신하지 않으면 뽑기 후보에서 영영 빠지는 문제가 있었다 — 이제 SkillCatalogSO를
+    /// 참조만 해두면 Entries가 그때그때 카탈로그 전체 스킬로 자동 생성된다(모든 스킬 동일
+    /// 가중치). 카탈로그에 새 스킬을 등록하는 것만으로 모든 스킬 가챠 테이블에 자동 반영된다.
     /// </summary>
     [CreateAssetMenu(fileName = "SkillGachaTable", menuName = "Idle Project/Gacha/Skill Gacha Table")]
     public sealed class SkillGachaTableSO : ScriptableObject
@@ -12,7 +17,10 @@ namespace Gacha
         private string displayName;
 
         [SerializeField]
-        private SkillGachaPoolEntry[] entries;
+        private SkillCatalogSO catalog;
+
+        [SerializeField]
+        private int weightPerSkill = 1;
 
         [SerializeField]
         private int ticketCostPerPull;
@@ -29,9 +37,30 @@ namespace Gacha
         public string DisplayName => displayName;
 
         /// <summary>
-        /// 이 테이블의 확률 항목 목록.
+        /// 이 테이블의 확률 항목 목록. catalog에 등록된 스킬 전부를 매번 새로 조립해 반환한다
+        /// (스킬 수가 적어 캐싱 없이 매 호출 재생성해도 비용이 무시할 만하다) - catalog가
+        /// 비어있으면 빈 배열.
         /// </summary>
-        public SkillGachaPoolEntry[] Entries => entries;
+        public SkillGachaPoolEntry[] Entries
+        {
+            get
+            {
+                if (catalog == null || catalog.Skills == null)
+                {
+                    return System.Array.Empty<SkillGachaPoolEntry>();
+                }
+
+                SkillSO[] skills = catalog.Skills;
+                var result = new SkillGachaPoolEntry[skills.Length];
+
+                for (int i = 0; i < skills.Length; i++)
+                {
+                    result[i] = new SkillGachaPoolEntry(skills[i], weightPerSkill);
+                }
+
+                return result;
+            }
+        }
 
         /// <summary>
         /// 1회 뽑기에 소모되는 스킬 주문서 수량. CurrencyType이 Ticket일 때만 쓰인다.

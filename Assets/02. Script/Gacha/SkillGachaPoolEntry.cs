@@ -19,6 +19,16 @@ namespace Gacha
         private int weight;
 
         /// <summary>
+        /// SkillGachaTableSO가 SkillCatalogSO로부터 항목을 자동 생성할 때 쓰는 생성자
+        /// (인스펙터 수동 배열 대신 런타임에 조립하는 용도).
+        /// </summary>
+        public SkillGachaPoolEntry(SkillSO skill, int weight)
+        {
+            this.skill = skill;
+            this.weight = weight;
+        }
+
+        /// <summary>
         /// 뽑힐 수 있는 스킬.
         /// </summary>
         public SkillSO Skill => skill;

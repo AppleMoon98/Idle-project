@@ -13,11 +13,6 @@ MonoBehaviour:
   m_Name: SkillGachaTable_Normal
   m_EditorClassIdentifier: Assembly-CSharp::Gacha.SkillGachaTableSO
   displayName: "일반 뽑기"
-  entries:
-  - skill: {fileID: 11400000, guid: a495ae0d6f75e6044b85ef65ef2ca417, type: 2}
-    weight: 34
-  - skill: {fileID: 11400000, guid: 089f90dc04f22e24d9479e4574062c4d, type: 2}
-    weight: 33
-  - skill: {fileID: 11400000, guid: 46942a7aa738788438c2bb9a3737a22b, type: 2}
-    weight: 33
+  catalog: {fileID: 11400000, guid: 53602890262fb144f850d570e12a1a41, type: 2}
+  weightPerSkill: 1
   ticketCostPerPull: 1
