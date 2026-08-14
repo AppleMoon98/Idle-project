@@ -29,6 +29,9 @@ namespace Stage
         private Transform playerTarget;
 
         [SerializeField]
+        private StagePositionResetter positionResetter;
+
+        [SerializeField]
         private StageSO stageToLoadOnStart;
 
         [SerializeField]
@@ -208,6 +211,7 @@ namespace Stage
 
             _tracker?.SetActiveAll(false);
             _progression?.SetSuppressed(true);
+            positionResetter?.ResetPositions();
         }
 
         /// <summary>
@@ -329,6 +333,7 @@ namespace Stage
 
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
+            positionResetter?.ResetPositions();
 
             if (_spawner != null)
             {

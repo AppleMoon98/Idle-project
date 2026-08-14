@@ -7,7 +7,6 @@ using Loot.Events;
 using Managers;
 using Rank;
 using Stage;
-using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -206,24 +205,17 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// 전멸 클리어 시(시간 초과 실패는 제외) 기준 스테이지/소요시간/획득 골드를 토스트로
-        /// 보여준다. 별도 팝업을 새로 만들지 않고 기존 Toast 인프라(UI.Events.
-        /// ToastMessageRequestedEvent - Gacha 서비스들도 도메인 코드에서 직접 발행하는 전례가
-        /// 있다)를 그대로 재사용한다.
+        /// 전멸 클리어 시(시간 초과 실패는 제외) 기준 스테이지/소요시간/획득 골드를
+        /// GoldDungeonClearedEvent로 발행한다 - 실제 화면 표시(팝업)는 UI.GoldDungeonClearPopupUI가
+        /// 이 이벤트를 구독해 담당한다.
         /// </summary>
         private void PublishClearSummary()
         {
             float elapsed = Mathf.Max(0f, config.TimeLimitSeconds - _remainingTime);
-            int minutes = Mathf.FloorToInt(elapsed / 60f);
-            int seconds = Mathf.FloorToInt(elapsed % 60f);
+            int chapter = _referenceStage != null ? _referenceStage.Chapter : 0;
+            int stageNumber = _referenceStage != null ? _referenceStage.StageNumber : 0;
 
-            string stageLabel = _referenceStage != null
-                ? $"{_referenceStage.Chapter}-{_referenceStage.StageNumber}"
-                : "알 수 없음";
-
-            string message = $"골드 던전 클리어! (기준 스테이지: {stageLabel} / 소요시간: {minutes}분 {seconds}초 / 획득 골드: {_totalGoldEarned:N0})";
-
-            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent(message));
+            GameBootstrapper.Events?.Publish(new GoldDungeonClearedEvent(chapter, stageNumber, elapsed, _totalGoldEarned));
         }
 
         private void ReleaseRemainingMonsters()
