@@ -44,6 +44,9 @@ namespace UI
         private EquipmentGradeCatalogSO gradeCatalog;
 
         [SerializeField]
+        private GameObject equippedSlotBar;
+
+        [SerializeField]
         private Color cardBaseColor = new Color(0.13f, 0.10f, 0.08f, 0.92f);
 
         [SerializeField]
@@ -112,7 +115,10 @@ namespace UI
 
         /// <summary>
         /// 팝업을 닫는다. EquippedSlotBarUI가 자신이 비활성화될 때(장비 탭을 닫을 때) 이 팝업도
-        /// 같이 닫기 위해 외부에서 호출할 수 있어야 한다.
+        /// 같이 닫기 위해 외부에서 호출할 수 있어야 한다 - 그리고 반대로, 이 팝업의 닫기 버튼을
+        /// 눌렀을 때도 EquippedSlotBar를 함께 닫는다(equippedSlotBar.SetActive(false) →
+        /// EquippedSlotBarUI.OnDisable() → 이 Close()를 다시 부르지만, 이미 닫힌 상태라 그냥
+        /// 무해하게 재진입할 뿐이다).
         /// </summary>
         public void Close()
         {
@@ -120,6 +126,7 @@ namespace UI
             popupRoot.SetActive(false);
             detailPopup?.Close();
             enhancementPopup?.Close();
+            equippedSlotBar?.SetActive(false);
         }
 
         // 목록 갱신은 별도로 호출할 필요가 없다 - TryEnhance/TryFuse가 성공할 때마다 발행하는
