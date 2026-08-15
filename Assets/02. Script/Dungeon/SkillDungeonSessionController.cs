@@ -157,10 +157,14 @@ namespace Dungeon
         {
             StopFighting();
 
+            int scrollsEarned = config.ScrollsPerClearPerStage * _stageNumber;
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillScrollService scrolls))
             {
-                scrolls.AddScrolls(config.ScrollsPerClearPerStage * _stageNumber);
+                scrolls.AddScrolls(scrollsEarned);
             }
+
+            PublishClearSummary(scrollsEarned);
 
             _isActive = false;
             _bossInstance = null;
@@ -168,6 +172,18 @@ namespace Dungeon
             stageController?.ResumeAfterOverlay();
 
             GameBootstrapper.Events?.Publish(new SkillDungeonSessionEndedEvent(true));
+        }
+
+        /// <summary>
+        /// 단계/소요시간/획득 주문서를 SkillDungeonClearedEvent로 발행한다 - 실제 화면 표시(팝업)는
+        /// UI.SkillDungeonClearPopupUI가 이 이벤트를 구독해 담당한다. StoneDungeonConfigSO와 달리
+        /// 챕터 기준 스테이지 개념이 없어(section BI) 단계 번호만 담는다.
+        /// </summary>
+        private void PublishClearSummary(int scrollsEarned)
+        {
+            float elapsed = Mathf.Max(0f, config.TimeLimitSeconds - _remainingTime);
+
+            GameBootstrapper.Events?.Publish(new SkillDungeonClearedEvent(_stageNumber, elapsed, scrollsEarned));
         }
 
         /// <summary>

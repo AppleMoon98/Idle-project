@@ -396,10 +396,14 @@ namespace Dungeon
             ReleaseZones();
             ReleaseRemainingCavalry();
 
+            int ticketsEarned = config.TicketsPerClearPerStage * _stageNumber;
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierTicketService ticketService))
             {
-                ticketService.AddTickets(config.TicketsPerClearPerStage * _stageNumber);
+                ticketService.AddTickets(ticketsEarned);
             }
+
+            PublishClearSummary(ticketsEarned);
 
             _isActive = false;
 
@@ -407,6 +411,21 @@ namespace Dungeon
             stageController?.ResumeAfterOverlay();
 
             GameBootstrapper.Events?.Publish(new SoldierRescueDungeonSessionEndedEvent(true));
+        }
+
+        /// <summary>
+        /// 기준 스테이지/소요시간/획득 병사 뽑기권을 SoldierRescueDungeonClearedEvent로 발행한다 -
+        /// 실제 화면 표시(팝업)는 UI.SoldierRescueDungeonClearPopupUI가 이 이벤트를 구독해 담당한다
+        /// (StoneDungeonSessionController.PublishClearSummary와 동일한 형태).
+        /// </summary>
+        private void PublishClearSummary(int ticketsEarned)
+        {
+            float elapsed = Mathf.Max(0f, config.TimeLimitSeconds - _remainingTime);
+            StageSO referenceStage = config.GetReferenceStage(_stageNumber);
+            int chapter = referenceStage != null ? referenceStage.Chapter : 0;
+            int stageNumber = referenceStage != null ? referenceStage.StageNumber : 0;
+
+            GameBootstrapper.Events?.Publish(new SoldierRescueDungeonClearedEvent(chapter, stageNumber, elapsed, ticketsEarned));
         }
 
         /// <summary>

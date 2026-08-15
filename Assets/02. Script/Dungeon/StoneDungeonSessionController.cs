@@ -208,10 +208,14 @@ namespace Dungeon
         {
             StopFighting();
 
+            int stonesEarned = config.StonesPerClearPerStage * _stageNumber;
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EnhancementStoneService stones))
             {
-                stones.AddStones(config.StonesPerClearPerStage * _stageNumber);
+                stones.AddStones(stonesEarned);
             }
+
+            PublishClearSummary(stonesEarned);
 
             _isActive = false;
             _bossInstance = null;
@@ -219,6 +223,21 @@ namespace Dungeon
             stageController?.ResumeAfterOverlay();
 
             GameBootstrapper.Events?.Publish(new StoneDungeonSessionEndedEvent(true));
+        }
+
+        /// <summary>
+        /// 기준 스테이지/소요시간/획득 강화석을 StoneDungeonClearedEvent로 발행한다 - 실제 화면
+        /// 표시(팝업)는 UI.StoneDungeonClearPopupUI가 이 이벤트를 구독해 담당한다
+        /// (GoldDungeonSessionController.PublishClearSummary와 동일한 형태).
+        /// </summary>
+        private void PublishClearSummary(int stonesEarned)
+        {
+            float elapsed = Mathf.Max(0f, config.TimeLimitSeconds - _remainingTime);
+            StageSO referenceStage = config.GetReferenceStage(_stageNumber);
+            int chapter = referenceStage != null ? referenceStage.Chapter : 0;
+            int stageNumber = referenceStage != null ? referenceStage.StageNumber : 0;
+
+            GameBootstrapper.Events?.Publish(new StoneDungeonClearedEvent(chapter, stageNumber, elapsed, stonesEarned));
         }
 
         /// <summary>
