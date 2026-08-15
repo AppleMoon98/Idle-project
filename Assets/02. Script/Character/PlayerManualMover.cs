@@ -20,6 +20,12 @@ namespace Character
     /// 붙어있는 RallyMoveReceiver가 처리하므로 여기서는 이벤트만 발행한다(이전에는
     /// UI.SquadRallyFlagUI가 깃발 아이콘을 드래그해서 같은 이벤트를 발행했으나, 그 UI를 완전히
     /// 대체한다).
+    ///
+    /// 화면 왼쪽 가장자리(cameraZoomDrawer.EdgeTriggerWidth 폭)에서 시작한 터치는 탭 이동/집결
+    /// 홀드 후보에서 아예 제외한다 - UI.CameraZoomDrawerUI가 그 구역에서 시작한 오른쪽 스와이프로
+    /// 카메라 줌 슬라이더를 끌어내는 제스처와 겹치지 않기 위함. 드로어가 열려 있는 동안은 실제
+    /// Image/Slider가 화면에 있어 기존 IsPointerOverUI 체크가 자연스럽게 걸러주므로, 이 예외는
+    /// 드로어가 닫혀 화면 밖에 있을 때(레이캐스트로 걸러지지 않는 상태)를 위한 것이다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(EnemyTracker))]
@@ -30,6 +36,9 @@ namespace Character
 
         [SerializeField]
         private float arrivalDistance = 0.1f;
+
+        [SerializeField]
+        private UI.CameraZoomDrawerUI cameraZoomDrawer;
 
         private CharacterMover _mover;
         private EnemyTracker _enemyTracker;
@@ -113,7 +122,8 @@ namespace Character
             if (pointer.press.wasPressedThisFrame)
             {
                 Vector2 screenPosition = pointer.position.ReadValue();
-                _pressStartedOffUI = !IsPointerOverUI(screenPosition);
+                bool inZoomDrawerEdgeZone = cameraZoomDrawer != null && screenPosition.x <= cameraZoomDrawer.EdgeTriggerWidth;
+                _pressStartedOffUI = !IsPointerOverUI(screenPosition) && !inZoomDrawerEdgeZone;
 
                 if (!_pressStartedOffUI)
                 {

@@ -6434,6 +6434,7 @@ GameObject:
   m_Component:
   - component: {fileID: 206854210}
   - component: {fileID: 206854211}
+  - component: {fileID: 206854212}
   m_Layer: 0
   m_Name: CameraZoomControl
   m_TagString: Untagged
@@ -6478,6 +6479,21 @@ MonoBehaviour:
   zoomSlider: {fileID: 1674970765}
   wideOrthographicSize: 24
   narrowOrthographicSize: 6
+--- !u!114 &206854212
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 206854209}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 40a884bd80fb9cb458322e4fd3b2f5e1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.CameraZoomDrawerUI
+  edgeTriggerWidth: 40
+  snapDuration: 0.15
+  hiddenMargin: 10
 --- !u!1 &209119000
 GameObject:
   m_ObjectHideFlags: 0
@@ -25005,6 +25021,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerManualMover
   squadRallyHoldSeconds: 0.4
   arrivalDistance: 0.1
+  cameraZoomDrawer: {fileID: 206854212}
 --- !u!114 &762544251
 MonoBehaviour:
   m_ObjectHideFlags: 0
