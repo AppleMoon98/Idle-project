@@ -199,8 +199,12 @@ namespace Stage
         /// 현재 스테이지를 건드리지 않고 잠깐 "일시정지 + 숨김" 상태로 둔다. 골드 던전처럼 화면을
         /// 잠깐 차지하는 오버레이가 시작될 때 호출한다. StageChangedEvent를 발행하지 않으므로
         /// StageProgression/SaveService/RankService 등 실제 진행도에는 전혀 영향이 없다.
+        /// overlayLabel을 주면(예: "골드 던전 1층") StageOverlayLabelChangedEvent로 발행해
+        /// UI.StageInfoUI가 상단 스테이지 정보 텍스트를 그 라벨로 잠깐 바꾸도록 한다 - 랭크
+        /// 승급전/War 클라이맥스처럼 이 인자를 생략하는 호출부는 기존과 동일하게 아무 표시 변화가
+        /// 없다.
         /// </summary>
-        public void PauseForOverlay()
+        public void PauseForOverlay(string overlayLabel = null)
         {
             IsOverlayActive = true;
 
@@ -212,6 +216,11 @@ namespace Stage
             _tracker?.SetActiveAll(false);
             _progression?.SetSuppressed(true);
             positionResetter?.ResetPositions();
+
+            if (overlayLabel != null)
+            {
+                GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(overlayLabel));
+            }
         }
 
         /// <summary>
@@ -334,6 +343,7 @@ namespace Stage
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
             positionResetter?.ResetPositions();
+            GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(null));
 
             if (_spawner != null)
             {

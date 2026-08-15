@@ -53,7 +53,7 @@ namespace Dungeon
             _isActive = true;
             _stageNumber = stageNumber;
 
-            stageController?.PauseForOverlay();
+            stageController?.PauseForOverlay($"스킬 던전 {_stageNumber}층");
 
             StartAttempt();
         }

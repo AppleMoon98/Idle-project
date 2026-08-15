@@ -118,7 +118,7 @@ namespace Dungeon
             _referenceStage = config.GetReferenceStage(_stageNumber, _highestClearedIndex, MaxStageNumber);
             _totalGoldEarned = 0;
 
-            stageController?.PauseForOverlay();
+            stageController?.PauseForOverlay($"골드 던전 {_stageNumber}층");
 
             SpawnMonsters();
 

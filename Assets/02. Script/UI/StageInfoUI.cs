@@ -16,6 +16,11 @@ namespace UI
     /// 겸하는 인터랙티브 버튼으로 그 역할을 대신한다(같은 정보를 두 곳에서 따로 동기화할 필요가 없도록).
     /// 반복 대상 스테이지 선택 팝업(StageRepeatPickerPopupUI)도 더 이상 이 텍스트를 탭해서 여는 게
     /// 아니라, StageModeToggleUI에서 돌파→반복으로 전환하는 바로 그 순간 자동으로 연다.
+    ///
+    /// 골드 던전 등 StageController.PauseForOverlay(overlayLabel)로 시작되는 오버레이가 켜져 있는
+    /// 동안은 StageOverlayLabelChangedEvent로 받은 라벨(예: "골드 던전 1층")을 그 자리에 대신
+    /// 보여준다 - 오버레이 중엔 실제 진행 중인 스테이지 정보가 의미가 없기 때문. 라벨이 null이면
+    /// (ResumeAfterOverlay) 평소 스테이지 표시로 되돌아간다.
     /// </summary>
     public sealed class StageInfoUI : MonoBehaviour
     {
@@ -27,6 +32,7 @@ namespace UI
         private int _remainingCount;
         private int _totalCount;
         private bool _hideMonsterCount;
+        private string _overlayLabel;
 
         private void OnEnable()
         {
@@ -34,6 +40,7 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<StageProgressChangedEvent>(OnStageProgressChanged);
             GameBootstrapper.Events?.Subscribe<WarClimaxWarmupStartedEvent>(OnWarClimaxWarmupStarted);
             GameBootstrapper.Events?.Subscribe<WarClimaxStateChangedEvent>(OnWarClimaxStateChanged);
+            GameBootstrapper.Events?.Subscribe<StageOverlayLabelChangedEvent>(OnStageOverlayLabelChanged);
         }
 
         private void OnDisable()
@@ -42,6 +49,7 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<StageProgressChangedEvent>(OnStageProgressChanged);
             GameBootstrapper.Events?.Unsubscribe<WarClimaxWarmupStartedEvent>(OnWarClimaxWarmupStarted);
             GameBootstrapper.Events?.Unsubscribe<WarClimaxStateChangedEvent>(OnWarClimaxStateChanged);
+            GameBootstrapper.Events?.Unsubscribe<StageOverlayLabelChangedEvent>(OnStageOverlayLabelChanged);
         }
 
         private void OnStageChanged(StageChangedEvent evt)
@@ -70,8 +78,20 @@ namespace UI
             Refresh();
         }
 
+        private void OnStageOverlayLabelChanged(StageOverlayLabelChangedEvent evt)
+        {
+            _overlayLabel = evt.Label;
+            Refresh();
+        }
+
         private void Refresh()
         {
+            if (_overlayLabel != null)
+            {
+                stageInfoText.text = _overlayLabel;
+                return;
+            }
+
             stageInfoText.text = _hideMonsterCount
                 ? $"스테이지 {_chapter}-{_stageNumber}"
                 : $"스테이지 {_chapter}-{_stageNumber}\n남은 몬스터: {_remainingCount}/{_totalCount}";
