@@ -1997,6 +1997,8 @@ MonoBehaviour:
   - {fileID: 1800547812}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 0
+  selectedTabColor: {r: 1, g: 0.84, b: 0, a: 1}
 --- !u!114 &58715634
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3805,6 +3807,8 @@ MonoBehaviour:
   - {fileID: 2080902644}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &98632435
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5516,6 +5520,8 @@ MonoBehaviour:
   - {fileID: 1314201587}
   selectFirstTabByDefault: 0
   allowToggleClose: 1
+  highlightSelectedTab: 0
+  selectedTabColor: {r: 1, g: 0.84, b: 0, a: 1}
 --- !u!114 &149043401
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10006,6 +10012,8 @@ MonoBehaviour:
   - {fileID: 694636387}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 0
+  selectedTabColor: {r: 1, g: 0.84, b: 0, a: 1}
 --- !u!114 &265206908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -10067,7 +10075,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 0, y: 1}
   m_AnchoredPosition: {x: 20, y: 0}
-  m_SizeDelta: {x: 700, y: 0}
+  m_SizeDelta: {x: 850, y: 0}
   m_Pivot: {x: 0, y: 0.5}
 --- !u!114 &265819961
 MonoBehaviour:
@@ -28404,6 +28412,8 @@ MonoBehaviour:
   - {fileID: 185859057}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &750391061
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -28609,6 +28619,8 @@ MonoBehaviour:
   - {fileID: 2097635228}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &758342002
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -31425,6 +31437,8 @@ MonoBehaviour:
   - {fileID: 1480349950}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &806573087
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38151,6 +38165,8 @@ MonoBehaviour:
   - {fileID: 204250497}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &1005445319
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -46853,6 +46869,8 @@ MonoBehaviour:
   - {fileID: 353222065}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &1228396155
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -68465,6 +68483,8 @@ MonoBehaviour:
   - {fileID: 552797089}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &1743335006
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -79335,6 +79355,8 @@ MonoBehaviour:
   - {fileID: 126976860}
   selectFirstTabByDefault: 1
   allowToggleClose: 0
+  highlightSelectedTab: 1
+  selectedTabColor: {r: 0.85, g: 0.65, b: 0.13, a: 1}
 --- !u!114 &2025973928
 MonoBehaviour:
   m_ObjectHideFlags: 0

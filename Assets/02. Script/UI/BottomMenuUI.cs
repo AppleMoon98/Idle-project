@@ -21,8 +21,28 @@ namespace UI
         [SerializeField]
         private bool allowToggleClose = true;
 
+        [SerializeField]
+        private bool highlightSelectedTab;
+
+        [SerializeField]
+        private Color selectedTabColor = new(1f, 0.84f, 0f, 1f);
+
+        private Color[] _normalTabColors;
+
         private void Awake()
         {
+            if (highlightSelectedTab)
+            {
+                _normalTabColors = new Color[tabButtons.Length];
+                for (int i = 0; i < tabButtons.Length; i++)
+                {
+                    if (tabButtons[i].targetGraphic != null)
+                    {
+                        _normalTabColors[i] = tabButtons[i].targetGraphic.color;
+                    }
+                }
+            }
+
             for (int i = 0; i < tabButtons.Length; i++)
             {
                 int index = i;
@@ -38,6 +58,8 @@ namespace UI
             {
                 panels[0].SetActive(true);
             }
+
+            RefreshTabHighlights();
         }
 
         // 어느 탭이 열려있는지를 별도 인덱스로 캐싱하지 않고 panels[].activeSelf를 그때그때
@@ -55,6 +77,7 @@ namespace UI
                 }
 
                 panels[index].SetActive(false);
+                RefreshTabHighlights();
                 return;
             }
 
@@ -67,6 +90,30 @@ namespace UI
             }
 
             panels[index].SetActive(true);
+            RefreshTabHighlights();
+        }
+
+        /// <summary>
+        /// 현재 열려있는 패널에 대응하는 탭 버튼만 selectedTabColor로, 나머지는 각자의
+        /// 원래 색으로 되돌린다. highlightSelectedTab이 꺼져 있으면(기본값) 아무 것도 하지
+        /// 않아 기존 BottomMenuUI 사용처(하단 메인 탭 등)는 전혀 영향받지 않는다.
+        /// </summary>
+        private void RefreshTabHighlights()
+        {
+            if (!highlightSelectedTab)
+            {
+                return;
+            }
+
+            for (int i = 0; i < tabButtons.Length; i++)
+            {
+                if (tabButtons[i].targetGraphic == null)
+                {
+                    continue;
+                }
+
+                tabButtons[i].targetGraphic.color = panels[i].activeSelf ? selectedTabColor : _normalTabColors[i];
+            }
         }
     }
 }
