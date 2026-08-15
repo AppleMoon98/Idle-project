@@ -5,6 +5,7 @@ using Core;
 using Equipment;
 using Inventory;
 using Inventory.Events;
+using UI.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -178,9 +179,25 @@ namespace UI
         {
             RequestConfirm("Fuse", "합성을 진행합니다. 정말로 진행하시겠습니까?", () =>
             {
-                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
+                if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
                 {
-                    fusionService.TryFuse(owned.Definition);
+                    return;
+                }
+
+                if (fusionService.TryFuse(owned.Definition))
+                {
+                    return;
+                }
+
+                // 다음 등급 자체가 없는 실패(이미 최고 등급/콘텐츠 미비)는 재료 부족과 무관하므로
+                // 여기서 걸러낸다 - 다음 등급이 실제로 존재할 때만 부족분 안내를 띄운다.
+                EquipmentGradeSO nextGrade = gradeCatalog.GetNext(owned.Definition.Grade);
+                bool hasNextItem = nextGrade != null && equipmentCatalog.FindBySlotAndGrade(owned.Definition.EquipmentType, nextGrade) != null;
+                int shortage = fusionService.RequiredCount - owned.Count;
+
+                if (hasNextItem && shortage > 0)
+                {
+                    GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent($"{owned.Definition.ItemName}가 {shortage}개 부족합니다."));
                 }
             });
         }

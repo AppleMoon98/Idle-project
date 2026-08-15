@@ -6,12 +6,19 @@ using Loot.Events;
 namespace Equipment
 {
     /// <summary>
-    /// 같은 슬롯·같은 등급 장비 RequiredCount개를 소모해 그 슬롯의 다음 등급 장비 1개로 합성한다.
+    /// 같은 슬롯·같은 등급 장비 RequiredCountPerFuse개를 소모해 그 슬롯의 다음 등급 장비 1개로 합성한다.
     /// 결과물은 ItemDroppedEvent를 재발행해 InventoryService의 일반 획득 경로를 그대로 탄다.
     /// </summary>
     public sealed class EquipmentFusionService : IManager, IService
     {
-        private const int RequiredCount = 5;
+        private const int RequiredCountPerFuse = 5;
+
+        /// <summary>
+        /// 합성 1회에 필요한 재료 개수. UI가 재료 부족분을 계산해 안내 메시지를 띄울 때 쓴다
+        /// (EquipmentEnhancementService.DuplicatesRequiredPerLevel/MaxLevel과 같은 "서비스 설정값을
+        /// passthrough로 노출" 관례, section AJ).
+        /// </summary>
+        public int RequiredCount => RequiredCountPerFuse;
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -40,7 +47,7 @@ namespace Equipment
 
         /// <summary>
         /// definition이 이미 최고 등급이거나, 다음 등급 장비가 카탈로그에 없거나(콘텐츠 미비),
-        /// 재료가 RequiredCount개 미만이면 실패한다.
+        /// 재료가 RequiredCountPerFuse개 미만이면 실패한다.
         /// </summary>
         public bool TryFuse(EquipmentSO definition)
         {
@@ -58,7 +65,7 @@ namespace Equipment
                 return false;
             }
 
-            if (!_inventory.TryConsume(definition, RequiredCount))
+            if (!_inventory.TryConsume(definition, RequiredCountPerFuse))
             {
                 return false;
             }
