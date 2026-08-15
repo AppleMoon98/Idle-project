@@ -12,7 +12,13 @@ namespace UI
     /// </summary>
     public sealed class ConfirmationPopupUI : MonoBehaviour
     {
-        private const string DontShowKeyPrefix = "ConfirmationPopup_DontShow_";
+        /// <summary>
+        /// "다시 보지 않기" PlayerPrefs 키의 접두사. NotificationSettingsPopupUI가 팝업을 다시
+        /// 띄우지 않고도 이 값을 직접 읽고 써야 해서(설정 화면에서 알림을 다시 켜는 유일한
+        /// 경로), 두 스크립트가 리터럴을 각자 들고 있다 어긋나지 않도록 공개 상수로 공유한다
+        /// (CameraShakeService.DisabledPlayerPrefsKey, section BA와 같은 관례).
+        /// </summary>
+        public const string DontShowKeyPrefix = "ConfirmationPopup_DontShow_";
 
         [SerializeField]
         private GameObject popupRoot;
