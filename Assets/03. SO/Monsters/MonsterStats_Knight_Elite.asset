@@ -19,4 +19,5 @@ MonoBehaviour:
   attackInterval: 1.2
   criticalChance: 0
   criticalDamageMultiplier: 0.5
-  damageReduction: 5
+  damageReduction: 0
+  damageReductionPercent: 0.25
