@@ -94,8 +94,10 @@ namespace UI
         /// 팝업을 열어달라는 요청 콜백이다(없으면 null, 이름 탭은 아무 동작 안 함).
         /// onEnhanceRequested는 강화 버튼을 눌렀을 때 강화 팝업을 열어달라는 요청 콜백이다
         /// (없으면 null, 이 경우 예전처럼 즉시 EquipmentEnhancementService.TryEnhance를 호출한다).
+        /// onFuseRequested는 합성 버튼을 눌렀을 때(없으면 null, 이 경우 예전처럼 즉시
+        /// EquipmentFusionService.TryFuse를 호출한다) 같은 모양의 요청 콜백이다.
         /// </summary>
-        public void Initialize(EquipmentSO definition, OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null, Action<OwnedEquipment> onEnhanceRequested = null)
+        public void Initialize(EquipmentSO definition, OwnedEquipment owned, bool isEquipped, Color backgroundColor, Action<OwnedEquipment> onDetailRequested = null, Action<OwnedEquipment> onEnhanceRequested = null, Action<OwnedEquipment> onFuseRequested = null)
         {
             _owned = owned;
 
@@ -138,6 +140,12 @@ namespace UI
 
             fuseButton.onClick.AddListener(() =>
             {
+                if (onFuseRequested != null)
+                {
+                    onFuseRequested.Invoke(_owned);
+                    return;
+                }
+
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusion))
                 {
                     fusion.TryFuse(_owned.Definition);

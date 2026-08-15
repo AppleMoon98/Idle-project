@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core;
 using Enhancement;
@@ -47,6 +48,9 @@ namespace UI
 
         [SerializeField]
         private Text enhanceButtonLabel;
+
+        [SerializeField]
+        private ConfirmationPopupUI confirmationPopup;
 
         private OwnedEquipment _target;
         private bool _isOpen;
@@ -99,13 +103,28 @@ namespace UI
 
         private void OnEnhanceClicked()
         {
-            if (_target == null || GameBootstrapper.Services == null
-                || !GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancement))
+            if (_target == null)
             {
                 return;
             }
 
-            enhancement.TryEnhance(_target.Definition);
+            OwnedEquipment target = _target;
+            Action execute = () =>
+            {
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancement))
+                {
+                    enhancement.TryEnhance(target.Definition);
+                }
+            };
+
+            if (confirmationPopup != null)
+            {
+                confirmationPopup.RequestConfirm("Enhance", "강화를 진행합니다. 정말로 진행하시겠습니까?", execute);
+            }
+            else
+            {
+                execute();
+            }
         }
 
         private void Refresh()

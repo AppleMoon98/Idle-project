@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Core;
@@ -42,6 +43,9 @@ namespace UI
 
         [SerializeField]
         private EquipmentEnhancementPopupUI enhancementPopup;
+
+        [SerializeField]
+        private ConfirmationPopupUI confirmationPopup;
 
         [SerializeField]
         private EquipmentGradeCatalogSO gradeCatalog;
@@ -144,19 +148,52 @@ namespace UI
 
         // 목록 갱신은 별도로 호출할 필요가 없다 - TryEnhance/TryFuse가 성공할 때마다 발행하는
         // InventoryChangedEvent를 OnInventoryChanged가 이미 구독해서 Refresh()하고 있다.
+        //
+        // 전체 강화/전체 합성/개별 합성 셋 다 실행 직전에 ConfirmationPopupUI로 확인을 받는다
+        // (개별 강화는 EquipmentEnhancementPopupUI 자신의 강화 버튼에서 같은 방식으로 확인받는다).
+        // confirmationPopup을 못 구하면(씬 배선 누락 등 방어적 상황) 확인 없이 즉시 실행한다.
         private void EnhanceAll()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancementService))
+            RequestConfirm("EnhanceAll", "전체 강화를 진행합니다. 정말로 진행하시겠습니까?", () =>
             {
-                enhancementService.TryEnhanceAll(_openSlot);
-            }
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentEnhancementService enhancementService))
+                {
+                    enhancementService.TryEnhanceAll(_openSlot);
+                }
+            });
         }
 
         private void FuseAll()
         {
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
+            RequestConfirm("FuseAll", "전체 합성을 진행합니다. 정말로 진행하시겠습니까?", () =>
             {
-                fusionService.TryFuseAll(_openSlot);
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
+                {
+                    fusionService.TryFuseAll(_openSlot);
+                }
+            });
+        }
+
+        private void RequestFuseConfirm(OwnedEquipment owned)
+        {
+            RequestConfirm("Fuse", "합성을 진행합니다. 정말로 진행하시겠습니까?", () =>
+            {
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
+                {
+                    fusionService.TryFuse(owned.Definition);
+                }
+            });
+        }
+
+        private void RequestConfirm(string actionKey, string message, Action onConfirm)
+        {
+            if (confirmationPopup != null)
+            {
+                confirmationPopup.RequestConfirm(actionKey, message, onConfirm);
+            }
+            else
+            {
+                onConfirm();
             }
         }
 
@@ -244,7 +281,7 @@ namespace UI
             {
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, definition.Grade, gradeTintBlend);
-                row.Initialize(definition, owned, owned != null && owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target));
+                row.Initialize(definition, owned, owned != null && owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target), RequestFuseConfirm);
 
                 _spawnedRows.Add(row);
             }
