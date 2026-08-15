@@ -14,14 +14,17 @@ namespace Character
     /// SoldierEnhancementService/SoldierStatReceiver 트랙을 그대로 쓴다.
     /// </summary>
     [RequireComponent(typeof(CharacterStatsProvider))]
+    [RequireComponent(typeof(Health))]
     public sealed class RankStatReceiver : MonoBehaviour
     {
         private CharacterStatsProvider _statsProvider;
+        private Health _health;
         private float _appliedPercent;
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _health = GetComponent<Health>();
         }
 
         private void OnEnable()
@@ -42,6 +45,7 @@ namespace Character
 
             PossessionStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, EnhancementStatType.AttackPower, delta);
             PossessionStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, EnhancementStatType.MaxHealth, delta);
+            _health.NotifyMaxHealthChanged();
         }
     }
 }

@@ -13,14 +13,17 @@ namespace Character
     /// 담은 값은 누적 총합이고 이 리시버가 직전에 적용해둔 값과의 차이만큼만 RuntimeStats에 반영한다.
     /// </summary>
     [RequireComponent(typeof(CharacterStatsProvider))]
+    [RequireComponent(typeof(Health))]
     public sealed class EquipmentStatReceiver : MonoBehaviour
     {
         private CharacterStatsProvider _statsProvider;
+        private Health _health;
         private readonly Dictionary<EnhancementStatType, float> _applied = new();
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _health = GetComponent<Health>();
         }
 
         private void OnEnable()
@@ -40,6 +43,11 @@ namespace Character
             _applied[evt.StatType] = evt.NewTotalBonus;
 
             RuntimeStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, delta);
+
+            if (evt.StatType == EnhancementStatType.MaxHealth)
+            {
+                _health.NotifyMaxHealthChanged();
+            }
         }
     }
 }

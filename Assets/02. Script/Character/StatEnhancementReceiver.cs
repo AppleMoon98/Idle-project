@@ -10,13 +10,16 @@ namespace Character
     /// Enhancement 도메인은 이 컴포넌트나 "Player"라는 개념을 전혀 모른다.
     /// </summary>
     [RequireComponent(typeof(CharacterStatsProvider))]
+    [RequireComponent(typeof(Health))]
     public sealed class StatEnhancementReceiver : MonoBehaviour
     {
         private CharacterStatsProvider _statsProvider;
+        private Health _health;
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _health = GetComponent<Health>();
         }
 
         private void OnEnable()
@@ -32,6 +35,11 @@ namespace Character
         private void OnStatEnhanced(StatEnhancedEvent evt)
         {
             RuntimeStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, evt.ValuePerLevel);
+
+            if (evt.StatType == EnhancementStatType.MaxHealth)
+            {
+                _health.NotifyMaxHealthChanged();
+            }
         }
     }
 }

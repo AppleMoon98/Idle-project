@@ -87,6 +87,23 @@ namespace Character
         }
 
         /// <summary>
+        /// MaxHealth가 바뀌었지만(강화/장비/랭크 등) 현재 체력은 그대로일 때 UI를 갱신시키기 위한
+        /// 알림. SetCurrent는 clamp 결과가 기존 _current와 같으면(=MaxHealth가 늘어나기만 하고
+        /// Current는 원래도 그 범위 안이었던 흔한 경우) 값이 안 바뀌었다고 보고 이벤트를 발행하지
+        /// 않으므로, MaxHealth만 바뀐 경우는 그 경로로 커버되지 않는다 - 이게 없으면 체력 스탯을
+        /// 찍어도 체력바의 "최대치" 표시가 실제로 피격당하거나(TakeDamage) 스테이지가 바뀌어
+        /// Revive가 불릴 때까지 갱신되지 않는다(실사용 중 발견). MaxHealth를 바꾸는 모든
+        /// receiver(StatEnhancementReceiver/EquipmentStatReceiver/EquipmentPossessionStatReceiver/
+        /// RankStatReceiver)가 적용 직후 이 메서드를 호출해야 한다.
+        /// </summary>
+        public void NotifyMaxHealthChanged()
+        {
+            float max = _statsProvider.Stats.MaxHealth;
+            _current = Mathf.Clamp(_current, 0f, max);
+            GameBootstrapper.Events?.Publish(new CharacterHealthChangedEvent(gameObject, _current, max));
+        }
+
+        /// <summary>
         /// 사망 상태를 풀고 체력을 최대치로 되돌린다. 풀링되지 않는 캐릭터(Player 등)가
         /// 죽은 뒤 다시 전투에 나설 수 있도록 하는 명시적 API — OnSpawned는 PoolManager만 호출한다.
         /// </summary>

@@ -13,14 +13,17 @@ namespace Character
     /// 아니라 PossessionStatApplier를 쓴다(AttackPower/MaxHealth까지 %로 취급하기 위함).
     /// </summary>
     [RequireComponent(typeof(CharacterStatsProvider))]
+    [RequireComponent(typeof(Health))]
     public sealed class EquipmentPossessionStatReceiver : MonoBehaviour
     {
         private CharacterStatsProvider _statsProvider;
+        private Health _health;
         private readonly Dictionary<EnhancementStatType, float> _applied = new();
 
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
+            _health = GetComponent<Health>();
         }
 
         private void OnEnable()
@@ -40,6 +43,11 @@ namespace Character
             _applied[evt.StatType] = evt.NewTotalPercent;
 
             PossessionStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, delta);
+
+            if (evt.StatType == EnhancementStatType.MaxHealth)
+            {
+                _health.NotifyMaxHealthChanged();
+            }
         }
     }
 }
