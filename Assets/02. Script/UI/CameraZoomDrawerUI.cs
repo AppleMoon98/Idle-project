@@ -22,7 +22,8 @@ namespace UI
     public sealed class CameraZoomDrawerUI : MonoBehaviour, ITickable
     {
         [SerializeField]
-        private float edgeTriggerWidth = 40f;
+        [Range(0.01f, 0.3f)]
+        private float edgeTriggerWidthFraction = 0.12f;
 
         [SerializeField]
         private float snapDuration = 0.15f;
@@ -33,9 +34,13 @@ namespace UI
         /// <summary>
         /// 화면 왼쪽 가장자리에서 이 폭(스크린 픽셀) 안에서 시작한 터치만 열기 제스처 후보로
         /// 인정한다. Character.PlayerManualMover가 탭 이동/집결 홀드를 시작하지 않을 예외 구역을
-        /// 판단할 때도 이 값을 그대로 참조한다 - 두 곳에 값을 따로 두면 나중에 어긋난다.
+        /// 판단할 때도 이 값을 그대로 참조한다 - 두 곳에 값을 따로 두면 나중에 어긋난다. 고정
+        /// 픽셀값이 아니라 Screen.width의 비율로 계산한다 - Pointer.position은 기기의 실제 화면
+        /// 픽셀 기준인데, 고정 픽셀(예: 40)로 두면 해상도가 높은 기기일수록 실제 손가락 터치
+        /// 면적 대비 인식 영역이 상대적으로 더 좁아져 스와이프가 탭 이동으로 자꾸 새는 문제가
+        /// 있었다(실사용 중 발견).
         /// </summary>
-        public float EdgeTriggerWidth => edgeTriggerWidth;
+        public float EdgeTriggerWidth => Screen.width * edgeTriggerWidthFraction;
 
         private RectTransform _rectTransform;
         private Canvas _canvas;
@@ -104,7 +109,7 @@ namespace UI
             if (pointer.press.wasPressedThisFrame)
             {
                 bool overDrawer = RectTransformUtility.RectangleContainsScreenPoint(_rectTransform, screenPosition, EventCamera);
-                bool inEdgeZone = screenPosition.x <= edgeTriggerWidth;
+                bool inEdgeZone = screenPosition.x <= EdgeTriggerWidth;
 
                 if ((_isOpen && overDrawer) || (!_isOpen && inEdgeZone))
                 {

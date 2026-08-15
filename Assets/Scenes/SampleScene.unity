@@ -6491,7 +6491,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 40a884bd80fb9cb458322e4fd3b2f5e1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UI.CameraZoomDrawerUI
-  edgeTriggerWidth: 40
+  edgeTriggerWidthFraction: 0.12
   snapDuration: 0.15
   hiddenMargin: 10
 --- !u!1 &209119000
