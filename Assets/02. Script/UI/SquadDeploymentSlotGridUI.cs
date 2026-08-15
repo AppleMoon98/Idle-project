@@ -151,7 +151,7 @@ namespace UI
             {
                 _selectedSlotIndex = slotIndex;
                 ApplySelectionHighlight();
-                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("다른 칸을 누르면 이동, 같은 칸을 다시 누르면 배치가 해제됩니다."));
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("다른 칸을 누르면 이동, 같은 칸을 다시 누르면 배치가 해제됩니다.", ToastMessageType.Info));
             }
         }
     }

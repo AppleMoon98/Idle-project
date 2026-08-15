@@ -2190,7 +2190,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: Gold\n0
+  m_Text: 0
 --- !u!222 &70350992
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -15506,6 +15506,7 @@ GameObject:
   - component: {fileID: 483739289}
   - component: {fileID: 483739288}
   - component: {fileID: 483739287}
+  - component: {fileID: 483739291}
   m_Layer: 0
   m_Name: ToastMessage
   m_TagString: Untagged
@@ -15548,6 +15549,8 @@ MonoBehaviour:
   messageText: {fileID: 483739289}
   displaySeconds: 1.5
   fadeOutSeconds: 0.5
+  warningColor: {r: 1, g: 0.42, b: 0.42, a: 1}
+  infoColor: {r: 1, g: 1, b: 1, a: 1}
 --- !u!225 &483739288
 CanvasGroup:
   m_ObjectHideFlags: 0
@@ -15602,6 +15605,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 483739285}
   m_CullTransparentMesh: 1
+--- !u!114 &483739291
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 483739285}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Outline
+  m_EffectColor: {r: 0, g: 0, b: 0, a: 1}
+  m_EffectDistance: {x: 1.5, y: -1.5}
+  m_UseGraphicAlpha: 1
 --- !u!1 &487201928
 GameObject:
   m_ObjectHideFlags: 0
@@ -67748,7 +67766,7 @@ MonoBehaviour:
     m_HorizontalOverflow: 0
     m_VerticalOverflow: 1
     m_LineSpacing: 1
-  m_Text: "\uC2A4\uD14C\uC774\uC9C0 -\\n\uB0A8\uC740 \uBAAC\uC2A4\uD130: -"
+  m_Text: "\uC2A4\uD14C\uC774\uC9C0 -\n\uB0A8\uC740 \uBAAC\uC2A4\uD130: -"
 --- !u!222 &1972277500
 CanvasRenderer:
   m_ObjectHideFlags: 0
