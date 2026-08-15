@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: SoldierStats_ShieldBearer
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsSO
   maxHealth: 500
-  attackPower: 100
+  attackPower: 70
   attackRange: 2.5
   moveSpeed: 1
   attackInterval: 1
