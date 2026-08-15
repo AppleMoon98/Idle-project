@@ -151,7 +151,7 @@ namespace Dungeon
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Register(this);
 
-            GameBootstrapper.Events?.Publish(new StoneDungeonAttemptStartedEvent(_stageNumber, _remainingTime));
+            GameBootstrapper.Events?.Publish(new StoneDungeonAttemptStartedEvent(_stageNumber, _remainingTime, _bossInstance));
         }
 
         private void SpawnBoss()
