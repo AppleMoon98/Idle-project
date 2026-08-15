@@ -33,6 +33,9 @@ namespace Character
         [SerializeField]
         private float damageReduction;
 
+        [SerializeField]
+        private float damageReductionPercent;
+
         /// <summary>
         /// 최대 체력.
         /// </summary>
@@ -74,5 +77,12 @@ namespace Character
         /// 기본값 0(감소 없음)이라 다른 유닛에는 영향이 없다.
         /// </summary>
         public float DamageReduction => damageReduction;
+
+        /// <summary>
+        /// 받는 피해를 비율로 줄이는 정률 감소(0~1, 예: 0.15 = 15%). DamageReduction(정액)과는
+        /// 별개의 메커니즘 — 둘 다 0이 아니면 정률을 먼저 적용한 뒤 정액을 뺀다(Health.TakeDamage
+        /// 참고). 기본값 0(감소 없음)이라 다른 유닛에는 영향이 없다.
+        /// </summary>
+        public float DamageReductionPercent => damageReductionPercent;
     }
 }

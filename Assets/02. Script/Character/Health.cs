@@ -35,10 +35,11 @@ namespace Character
 
         /// <summary>
         /// 데미지를 적용한다. 이미 사망했거나 amount가 0 이하이면 무시한다. 순서: 자신의
-        /// Stats.DamageReduction만큼 정액으로 먼저 깎고(기사(Knight) 등, 기본값 0이라 대부분의
-        /// 유닛에는 영향 없음) → ShieldGuard가 있고 방패가 남아있으면 방패가 먼저 흡수한다
-        /// (창병 진형의 방패 보병 등) → 그러고도 남은 만큼만 실제 체력을 깎는다. 어느 단계에서든
-        /// 0 이하로 떨어지면 완전히 무효화된 것으로 취급한다(이벤트 발행도, 체력 변화도 없음).
+        /// Stats.DamageReductionPercent만큼 정률로 먼저 줄이고 → 그 결과에서 Stats.DamageReduction만큼
+        /// 정액으로 깎고(기본값 둘 다 0이라 대부분의 유닛에는 영향 없음) → ShieldGuard가 있고
+        /// 방패가 남아있으면 방패가 먼저 흡수한다(창병 진형의 방패 보병 등) → 그러고도 남은
+        /// 만큼만 실제 체력을 깎는다. 어느 단계에서든 0 이하로 떨어지면 완전히 무효화된 것으로
+        /// 취급한다(이벤트 발행도, 체력 변화도 없음).
         /// </summary>
         public void TakeDamage(float amount, bool isCritical = false, bool isPoison = false)
         {
@@ -47,7 +48,8 @@ namespace Character
                 return;
             }
 
-            float mitigatedAmount = Mathf.Max(0f, amount - _statsProvider.Stats.DamageReduction);
+            float afterPercent = amount * (1f - _statsProvider.Stats.DamageReductionPercent);
+            float mitigatedAmount = Mathf.Max(0f, afterPercent - _statsProvider.Stats.DamageReduction);
 
             if (mitigatedAmount <= 0f)
             {

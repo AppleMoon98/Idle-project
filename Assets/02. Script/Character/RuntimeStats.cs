@@ -47,6 +47,11 @@ namespace Character
         public float DamageReduction { get; set; }
 
         /// <summary>
+        /// 받는 피해를 비율로 줄이는 정률 감소(0~1). 기본값 0.
+        /// </summary>
+        public float DamageReductionPercent { get; set; }
+
+        /// <summary>
         /// CharacterStatsSO의 값을 복사해 RuntimeStats를 생성한다.
         /// </summary>
         public RuntimeStats(CharacterStatsSO source)
@@ -70,6 +75,7 @@ namespace Character
             CriticalChance = source.CriticalChance;
             CriticalDamageMultiplier = source.CriticalDamageMultiplier;
             DamageReduction = source.DamageReduction;
+            DamageReductionPercent = source.DamageReductionPercent;
         }
     }
 }
