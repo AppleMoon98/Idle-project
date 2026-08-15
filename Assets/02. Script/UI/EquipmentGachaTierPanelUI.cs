@@ -49,14 +49,32 @@ namespace UI
             }
         }
 
+        private int _goldCostPerPull;
+
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnGoldChanged);
+
+            _goldCostPerPull = ResolveGoldCostPerPull();
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
             {
                 SetGoldText(currency.CurrentGold);
             }
+        }
+
+        // 정식 서비스 단계에서는 슬롯/티어마다 비용이 서로 달라질 예정이라(현재는 플레이스홀더
+        // 수치로 고정), 화면에 1회 뽑기당 비용을 직접 표시해달라는 요청. 비용은 런타임에 바뀌지
+        // 않는 값이라(EquipmentGachaTableSO 에셋 값 그대로) OnEnable에서 한 번만 계산해 캐싱해둔다.
+        private int ResolveGoldCostPerPull()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquipmentGachaService gacha))
+            {
+                return 0;
+            }
+
+            EquipmentGachaTableSO[] tiers = gacha.GetTiers(fixedSlot);
+            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex].GoldCostPerPull : 0;
         }
 
         private void OnDisable()
@@ -95,7 +113,7 @@ namespace UI
 
         private void SetGoldText(BigNumber amount)
         {
-            goldText.text = $"Gold: {KoreanNumberFormatter.Format(amount)}";
+            goldText.text = $"Gold: {KoreanNumberFormatter.Format(amount)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)";
         }
     }
 }

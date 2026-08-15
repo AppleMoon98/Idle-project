@@ -45,6 +45,8 @@ namespace UI
         [SerializeField]
         private GachaResultRevealController resultReveal;
 
+        private int _goldCostPerPull;
+
         private void Awake()
         {
             for (int i = 0; i < pullButtons.Length; i++)
@@ -65,9 +67,11 @@ namespace UI
             {
                 GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnGoldChanged);
 
+                _goldCostPerPull = ResolveGoldCostPerPull();
+
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
                 {
-                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)}");
+                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
                 }
 
                 return;
@@ -81,6 +85,21 @@ namespace UI
             }
         }
 
+        // 정식 서비스 단계에서는 티어마다 골드 비용이 서로 달라질 예정이라, 화면에 1회 뽑기당
+        // 비용을 직접 표시해달라는 요청(EquipmentGachaTierPanelUI와 동일한 이유). 주문서 탭
+        // (useGoldCurrency=false)에는 표시하지 않는다 - 요청 범위가 "골드 뽑기"였고, 주문서는
+        // 1회 뽑기=주문서 1개로 이미 자명하다.
+        private int ResolveGoldCostPerPull()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillGachaService gacha))
+            {
+                return 0;
+            }
+
+            SkillGachaTableSO[] tiers = gacha.Tiers;
+            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex].GoldCostPerPull : 0;
+        }
+
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
@@ -89,7 +108,7 @@ namespace UI
 
         private void OnGoldChanged(GoldChangedEvent evt)
         {
-            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)}");
+            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
         }
 
         private void OnScrollChanged(SkillScrollChangedEvent evt)
