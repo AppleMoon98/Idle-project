@@ -119,10 +119,7 @@ namespace Dungeon
                 return;
             }
 
-            if (playerTransform != null && playerTransform.TryGetComponent(out Health playerHealth) && playerHealth.IsDead)
-            {
-                playerHealth.Revive();
-            }
+            stageController?.ResetCombatantsForRetry();
 
             StartAttempt();
         }

@@ -105,6 +105,18 @@ namespace Soldier
             _respawner?.ResetPositions();
         }
 
+        /// <summary>
+        /// 살아있는 병사 전원의 체력을 최대치로 되돌리고, 이번 시도 중 사망해 빈 채로 남아있던
+        /// 슬롯은 재배치한다. OnStageChanged가 호출하는 것과 정확히 같은 로직(Soldier.SoldierRespawner.
+        /// ResetForNewStage) — 던전 오버레이 재도전/복귀처럼 StageChangedEvent가 발행되지 않는
+        /// 지점에서 병사 상태만 "새로 시작"한 것처럼 되돌려야 할 때 호출한다. 아직 한 번도
+        /// 스폰되지 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
+        /// </summary>
+        public void ResetSoldiersForRetry()
+        {
+            _respawner?.ResetForNewStage(slots);
+        }
+
         private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
         {
             if (!_spawned)

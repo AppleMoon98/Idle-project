@@ -343,17 +343,25 @@ namespace Stage
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
             positionResetter?.ResetPositions();
+            positionResetter?.ResetHealth();
             GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(null));
 
             if (_spawner != null)
             {
                 TickerRegistration.Register(_spawner);
             }
+        }
 
-            if (playerTarget != null && playerTarget.TryGetComponent(out Health playerHealth) && playerHealth.IsDead)
-            {
-                playerHealth.Revive();
-            }
+        /// <summary>
+        /// 오버레이(던전 등) 안에서 재도전할 때 호출한다. IsOverlayActive/스포너/트래커/진행도는
+        /// 전혀 건드리지 않는다 — 오버레이 자체는 아직 끝나지 않았기 때문이다(재도전 대기 상태).
+        /// 플레이어와 병사의 체력만 이번 시도를 시작할 때처럼 되돌린다
+        /// (StagePositionResetter.ResetHealth, ResumeAfterOverlay가 클리어/나가기 시점에 쓰는 것과
+        /// 동일한 로직) — 던전 각 세션 컨트롤러의 Retry()가 호출한다.
+        /// </summary>
+        public void ResetCombatantsForRetry()
+        {
+            positionResetter?.ResetHealth();
         }
 
         private void EndCurrentStage()
