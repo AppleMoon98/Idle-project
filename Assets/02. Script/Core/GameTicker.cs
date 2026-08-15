@@ -53,6 +53,23 @@ namespace Core
 
             for (int i = 0; i < _tickables.Count; i++)
             {
+                ITickable tickable = _tickables[i];
+
+                // MonoBehaviour 기반 ITickable(예: WeaponSwing)은 OnDisable에서 Unregister를
+                // 호출해도 지금이 이 순회 도중이면 _pendingRemove에만 쌓이고 이번 프레임에는
+                // 실제로 반영되지 않는다(아래 참고) - 그 사이 PoolManager가 풀 초과분을
+                // Object.Destroy()로 진짜 파괴해버리면(Core.Pooling.ObjectPool.Release, maxSize
+                // 초과 시), 아직 목록에 남아있던 이 인스턴스는 이미 네이티브 오브젝트가 사라진
+                // 채로 다시 Tick()을 받아 MissingReferenceException을 던진다(실제 발생했던
+                // Combat.WeaponSwing 사례). UnityEngine.Object의 == null은 이런 "파괴된 채
+                // 남아있는 C# 참조"를 안전하게 감지하므로, Tick() 호출 자체를 시도하기 전에
+                // 걸러내 예외가 나기 전에 조용히 해제 대상으로 넘긴다.
+                if (tickable is UnityEngine.Object unityObject && unityObject == null)
+                {
+                    _pendingRemove.Add(tickable);
+                    continue;
+                }
+
                 // 개별 Tick()이 예외를 던져도(예: 파괴된 오브젝트에 접근) 이 루프 자체가 중단되면
                 // 안 된다 - 중단되면 아래 _isTicking = false / ApplyPendingChanges()가 영원히
                 // 실행되지 않아, 그 시점부터 새로 등록되는 ITickable은 전부 시작조차 못 하고
@@ -61,12 +78,12 @@ namespace Core
                 // 등록해, 같은 오브젝트가 다음 프레임에도 똑같이 예외를 반복하지 않게 한다.
                 try
                 {
-                    _tickables[i].Tick(deltaTime);
+                    tickable.Tick(deltaTime);
                 }
                 catch (Exception exception)
                 {
                     Debug.LogException(exception);
-                    _pendingRemove.Add(_tickables[i]);
+                    _pendingRemove.Add(tickable);
                 }
             }
 
