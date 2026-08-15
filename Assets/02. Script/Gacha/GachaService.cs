@@ -22,6 +22,7 @@ namespace Gacha
         private readonly CurrencyService _currency;
         private readonly SoldierRosterService _roster;
         private readonly GachaTableSO[] _tiers;
+        private readonly int[] _goldPullCounts;
 
         public GachaService(EventBus events, SoldierTicketService tickets, CurrencyService currency, SoldierRosterService roster, GachaTableSO[] tiers)
         {
@@ -30,12 +31,22 @@ namespace Gacha
             _currency = currency;
             _roster = roster;
             _tiers = tiers;
+            _goldPullCounts = new int[tiers.Length];
         }
 
         /// <summary>
         /// 이 카테고리(병사 뽑기)가 제공하는 티어 목록. UI가 하위 탭을 이 배열 순서대로 만든다.
         /// </summary>
         public GachaTableSO[] Tiers => _tiers;
+
+        /// <summary>
+        /// tierIndex 테이블에서 지금까지 성공한 골드 뽑기 횟수(costIncrementTiers 계산용, UI가
+        /// "다음 1회 비용" 표시에도 이 값 기반 GetGoldCostForPull을 함께 쓴다).
+        /// </summary>
+        public int GetGoldPullCount(int tierIndex)
+        {
+            return tierIndex >= 0 && tierIndex < _goldPullCounts.Length ? _goldPullCounts[tierIndex] : 0;
+        }
 
         public void Initialize()
         {
@@ -62,7 +73,7 @@ namespace Gacha
 
             // 1회분조차 못 낼 잔액이면 굴려보지도 않고 안내만 하고 끝낸다 - "N회 뽑기"를 눌렀는데
             // 조용히 0개만 나오는 것보다 명확하다.
-            if (!CanAffordOnePull(_tiers[tierIndex]))
+            if (!CanAffordOnePull(_tiers[tierIndex], tierIndex))
             {
                 _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
                 return results;
@@ -87,12 +98,13 @@ namespace Gacha
         }
 
         /// <summary>
-        /// table의 소모 재화(골드 또는 소환권) 잔액이 1회분 비용 이상인지.
+        /// table의 소모 재화(골드 또는 소환권) 잔액이 1회분 비용 이상인지. 골드는 누적 뽑기
+        /// 횟수에 따라 오르는 다음 1회 비용(GetGoldCostForPull) 기준.
         /// </summary>
-        private bool CanAffordOnePull(GachaTableSO table)
+        private bool CanAffordOnePull(GachaTableSO table, int tierIndex)
         {
             return table.CurrencyType == GachaCurrencyType.Gold
-                ? _currency.CanAfford(table.GoldCostPerPull)
+                ? _currency.CanAfford(table.GetGoldCostForPull(_goldPullCounts[tierIndex]))
                 : _tickets.CurrentTickets >= table.TicketCostPerPull;
         }
 
@@ -114,12 +126,17 @@ namespace Gacha
             }
 
             bool spent = table.CurrencyType == GachaCurrencyType.Gold
-                ? _currency.TrySpendGold(table.GoldCostPerPull)
+                ? _currency.TrySpendGold(table.GetGoldCostForPull(_goldPullCounts[tierIndex]))
                 : _tickets.TrySpendTickets(table.TicketCostPerPull);
 
             if (!spent)
             {
                 return false;
+            }
+
+            if (table.CurrencyType == GachaCurrencyType.Gold)
+            {
+                _goldPullCounts[tierIndex]++;
             }
 
             result = _roster.AddSoldier(picked);

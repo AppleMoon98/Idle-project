@@ -1,3 +1,4 @@
+using Enhancement;
 using UnityEngine;
 
 namespace Gacha
@@ -24,6 +25,15 @@ namespace Gacha
         private int goldCostPerPull;
 
         /// <summary>
+        /// 골드 뽑기 누적 횟수에 따른 비용 증가 구간. 비어있으면(기본값) goldCostPerPull 고정값
+        /// 그대로(하위 호환) - Enhancement.EnhancementConfigSO.CostIncrementTiers와 같은 관례.
+        /// CurrencyType이 Ticket인 테이블은 이 필드를 채우지 않는다(소환권은 던전으로 이미
+        /// 게이트돼 있어 무한 뽑기 문제가 없음).
+        /// </summary>
+        [SerializeField]
+        private CostIncrementTier[] costIncrementTiers = System.Array.Empty<CostIncrementTier>();
+
+        /// <summary>
         /// 이 티어의 표시 이름(가챠 팝업 하위 탭 라벨용, 예: "일반 뽑기").
         /// </summary>
         public string DisplayName => displayName;
@@ -44,8 +54,34 @@ namespace Gacha
         public GachaCurrencyType CurrencyType => currencyType;
 
         /// <summary>
-        /// 1회 뽑기에 소모되는 골드. CurrencyType이 Gold일 때만 쓰인다.
+        /// 1회 뽑기에 소모되는 골드(costIncrementTiers가 비어있을 때의 고정값). CurrencyType이
+        /// Gold일 때만 쓰인다. 실제 다음 1회 비용은 GetGoldCostForPull을 통해 구한다.
         /// </summary>
         public int GoldCostPerPull => goldCostPerPull;
+
+        /// <summary>
+        /// pullsSoFar(이 테이블에서 지금까지 성공한 골드 뽑기 횟수)번째 다음 1회 뽑기 비용.
+        /// costIncrementTiers가 비어있으면 goldCostPerPull 고정값 그대로 반환한다.
+        /// </summary>
+        public int GetGoldCostForPull(int pullsSoFar)
+        {
+            if (costIncrementTiers == null || costIncrementTiers.Length == 0)
+            {
+                return goldCostPerPull;
+            }
+
+            long total = goldCostPerPull;
+
+            for (int i = 0; i < costIncrementTiers.Length; i++)
+            {
+                int tierStart = costIncrementTiers[i].LevelThreshold;
+                int tierEnd = i + 1 < costIncrementTiers.Length ? costIncrementTiers[i + 1].LevelThreshold : int.MaxValue;
+                int pullsInTier = Mathf.Max(0, Mathf.Min(pullsSoFar, tierEnd) - tierStart);
+
+                total += (long)pullsInTier * costIncrementTiers[i].Increment;
+            }
+
+            return (int)Mathf.Min(total, int.MaxValue);
+        }
     }
 }

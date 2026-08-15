@@ -87,8 +87,9 @@ namespace UI
             }
         }
 
-        // 정식 서비스 단계에서는 티어마다 골드 비용이 서로 달라질 예정이라, 화면에 1회 뽑기당
-        // 비용을 직접 표시해달라는 요청(EquipmentGachaTierPanelUI와 동일한 이유). 소환권 탭
+        // 골드 뽑기 비용은 누적 뽑기 횟수에 따라 오를 수 있어(GachaTableSO.CostIncrementTiers),
+        // 화면에 매번 "다음 1회" 비용을 새로 조회해 표시한다(EquipmentGachaTierPanelUI와 동일한
+        // 이유로 시작된 표시지만, 이제는 고정값이 아니라 뽑을 때마다 바뀐다). 소환권 탭
         // (useGoldCurrency=false)에는 표시하지 않는다 - 요청 범위가 "골드 뽑기"였고, 소환권은
         // 1회 뽑기=소환권 1개로 이미 자명하다.
         private int ResolveGoldCostPerPull()
@@ -99,7 +100,9 @@ namespace UI
             }
 
             GachaTableSO[] tiers = gacha.Tiers;
-            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex].GoldCostPerPull : 0;
+            return tierIndex >= 0 && tierIndex < tiers.Length
+                ? tiers[tierIndex].GetGoldCostForPull(gacha.GetGoldPullCount(tierIndex))
+                : 0;
         }
 
         private void OnDisable()
@@ -110,6 +113,7 @@ namespace UI
 
         private void OnGoldChanged(GoldChangedEvent evt)
         {
+            _goldCostPerPull = ResolveGoldCostPerPull();
             SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
         }
 
