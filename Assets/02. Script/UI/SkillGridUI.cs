@@ -26,6 +26,7 @@ namespace UI
         private SkillDetailPopupUI detailPopup;
 
         private readonly List<SkillGridCellUI> _spawnedCells = new();
+        private SkillSO _pendingHighlightSkill;
 
         private void OnEnable()
         {
@@ -83,8 +84,25 @@ namespace UI
 
                 SkillGridCellUI cell = Instantiate(cellPrefab, cellContainer);
                 cell.Initialize(definition, level, count, onTapped: () => detailPopup?.Open(definition));
+                cell.SetSelected(definition == _pendingHighlightSkill);
 
                 _spawnedCells.Add(cell);
+            }
+        }
+
+        /// <summary>
+        /// skill과 일치하는 칸에만 테두리를 켠다(SkillSlotBarUI가 장착 대기 중인 스킬을 알려줄 때
+        /// 호출) - null이면 전부 끈다. Refresh()가 칸을 매번 Destroy+Instantiate로 다시 그리므로
+        /// (레벨업/보유개수/장착 변경 시), 그 사이에도 대기 상태가 이어질 수 있어 값을 기억해뒀다가
+        /// Refresh() 안에서도 재적용한다.
+        /// </summary>
+        public void SetPendingSkillHighlight(SkillSO skill)
+        {
+            _pendingHighlightSkill = skill;
+
+            foreach (SkillGridCellUI cell in _spawnedCells)
+            {
+                cell.SetSelected(cell.Definition == skill);
             }
         }
     }

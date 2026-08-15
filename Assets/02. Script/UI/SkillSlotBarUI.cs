@@ -42,6 +42,14 @@ namespace UI
         [SerializeField]
         private GameObject selectSlotPromptText;
 
+        /// <summary>
+        /// 대기 중인 스킬을 SkillGridUI에도 알려, 그 스킬의 그리드 칸에 테두리를 켠다 - 상세
+        /// 팝업이 닫힌 뒤 화면만 봐서는 "장착을 누른 게 어떤 스킬이었는지" 알 수 없었던 문제
+        /// (실사용 중 발견)를 해소한다.
+        /// </summary>
+        [SerializeField]
+        private SkillGridUI skillGrid;
+
         private SkillSO _pendingEquipSkill;
 
         /// <summary>
@@ -64,6 +72,7 @@ namespace UI
 
             SelectedSlotIndex = -1;
             _pendingEquipSkill = null;
+            skillGrid?.SetPendingSkillHighlight(null);
             SetPromptVisible(false);
 
             Refresh();
@@ -87,6 +96,7 @@ namespace UI
         public void RequestEquipTarget(SkillSO definition)
         {
             _pendingEquipSkill = definition;
+            skillGrid?.SetPendingSkillHighlight(definition);
             SetPromptVisible(true);
         }
 
@@ -133,6 +143,7 @@ namespace UI
             {
                 loadout.TryEquip(slotIndex, _pendingEquipSkill);
                 _pendingEquipSkill = null;
+                skillGrid?.SetPendingSkillHighlight(null);
                 SetPromptVisible(false);
                 SelectedSlotIndex = -1;
                 UpdateHighlights();

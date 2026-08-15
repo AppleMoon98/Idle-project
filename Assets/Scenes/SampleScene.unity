@@ -32921,6 +32921,7 @@ MonoBehaviour:
     SelectedHighlight: {fileID: 1507006483}
   emptySlotIconColor: {r: 0.3, g: 0.3, b: 0.3, a: 1}
   selectSlotPromptText: {fileID: 762488487}
+  skillGrid: {fileID: 765862020}
 --- !u!1 &804970776
 GameObject:
   m_ObjectHideFlags: 0
