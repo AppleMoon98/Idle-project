@@ -11,7 +11,7 @@ namespace UI
     /// 칸을 탭하면(아이콘/레벨 뱃지 어느 쪽이든) 상세 팝업(SkillDetailPopupUI)을 연다 - 장착은
     /// 그 팝업의 장착 버튼에서 이뤄진다(SkillSlotBarUI에서 선택된 슬롯 대상).
     /// </summary>
-    public sealed class SkillGridUI : MonoBehaviour
+    public sealed class SkillGridUI : MonoBehaviour, ITickable
     {
         [SerializeField]
         private Transform cellContainer;
@@ -27,12 +27,14 @@ namespace UI
 
         private readonly List<SkillGridCellUI> _spawnedCells = new();
         private SkillSO _pendingHighlightSkill;
+        private bool _isRefreshPending;
 
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Subscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
+            TickerRegistration.Register(this);
             Refresh();
         }
 
@@ -41,21 +43,40 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Unsubscribe<SkillLoadoutChangedEvent>(OnSkillLoadoutChanged);
+            TickerRegistration.Unregister(this);
+        }
+
+        /// <summary>
+        /// "전체 레벨업"(SkillLevelUpAllButtonUI) 한 번의 클릭이 SkillLeveledUpEvent를 스킬 수만큼
+        /// 연달아 발행할 수 있는데, 그때마다 Refresh()로 그리드 전체를 Destroy+Instantiate로 다시
+        /// 그리면 그 프레임에 몰려서 눈에 띄는 멈춤이 생긴다 — EquipmentSlotPopupUI가 전체
+        /// 합성/강화에서 이미 겪은 것과 동일한 문제(section CL)라 같은 방식으로 예방한다. 이벤트가
+        /// 오면 더티 플래그만 세우고, 실제 Refresh()는 프레임당 최대 한 번만 수행한다.
+        /// </summary>
+        void ITickable.Tick(float deltaTime)
+        {
+            if (!_isRefreshPending)
+            {
+                return;
+            }
+
+            _isRefreshPending = false;
+            Refresh();
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
         {
-            Refresh();
+            _isRefreshPending = true;
         }
 
         private void OnSkillCountChanged(SkillCountChangedEvent evt)
         {
-            Refresh();
+            _isRefreshPending = true;
         }
 
         private void OnSkillLoadoutChanged(SkillLoadoutChangedEvent evt)
         {
-            Refresh();
+            _isRefreshPending = true;
         }
 
         private void Refresh()

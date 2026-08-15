@@ -179,6 +179,32 @@ namespace Skill
         }
 
         /// <summary>
+        /// catalog의 모든 스킬을 순서대로 순회하며, 각 스킬을 조건(보유 개수 + 1강 이상이면
+        /// 골드/강화석)이 허용하는 한 TryLevelUp을 반복해 최대한 레벨업시킨다 —
+        /// Equipment.EquipmentEnhancementService.TryEnhanceAll과 동일한 "한 항목을 소진할 때까지
+        /// 반복한 뒤 다음으로" 관례. 성공한 총 레벨업 횟수를 반환한다.
+        /// </summary>
+        public int TryLevelUpAll(SkillCatalogSO catalog)
+        {
+            int successCount = 0;
+
+            if (catalog == null || catalog.Skills == null)
+            {
+                return successCount;
+            }
+
+            foreach (SkillSO definition in catalog.Skills)
+            {
+                while (TryLevelUp(definition))
+                {
+                    successCount++;
+                }
+            }
+
+            return successCount;
+        }
+
+        /// <summary>
         /// 세이브 로드 시 저장된 레벨로 복원한다. 재화 소모/이벤트 발행 없이 상태만 맞춘다(시딩).
         /// </summary>
         public SkillLevelSnapshot[] ExportSnapshot(SkillCatalogSO catalog)
