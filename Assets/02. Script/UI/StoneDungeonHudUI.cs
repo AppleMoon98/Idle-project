@@ -23,6 +23,9 @@ namespace UI
         private Image bossHealthFillImage;
 
         [SerializeField]
+        private Text bossHealthText;
+
+        [SerializeField]
         private float bossHealthFillTweenDuration = 0.15f;
 
         private float _remainingTime;
@@ -114,22 +117,33 @@ namespace UI
             }
 
             _targetBossFillAmount = evt.Max > 0f ? evt.Current / evt.Max : 0f;
+            UpdateBossHealthText(evt.Current, evt.Max);
         }
 
         private void RefreshBossHealthImmediate()
         {
             float fill = 0f;
+            float current = 0f;
+            float max = 0f;
 
             if (_bossInstance != null
                 && _bossInstance.TryGetComponent(out Health bossHealth)
                 && _bossInstance.TryGetComponent(out CharacterStatsProvider statsProvider)
                 && statsProvider.Stats.MaxHealth > 0f)
             {
-                fill = bossHealth.Current / statsProvider.Stats.MaxHealth;
+                current = bossHealth.Current;
+                max = statsProvider.Stats.MaxHealth;
+                fill = current / max;
             }
 
             _targetBossFillAmount = fill;
             bossHealthFillImage.fillAmount = fill;
+            UpdateBossHealthText(current, max);
+        }
+
+        private void UpdateBossHealthText(float current, float max)
+        {
+            bossHealthText.text = $"{current:N0} / {max:N0}";
         }
     }
 }
