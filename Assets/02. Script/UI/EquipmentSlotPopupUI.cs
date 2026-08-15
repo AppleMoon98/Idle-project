@@ -64,13 +64,17 @@ namespace UI
         [Range(0f, 1f)]
         private float gradeTintBlend = 0.35f;
 
+        // 순수 클라이언트 선호도라 서비스/이벤트 왕복 없이 직접 PlayerPrefs를 읽고 쓴다
+        // (CameraShakeToggleUI/ConfirmationPopupUI와 같은 관례) - 앱을 재시작해도 유지된다.
+        private const string SortDescendingPrefsKey = "EquipmentSlotPopup.SortDescending";
+
         private EquipmentType _openSlot;
         private bool _isOpen;
         private bool _isRefreshPending;
 
         // 팝업이 닫혔다 다시 열려도(EquippedSlotBarUI가 매번 Open()을 다시 부른다) 초기화되면
         // 안 되므로, Awake 이후 이 필드를 건드리는 곳은 ToggleSort 하나뿐이다 - Open()/Awake()
-        // 어디에서도 리셋하지 않는다.
+        // 어디에서도 리셋하지 않는다. 초기값은 Awake()가 PlayerPrefs에서 읽어온다.
         private bool _sortDescending;
 
         private readonly List<EquipmentRowUI> _spawnedRows = new();
@@ -78,6 +82,7 @@ namespace UI
         private void Awake()
         {
             popupRoot.SetActive(false);
+            _sortDescending = PlayerPrefs.GetInt(SortDescendingPrefsKey, 0) != 0;
             sortButton.onClick.AddListener(ToggleSort);
             enhanceAllButton.onClick.AddListener(EnhanceAll);
             fuseAllButton.onClick.AddListener(FuseAll);
@@ -221,6 +226,8 @@ namespace UI
         private void ToggleSort()
         {
             _sortDescending = !_sortDescending;
+            PlayerPrefs.SetInt(SortDescendingPrefsKey, _sortDescending ? 1 : 0);
+            PlayerPrefs.Save();
             UpdateSortButtonLabel();
 
             if (_isOpen)
