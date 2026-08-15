@@ -3,6 +3,7 @@ using Rank;
 using Rank.Events;
 using Stage;
 using Stage.Events;
+using UI.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -14,7 +15,8 @@ namespace UI
     /// 전환 대신 RankPromotionBattleController로 승급전을 시작한다. 승급전이 진행 중인 동안은
     /// (RankPromotionAttemptStartedEvent~RankPromotionSessionEndedEvent) "승급" 표기를 잠깐 접어두고
     /// 평소의 돌파/반복 표기로 되돌아간다 - RankUpAvailableTextUI가 이 구간에 스스로 숨는 것과 같은
-    /// 이유(중복 시작 방지).
+    /// 이유(중복 시작 방지). StageModeChangedEvent를 받을 때마다 토스트로 "돌파/반복 모드로
+    /// 변경되었습니다."를 안내한다.
     /// </summary>
     public sealed class StageModeToggleUI : MonoBehaviour
     {
@@ -88,6 +90,9 @@ namespace UI
         private void OnStageModeChanged(StageModeChangedEvent evt)
         {
             Refresh();
+
+            string modeName = evt.Mode == StageProgressionMode.Repeat ? "반복" : "돌파";
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent($"{modeName} 모드로 변경되었습니다.", ToastMessageType.Info));
         }
 
         private void OnHighestStageCleared(HighestStageClearedEvent evt)
