@@ -43,7 +43,12 @@ namespace Combat
     /// 헷갈리지 않도록 이름을 분리했다)가 있으면 그대로 돌진하지 않는다. 대신 위협 방향 기준
     /// 좌우 측면 후보 지점들을 순서대로 시도해 직선 경로가 막히지 않는 첫 지점으로 이동만 하고,
     /// 다음 재평가(retargetInterval)에서 다시 판정한다 — 아군이 비켜나거나 자신이 옆으로 이동해
-    /// 경로가 뚫리면 그때 돌진을 시작한다.
+    /// 경로가 뚫리면 그때 돌진을 시작한다. 다만 이 회피가 maxBlockedDuration(기본 1초)을 넘겨
+    /// 계속 실패하면(전부 기마병처럼 같은 병종이 빽빽하게 몰린 필드에서는 측면 후보(±1/±2칸)조차
+    /// 매 재평가마다 다른 지점에서 다시 막혀, 한 번도 돌진하지 못한 채 좌우로 계속 미끄러지기만
+    /// 하는 것으로 실사용 중 발견됐다) 회피를 포기하고 그냥 돌진한다 — 돌진 중에는 피해 판정이
+    /// allyLayerMask(공격 대상)에만 적용돼 아군을 관통해도 무해하므로, 영원히 전진을 멈추는
+    /// 것보다는 이쪽이 낫다는 판단.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -125,6 +130,9 @@ namespace Combat
         [SerializeField]
         private float allySidestepDistance = 2f;
 
+        [SerializeField]
+        private float maxBlockedDuration = 1f;
+
         private static readonly float[] AllySidestepOffsets = { 1f, -1f, 2f, -2f };
 
         private CharacterMover _mover;
@@ -143,6 +151,7 @@ namespace Combat
         private float _currentChargeDuration;
         private bool _hasHitThisCharge;
         private readonly HashSet<Health> _hitTargetsThisCharge = new HashSet<Health>();
+        private float _blockedElapsed;
 
         /// <summary>
         /// 탐지 범위 안에 아무 대상도 없을 때의 기본 위협(플레이어). MonsterSpawner가 스폰 직후 주입한다.
@@ -208,6 +217,7 @@ namespace Combat
             _chargeSpeed = 0f;
             _hasHitThisCharge = false;
             _hitTargetsThisCharge.Clear();
+            _blockedElapsed = 0f;
 
             if (_separation != null)
             {
@@ -295,20 +305,33 @@ namespace Combat
                 return;
             }
 
-            if (IsChargeLaneBlockedByAlly(transform.position, threat.position)
-                && TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
+            if (IsChargeLaneBlockedByAlly(transform.position, threat.position))
             {
-                _retreatAnchor.position = sidestepPoint;
-                _mover.Target = _retreatAnchor;
-                _mover.StoppingDistance = 0f;
-                return;
+                _blockedElapsed += retargetInterval;
+
+                // maxBlockedDuration 안에서는 측면 후보로 피해본다. 그 시간을 넘기고도 계속
+                // 막혀 있으면(같은 병종끼리 빽빽하게 몰린 필드 — 예: 전부 기마병인 세이브 —
+                // 에서는 측면 후보(±1/±2칸)조차 매 재평가마다 다른 지점에서 다시 막혀, 한 번도
+                // 돌진하지 못한 채 좌우로 계속 미끄러지기만 하는 것으로 실사용 중 발견됐다)
+                // 아래로 흘러 내려가 그냥 돌진한다 — 회피를 포기하는 것이지 멈추는 게 아니다.
+                if (_blockedElapsed < maxBlockedDuration && TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
+                {
+                    _retreatAnchor.position = sidestepPoint;
+                    _mover.Target = _retreatAnchor;
+                    _mover.StoppingDistance = 0f;
+                    return;
+                }
+            }
+            else
+            {
+                _blockedElapsed = 0f;
             }
 
-            // 측면 후보로도 경로가 안 뚫리면(아군이 밀집해 있거나 위협이 멀 때 실제로 발생 —
-            // 최광각 카메라 범위가 넓어진 뒤 실사용 중 발견) 제자리에서 멈추지 않고 그냥 돌진한다.
-            // 돌진 중에는 CharacterSeparation을 꺼두고 피해 판정도 allyLayerMask(공격 대상)에만
-            // 적용되므로, 막힘 회피 실패가 아군을 관통하는 것 이상의 실질적 피해로 이어지지 않는다
-            // — "가능하면 피하되, 안 되면 영원히 멈추지 않는다"는 원칙.
+            // 여기 도달하는 경우: 경로가 애초에 안 막혔거나, 측면 후보 전부가 막혀 있었거나
+            // (아군이 밀집해 있거나 위협이 멀 때), maxBlockedDuration을 넘기고도 계속
+            // 막혀 있었던 경우다. 돌진 중에는 CharacterSeparation을 꺼두고 피해 판정도
+            // allyLayerMask(공격 대상)에만 적용되므로, 회피 실패가 아군을 관통하는 것 이상의
+            // 실질적 피해로 이어지지 않는다 — "가능하면 피하되, 안 되면 영원히 멈추지 않는다"는 원칙.
             BeginCharge(threat.position);
         }
 
@@ -374,6 +397,7 @@ namespace Combat
             _chargeElapsed = 0f;
             _hasHitThisCharge = false;
             _hitTargetsThisCharge.Clear();
+            _blockedElapsed = 0f;
 
             float distance = Vector3.Distance(transform.position, targetPosition);
             _currentChargeDuration = Mathf.Clamp(CalculateTimeToCoverDistance(distance) + chargeOverrunDuration, minChargeDuration, maxChargeDuration);
