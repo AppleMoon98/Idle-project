@@ -10,12 +10,13 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 가챠 팝업의 "장비 뽑기" 카테고리 안, 티어 하나(일반/고급/유료 등)의 패널.
-    /// SoldierGachaTierPanelUI(병사 뽑기)와 대칭되는 구조 — tierIndex로 이 패널이 몇 번째
-    /// 티어인지 지정하고, 실제로 어느 슬롯(무기/장갑/갑옷/투구/신발)을 뽑을지는 slotSelector가
-    /// 들고 있는 값을 뽑기 시점에 그대로 읽어간다. pullButtons[i]는 pullCounts[i]개를 한 번에
-    /// 뽑는 버튼이다(1/10/30/300개 등). 뽑기 결과는 팝업(EquipmentPulledPopup, 이제 미사용) 대신
-    /// resultReveal이 이 패널 안에서 슬롯으로 하나씩 보여준다.
+    /// 가챠 팝업의 장비 슬롯별 카테고리(무기 뽑기/장갑 뽑기/갑옷 뽑기/투구 뽑기/신발 뽑기) 안,
+    /// 티어 하나(일반/고급/유료 등)의 패널. SoldierGachaTierPanelUI(병사 뽑기)와 대칭되는 구조 —
+    /// tierIndex로 이 패널이 몇 번째 티어인지, fixedSlot으로 어느 장비 슬롯을 뽑을지 지정한다
+    /// (이전에는 슬롯을 카테고리 안에서 드롭다운으로 고르게 했으나, 슬롯 자체가 최상위 카테고리
+    /// 탭으로 승격되면서 패널마다 고정 슬롯 하나만 담당한다). pullButtons[i]는 pullCounts[i]개를
+    /// 한 번에 뽑는 버튼이다(1/10/30/300개 등). 뽑기 결과는 팝업(EquipmentPulledPopup, 이제
+    /// 미사용) 대신 resultReveal이 이 패널 안에서 슬롯으로 하나씩 보여준다.
     /// </summary>
     public sealed class EquipmentGachaTierPanelUI : MonoBehaviour
     {
@@ -25,7 +26,7 @@ namespace UI
         private int tierIndex;
 
         [SerializeField]
-        private EquipmentSlotSelectorUI slotSelector;
+        private EquipmentType fixedSlot;
 
         [SerializeField]
         private Text goldText;
@@ -75,7 +76,7 @@ namespace UI
                 return;
             }
 
-            IReadOnlyList<EquipmentSO> results = gacha.Pull(slotSelector.SelectedSlot, tierIndex, count);
+            IReadOnlyList<EquipmentSO> results = gacha.Pull(fixedSlot, tierIndex, count);
             resultReveal.Reveal(BuildVisuals(results));
         }
 
