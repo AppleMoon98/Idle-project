@@ -173,6 +173,19 @@ namespace Save
         /// </summary>
         public string SquadTacticsJson { get; }
 
+        /// <summary>
+        /// 병사 골드 뽑기(GachaService) 테이블별 누적 뽑기 횟수를 직렬화한 JSON. InventoryJson과
+        /// 같은 이유로 통째로 문자열 하나로 저장한다(SaveService.RestoreGachaPullCounts가
+        /// 파싱/복원한다). 기록이 없으면 빈 문자열(= 전부 0회).
+        /// </summary>
+        public string SoldierGachaGoldPullCountsJson { get; }
+
+        /// <summary>
+        /// 스킬 골드 뽑기(SkillGachaService) 테이블별 누적 뽑기 횟수를 직렬화한 JSON. 나머지는
+        /// SoldierGachaGoldPullCountsJson과 같다.
+        /// </summary>
+        public string SkillGachaGoldPullCountsJson { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -204,7 +217,9 @@ namespace Save
             int skillScrollCount,
             string skillCountsJson,
             int equipmentGachaTicketCount,
-            string squadTacticsJson)
+            string squadTacticsJson,
+            string soldierGachaGoldPullCountsJson,
+            string skillGachaGoldPullCountsJson)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -237,6 +252,8 @@ namespace Save
             SkillCountsJson = skillCountsJson;
             EquipmentGachaTicketCount = equipmentGachaTicketCount;
             SquadTacticsJson = squadTacticsJson;
+            SoldierGachaGoldPullCountsJson = soldierGachaGoldPullCountsJson;
+            SkillGachaGoldPullCountsJson = skillGachaGoldPullCountsJson;
         }
     }
 }

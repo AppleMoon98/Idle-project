@@ -341,6 +341,11 @@ namespace Core
             Services.Register(skillGachaService);
             _managers.Add(skillGachaService);
 
+            // GachaService/SkillGachaService는 SoldierTicketCount/SkillScrollCount 등 save.Load()
+            // 결과에 의존해 SaveService보다 늦게 생성되므로(위 참고), 골드 뽑기 누적 횟수 복원도
+            // 두 서비스가 다 생긴 지금 시점에 한다(SaveService.RestoreGachaPullCounts 참고).
+            saveService.RestoreGachaPullCounts(save);
+
             var soldierTargetRegistry = new SoldierTargetRegistry();
             soldierTargetRegistry.Initialize();
             Services.Register(soldierTargetRegistry);

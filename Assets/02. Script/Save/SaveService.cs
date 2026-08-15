@@ -5,6 +5,7 @@ using Enhancement;
 using Enhancement.Events;
 using Equipment;
 using Equipment.Events;
+using Gacha;
 using Gacha.Events;
 using Inventory;
 using Inventory.Events;
@@ -97,6 +98,12 @@ namespace Save
             public SquadTacticService.SquadTacticSnapshotEntry[] Entries;
         }
 
+        [Serializable]
+        private class GachaPullCountSaveBlob
+        {
+            public int[] Counts;
+        }
+
         private const string GoldKey = "Save.Gold"; // 레거시(BigNumber 도입 전) int 저장 키 — 하위호환 읽기 전용
         private const string GoldBigKey = "Save.Gold.Big"; // BigNumber 라운드트립 문자열 저장 키
         private const string EnhancementStonesKey = "Save.EnhancementStones";
@@ -129,6 +136,8 @@ namespace Save
         private const string SkillCountsJsonKey = "Save.SkillCountsJson";
         private const string EquipmentGachaTicketCountKey = "Save.EquipmentGachaTicketCount";
         private const string SquadTacticsJsonKey = "Save.SquadTacticsJson";
+        private const string SoldierGachaGoldPullCountsJsonKey = "Save.SoldierGachaGoldPullCountsJson";
+        private const string SkillGachaGoldPullCountsJsonKey = "Save.SkillGachaGoldPullCountsJson";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -176,6 +185,8 @@ namespace Save
         private string _skillCountsJson = "";
         private int _equipmentGachaTicketCount;
         private string _squadTacticsJson = "";
+        private string _soldierGachaGoldPullCountsJson = "";
+        private string _skillGachaGoldPullCountsJson = "";
         private bool _isDirty;
 
         public SaveService(
@@ -248,6 +259,8 @@ namespace Save
             _skillCountsJson = save.SkillCountsJson;
             _equipmentGachaTicketCount = save.EquipmentGachaTicketCount;
             _squadTacticsJson = save.SquadTacticsJson;
+            _soldierGachaGoldPullCountsJson = save.SoldierGachaGoldPullCountsJson;
+            _skillGachaGoldPullCountsJson = save.SkillGachaGoldPullCountsJson;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -271,6 +284,8 @@ namespace Save
             _events.Subscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
             _events.Subscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
             _events.Subscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
+            _events.Subscribe<SoldierPulledEvent>(OnSoldierPulled);
+            _events.Subscribe<SkillPulledEvent>(OnSkillPulled);
 
             TickerRegistration.Register(this);
         }
@@ -301,6 +316,8 @@ namespace Save
             _events.Unsubscribe<SkillScrollChangedEvent>(OnSkillScrollChanged);
             _events.Unsubscribe<EquipmentGachaTicketChangedEvent>(OnEquipmentGachaTicketChanged);
             _events.Unsubscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
+            _events.Unsubscribe<SoldierPulledEvent>(OnSoldierPulled);
+            _events.Unsubscribe<SkillPulledEvent>(OnSkillPulled);
         }
 
         /// <summary>
@@ -339,6 +356,8 @@ namespace Save
             string skillCountsJson = PlayerPrefs.GetString(SkillCountsJsonKey, "");
             int equipmentGachaTicketCount = PlayerPrefs.GetInt(EquipmentGachaTicketCountKey, 0);
             string squadTacticsJson = PlayerPrefs.GetString(SquadTacticsJsonKey, "");
+            string soldierGachaGoldPullCountsJson = PlayerPrefs.GetString(SoldierGachaGoldPullCountsJsonKey, "");
+            string skillGachaGoldPullCountsJson = PlayerPrefs.GetString(SkillGachaGoldPullCountsJsonKey, "");
 
             return new SaveData(
                 gold,
@@ -371,7 +390,9 @@ namespace Save
                 skillScrollCount,
                 skillCountsJson,
                 equipmentGachaTicketCount,
-                squadTacticsJson);
+                squadTacticsJson,
+                soldierGachaGoldPullCountsJson,
+                skillGachaGoldPullCountsJson);
         }
 
         /// <summary>
@@ -431,6 +452,8 @@ namespace Save
             PlayerPrefs.SetString(SkillCountsJsonKey, _skillCountsJson);
             PlayerPrefs.SetInt(EquipmentGachaTicketCountKey, _equipmentGachaTicketCount);
             PlayerPrefs.SetString(SquadTacticsJsonKey, _squadTacticsJson);
+            PlayerPrefs.SetString(SoldierGachaGoldPullCountsJsonKey, _soldierGachaGoldPullCountsJson);
+            PlayerPrefs.SetString(SkillGachaGoldPullCountsJsonKey, _skillGachaGoldPullCountsJson);
             PlayerPrefs.Save();
 
             _isDirty = false;
@@ -587,6 +610,32 @@ namespace Save
         }
 
         /// <summary>
+        /// save.SoldierGachaGoldPullCountsJson/SkillGachaGoldPullCountsJson으로 골드 뽑기 누적
+        /// 횟수를 복원한다. GachaService/SkillGachaService는 SoldierTicketService/SkillScrollService
+        /// 등 자신의 생성자 인자가 save.Load() 결과(SoldierTicketCount 등)에 의존해 SaveService보다
+        /// 늦게 생성되므로(GameBootstrapper.Awake() 참고) 이 클래스의 생성자 인자로 받을 수 없다 -
+        /// SkillService가 TryLevelUp 시점에 CurrencyService를 GameBootstrapper.Services로 늦게
+        /// 조회하는 것과 같은 순환 의존성 우회. GameBootstrapper.Awake()에서 두 서비스 생성 직후
+        /// Load() 결과를 넘겨 한 번 호출한다.
+        /// </summary>
+        public void RestoreGachaPullCounts(SaveData save)
+        {
+            GachaPullCountSaveBlob soldierBlob = ParseBlobOrNull<GachaPullCountSaveBlob>(save.SoldierGachaGoldPullCountsJson);
+
+            if (soldierBlob != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GachaService gacha))
+            {
+                gacha.RestoreGoldPullCountsSnapshot(soldierBlob.Counts);
+            }
+
+            GachaPullCountSaveBlob skillBlob = ParseBlobOrNull<GachaPullCountSaveBlob>(save.SkillGachaGoldPullCountsJson);
+
+            if (skillBlob != null && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillGachaService skillGacha))
+            {
+                skillGacha.RestoreGoldPullCountsSnapshot(skillBlob.Counts);
+            }
+        }
+
+        /// <summary>
         /// "비어있으면 복원할 게 없고, 아니면 JSON을 역직렬화한다"는 6개 Restore* 메서드가 공유하는
         /// 파싱 절차. JsonUtility.FromJson은 빈 문자열을 넘기면 예외 대신 그냥 null이 아닌 기본
         /// 인스턴스를 반환할 수 있어, 빈 문자열 체크를 JsonUtility 호출보다 먼저 해야 한다.
@@ -721,6 +770,18 @@ namespace Save
         private void OnEquipmentGachaTicketChanged(EquipmentGachaTicketChangedEvent evt)
         {
             _equipmentGachaTicketCount = evt.CurrentTickets;
+            MarkDirty();
+        }
+
+        private void OnSoldierPulled(SoldierPulledEvent evt)
+        {
+            RebuildSoldierGachaPullCountsSnapshot();
+            MarkDirty();
+        }
+
+        private void OnSkillPulled(SkillPulledEvent evt)
+        {
+            RebuildSkillGachaPullCountsSnapshot();
             MarkDirty();
         }
 
@@ -886,6 +947,43 @@ namespace Save
             };
 
             _squadTacticsJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// GachaService의 현재 골드 뽑기 누적 횟수 전체를 JSON으로 다시 직렬화한다.
+        /// RestoreGachaPullCounts와 같은 이유로 GameBootstrapper.Services를 통해 늦게 조회한다.
+        /// </summary>
+        private void RebuildSoldierGachaPullCountsSnapshot()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out GachaService gacha))
+            {
+                return;
+            }
+
+            var blob = new GachaPullCountSaveBlob
+            {
+                Counts = gacha.ExportGoldPullCountsSnapshot()
+            };
+
+            _soldierGachaGoldPullCountsJson = JsonUtility.ToJson(blob);
+        }
+
+        /// <summary>
+        /// SkillGachaService 쪽의 RebuildSoldierGachaPullCountsSnapshot과 동일.
+        /// </summary>
+        private void RebuildSkillGachaPullCountsSnapshot()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillGachaService skillGacha))
+            {
+                return;
+            }
+
+            var blob = new GachaPullCountSaveBlob
+            {
+                Counts = skillGacha.ExportGoldPullCountsSnapshot()
+            };
+
+            _skillGachaGoldPullCountsJson = JsonUtility.ToJson(blob);
         }
     }
 }

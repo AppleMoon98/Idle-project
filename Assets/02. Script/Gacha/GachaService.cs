@@ -48,6 +48,34 @@ namespace Gacha
             return tierIndex >= 0 && tierIndex < _goldPullCounts.Length ? _goldPullCounts[tierIndex] : 0;
         }
 
+        /// <summary>
+        /// 테이블 배열 순서 그대로의 골드 뽑기 누적 횟수 스냅샷(SaveService가 세이브 직렬화에 쓴다).
+        /// </summary>
+        public int[] ExportGoldPullCountsSnapshot()
+        {
+            return (int[])_goldPullCounts.Clone();
+        }
+
+        /// <summary>
+        /// 세이브에서 복원한 스냅샷을 그대로 되돌린다. counts가 null이거나 길이가 안 맞으면
+        /// 겹치는 앞부분만 복원한다(콘텐츠 추가로 티어 수가 늘어난 세이브도 안전하게 처리).
+        /// 시딩이지 게임플레이 변화가 아니므로 이벤트는 발행하지 않는다.
+        /// </summary>
+        public void RestoreGoldPullCountsSnapshot(int[] counts)
+        {
+            if (counts == null)
+            {
+                return;
+            }
+
+            int length = System.Math.Min(counts.Length, _goldPullCounts.Length);
+
+            for (int i = 0; i < length; i++)
+            {
+                _goldPullCounts[i] = counts[i];
+            }
+        }
+
         public void Initialize()
         {
         }

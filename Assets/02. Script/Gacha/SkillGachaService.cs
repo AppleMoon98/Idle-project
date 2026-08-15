@@ -50,6 +50,34 @@ namespace Gacha
             return tierIndex >= 0 && tierIndex < _goldPullCounts.Length ? _goldPullCounts[tierIndex] : 0;
         }
 
+        /// <summary>
+        /// 테이블 배열 순서 그대로의 골드 뽑기 누적 횟수 스냅샷. Gacha.GachaService의 동명
+        /// 메서드와 같은 용도(SaveService가 세이브 직렬화에 쓴다).
+        /// </summary>
+        public int[] ExportGoldPullCountsSnapshot()
+        {
+            return (int[])_goldPullCounts.Clone();
+        }
+
+        /// <summary>
+        /// 세이브에서 복원한 스냅샷을 그대로 되돌린다. Gacha.GachaService.RestoreGoldPullCountsSnapshot과
+        /// 같은 규칙(길이 안 맞으면 겹치는 앞부분만, 이벤트 미발행).
+        /// </summary>
+        public void RestoreGoldPullCountsSnapshot(int[] counts)
+        {
+            if (counts == null)
+            {
+                return;
+            }
+
+            int length = System.Math.Min(counts.Length, _goldPullCounts.Length);
+
+            for (int i = 0; i < length; i++)
+            {
+                _goldPullCounts[i] = counts[i];
+            }
+        }
+
         public void Initialize()
         {
         }
