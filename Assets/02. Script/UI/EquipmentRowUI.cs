@@ -40,6 +40,32 @@ namespace UI
         private OwnedEquipment _owned;
 
         /// <summary>
+        /// Selectable.interactable를 대입하면 Unity가 매번 Normal→Disabled 색상 전환을 fadeDuration에
+        /// 걸쳐 서서히 재생한다 - 새로 Instantiate된 행은 프리팹 기본값(대개 interactable=true, "정상"
+        /// 색)으로 한 번 활성화된 직후 곧바로 Initialize가 실제 값(대개 false, 미보유)으로 바꾸면서
+        /// 이 전환이 시작돼, "잠깐 불이 들어왔다가 서서히 회색으로 바뀌는" 깜빡임이 매번 보였다(실사용
+        /// 중 발견). fadeDuration을 이 호출 한 번만 0으로 낮춰 전환을 즉시 끝내고, 이후 실제 플레이
+        /// 중 호버/클릭 피드백에는 영향이 없도록 원래 값으로 복원한다.
+        /// </summary>
+        private static void SetInteractableInstant(Selectable selectable, bool interactable)
+        {
+            if (selectable == null)
+            {
+                return;
+            }
+
+            ColorBlock colors = selectable.colors;
+            float originalFadeDuration = colors.fadeDuration;
+            colors.fadeDuration = 0f;
+            selectable.colors = colors;
+
+            selectable.interactable = interactable;
+
+            colors.fadeDuration = originalFadeDuration;
+            selectable.colors = colors;
+        }
+
+        /// <summary>
         /// 카드 기본색에 등급색을 살짝 섞어, 텍스트 가독성을 해치지 않으면서 등급을 구분할 수 있게 한다.
         /// 슬롯 팝업/전체 목록 패널이 동일한 카드 색상 규칙을 쓰도록 공용 헬퍼로 둔다.
         /// </summary>
@@ -79,15 +105,11 @@ namespace UI
                 label.color = LockedTextColor;
                 label.text = definition.ItemName;
 
-                equipButton.interactable = false;
+                SetInteractableInstant(equipButton, false);
                 equipButtonLabel.text = "미보유";
-                fuseButton.interactable = false;
-                enhanceButton.interactable = false;
-
-                if (nameButton != null)
-                {
-                    nameButton.interactable = false;
-                }
+                SetInteractableInstant(fuseButton, false);
+                SetInteractableInstant(enhanceButton, false);
+                SetInteractableInstant(nameButton, false);
 
                 return;
             }
@@ -98,7 +120,7 @@ namespace UI
             string equippedTag = isEquipped ? "✓ " : "";
             label.text = $"{equippedTag}{owned.Definition.ItemName} x{owned.Count} (강화 {owned.EnhancementLevel})";
 
-            equipButton.interactable = !isEquipped;
+            SetInteractableInstant(equipButton, !isEquipped);
             equipButtonLabel.text = isEquipped ? "장착됨" : "장착";
 
             equipButton.onClick.AddListener(() =>
