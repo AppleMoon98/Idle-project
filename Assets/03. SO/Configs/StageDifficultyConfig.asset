@@ -16,3 +16,8 @@ MonoBehaviour:
   multiplierPerStageIndex: 0.15
   goldBaseMultiplier: 1
   goldMultiplierPerStageIndex: 0.08
+  statMultiplierTiers:
+  - stageIndexThreshold: 0
+    multiplierPerIndex: 0.15
+  - stageIndexThreshold: 9
+    multiplierPerIndex: 4
