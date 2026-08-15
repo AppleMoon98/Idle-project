@@ -8,8 +8,9 @@ namespace UI
     /// <summary>
     /// 같은 SoldierSO(등급+병종)로 묶인 로스터 슬롯(2개 이상)을 탭했을 때, 그 안의 개별 유닛을
     /// 고르는 팝업. SoldierDeploymentPickerPopupUI와 같은 "이름 목록 → 하나 선택" 형태로,
-    /// SoldierPickerRowUI를 그대로 재사용한다. 하나를 고르면 SoldierRosterSlotActionPopupUI를
-    /// 그 유닛으로 열고 자신은 닫는다.
+    /// SoldierPickerRowUI를 그대로 재사용한다. 하나를 고르면 SoldierEquipmentPopupUI를 그
+    /// 유닛으로 열고 자신은 닫는다(SoldierRosterPanelUI와 같은 이유로 액션 선택 단계 없이 곧장
+    /// 장비 팝업으로 이동한다).
     /// </summary>
     public sealed class SoldierRosterStackPopupUI : MonoBehaviour
     {
@@ -26,7 +27,7 @@ namespace UI
         private Button closeButton;
 
         [SerializeField]
-        private SoldierRosterSlotActionPopupUI actionPopup;
+        private SoldierEquipmentPopupUI equipmentPopup;
 
         private readonly List<SoldierPickerRowUI> _spawnedRows = new();
 
@@ -67,7 +68,7 @@ namespace UI
 
         private void OnPicked(OwnedSoldier owned)
         {
-            actionPopup.Open(owned);
+            equipmentPopup.Open(owned.InstanceId);
             Close();
         }
     }
