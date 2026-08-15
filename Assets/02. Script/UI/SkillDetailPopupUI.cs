@@ -42,6 +42,15 @@ namespace UI
         private Text materialText;
 
         [SerializeField]
+        private GameObject targetSlotRow;
+
+        [SerializeField]
+        private Image targetSlotIcon;
+
+        [SerializeField]
+        private Text targetSlotText;
+
+        [SerializeField]
         private Button levelUpButton;
 
         [SerializeField]
@@ -227,6 +236,48 @@ namespace UI
             // 미습득(레벨 0) 스킬만 장착할 수 없다 - 슬롯 미선택은 더 이상 버튼을 막지 않고,
             // OnEquipClicked에서 "슬롯 선택 대기" 흐름으로 넘어간다.
             equipButton.interactable = level >= 1;
+
+            RefreshTargetSlotRow();
+        }
+
+        // 이 팝업(Card)이 화면 중앙을 넓게 덮어, 이미 선택된(테두리 있는) 슬롯이 뒤에 가려져
+        // 안 보이는 문제가 실사용 중 발견됐다 - 어느 슬롯에 장착될지를 팝업 안에서 아이콘+테두리로
+        // 직접 보여준다. 슬롯이 아직 선택되지 않았으면(장착 버튼을 누른 뒤에야 슬롯을 고르는
+        // RequestEquipTarget 흐름, OnEquipClicked 참고) 장착 대상이 아직 정해지지 않았으므로 숨긴다.
+        private void RefreshTargetSlotRow()
+        {
+            if (targetSlotRow == null)
+            {
+                return;
+            }
+
+            int selectedSlotIndex = slotBar != null ? slotBar.SelectedSlotIndex : -1;
+
+            if (selectedSlotIndex < 0)
+            {
+                targetSlotRow.SetActive(false);
+                return;
+            }
+
+            targetSlotRow.SetActive(true);
+            targetSlotText.text = $"{selectedSlotIndex + 1}번 슬롯에 장착됩니다.";
+
+            SkillSO equipped = null;
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            {
+                equipped = loadout.GetEquipped(selectedSlotIndex);
+            }
+
+            if (equipped != null)
+            {
+                targetSlotIcon.sprite = equipped.Icon;
+                targetSlotIcon.color = equipped.IconTint;
+            }
+            else
+            {
+                targetSlotIcon.sprite = null;
+                targetSlotIcon.color = new Color(0.3f, 0.3f, 0.3f, 1f);
+            }
         }
 
         // 효과 타입에 따라 의미 있는 스펙만 나열한다 - 예를 들어 지속시간은 SelfBuff에만 있는
