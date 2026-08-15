@@ -15,8 +15,20 @@ namespace Stage
     ///   반복), Repeat이면 전진하지 않고 같은 스테이지를 계속 반복한다.
     /// - 플레이어 사망 시: 모드와 무관하게 한 칸 후퇴하되, 최고 기록 기준
     ///   maxRegressionDistance칸 밑으로는 내려가지 않는다.
+    ///
+    /// OnStageCleared/OnCharacterDied는 CharacterDiedEvent 처리 도중 재진입으로 호출된다(마지막
+    /// 처치 → StageClearedEvent → 여기 → LoadStage까지 전부 같은 호출 스택). 이 안에서 곧바로
+    /// LoadStage를 부르면 StageController.EndCurrentStage가 현재 StageProgressTracker를 즉시
+    /// Dispose(구독 해제)하는데, 같은 프레임·같은 호출 체인 안에서 다른 몬스터의 사망 이벤트가
+    /// 그 직후에 또 발행되면(예: 광역 스킬이 여러 마리를 한 foreach에서 연달아 처치) 그 사망은
+    /// 이미 사라진 옛 트래커도, 아직 구독 전인 새 트래커도 못 받아 조용히 유실된다 — 실사용 중
+    /// 지적으로 발견. 그래서 LoadStage 호출 자체를 즉시 실행하지 않고 _pendingLoadStage에
+    /// 적어두었다가 다음 틱(Tick)에서 실행한다 — 그러면 같은 프레임에 몰린 나머지 사망 이벤트가
+    /// 전부 원래 트래커에 정상 도달한 뒤에야 트래커가 교체된다. JumpTo/JumpToHighestCleared/
+    /// JumpToBreakthroughFrontier는 UI에서 직접 호출돼(EventBus 재진입이 아님) 그대로 즉시
+    /// LoadStage한다.
     /// </summary>
-    public sealed class StageProgression
+    public sealed class StageProgression : ITickable
     {
         private readonly StageCatalogSO _catalog;
         private readonly StageController _controller;
@@ -28,6 +40,7 @@ namespace Stage
         private int _currentIndex;
         private int _highestClearedIndex;
         private bool _isSuppressed;
+        private StageSO _pendingLoadStage;
 
         public StageProgression(
             StageCatalogSO catalog,
@@ -51,6 +64,7 @@ namespace Stage
 
             _events.Subscribe<StageClearedEvent>(OnStageCleared);
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
+            TickerRegistration.Register(this);
         }
 
         /// <summary>
@@ -60,6 +74,23 @@ namespace Stage
         {
             _events.Unsubscribe<StageClearedEvent>(OnStageCleared);
             _events.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+            TickerRegistration.Unregister(this);
+        }
+
+        /// <summary>
+        /// OnStageCleared/OnCharacterDied가 예약해둔 LoadStage를 여기서 실제로 실행한다 - 예약된
+        /// 게 없으면 아무 일도 하지 않는다.
+        /// </summary>
+        void ITickable.Tick(float deltaTime)
+        {
+            if (_pendingLoadStage == null)
+            {
+                return;
+            }
+
+            StageSO stage = _pendingLoadStage;
+            _pendingLoadStage = null;
+            _controller.LoadStage(stage);
         }
 
         /// <summary>
@@ -169,7 +200,7 @@ namespace Stage
                 _currentIndex = next != null ? _currentIndex + 1 : _highestClearedIndex;
             }
 
-            _controller.LoadStage(_catalog.GetAt(_currentIndex));
+            _pendingLoadStage = _catalog.GetAt(_currentIndex);
         }
 
         private void OnCharacterDied(CharacterDiedEvent evt)
@@ -187,7 +218,7 @@ namespace Stage
             int floor = Mathf.Max(0, _highestClearedIndex - _maxRegressionDistance);
             _currentIndex = Mathf.Max(_currentIndex - 1, floor);
 
-            _controller.LoadStage(_catalog.GetAt(_currentIndex));
+            _pendingLoadStage = _catalog.GetAt(_currentIndex);
         }
     }
 }
