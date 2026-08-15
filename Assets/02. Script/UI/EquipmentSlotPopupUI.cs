@@ -26,7 +26,10 @@ namespace UI
         private EquipmentRowUI rowPrefab;
 
         [SerializeField]
-        private Button closeButton;
+        private Button sortButton;
+
+        [SerializeField]
+        private Text sortButtonLabel;
 
         [SerializeField]
         private Button enhanceAllButton;
@@ -59,14 +62,21 @@ namespace UI
         private EquipmentType _openSlot;
         private bool _isOpen;
         private bool _isRefreshPending;
+
+        // 팝업이 닫혔다 다시 열려도(EquippedSlotBarUI가 매번 Open()을 다시 부른다) 초기화되면
+        // 안 되므로, Awake 이후 이 필드를 건드리는 곳은 ToggleSort 하나뿐이다 - Open()/Awake()
+        // 어디에서도 리셋하지 않는다.
+        private bool _sortDescending;
+
         private readonly List<EquipmentRowUI> _spawnedRows = new();
 
         private void Awake()
         {
             popupRoot.SetActive(false);
-            closeButton.onClick.AddListener(Close);
+            sortButton.onClick.AddListener(ToggleSort);
             enhanceAllButton.onClick.AddListener(EnhanceAll);
             fuseAllButton.onClick.AddListener(FuseAll);
+            UpdateSortButtonLabel();
         }
 
         private void OnEnable()
@@ -117,11 +127,11 @@ namespace UI
         }
 
         /// <summary>
-        /// 팝업을 닫는다. EquippedSlotBarUI가 자신이 비활성화될 때(장비 탭을 닫을 때) 이 팝업도
-        /// 같이 닫기 위해 외부에서 호출할 수 있어야 한다 - 그리고 반대로, 이 팝업의 닫기 버튼을
-        /// 눌렀을 때도 EquippedSlotBar를 함께 닫는다(equippedSlotBar.SetActive(false) →
-        /// EquippedSlotBarUI.OnDisable() → 이 Close()를 다시 부르지만, 이미 닫힌 상태라 그냥
-        /// 무해하게 재진입할 뿐이다).
+        /// 팝업을 닫는다. 이 팝업 자체에는 닫기 버튼이 없다(장비 탭을 다시 누르면
+        /// EquippedSlotBarUI.OnDisable()이 이 메서드를 호출해 닫는다) - 대신 여기서
+        /// equippedSlotBar도 함께 SetActive(false)해, 장비 탭이 열려있는 다른 경로(예: 다음
+        /// 세션에서 닫기 동작이 다시 추가되는 경우)로 이 메서드가 불려도 슬롯바가 팝업 없이
+        /// 혼자 남지 않게 한다.
         /// </summary>
         public void Close()
         {
@@ -147,6 +157,29 @@ namespace UI
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out EquipmentFusionService fusionService))
             {
                 fusionService.TryFuseAll(_openSlot);
+            }
+        }
+
+        /// <summary>
+        /// 등급 정렬 방향(오름차순/내림차순)만 뒤집는다. "보유한 라인이 항상 맨 위"라는 1순위
+        /// 기준은 Refresh()에서 이 필드와 무관하게 항상 적용되므로 여기서는 건드리지 않는다.
+        /// </summary>
+        private void ToggleSort()
+        {
+            _sortDescending = !_sortDescending;
+            UpdateSortButtonLabel();
+
+            if (_isOpen)
+            {
+                Refresh();
+            }
+        }
+
+        private void UpdateSortButtonLabel()
+        {
+            if (sortButtonLabel != null)
+            {
+                sortButtonLabel.text = _sortDescending ? "정렬 ▼" : "정렬 ▲";
             }
         }
 
@@ -189,14 +222,26 @@ namespace UI
             // 못한 장비도 "무엇이 있는지" 미리 보여주기 위함(EquipmentRowUI가 owned==null이면
             // 비활성 상태로 그린다). 개수 0인 라인은 InventoryService가 더 이상 지우지 않으므로
             // inventory.TryGet으로 정상적으로 조회된다.
-            IEnumerable<EquipmentSO> definitionsInSlot = equipmentCatalog.Items
+            //
+            // 정렬 1순위는 항상 "보유 여부"다(_sortDescending과 무관) - 보유한 라인이 항상 위에
+            // 오고, 그 안에서만 등급 오름차순/내림차순이 _sortDescending에 따라 갈린다.
+            IEnumerable<(EquipmentSO Definition, OwnedEquipment Owned)> entries = equipmentCatalog.Items
                 .Where(item => item != null && item.EquipmentType == _openSlot)
-                .OrderBy(item => gradeCatalog.IndexOf(item.Grade));
+                .Select(item =>
+                {
+                    inventory.TryGet(item, out OwnedEquipment owned);
+                    return (Definition: item, Owned: owned);
+                });
 
-            foreach (EquipmentSO definition in definitionsInSlot)
+            IOrderedEnumerable<(EquipmentSO Definition, OwnedEquipment Owned)> ordered = entries
+                .OrderBy(entry => entry.Owned == null ? 1 : 0);
+
+            ordered = _sortDescending
+                ? ordered.ThenByDescending(entry => gradeCatalog.IndexOf(entry.Definition.Grade))
+                : ordered.ThenBy(entry => gradeCatalog.IndexOf(entry.Definition.Grade));
+
+            foreach ((EquipmentSO definition, OwnedEquipment owned) in ordered)
             {
-                inventory.TryGet(definition, out OwnedEquipment owned);
-
                 EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, definition.Grade, gradeTintBlend);
                 row.Initialize(definition, owned, owned != null && owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target));
