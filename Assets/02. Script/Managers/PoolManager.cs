@@ -116,7 +116,13 @@ namespace Managers
         private void ReturnToRoot(GameObject instance)
         {
             instance.SetActive(false);
-            instance.transform.SetParent(_poolRoot);
+
+            // worldPositionStays를 생략(기본값 true)하면 이전 부모와 _poolRoot의 월드 스케일이
+            // 다를 때마다(예: Canvas 하위 UI, 월드 스케일 ≈1.06) 로컬 스케일이 매번 재계산돼
+            // 반납할 때마다 커진다 - 다음 Get()이 SetParent(newParent, false)로 그 값을 그대로
+            // 물려받으므로 반납↔재사용이 반복될수록 계속 곱연산으로 누적된다. 비활성화된 상태라
+            // 월드 좌표를 보존할 이유가 없으므로 항상 false로 고정한다.
+            instance.transform.SetParent(_poolRoot, worldPositionStays: false);
         }
 
         private static void NotifySpawned(GameObject instance)
