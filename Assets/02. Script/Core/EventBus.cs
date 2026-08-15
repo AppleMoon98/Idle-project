@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using UnityEngine;
 
 namespace Core
 {
@@ -53,13 +54,32 @@ namespace Core
         }
 
         /// <summary>
-        /// 이벤트 타입 T의 인스턴스를 구독자 전체에게 발행한다.
+        /// 이벤트 타입 T의 인스턴스를 구독자 전체에게 발행한다. 구독자 하나가 예외를 던져도
+        /// 나머지 구독자는 계속 호출되어야 한다 - 예를 들어 스테이지 클리어의 마지막 처치는 같은
+        /// CharacterDiedEvent 처리 도중 재진입으로 StageClearedEvent/LoadStage까지 동기적으로
+        /// 실행하는데, 이때 중간의 어떤 구독자가 예외를 던지면 뒤에 늦게 구독된
+        /// Character.PoolReleaseOnDeath(몬스터를 실제로 풀에 반납하는 구독자)가 아예 호출되지
+        /// 못해 IsDead만 true인 채 반납되지 않은 "좀비" 몬스터가 남는 문제가 있었다(실사용 중
+        /// 발견). GameTicker.Update()가 개별 Tick() 호출을 try/catch로 감싸는 것과 동일한 이유로
+        /// 동일하게 구독자를 하나씩 분리 호출한다.
         /// </summary>
         public void Publish<T>(T evt)
         {
-            if (_channels.TryGetValue(typeof(T), out Delegate existing))
+            if (!_channels.TryGetValue(typeof(T), out Delegate existing))
             {
-                ((Action<T>)existing).Invoke(evt);
+                return;
+            }
+
+            foreach (Delegate handler in existing.GetInvocationList())
+            {
+                try
+                {
+                    ((Action<T>)handler).Invoke(evt);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception);
+                }
             }
         }
 
