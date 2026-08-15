@@ -25,11 +25,14 @@ namespace Combat
     /// 대상을 끝까지 끌고 가는 것처럼 보였다(실사용 중 발견). 옆으로 꺾어야 관통 경로에서 대상이
     /// 완전히 벗어난다). 명중해도 돌진을 끊지 않고 그대로
     /// 관통해서 직진한다(같은 돌진에서 이미 맞힌 대상은 _hitTargetsThisCharge로 걸러 중복 피해를
-    /// 주지 않는다) — 이번 돌진의 제한 시간(_currentChargeDuration)을 넘겨야 비로소 Positioning으로
-    /// 돌아가 다음 돌진을 준비한다. 이 제한 시간은 고정값이 아니라 BeginCharge 시점에 목표까지의
-    /// 거리로부터 매번 새로 계산된다(CalculateTimeToCoverDistance + chargeOverrunDuration, minChargeDuration~
-    /// maxChargeDuration 범위로 clamp) — 가까운 상대에게 걸었던 돌진이 먼 상대용 시간만큼 계속
-    /// 이어지거나, 먼 상대에게 걸었던 돌진이 도착하기도 전에 끊기는 것을 막는다. 첫 명중 이후에는 위협을 다시 조준하는 조향(TickCharging의 방향 보정)도
+    /// 주지 않는다) — 첫 명중 시점(_hitElapsedMark)부터 chargeOverrunDuration만큼 더 지나야 비로소
+    /// Positioning으로 돌아가 다음 돌진을 준비한다(ShouldEndCharge). 아직 한 번도 못 맞혔으면
+    /// maxChargeDuration을 안전망 삼아 그때까지는 절대 조기 종료되지 않는다 — 위협(특히 계속
+    /// 움직이는 플레이어)을 따라잡는 데 필요한 실제 거리를 BeginCharge 시점 스냅샷 거리로 미리
+    /// 못박아두지 않기 위함이다(실사용 중 발견: 스냅샷 거리 기반으로 미리 정해둔 제한 시간을 쓰면,
+    /// 위협이 돌진 도중 이동해 실제 필요 거리가 늘어날 때 명중 전에 시간이 다 돼 돌진이 끊기고
+    /// Positioning→BeginCharge로 처음 속도부터 재가속하는 게 "한 번 움찔 멈췄다 재돌진"하는 것처럼
+    /// 보였다). 첫 명중 이후에는 위협을 다시 조준하는 조향(TickCharging의 방향 보정)도
     /// 멈춘다 — 그렇지 않으면 방금 지나친 대상이 여전히 가장 가까운 위협으로 잡혀 그쪽으로 다시
     /// 돌아서려 해, "관통해서 직진"이 아니라 제자리에서 맴도는 것처럼 보인다. 돌진 중에는 자신의
     /// CharacterSeparation(모든 캐릭터가 서로 겹치지 않게 매 틱 밀어내는 범용 컴포넌트)도 꺼둔다 —
@@ -99,9 +102,6 @@ namespace Combat
         private float turnRatePenaltyPerSpeed = 25f;
 
         [SerializeField]
-        private float minChargeDuration = 0.5f;
-
-        [SerializeField]
         private float chargeOverrunDuration = 0.6f;
 
         [SerializeField]
@@ -148,7 +148,7 @@ namespace Combat
         private Vector3 _chargeDirection;
         private float _chargeSpeed;
         private float _chargeElapsed;
-        private float _currentChargeDuration;
+        private float _hitElapsedMark;
         private bool _hasHitThisCharge;
         private readonly HashSet<Health> _hitTargetsThisCharge = new HashSet<Health>();
         private float _blockedElapsed;
@@ -395,12 +395,10 @@ namespace Combat
             _chargeDirection = (targetPosition - transform.position).normalized;
             _chargeSpeed = chargeStartSpeed;
             _chargeElapsed = 0f;
+            _hitElapsedMark = 0f;
             _hasHitThisCharge = false;
             _hitTargetsThisCharge.Clear();
             _blockedElapsed = 0f;
-
-            float distance = Vector3.Distance(transform.position, targetPosition);
-            _currentChargeDuration = Mathf.Clamp(CalculateTimeToCoverDistance(distance) + chargeOverrunDuration, minChargeDuration, maxChargeDuration);
 
             if (_separation != null)
             {
@@ -409,34 +407,28 @@ namespace Combat
         }
 
         /// <summary>
-        /// 시작 속도(chargeStartSpeed)에서 가속(chargeAcceleration)해 최고 속도(maxChargeSpeed)에
-        /// 도달할 때까지의 가속 구간, 그 이후는 최고 속도로 등속 이동한다고 가정하고 distance를
-        /// 주파하는 데 걸리는 시간을 계산한다. BeginCharge가 이 값에 chargeOverrunDuration(명중
-        /// 이후에도 관통하며 계속 달리는 여유 시간)을 더해 이번 돌진의 실제 제한 시간을 정한다 —
-        /// 목표까지 거리가 가까울수록 짧게, 멀수록 길게(단 minChargeDuration~maxChargeDuration
-        /// 범위로 clamp) 잡아, "가까운 상대인데도 3초씩 계속 달리는" 부자연스러움과 "먼 상대인데
-        /// 다 도착하기도 전에 시간이 끝나는" 문제를 모두 피한다.
+        /// 아직 아무것도 못 맞혔으면 maxChargeDuration(안전망 — 위협이 계속 피하거나 다른 이유로
+        /// 영영 안 맞을 때만 발동)을, 이미 맞혔으면 그 순간(_hitElapsedMark)부터
+        /// chargeOverrunDuration만 더 지나면 돌진을 끝낸다. 명중 시점 기준으로 재는 게 핵심 —
+        /// 예전에는 BeginCharge 시점 스냅샷 거리로 총 돌진 시간을 미리 계산해뒀는데(distance ÷
+        /// 속도), 위협(특히 플레이어)이 돌진 도중 계속 움직이면 실제로 따라잡는 데 필요한 거리가
+        /// 그 추정치보다 길어질 수 있어 — 명중하기도 전에 시간이 다 돼 돌진이 끊기고 Positioning으로
+        /// 돌아갔다가 다시 BeginCharge로 처음부터(chargeStartSpeed부터) 재가속하는 게 눈에 "한 번
+        /// 움찔 멈췄다 재돌진"하는 것처럼 보였다(실사용 중 발견). 명중 여부만으로 끝을 판단하면
+        /// 위협이 아무리 움직여도 실제로 따라잡을 때까지는 절대 조기 종료되지 않는다.
         /// </summary>
-        private float CalculateTimeToCoverDistance(float distance)
+        private bool ShouldEndCharge()
         {
-            float accelPhaseDuration = (maxChargeSpeed - chargeStartSpeed) / chargeAcceleration;
-            float accelPhaseDistance = (chargeStartSpeed + maxChargeSpeed) * 0.5f * accelPhaseDuration;
-
-            if (distance <= accelPhaseDistance)
-            {
-                float discriminant = chargeStartSpeed * chargeStartSpeed + 2f * chargeAcceleration * distance;
-                return (-chargeStartSpeed + Mathf.Sqrt(discriminant)) / chargeAcceleration;
-            }
-
-            float remainingDistance = distance - accelPhaseDistance;
-            return accelPhaseDuration + remainingDistance / maxChargeSpeed;
+            return _hasHitThisCharge
+                ? _chargeElapsed - _hitElapsedMark >= chargeOverrunDuration
+                : _chargeElapsed >= maxChargeDuration;
         }
 
         private void TickCharging(float deltaTime)
         {
             _chargeElapsed += deltaTime;
 
-            if (_chargeElapsed >= _currentChargeDuration)
+            if (ShouldEndCharge())
             {
                 EndCharge();
                 return;
@@ -474,7 +466,12 @@ namespace Combat
                 }
 
                 _hitTargetsThisCharge.Add(health);
-                _hasHitThisCharge = true;
+
+                if (!_hasHitThisCharge)
+                {
+                    _hasHitThisCharge = true;
+                    _hitElapsedMark = _chargeElapsed;
+                }
 
                 float bonusDamage = (_chargeSpeed - chargeStartSpeed) * bonusDamagePerSpeed;
                 health.TakeDamage(_statsProvider.Stats.AttackPower + bonusDamage);
