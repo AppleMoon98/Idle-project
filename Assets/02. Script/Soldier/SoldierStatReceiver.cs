@@ -73,6 +73,11 @@ namespace Soldier
         private void OnSoldierStatEnhanced(SoldierStatEnhancedEvent evt)
         {
             RuntimeStatApplier.Apply(_statsProvider.Stats, _statsProvider.BaseStats, evt.StatType, evt.ValuePerLevel);
+
+            if (evt.StatType == EnhancementStatType.MaxHealth)
+            {
+                _health.NotifyMaxHealthChanged();
+            }
         }
 
         private void OnSkillSelfBuffApplied(SkillSelfBuffAppliedEvent evt)
