@@ -1,0 +1,25 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba611d6f9133457469a1b67e337a77c9, type: 3}
+  m_Name: PromotionBossPattern_Cone
+  m_EditorClassIdentifier: Assembly-CSharp::Rank.Boss.PromotionBossPatternSO
+  displayName: "\uBD80\uCC44\uAF34"
+  hits:
+  - delay: 0
+    telegraphDuration: 2.5
+    shape: 1
+    length: 40
+    width: 60
+    facingOffsetDegrees: 0
+    damage: 250
+    reachesMapEdge: 1
+    anchorAtNearEdge: 0

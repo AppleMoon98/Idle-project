@@ -22,6 +22,13 @@ namespace Character
         public bool IsDead { get; private set; }
 
         /// <summary>
+        /// 무적 여부. true인 동안 TakeDamage는 완전히 무시된다(이벤트 발행도 없음).
+        /// 기본값 false — SetInvulnerable을 명시적으로 호출하는 소수의 특수 시퀀스(보스 페이즈
+        /// 전환 등)만 opt-in으로 쓴다.
+        /// </summary>
+        public bool IsInvulnerable { get; private set; }
+
+        /// <summary>
         /// 현재 체력.
         /// </summary>
         public float Current => _current;
@@ -43,7 +50,7 @@ namespace Character
         /// </summary>
         public void TakeDamage(float amount, bool isCritical = false, bool isPoison = false)
         {
-            if (IsDead || amount <= 0f)
+            if (IsDead || IsInvulnerable || amount <= 0f)
             {
                 return;
             }
@@ -114,6 +121,15 @@ namespace Character
             IsDead = false;
             SetCurrent(_statsProvider.Stats.MaxHealth);
             _shieldGuard?.ResetShield();
+        }
+
+        /// <summary>
+        /// 무적 여부를 설정한다. 보스 페이즈 전환처럼 짧은 시간 동안 완전한 피해 면역이
+        /// 필요한 특수 시퀀스가 호출한다 - 일반 전투 흐름에서는 아무도 호출하지 않는다.
+        /// </summary>
+        public void SetInvulnerable(bool invulnerable)
+        {
+            IsInvulnerable = invulnerable;
         }
 
         void IPoolable.OnSpawned()
