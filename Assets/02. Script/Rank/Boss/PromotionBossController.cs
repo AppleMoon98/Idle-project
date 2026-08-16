@@ -144,6 +144,11 @@ namespace Rank.Boss
         {
             _sequence.Cancel();
             ReleaseAllIndicators();
+
+            // 페이즈2 도중(카메라가 맵 중앙에 강제 고정된 상태) 보스가 강제 반납되는 경우(예: 그
+            // 사이 플레이어가 죽어 RankPromotionBattleController.HandleFailure()가 이 보스를 풀에
+            // 반납) EndPhaseTwo()가 끝까지 실행되지 못해 override가 영원히 안 풀릴 수 있다.
+            _cameraFollowService?.SetOverrideTarget(null);
         }
 
         void ITickable.Tick(float deltaTime)
@@ -243,7 +248,13 @@ namespace Rank.Boss
         /// </summary>
         private void RunPhaseTwoSequence()
         {
-            Vector3 center = _cameraFollowService != null ? _cameraFollowService.HomeLocalPosition : transform.position;
+            // CameraFollowService.HomeLocalPosition은 카메라 자신의 로컬 좌표(z가 카메라 depth,
+            // 보통 -10)다 - 그 z를 그대로 스프라이트 위치에 쓰면 카메라와 같은 z, 즉 근평면(near
+            // clip) 안쪽에 놓이게 되어 아예 렌더링되지 않는다(Services.CameraFollowService.
+            // GetRandomPointWithinBounds가 이미 문서화한 것과 동일한 함정 - 그 메서드는 z를 0으로
+            // 강제한다). 게임 평면(z=0)의 XY만 취한다.
+            Vector3 homePosition = _cameraFollowService != null ? _cameraFollowService.HomeLocalPosition : transform.position;
+            Vector3 center = new(homePosition.x, homePosition.y, 0f);
 
             _health.SetInvulnerable(true);
 
@@ -255,6 +266,14 @@ namespace Rank.Boss
             FreezeMovement();
 
             transform.position = center;
+
+            // 기본 줌 상태에서는 Services.CameraFollowService가 여전히 플레이어를 따라간다 -
+            // 보스가 맵 중앙(플레이어와 멀리 떨어진 곳)으로 순간이동해도 카메라를 그대로 두면
+            // 페이즈2 전체(보스+텔레그래프)가 화면 밖에서 벌어진다. 페이즈2가 끝날 때까지
+            // 카메라를 강제로 이 위치에 고정한다(EndPhaseTwo에서 해제). 카메라 자신은 게임
+            // 평면(z=0)이 아니라 원래 자기 depth(homePosition.z, 보통 -10)를 유지해야 한다 -
+            // center(z=0)를 그대로 넘기면 카메라 자신이 게임 평면 위로 옮겨져 렌더링이 깨진다.
+            _cameraFollowService?.SetOverrideTarget(homePosition);
 
             List<(float delaySinceStart, Action execute)> steps = new();
             float t = phaseTwoCrossDelay;
@@ -416,6 +435,8 @@ namespace Rank.Boss
             }
 
             UnfreezeMovement();
+
+            _cameraFollowService?.SetOverrideTarget(null);
 
             _elapsedSinceLastCast = 0f;
         }

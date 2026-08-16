@@ -23,6 +23,7 @@ namespace Services
         private Transform _cameraTransform;
         private Camera _camera;
         private Vector3 _homeLocalPosition;
+        private Vector3? _overrideTargetPosition;
 
         /// <summary>
         /// 카메라의 원래 고정 위치(경계 사각형의 중심). Camera.main이 루트(부모 없음)라는 기존
@@ -52,6 +53,18 @@ namespace Services
         public void Shutdown()
         {
             TickerRegistration.Unregister(this);
+        }
+
+        /// <summary>
+        /// 설정하면 플레이어 추적/홈 위치 로직을 완전히 무시하고 카메라를 이 월드 좌표로 강제 고정한다.
+        /// Rank.Boss.PromotionBossController의 체력 50% 페이즈처럼, 보스가 맵 중앙으로 순간이동해
+        /// 플레이어와 멀리 떨어진 곳에서 연출이 진행되는 동안(기본 줌 상태에서는 카메라가 여전히
+        /// 플레이어를 따라가므로 방치하면 연출 전체가 화면 밖에서 벌어진다) 카메라를 그 연출 위치에
+        /// 붙잡아두는 용도. null을 넘기면 정상 추적으로 즉시 복귀한다.
+        /// </summary>
+        public void SetOverrideTarget(Vector3? worldPosition)
+        {
+            _overrideTargetPosition = worldPosition;
         }
 
         /// <summary>
@@ -117,6 +130,11 @@ namespace Services
 
         private Vector3 ComputeTargetLocalPosition()
         {
+            if (_overrideTargetPosition.HasValue)
+            {
+                return _overrideTargetPosition.Value;
+            }
+
             bool shouldFollow = _playerTransform != null
                 && _zoomSlider != null
                 && _camera.orthographicSize < _zoomSlider.WideOrthographicSize - FollowThresholdEpsilon;
