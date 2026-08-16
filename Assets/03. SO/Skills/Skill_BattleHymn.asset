@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
   displayName: "\uC804\uD22C\uCC2C\uAC00"
   grade: 2
-  icon: {fileID: 21300000, guid: 58540b804e4c9e948997681ed575049d, type: 3}
-  iconTint: {r: 0.9, g: 0.85, b: 0.4, a: 1}
+  icon: {fileID: 7456935766170266316, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}
+  iconTint: {r: 1, g: 1, b: 1, a: 1}
   cooldown: 25
   maxLevel: 20
   goldCostBase: 180

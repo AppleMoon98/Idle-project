@@ -15,3 +15,4 @@ MonoBehaviour:
   itemName: Rusty Sword
   equipmentType: 0
   grade: {fileID: 11400000, guid: 6b4245a4032c6854a8b7606d782434e4, type: 2}
+  icon: {fileID: -5365385695610608141, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}
