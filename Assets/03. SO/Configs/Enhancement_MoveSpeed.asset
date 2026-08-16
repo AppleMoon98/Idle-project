@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Enhancement_MoveSpeed
   m_EditorClassIdentifier: Assembly-CSharp::Enhancement.EnhancementConfigSO
   statType: 3
-  baseCost: 1500000
+  baseCost: 1000
   costMultiplier: 1.1
   valuePerLevel: 0.01
   maxLevel: 100

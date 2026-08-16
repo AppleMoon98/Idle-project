@@ -13,14 +13,14 @@ MonoBehaviour:
   m_Name: Enhancement_AttackPower
   m_EditorClassIdentifier: Assembly-CSharp::Enhancement.EnhancementConfigSO
   statType: 0
-  baseCost: 15000
+  baseCost: 10
   costMultiplier: 1.05
   valuePerLevel: 2
   maxLevel: 2000
   costIncrementTiers:
   - levelThreshold: 0
-    increment: 15000
+    increment: 10
   - levelThreshold: 100
-    increment: 150000
+    increment: 100
   - levelThreshold: 1000
-    increment: 1500000
+    increment: 1000

@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: Enhancement_CriticalDamage
   m_EditorClassIdentifier: Assembly-CSharp::Enhancement.EnhancementConfigSO
   statType: 5
-  baseCost: 150000
+  baseCost: 100
   costMultiplier: 1.3
   valuePerLevel: 0.005
   maxLevel: 300
