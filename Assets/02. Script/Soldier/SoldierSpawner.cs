@@ -1,8 +1,10 @@
+using System.Collections.Generic;
 using Character;
 using Core;
 using Managers;
 using Rank;
 using Rank.Events;
+using Services;
 using Soldier.Events;
 using Stage.Events;
 using UnityEngine;
@@ -36,7 +38,7 @@ namespace Soldier
         private SoldierRespawner _respawner;
         private PoolManager _pool;
         private SoldierDeploymentService _deployment;
-        private SquadShieldLineCoordinator _shieldLineCoordinator;
+        private CameraFollowService _cameraFollowService;
         private bool _spawned;
 
         private void Start()
@@ -48,7 +50,7 @@ namespace Soldier
 
             _pool = pool;
             GameBootstrapper.Services.TryGet(out _deployment);
-            GameBootstrapper.Services.TryGet(out _shieldLineCoordinator);
+            GameBootstrapper.Services.TryGet(out _cameraFollowService);
             GameBootstrapper.Events?.Subscribe<RankChangedEvent>(OnRankChanged);
             GameBootstrapper.Events?.Subscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
             GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
@@ -86,7 +88,6 @@ namespace Soldier
         {
             _respawner?.ResetForNewStage(slots);
             raidCoordinator?.OnStageStarted();
-            _shieldLineCoordinator?.OnStageStarted();
         }
 
         /// <summary>
@@ -100,12 +101,12 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 현재 스폰된 병사 전부를 각자의 슬롯 스폰 지점으로 되돌린다. 아직 한 번도 스폰되지
-        /// 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
+        /// 현재 스폰된 병사 전부를 각자의 그리드 자리(Soldier.SoldierGridPlacement)로 되돌린다.
+        /// 아직 한 번도 스폰되지 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
         /// </summary>
         public void ResetSoldierPositions()
         {
-            _respawner?.ResetPositions();
+            _respawner?.ResetPositions(slots);
         }
 
         /// <summary>
@@ -146,19 +147,25 @@ namespace Soldier
 
             _spawned = true;
 
-            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats);
+            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats, _cameraFollowService);
+
+            Dictionary<int, Vector3> placements = _respawner.ComputePlacements(slots);
 
             foreach (SoldierSpawnSlot slot in slots)
             {
-                SpawnSlot(slot);
+                if (placements.TryGetValue(slot.SlotIndex, out Vector3 position))
+                {
+                    _respawner.TrySpawnSlot(slot, position);
+                }
             }
 
             raidCoordinator?.OnStageStarted();
-            _shieldLineCoordinator?.OnStageStarted();
         }
 
         /// <summary>
-        /// slotIndex의 현재 점유자를 정리하고(있다면) 최신 배정으로 다시 스폰을 시도한다.
+        /// slotIndex의 현재 점유자를 정리하고(있다면) 최신 배정으로 다시 스폰을 시도한다. 새 배정이
+        /// 사거리 정렬 순서를 바꿀 수 있으므로, 이 순간의 전체 슬롯 배정 기준으로 그리드 좌표를
+        /// 다시 계산한다(이미 스폰돼 있는 다른 병사들의 위치는 건드리지 않는다 — 그 슬롯 하나만).
         /// </summary>
         private void RefreshSlot(int slotIndex)
         {
@@ -170,7 +177,13 @@ namespace Soldier
             }
 
             _respawner.ReleaseSlot(slotIndex);
-            SpawnSlot(slot);
+
+            Dictionary<int, Vector3> placements = _respawner.ComputePlacements(slots);
+
+            if (placements.TryGetValue(slotIndex, out Vector3 position))
+            {
+                _respawner.TrySpawnSlot(slot, position);
+            }
         }
 
         private SoldierSpawnSlot FindSlot(int slotIndex)
@@ -184,16 +197,6 @@ namespace Soldier
             }
 
             return null;
-        }
-
-        private void SpawnSlot(SoldierSpawnSlot slot)
-        {
-            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, playerStats, out GameObject instance))
-            {
-                return;
-            }
-
-            _respawner.RegisterSpawned(instance, slot);
         }
     }
 }

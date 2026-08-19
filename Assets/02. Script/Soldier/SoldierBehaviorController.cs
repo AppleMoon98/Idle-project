@@ -49,14 +49,11 @@ namespace Soldier
         private OrbitKiter _orbitKiter;
         private FormationFollower _formationFollower;
         private RangedKiter _formationKiter;
-        private ShieldGuard _shieldGuard;
         private SoldierRosterService _roster;
         private CameraFollowService _cameraFollowService;
         private SquadMovementSyncService _squadMovementSync;
-        private SquadShieldLineCoordinator _shieldLineCoordinator;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
-        private Transform _shieldLineAnchor;
 
         private int _instanceId;
         private Transform _retreatPoint;
@@ -73,11 +70,9 @@ namespace Soldier
             _orbitKiter = GetComponent<OrbitKiter>();
             _formationFollower = GetComponent<FormationFollower>();
             _formationKiter = GetComponent<RangedKiter>();
-            _shieldGuard = GetComponent<ShieldGuard>();
             GameBootstrapper.Services?.TryGet(out _roster);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             GameBootstrapper.Services?.TryGet(out _squadMovementSync);
-            GameBootstrapper.Services?.TryGet(out _shieldLineCoordinator);
 
             // 이동 목표로 쓸 앵커는 병사의 자식으로 붙이면 안 된다 — 자식이면 부모(병사)가 움직일
             // 때마다 같은 상대 오프셋을 유지하며 같이 이동해버려서, CharacterMover가 "항상 같은
@@ -88,11 +83,6 @@ namespace Soldier
             if (_rangedAttack != null)
             {
                 _kiteAnchor = new GameObject("KiteAnchor").transform;
-            }
-
-            if (_shieldGuard != null)
-            {
-                _shieldLineAnchor = new GameObject("ShieldLineAnchor").transform;
             }
         }
 
@@ -122,11 +112,6 @@ namespace Soldier
             {
                 Destroy(_kiteAnchor.gameObject);
             }
-
-            if (_shieldLineAnchor != null)
-            {
-                Destroy(_shieldLineAnchor.gameObject);
-            }
         }
 
         /// <summary>
@@ -143,6 +128,18 @@ namespace Soldier
         /// </summary>
         public void Initialize(int instanceId, Transform retreatPoint)
         {
+            // 풀에서 재사용되는 인스턴스가 과거(예: 넉백 도중 사망)에 disabled 상태로 반환됐을 수
+            // 있다 - Unity는 GameObject 재활성화만으로 이미 enabled=false인 컴포넌트를 다시 켜주지
+            // 않으므로, 새로 스폰될 때마다 명시적으로 되살린다(Character.KnockbackReceiver.OnDisable
+            // 이 이 문제의 근본 원인을 막지만, 여기서도 한 번 더 보장해 향후 다른 원인으로 disabled
+            // 된 인스턴스가 재사용되더라도 안전하게 시작하도록 한다).
+            enabled = true;
+
+            if (_enemyTracker != null)
+            {
+                _enemyTracker.enabled = true;
+            }
+
             _instanceId = instanceId;
             _retreatPoint = retreatPoint;
             _elapsed = 0f;
@@ -219,10 +216,17 @@ namespace Soldier
                 }
             }
 
-            // Engage 모드인데 아직 주변에 교전할 적을 못 찾았을 때만 "행군 중"으로 취급해 부대
-            // 최저속 클램프 대상이 된다 — Hold/Retreat이거나 이미 적을 감지했으면(각 이동 드라이버가
-            // 뒤이어 그 적을 실제로 쫓기 시작하므로) 즉시 클램프를 풀어 자기 본연 속도로 돌아간다.
-            bool isMarching = mode == BehaviorMode.Engage && FindNearestTargetableEnemy() == null;
+            // Engage 모드이고, 가장 가까운 적도 자기 공격 사거리 밖일 때만 "행군 중"으로 취급해
+            // 부대 최저속 클램프 대상이 된다 — Hold/Retreat이거나 적이 실제로 사거리 안까지 왔으면
+            // (각 이동 드라이버가 뒤이어 그 적을 쫓거나 공격하기 시작하므로) 클램프를 풀어 자기 본연
+            // 속도로 돌아간다. FindNearestTargetableEnemy() 자체는 화면 전체(최광각 고정 범위)를
+            // 스캔하므로, 예전에는 "적이 화면 어딘가에 존재하기만 하면" 여기서 곧바로 행군을
+            // 그만두는 버그가 있었다 — 사거리와 무관하게 스폰 직후 거의 즉시 대형이 풀려, 부대
+            // 동기화 이동 속도(Soldier.SquadMovementSyncService)가 적용될 기회를 못 얻는 원인이었다.
+            Health nearestEnemy = FindNearestTargetableEnemy();
+            bool enemyInRange = nearestEnemy != null
+                && Vector3.Distance(transform.position, nearestEnemy.transform.position) <= _statsProvider.Stats.AttackRange;
+            bool isMarching = mode == BehaviorMode.Engage && !enemyInRange;
             _squadMovementSync?.SetMarching(gameObject, isMarching);
 
             ApplyMode(mode, isMarching);
@@ -272,6 +276,29 @@ namespace Soldier
 
                         _orbitKiter.enabled = true;
                     }
+                    else if (_formationFollower != null && _rangedAttack != null)
+                    {
+                        // 궁병(FormationFollower + RangedAttackBehavior를 함께 가짐, 방패벽 부대의
+                        // 2열 이하로 배치된 경우)은 창병과 달리 Combat.FormationFollower 자체의 전투
+                        // 핸드오프(HandOffToKiter → Combat.RangedKiter)를 타지 않는다 — 궁병의
+                        // "원래 방식"은 이미 이 컨트롤러 안의 TickRangedKiting()이므로, 마칭 중이고
+                        // 리더가 배정돼 있을 때만 대형을 추종하고, 전투가 시작되는 순간(isMarching이
+                        // false로 바뀜, 리더 유무와 무관) 곧바로 원래 카이팅으로 돌아간다.
+                        if (_enemyTracker != null)
+                        {
+                            _enemyTracker.enabled = false;
+                        }
+
+                        if (isMarching && _formationFollower.HasLeader)
+                        {
+                            _formationFollower.enabled = true;
+                        }
+                        else
+                        {
+                            _formationFollower.enabled = false;
+                            TickRangedKiting();
+                        }
+                    }
                     else if (_formationFollower != null)
                     {
                         if (_enemyTracker != null)
@@ -280,7 +307,7 @@ namespace Soldier
                         }
 
                         // FormationFollower가 이미 RangedKiter로 넘긴 상태(Combat.FormationFollower의
-                        // 되돌리지 않는 일회성 전환, section CT)라면 다시 켜서 되돌리지 않는다 —
+                        // 되돌리지 않는 일회성 전환, section EY)라면 다시 켜서 되돌리지 않는다 —
                         // 그 상태에서 그대로 두는 것이 곧 "카이팅 유지"다.
                         bool alreadyHandedOff = _formationKiter != null && _formationKiter.enabled;
 
@@ -297,21 +324,6 @@ namespace Soldier
                         }
 
                         TickRangedKiting();
-                    }
-                    else if (isMarching && _shieldGuard != null && _shieldLineCoordinator != null && _shieldLineCoordinator.TryGetLinePosition(gameObject, out Vector3 linePosition))
-                    {
-                        // 여러 부대가 ShieldWall 전술 + 1열 전원 방패보병 조건을 만족하면, 교전
-                        // 상대를 찾기 전까지는 이 대형 위치를 목표로 삼는다(Soldier.
-                        // SquadShieldLineCoordinator). 위협을 감지하는 순간(isMarching == false)
-                        // 이 분기를 벗어나 아래 EnemyTracker 폴백으로 자연히 넘어간다.
-                        if (_enemyTracker != null)
-                        {
-                            _enemyTracker.enabled = false;
-                        }
-
-                        _shieldLineAnchor.position = linePosition;
-                        _mover.Target = _shieldLineAnchor;
-                        _mover.StoppingDistance = 0f;
                     }
                     else if (_enemyTracker != null)
                     {

@@ -3,6 +3,7 @@ using Character;
 using Character.Events;
 using Core;
 using Managers;
+using Services;
 using UnityEngine;
 
 namespace Soldier
@@ -11,9 +12,11 @@ namespace Soldier
     /// 전투 중 사망한 병사는 더 이상 자동으로 리스폰되지 않는다 — 그 슬롯은 이번 스테이지 시도가
     /// 끝날 때까지 빈 채로 남는다. 대신 스테이지가 시작될 때마다(진행/반복/사망 후퇴 전부,
     /// SoldierSpawner.OnStageChanged가 호출) ResetForNewStage가 살아있는 병사는 체력을 최대치로
-    /// 되돌리고, 이번 시도 중 죽어 빈 채로 남아있던 슬롯은 그 시점의 배정을 다시 조회해 재배치한다.
-    /// 슬롯별 현재 점유 인스턴스는 여기서 계속 추적해, SoldierSpawner가 배치 변경 시 "지금 그
-    /// 슬롯에 누가 있는지"를 항상 정확히 물어볼 수 있게 한다.
+    /// 되돌리고, 이번 시도 중 죽어 빈 채로 남아있던 슬롯은 재배치한다. 스폰 좌표는 항상
+    /// Soldier.SoldierGridPlacement로 "현재 배정된 슬롯 전체"를 기준으로 다시 계산한다 — 슬롯
+    /// 하나만 봐서는 사거리 정렬 순서를 알 수 없으므로, 호출마다 전체 슬롯 배열을 받아 한 번에
+    /// 계산한다. 슬롯별 현재 점유 인스턴스는 여기서 계속 추적해, SoldierSpawner가 배치 변경 시
+    /// "지금 그 슬롯에 누가 있는지"를 항상 정확히 물어볼 수 있게 한다.
     /// </summary>
     public sealed class SoldierRespawner
     {
@@ -21,15 +24,17 @@ namespace Soldier
         private readonly PoolManager _pool;
         private readonly SoldierDeploymentService _deployment;
         private readonly CharacterStatsProvider _playerStats;
+        private readonly CameraFollowService _cameraFollowService;
         private readonly Dictionary<GameObject, SoldierSpawnSlot> _activeSoldiers = new();
         private readonly Dictionary<int, GameObject> _activeBySlot = new();
 
-        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, CharacterStatsProvider playerStats)
+        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, CharacterStatsProvider playerStats, CameraFollowService cameraFollowService)
         {
             _events = events;
             _pool = pool;
             _deployment = deployment;
             _playerStats = playerStats;
+            _cameraFollowService = cameraFollowService;
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
         }
@@ -71,20 +76,24 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 현재 추적 중인(살아있는) 병사 전부를 각자의 슬롯 스폰 지점으로 순간이동시킨다.
-        /// SetActiveAll과 같은 성격의 유틸리티로, 사망/루팅/재소환 파이프라인은 건드리지 않고
-        /// 위치/회전만 되돌린다(예: N-40 진입 시 전투 시작 위치를 예측 가능하게 맞추기 위함).
+        /// slots(현재 배정된 슬롯 전체) 기준으로 그리드 좌표를 다시 계산해, 지금 추적 중인(살아
+        /// 있는) 병사 전부를 그 자리로 순간이동시킨다. SetActiveAll과 같은 성격의 유틸리티로,
+        /// 사망/루팅/재소환 파이프라인은 건드리지 않고 위치/회전만 되돌린다(예: N-40 진입 시
+        /// 전투 시작 위치를 예측 가능하게 맞추기 위함).
         /// </summary>
-        public void ResetPositions()
+        public void ResetPositions(SoldierSpawnSlot[] slots)
         {
+            Dictionary<int, Vector3> placements = ComputePlacements(slots);
+
             foreach (KeyValuePair<GameObject, SoldierSpawnSlot> pair in _activeSoldiers)
             {
-                if (pair.Key == null || pair.Value.SpawnPoint == null)
+                if (pair.Key == null || !placements.TryGetValue(pair.Value.SlotIndex, out Vector3 position))
                 {
                     continue;
                 }
 
-                pair.Key.transform.SetPositionAndRotation(pair.Value.SpawnPoint.position, pair.Value.SpawnPoint.rotation);
+                Transform anchor = pair.Value.ResolvePositionAnchor(position);
+                pair.Key.transform.SetPositionAndRotation(anchor.position, anchor.rotation);
             }
         }
 
@@ -92,10 +101,10 @@ namespace Soldier
         /// 스테이지가 바뀔 때(진행/반복/사망 후퇴 전부) SoldierSpawner.OnStageChanged가 호출한다.
         /// 살아있는 병사는 Character.PlayerReviveOnStageChanged가 Player에게 하는 것과 동일하게
         /// 체력을 최대치로 되돌리고, slots 중 지금 살아있는 점유자가 없는 슬롯은(이번 시도 중
-        /// 사망해 빈 채로 남아있던 슬롯) 그 시점의 배정을 다시 조회해 재배치한다 — 리스폰
-        /// 타이머가 없어진 대신, "스테이지 시작"이 모든 슬롯을 되돌리는 유일한 시점이 된다.
+        /// 사망해 빈 채로 남아있던 슬롯) 재배치한다 — 리스폰 타이머가 없어진 대신, "스테이지 시작"이
+        /// 모든 슬롯을 되돌리는 유일한 시점이 된다.
         /// </summary>
-        public void ResetForNewStage(IEnumerable<SoldierSpawnSlot> slots)
+        public void ResetForNewStage(SoldierSpawnSlot[] slots)
         {
             foreach (GameObject soldier in _activeSoldiers.Keys)
             {
@@ -105,6 +114,8 @@ namespace Soldier
                 }
             }
 
+            Dictionary<int, Vector3> placements = ComputePlacements(slots);
+
             foreach (SoldierSpawnSlot slot in slots)
             {
                 if (_activeBySlot.ContainsKey(slot.SlotIndex))
@@ -112,7 +123,10 @@ namespace Soldier
                     continue;
                 }
 
-                Respawn(slot);
+                if (placements.TryGetValue(slot.SlotIndex, out Vector3 position))
+                {
+                    TrySpawnSlot(slot, position);
+                }
             }
         }
 
@@ -132,6 +146,33 @@ namespace Soldier
         }
 
         /// <summary>
+        /// slots(현재 배정된 슬롯 전체) 기준으로 SoldierGridPlacement 그리드 좌표를 계산한다.
+        /// 슬롯 하나만 봐서는 사거리 정렬 순서를 알 수 없으므로, 스폰/리셋 호출마다 전체 배열을
+        /// 한 번에 계산해 SlotIndex → 좌표 맵으로 돌려준다.
+        /// </summary>
+        public Dictionary<int, Vector3> ComputePlacements(SoldierSpawnSlot[] slots)
+        {
+            Vector3 boundsCenter = _cameraFollowService != null ? _cameraFollowService.HomeLocalPosition : Vector3.zero;
+            Vector2 boundsHalfExtent = _cameraFollowService != null ? _cameraFollowService.GetWorldBoundsHalfExtent() : Vector2.zero;
+            return SoldierGridPlacement.ComputePlacements(slots, _deployment, boundsCenter, boundsHalfExtent);
+        }
+
+        /// <summary>
+        /// 이미 계산된 position에 slot의 현재 배정을 스폰한다. 배정이 없거나(로스터 미배치/해제)
+        /// 프리팹을 가리키지 못하면 조용히 스폰하지 않는다.
+        /// </summary>
+        public bool TrySpawnSlot(SoldierSpawnSlot slot, Vector3 position)
+        {
+            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, position, _playerStats, out GameObject instance))
+            {
+                return false;
+            }
+
+            RegisterSpawned(instance, slot);
+            return true;
+        }
+
+        /// <summary>
         /// 죽은 병사를 추적에서 제거하기만 한다 — 더 이상 리스폰을 예약하지 않는다. 그 슬롯은
         /// 다음 ResetForNewStage(다음 스테이지 시작)까지 빈 채로 남는다.
         /// </summary>
@@ -144,20 +185,6 @@ namespace Soldier
 
             _activeSoldiers.Remove(evt.Character);
             _activeBySlot.Remove(slot.SlotIndex);
-        }
-
-        /// <summary>
-        /// 그 시점의 배정을 다시 조회해 재배치한다. 배정이 없거나(로스터 미배치/해제) 프리팹을
-        /// 가리키지 못하면 조용히 재배치하지 않는다.
-        /// </summary>
-        private void Respawn(SoldierSpawnSlot slot)
-        {
-            if (!SoldierSpawnUtility.TrySpawnAssigned(_pool, _deployment, slot, _playerStats, out GameObject instance))
-            {
-                return;
-            }
-
-            RegisterSpawned(instance, slot);
         }
     }
 }

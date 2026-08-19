@@ -223,22 +223,24 @@ namespace Soldier
         }
 
         /// <summary>
-        /// slotIndex(전역)의 "방어자" 슬롯 - 같은 부대 안에서 한 행 아래(그리드상 더 앞줄)의 같은
-        /// 열 슬롯을 가리킨다. 방패벽 전술에서 "이 슬롯 유닛을 지키는 방패병이 있다면 몇 번
-        /// 슬롯인가"를 구하는 데 쓴다(SquadShieldWallCoordinator 참고). slotIndex가 이미 부대 내
-        /// 마지막 행(가장 앞줄)이면 그보다 더 앞이 없으므로 null.
+        /// slotIndex(전역)의 "방어자" 슬롯 - 같은 부대 안에서 한 행 위(그리드상 더 앞줄, 1열=row0에
+        /// 가까운 쪽)의 같은 열 슬롯을 가리킨다. 방패벽 전술에서 "이 슬롯 유닛을 지키는 방패병이
+        /// 있다면 몇 번 슬롯인가"를 구하는 데 쓴다(SquadShieldWallCoordinator 참고) - 1열(row0)이
+        /// 방패병이라는 관례와 일치시켰다(예전엔 반대 방향(row+1)이었는데, "1열=방패병"이 실제로는
+        /// 아무도 보호하지 않는 반대 결과가 나와서 방향을 뒤집었다). slotIndex가 이미 부대 내 첫
+        /// 행(1열, 가장 앞줄)이면 그보다 더 앞이 없으므로 null.
         /// </summary>
         public static int? GetProtectorSlotIndex(int slotIndex)
         {
             int relative = slotIndex % SlotsPerSquad;
             int row = relative / GridColumns;
 
-            if (row >= GridRows - 1)
+            if (row <= 0)
             {
                 return null;
             }
 
-            return slotIndex + GridColumns;
+            return slotIndex - GridColumns;
         }
 
         /// <summary>

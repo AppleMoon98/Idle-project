@@ -25,9 +25,6 @@ namespace Stage
         [SerializeField]
         private bool spawnWithTactics;
 
-        [SerializeField]
-        private MonsterSpawnPlacement placement = MonsterSpawnPlacement.Automatic;
-
         /// <summary>
         /// 스폰할 몬스터 프리팹.
         /// </summary>
@@ -54,10 +51,5 @@ namespace Stage
         /// 중간에 일반 항목이 끼어있으면 그 뒤는 인식되지 않는다.
         /// </summary>
         public bool SpawnWithTactics => spawnWithTactics;
-
-        /// <summary>
-        /// 스폰 위치를 정하는 방식.
-        /// </summary>
-        public MonsterSpawnPlacement Placement => placement;
     }
 }

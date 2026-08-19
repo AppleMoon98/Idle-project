@@ -1,7 +1,9 @@
 using Character;
+using Combat;
 using Core;
 using Managers;
 using Save;
+using Services;
 using Stage.Events;
 using UnityEngine;
 
@@ -13,18 +15,6 @@ namespace Stage
     /// </summary>
     public sealed class StageController : MonoBehaviour
     {
-        [SerializeField]
-        private Transform[] topSpawnPoints;
-
-        [SerializeField]
-        private Transform[] bottomSpawnPoints;
-
-        [SerializeField]
-        private Transform[] leftSpawnPoints;
-
-        [SerializeField]
-        private Transform[] rightSpawnPoints;
-
         [SerializeField]
         private Transform playerTarget;
 
@@ -43,18 +33,15 @@ namespace Stage
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
 
-        [SerializeField]
-        private float tacticUnitSpacing = 1.5f;
-
-        [SerializeField]
-        private float tacticRowSpacing = 2f;
-
+        private CameraFollowService _cameraFollowService;
         private MonsterSpawner _spawner;
         private StageProgressTracker _tracker;
         private StageProgression _progression;
 
         private void Start()
         {
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
+
             SaveData save = LoadSave();
             StageSO initialStage = ResolveInitialStage(save);
 
@@ -165,15 +152,10 @@ namespace Stage
             _spawner = new MonsterSpawner(
                 stage,
                 pool,
-                topSpawnPoints,
-                bottomSpawnPoints,
-                leftSpawnPoints,
-                rightSpawnPoints,
                 playerTarget,
                 _tracker,
-                statMultiplier,
-                tacticUnitSpacing,
-                tacticRowSpacing);
+                _cameraFollowService,
+                statMultiplier);
 
             TickerRegistration.Register(_spawner);
 
@@ -240,40 +222,45 @@ namespace Stage
         /// 대신 되살려주지 못하므로 여기서 직접 부활시킨다.
         /// </summary>
         /// <summary>
-        /// 좌측 스폰 지점 중 index를 순환 인덱싱해 반환한다. MonsterSpawner가 내부적으로 쓰는 것과
-        /// 같은 배열을 그대로 재사용한다 - 병사 습격 전술(Soldier.SquadRaidCoordinator)처럼 Stage
-        /// 밖에서도 이 화면 가장자리 좌표가 필요한 경우를 위한 공개 창구. 배열이 비어있으면 null.
+        /// 화면 왼쪽 경계 바로 밖, index만큼 세로로 스프레드한 좌표(Combat.SpawnGridLayout) -
+        /// 병사 습격 전술(Soldier.SquadRaidCoordinator)처럼 Stage 밖에서도 이 화면 가장자리 좌표가
+        /// 필요한 경우를 위한 공개 창구. CameraFollowService를 못 구했으면(방어적 폴백) null.
         /// </summary>
-        public Transform GetLeftSpawnPoint(int index)
+        public Vector3? GetLeftEdgePosition(int index)
         {
-            return GetCyclicSpawnPoint(leftSpawnPoints, index);
-        }
-
-        /// <summary>
-        /// GetLeftSpawnPoint와 동일하되 우측 스폰 지점 배열을 순환 인덱싱한다.
-        /// </summary>
-        public Transform GetRightSpawnPoint(int index)
-        {
-            return GetCyclicSpawnPoint(rightSpawnPoints, index);
-        }
-
-        /// <summary>
-        /// GetLeftSpawnPoint와 동일하되 상단 스폰 지점 배열을 순환 인덱싱한다.
-        /// </summary>
-        public Transform GetTopSpawnPoint(int index)
-        {
-            return GetCyclicSpawnPoint(topSpawnPoints, index);
-        }
-
-        private static Transform GetCyclicSpawnPoint(Transform[] points, int index)
-        {
-            if (points == null || points.Length == 0)
+            if (_cameraFollowService == null)
             {
                 return null;
             }
 
-            int wrapped = ((index % points.Length) + points.Length) % points.Length;
-            return points[wrapped];
+            return SpawnGridLayout.ComputeLeftEdgePosition(index, _cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent());
+        }
+
+        /// <summary>
+        /// GetLeftEdgePosition과 동일하되 화면 오른쪽 경계 바로 밖.
+        /// </summary>
+        public Vector3? GetRightEdgePosition(int index)
+        {
+            if (_cameraFollowService == null)
+            {
+                return null;
+            }
+
+            return SpawnGridLayout.ComputeRightEdgePosition(index, _cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent());
+        }
+
+        /// <summary>
+        /// GetLeftEdgePosition과 동일하되 화면 위쪽 경계 바로 밖(몬스터 기본 스폰과 같은 기준선).
+        /// </summary>
+        public Vector3? GetTopEdgePosition(int index)
+        {
+            if (_cameraFollowService == null)
+            {
+                return null;
+            }
+
+            Vector3 origin = SpawnGridLayout.ComputeTopOrigin(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent());
+            return SpawnGridLayout.ComputePosition(index, origin, 1f);
         }
 
         /// <summary>

@@ -196,11 +196,6 @@ namespace Core
             Services.Register(squadShieldWallCoordinator);
             _managers.Add(squadShieldWallCoordinator);
 
-            var squadShieldLineCoordinator = new SquadShieldLineCoordinator(Events, squadTacticService, squadMovementSyncService, playerTransform);
-            squadShieldLineCoordinator.Initialize();
-            Services.Register(squadShieldLineCoordinator);
-            _managers.Add(squadShieldLineCoordinator);
-
             var soldierEquipmentInventoryService = new SoldierEquipmentInventoryService(Events);
             soldierEquipmentInventoryService.Initialize();
             Services.Register(soldierEquipmentInventoryService);

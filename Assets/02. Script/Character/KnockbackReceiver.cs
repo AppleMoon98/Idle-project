@@ -32,9 +32,28 @@ namespace Character
             TickerRegistration.Register(this);
         }
 
+        /// <summary>
+        /// 넉백 도중(_isKnockedBack=true) GameObject가 비활성화되면(예: 넉백 밀림 중에 사망해
+        /// 풀로 반환됨, 또는 던전 오버레이의 SoldierRespawner.SetActiveAll(false)) Tick()이
+        /// 더 이상 호출되지 않아 SetComponentsSuspended(false)/_mover.enabled = true가 영원히
+        /// 실행되지 못한다 — 그 결과 componentsToSuspend(예: SoldierBehaviorController,
+        /// EnemyTracker)가 disabled 상태로 풀에 반환되고, 이후 이 인스턴스가 재사용돼도 Unity는
+        /// 이미 enabled=false인 컴포넌트를 GameObject 재활성화만으로 다시 켜주지 않으므로(컴포넌트
+        /// 자신의 enabled가 true로 바뀌어야 OnEnable이 불림) 그 병사가 영구히 정지 상태로 남는다
+        /// (실사용 중 발견). 비활성화되는 순간 넉백이 아직 진행 중이었다면 즉시 정리해 이 누수를
+        /// 막는다 — 넉백 효과의 나머지 시간은 사라지지만(재활성화 시 처음부터 다시 판정), 컴포넌트가
+        /// 영원히 꺼진 채로 남는 것보다 훨씬 안전하다.
+        /// </summary>
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
+
+            if (_isKnockedBack)
+            {
+                _isKnockedBack = false;
+                _mover.enabled = true;
+                SetComponentsSuspended(false);
+            }
         }
 
         /// <summary>

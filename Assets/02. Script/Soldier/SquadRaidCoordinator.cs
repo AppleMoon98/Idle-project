@@ -213,22 +213,22 @@ namespace Soldier
                     continue;
                 }
 
-                Transform spawnPoint;
+                Vector3? spawnPosition;
 
                 if (tactic == SquadTacticType.RearRaid)
                 {
-                    spawnPoint = stageController.GetTopSpawnPoint(topCursor++);
+                    spawnPosition = stageController.GetTopEdgePosition(topCursor++);
                 }
                 else
                 {
                     int relativeNumber = (slotIndex % SoldierDeploymentService.SlotsPerSquad) + 1;
                     bool isOdd = relativeNumber % 2 == 1;
-                    spawnPoint = isOdd ? stageController.GetLeftSpawnPoint(leftCursor++) : stageController.GetRightSpawnPoint(rightCursor++);
+                    spawnPosition = isOdd ? stageController.GetLeftEdgePosition(leftCursor++) : stageController.GetRightEdgePosition(rightCursor++);
                 }
 
-                if (spawnPoint != null)
+                if (spawnPosition.HasValue)
                 {
-                    member.transform.SetPositionAndRotation(spawnPoint.position, spawnPoint.rotation);
+                    member.transform.SetPositionAndRotation(spawnPosition.Value, Quaternion.identity);
                 }
 
                 member.SetActive(true);

@@ -16,7 +16,7 @@ namespace Combat
     /// GameObject의 Attacker.AttackPerformed를 구독) — 공격주기 전체를 잠그는 게 아니라 그 절반
     /// 정도만 고정해, 남은 시간에는 정상적으로 접근/후퇴 판단을 계속한다. 사거리와 무관한 순수
     /// "거리 유지" 로직이라 궁병 전용이 아니라 사거리가 긴 다른 근접 유닛(창병 등)에도
-    /// 재사용된다(section BZ/CT) — enablePostAttackLock을 끄면 이 고정 없이 매번 재평가만으로
+    /// 재사용된다(section BZ/EY) — enablePostAttackLock을 끄면 이 고정 없이 매번 재평가만으로
     /// 계속 움직인다(Soldier 쪽 창병 밸런스 조정으로 추가된 옵트아웃, 몬스터 쪽 기본 동작은 그대로).
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
