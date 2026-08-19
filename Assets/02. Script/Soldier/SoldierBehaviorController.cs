@@ -49,11 +49,14 @@ namespace Soldier
         private OrbitKiter _orbitKiter;
         private FormationFollower _formationFollower;
         private RangedKiter _formationKiter;
+        private ShieldGuard _shieldGuard;
         private SoldierRosterService _roster;
         private CameraFollowService _cameraFollowService;
         private SquadMovementSyncService _squadMovementSync;
+        private SquadShieldLineCoordinator _shieldLineCoordinator;
         private Transform _kiteAnchor;
         private Transform _returnAnchor;
+        private Transform _shieldLineAnchor;
 
         private int _instanceId;
         private Transform _retreatPoint;
@@ -70,9 +73,11 @@ namespace Soldier
             _orbitKiter = GetComponent<OrbitKiter>();
             _formationFollower = GetComponent<FormationFollower>();
             _formationKiter = GetComponent<RangedKiter>();
+            _shieldGuard = GetComponent<ShieldGuard>();
             GameBootstrapper.Services?.TryGet(out _roster);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             GameBootstrapper.Services?.TryGet(out _squadMovementSync);
+            GameBootstrapper.Services?.TryGet(out _shieldLineCoordinator);
 
             // 이동 목표로 쓸 앵커는 병사의 자식으로 붙이면 안 된다 — 자식이면 부모(병사)가 움직일
             // 때마다 같은 상대 오프셋을 유지하며 같이 이동해버려서, CharacterMover가 "항상 같은
@@ -83,6 +88,11 @@ namespace Soldier
             if (_rangedAttack != null)
             {
                 _kiteAnchor = new GameObject("KiteAnchor").transform;
+            }
+
+            if (_shieldGuard != null)
+            {
+                _shieldLineAnchor = new GameObject("ShieldLineAnchor").transform;
             }
         }
 
@@ -111,6 +121,11 @@ namespace Soldier
             if (_kiteAnchor != null)
             {
                 Destroy(_kiteAnchor.gameObject);
+            }
+
+            if (_shieldLineAnchor != null)
+            {
+                Destroy(_shieldLineAnchor.gameObject);
             }
         }
 
@@ -210,7 +225,7 @@ namespace Soldier
             bool isMarching = mode == BehaviorMode.Engage && FindNearestTargetableEnemy() == null;
             _squadMovementSync?.SetMarching(gameObject, isMarching);
 
-            ApplyMode(mode);
+            ApplyMode(mode, isMarching);
         }
 
         /// <summary>
@@ -234,7 +249,7 @@ namespace Soldier
             _mover.StoppingDistance = 0f;
         }
 
-        private void ApplyMode(BehaviorMode mode)
+        private void ApplyMode(BehaviorMode mode, bool isMarching)
         {
             switch (mode)
             {
@@ -282,6 +297,21 @@ namespace Soldier
                         }
 
                         TickRangedKiting();
+                    }
+                    else if (isMarching && _shieldGuard != null && _shieldLineCoordinator != null && _shieldLineCoordinator.TryGetLinePosition(gameObject, out Vector3 linePosition))
+                    {
+                        // 여러 부대가 ShieldWall 전술 + 1열 전원 방패보병 조건을 만족하면, 교전
+                        // 상대를 찾기 전까지는 이 대형 위치를 목표로 삼는다(Soldier.
+                        // SquadShieldLineCoordinator). 위협을 감지하는 순간(isMarching == false)
+                        // 이 분기를 벗어나 아래 EnemyTracker 폴백으로 자연히 넘어간다.
+                        if (_enemyTracker != null)
+                        {
+                            _enemyTracker.enabled = false;
+                        }
+
+                        _shieldLineAnchor.position = linePosition;
+                        _mover.Target = _shieldLineAnchor;
+                        _mover.StoppingDistance = 0f;
                     }
                     else if (_enemyTracker != null)
                     {

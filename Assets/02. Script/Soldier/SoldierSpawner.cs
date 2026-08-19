@@ -36,6 +36,7 @@ namespace Soldier
         private SoldierRespawner _respawner;
         private PoolManager _pool;
         private SoldierDeploymentService _deployment;
+        private SquadShieldLineCoordinator _shieldLineCoordinator;
         private bool _spawned;
 
         private void Start()
@@ -47,6 +48,7 @@ namespace Soldier
 
             _pool = pool;
             GameBootstrapper.Services.TryGet(out _deployment);
+            GameBootstrapper.Services.TryGet(out _shieldLineCoordinator);
             GameBootstrapper.Events?.Subscribe<RankChangedEvent>(OnRankChanged);
             GameBootstrapper.Events?.Subscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
             GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
@@ -84,6 +86,7 @@ namespace Soldier
         {
             _respawner?.ResetForNewStage(slots);
             raidCoordinator?.OnStageStarted();
+            _shieldLineCoordinator?.OnStageStarted();
         }
 
         /// <summary>
@@ -151,6 +154,7 @@ namespace Soldier
             }
 
             raidCoordinator?.OnStageStarted();
+            _shieldLineCoordinator?.OnStageStarted();
         }
 
         /// <summary>
