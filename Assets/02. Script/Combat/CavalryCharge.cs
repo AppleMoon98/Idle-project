@@ -41,17 +41,10 @@ namespace Combat
     /// 이 컴포넌트와 별개로 그대로 동작한다 — 돌진 사이사이 위협이 우연히 근접 사거리에 들어오면
     /// 평범한 공격도 함께 들어간다.
     ///
-    /// 돌진을 시작하기 직전, 자기 위치에서 위협까지 직선 경로(자기 몸 반경 폭)에 다른 몬스터
-    /// (allyMonsterLayerMask - 이 컴포넌트의 allyLayerMask는 반대로 "공격 대상" 레이어를 뜻하므로
-    /// 헷갈리지 않도록 이름을 분리했다)가 있으면 그대로 돌진하지 않는다. 대신 위협 방향 기준
-    /// 좌우 측면 후보 지점들을 순서대로 시도해 직선 경로가 막히지 않는 첫 지점으로 이동만 하고,
-    /// 다음 재평가(retargetInterval)에서 다시 판정한다 — 아군이 비켜나거나 자신이 옆으로 이동해
-    /// 경로가 뚫리면 그때 돌진을 시작한다. 다만 이 회피가 maxBlockedDuration(기본 1초)을 넘겨
-    /// 계속 실패하면(전부 기마병처럼 같은 병종이 빽빽하게 몰린 필드에서는 측면 후보(±1/±2칸)조차
-    /// 매 재평가마다 다른 지점에서 다시 막혀, 한 번도 돌진하지 못한 채 좌우로 계속 미끄러지기만
-    /// 하는 것으로 실사용 중 발견됐다) 회피를 포기하고 그냥 돌진한다 — 돌진 중에는 피해 판정이
-    /// allyLayerMask(공격 대상)에만 적용돼 아군을 관통해도 무해하므로, 영원히 전진을 멈추는
-    /// 것보다는 이쪽이 낫다는 판단.
+    /// 돌진 시작 전 아군이 경로를 막고 있는지 확인해 옆으로 비켜서던 회피 판정(및 그 판정이 계속
+    /// 실패할 때의 강제 돌진 폴백)은 제거됐다 — Character.CharacterSeparation.ignoreLayerMask가 이
+    /// 유닛의 아군 레이어를 무시하도록 프리팹에 설정돼 있어, 애초에 아군끼리 서로 밀어내지 않으므로
+    /// 경로가 아군으로 막힐 일 자체가 없다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -123,18 +116,6 @@ namespace Combat
         [SerializeField]
         private float knockbackSidewaysAngleDegrees = 70f;
 
-        [Header("아군 충돌 회피")]
-        [SerializeField]
-        private LayerMask allyMonsterLayerMask;
-
-        [SerializeField]
-        private float allySidestepDistance = 2f;
-
-        [SerializeField]
-        private float maxBlockedDuration = 1f;
-
-        private static readonly float[] AllySidestepOffsets = { 1f, -1f, 2f, -2f };
-
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
         private CharacterSeparation _separation;
@@ -151,7 +132,6 @@ namespace Combat
         private float _hitElapsedMark;
         private bool _hasHitThisCharge;
         private readonly HashSet<Health> _hitTargetsThisCharge = new HashSet<Health>();
-        private float _blockedElapsed;
 
         /// <summary>
         /// 탐지 범위 안에 아무 대상도 없을 때의 기본 위협(플레이어). MonsterSpawner가 스폰 직후 주입한다.
@@ -217,7 +197,6 @@ namespace Combat
             _chargeSpeed = 0f;
             _hasHitThisCharge = false;
             _hitTargetsThisCharge.Clear();
-            _blockedElapsed = 0f;
 
             if (_separation != null)
             {
@@ -305,87 +284,7 @@ namespace Combat
                 return;
             }
 
-            if (IsChargeLaneBlockedByAlly(transform.position, threat.position))
-            {
-                _blockedElapsed += retargetInterval;
-
-                // maxBlockedDuration 안에서는 측면 후보로 피해본다. 그 시간을 넘기고도 계속
-                // 막혀 있으면(같은 병종끼리 빽빽하게 몰린 필드 — 예: 전부 기마병인 세이브 —
-                // 에서는 측면 후보(±1/±2칸)조차 매 재평가마다 다른 지점에서 다시 막혀, 한 번도
-                // 돌진하지 못한 채 좌우로 계속 미끄러지기만 하는 것으로 실사용 중 발견됐다)
-                // 아래로 흘러 내려가 그냥 돌진한다 — 회피를 포기하는 것이지 멈추는 게 아니다.
-                if (_blockedElapsed < maxBlockedDuration && TryFindClearSidestepPoint(threat.position, out Vector3 sidestepPoint))
-                {
-                    _retreatAnchor.position = sidestepPoint;
-                    _mover.Target = _retreatAnchor;
-                    _mover.StoppingDistance = 0f;
-                    return;
-                }
-            }
-            else
-            {
-                _blockedElapsed = 0f;
-            }
-
-            // 여기 도달하는 경우: 경로가 애초에 안 막혔거나, 측면 후보 전부가 막혀 있었거나
-            // (아군이 밀집해 있거나 위협이 멀 때), maxBlockedDuration을 넘기고도 계속
-            // 막혀 있었던 경우다. 돌진 중에는 CharacterSeparation을 꺼두고 피해 판정도
-            // allyLayerMask(공격 대상)에만 적용되므로, 회피 실패가 아군을 관통하는 것 이상의
-            // 실질적 피해로 이어지지 않는다 — "가능하면 피하되, 안 되면 영원히 멈추지 않는다"는 원칙.
             BeginCharge(threat.position);
-        }
-
-        /// <summary>
-        /// origin에서 targetPosition까지 직선 경로(자기 몸 반경 폭)에 다른 몬스터가 있는지 확인한다.
-        /// </summary>
-        private bool IsChargeLaneBlockedByAlly(Vector3 origin, Vector3 targetPosition)
-        {
-            float bodyRadius = _separation != null ? _separation.BodyRadius : 0.5f;
-            Vector3 offset = targetPosition - origin;
-            float distance = offset.magnitude;
-
-            if (distance <= 0f)
-            {
-                return false;
-            }
-
-            Vector3 direction = offset / distance;
-            RaycastHit2D[] hits = Physics2D.CircleCastAll(origin, bodyRadius, direction, distance, allyMonsterLayerMask);
-
-            foreach (RaycastHit2D hit in hits)
-            {
-                if (hit.collider != null && hit.collider.gameObject != gameObject)
-                {
-                    return true;
-                }
-            }
-
-            return false;
-        }
-
-        /// <summary>
-        /// 위협 방향을 기준으로 좌우 측면 후보 지점(±1칸, ±2칸)을 순서대로 시도해, 그 지점에서
-        /// 위협까지의 직선 경로가 아군으로 막히지 않는 첫 후보를 반환한다. 하나도 없으면
-        /// false(제자리 대기 - 다음 재평가 때 다시 시도).
-        /// </summary>
-        private bool TryFindClearSidestepPoint(Vector3 targetPosition, out Vector3 sidestepPoint)
-        {
-            Vector3 toTarget = (targetPosition - transform.position).normalized;
-            Vector3 perpendicular = new Vector3(-toTarget.y, toTarget.x, 0f);
-
-            foreach (float multiplier in AllySidestepOffsets)
-            {
-                Vector3 candidate = transform.position + perpendicular * (multiplier * allySidestepDistance);
-
-                if (!IsChargeLaneBlockedByAlly(candidate, targetPosition))
-                {
-                    sidestepPoint = candidate;
-                    return true;
-                }
-            }
-
-            sidestepPoint = Vector3.zero;
-            return false;
         }
 
         private void BeginCharge(Vector3 targetPosition)
@@ -398,7 +297,6 @@ namespace Combat
             _hitElapsedMark = 0f;
             _hasHitThisCharge = false;
             _hitTargetsThisCharge.Clear();
-            _blockedElapsed = 0f;
 
             if (_separation != null)
             {

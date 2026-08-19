@@ -374,6 +374,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!114 &5613879389020193351
 MonoBehaviour:
   m_ObjectHideFlags: 0

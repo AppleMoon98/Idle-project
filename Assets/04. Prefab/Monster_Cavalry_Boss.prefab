@@ -388,6 +388,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
 --- !u!114 &4642864976437985499
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -414,7 +417,6 @@ MonoBehaviour:
   baseTurnRateDegreesPerSecond: 180
   minTurnRateDegreesPerSecond: 20
   turnRatePenaltyPerSpeed: 25
-  minChargeDuration: 0.5
   chargeOverrunDuration: 0.6
   maxChargeDuration: 3
   hitCheckReach: 0.3
@@ -422,10 +424,6 @@ MonoBehaviour:
   knockbackDistance: 2
   knockbackDuration: 0.3
   knockbackSidewaysAngleDegrees: 70
-  allyMonsterLayerMask:
-    serializedVersion: 2
-    m_Bits: 512
-  allySidestepDistance: 2
 --- !u!114 &1688835667018995271
 MonoBehaviour:
   m_ObjectHideFlags: 0

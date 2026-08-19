@@ -392,7 +392,6 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 512
   decisionInterval: 0.5
-  postAttackLockDuration: 0.5
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.15
@@ -437,6 +436,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!114 &1846010970007125863
 MonoBehaviour:
   m_ObjectHideFlags: 0

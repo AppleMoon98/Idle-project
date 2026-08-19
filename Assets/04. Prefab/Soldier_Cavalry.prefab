@@ -404,7 +404,6 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 512
   decisionInterval: 0.5
-  postAttackLockDuration: 0.5
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.15
@@ -449,6 +448,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!114 &5488968294148996119
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -504,16 +506,13 @@ MonoBehaviour:
   baseTurnRateDegreesPerSecond: 180
   minTurnRateDegreesPerSecond: 20
   turnRatePenaltyPerSpeed: 25
+  chargeOverrunDuration: 0.6
   maxChargeDuration: 3
   hitCheckReach: 0.3
   bonusDamagePerSpeed: 2
   knockbackDistance: 2
   knockbackDuration: 0.3
   knockbackSidewaysAngleDegrees: 70
-  allyMonsterLayerMask:
-    serializedVersion: 2
-    m_Bits: 256
-  allySidestepDistance: 2
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0
