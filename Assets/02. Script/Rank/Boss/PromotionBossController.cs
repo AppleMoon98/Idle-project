@@ -332,13 +332,16 @@ namespace Rank.Boss
             {
                 int index = i;
 
+                // 4줄의 X좌표는 볼리 전체를 스케줄링하는 이 시점에 한 번에 미리 뽑아둔다(개별
+                // 스텝 실행 시점마다 따로 뽑으면 서로의 위치를 몰라 겹침 방지가 불가능하다) -
+                // showTime에 실행되는 각 스텝은 이미 정해진 좌표로 텔레그래프만 띄운다.
                 steps.Add((showTime, () =>
                 {
-                    Vector3 origin = RandomVerticalLineOrigin(center);
-                    origins[index] = origin;
-                    indicators[index] = ShowTelegraphForHit(verticalLineHitTemplate, origin, 90f);
+                    indicators[index] = ShowTelegraphForHit(verticalLineHitTemplate, origins[index], 90f);
                 }));
             }
+
+            AssignNonOverlappingVerticalLineOrigins(origins, center);
 
             float resolveTime = showTime + verticalLineHitTemplate.TelegraphDuration;
 
@@ -407,16 +410,38 @@ namespace Rank.Boss
             }
         }
 
-        private Vector3 RandomVerticalLineOrigin(Vector3 center)
+        /// <summary>
+        /// 한 볼리의 세로줄 개수(count)만큼 맵 가로 폭을 균등 구간으로 나눠, 각 구간 안에서만
+        /// 무작위 X를 뽑아 origins에 채운다(구간 경계에서 줄 폭(verticalLineHitTemplate.Width)의
+        /// 절반씩 안쪽으로 들여 뽑아, 인접 구간 줄과도 겹치지 않는다) - 순수하게 독립적으로
+        /// 뽑으면(예전 RandomVerticalLineOrigin) 두 줄이 우연히 거의 같은 X에 겹쳐 뜰 수 있어,
+        /// 구간을 나눠 애초에 겹칠 수 없는 자리에서만 뽑도록 했다.
+        /// </summary>
+        private void AssignNonOverlappingVerticalLineOrigins(Vector3[] origins, Vector3 center)
         {
             if (_cameraFollowService == null)
             {
-                return center;
+                for (int i = 0; i < origins.Length; i++)
+                {
+                    origins[i] = center;
+                }
+
+                return;
             }
 
             Vector2 halfExtent = _cameraFollowService.GetWorldBoundsHalfExtent();
-            float randomX = UnityEngine.Random.Range(center.x - halfExtent.x, center.x + halfExtent.x);
-            return new Vector3(randomX, center.y, center.z);
+            float minX = center.x - halfExtent.x;
+            float segmentWidth = (halfExtent.x * 2f) / origins.Length;
+            float halfLineWidth = verticalLineHitTemplate.Width * 0.5f;
+
+            for (int i = 0; i < origins.Length; i++)
+            {
+                float segmentStart = minX + segmentWidth * i;
+                float low = segmentStart + halfLineWidth;
+                float high = segmentStart + segmentWidth - halfLineWidth;
+                float x = low < high ? UnityEngine.Random.Range(low, high) : segmentStart + segmentWidth * 0.5f;
+                origins[i] = new Vector3(x, center.y, center.z);
+            }
         }
 
         private void EndPhaseTwo(Vector3 center)

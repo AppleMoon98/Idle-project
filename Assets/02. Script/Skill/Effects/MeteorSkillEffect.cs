@@ -22,6 +22,12 @@ namespace Skill.Effects
     [RequireComponent(typeof(SkillSlot))]
     public sealed class MeteorSkillEffect : MonoBehaviour, ISkillEffect, ITickable
     {
+        /// <summary>
+        /// 플레이어 자신이 시전하는 포탄 낙하 예고는 적의 공격 예고(빨강, WarBossTelegraphIndicator
+        /// 기본색)와 구분되도록 파란색을 쓴다.
+        /// </summary>
+        private static readonly Color TelegraphColor = new Color(0.2f, 0.5f, 1f, 1f);
+
         private sealed class Shell
         {
             public Vector3 Position;
@@ -123,7 +129,7 @@ namespace Skill.Effects
 
                 GameObject instance = _pool.Get(telegraphIndicatorPrefab, position, Quaternion.identity);
                 var indicator = instance.GetComponent<WarBossTelegraphIndicator>();
-                indicator.Show(position, definition.AreaRadius);
+                indicator.Show(position, definition.AreaRadius, TelegraphColor);
 
                 _activeShells.Add(new Shell
                 {
