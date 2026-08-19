@@ -22,7 +22,7 @@ namespace Gacha
         private readonly CurrencyService _currency;
         private readonly SoldierRosterService _roster;
         private readonly GachaTableSO[] _tiers;
-        private readonly int[] _goldPullCounts;
+        private readonly GachaGoldPullTracker _goldPullTracker;
 
         public GachaService(EventBus events, SoldierTicketService tickets, CurrencyService currency, SoldierRosterService roster, GachaTableSO[] tiers)
         {
@@ -31,7 +31,7 @@ namespace Gacha
             _currency = currency;
             _roster = roster;
             _tiers = tiers;
-            _goldPullCounts = new int[tiers.Length];
+            _goldPullTracker = new GachaGoldPullTracker(tiers.Length);
         }
 
         /// <summary>
@@ -45,7 +45,7 @@ namespace Gacha
         /// </summary>
         public int GetGoldPullCount(int tierIndex)
         {
-            return tierIndex >= 0 && tierIndex < _goldPullCounts.Length ? _goldPullCounts[tierIndex] : 0;
+            return _goldPullTracker.GetCount(tierIndex);
         }
 
         /// <summary>
@@ -53,7 +53,7 @@ namespace Gacha
         /// </summary>
         public int[] ExportGoldPullCountsSnapshot()
         {
-            return (int[])_goldPullCounts.Clone();
+            return _goldPullTracker.ExportSnapshot();
         }
 
         /// <summary>
@@ -63,17 +63,7 @@ namespace Gacha
         /// </summary>
         public void RestoreGoldPullCountsSnapshot(int[] counts)
         {
-            if (counts == null)
-            {
-                return;
-            }
-
-            int length = System.Math.Min(counts.Length, _goldPullCounts.Length);
-
-            for (int i = 0; i < length; i++)
-            {
-                _goldPullCounts[i] = counts[i];
-            }
+            _goldPullTracker.RestoreSnapshot(counts);
         }
 
         public void Initialize()
@@ -132,7 +122,7 @@ namespace Gacha
         private bool CanAffordOnePull(GachaTableSO table, int tierIndex)
         {
             return table.CurrencyType == GachaCurrencyType.Gold
-                ? _currency.CanAfford(table.GetGoldCostForPull(_goldPullCounts[tierIndex]))
+                ? _currency.CanAfford(table.GetGoldCostForPull(_goldPullTracker.GetCount(tierIndex)))
                 : _tickets.CurrentTickets >= table.TicketCostPerPull;
         }
 
@@ -154,7 +144,7 @@ namespace Gacha
             }
 
             bool spent = table.CurrencyType == GachaCurrencyType.Gold
-                ? _currency.TrySpendGold(table.GetGoldCostForPull(_goldPullCounts[tierIndex]))
+                ? _currency.TrySpendGold(table.GetGoldCostForPull(_goldPullTracker.GetCount(tierIndex)))
                 : _tickets.TrySpendTickets(table.TicketCostPerPull);
 
             if (!spent)
@@ -164,7 +154,7 @@ namespace Gacha
 
             if (table.CurrencyType == GachaCurrencyType.Gold)
             {
-                _goldPullCounts[tierIndex]++;
+                _goldPullTracker.Increment(tierIndex);
             }
 
             result = _roster.AddSoldier(picked);

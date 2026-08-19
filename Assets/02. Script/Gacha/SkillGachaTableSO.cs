@@ -88,26 +88,13 @@ namespace Gacha
 
         /// <summary>
         /// pullsSoFar(이 테이블에서 지금까지 성공한 골드 뽑기 횟수)번째 다음 1회 뽑기 비용.
-        /// costIncrementTiers가 비어있으면 goldCostPerPull 고정값 그대로 반환한다.
+        /// costIncrementTiers가 비어있으면 goldCostPerPull 고정값 그대로 반환한다. 실제 계단식
+        /// 계산은 Gacha.GachaTableSO/Enhancement.EnhancementService와 공유하는
+        /// CostIncrementTier.CalculateTotal이 담당한다.
         /// </summary>
         public int GetGoldCostForPull(int pullsSoFar)
         {
-            if (costIncrementTiers == null || costIncrementTiers.Length == 0)
-            {
-                return goldCostPerPull;
-            }
-
-            long total = goldCostPerPull;
-
-            for (int i = 0; i < costIncrementTiers.Length; i++)
-            {
-                int tierStart = costIncrementTiers[i].LevelThreshold;
-                int tierEnd = i + 1 < costIncrementTiers.Length ? costIncrementTiers[i + 1].LevelThreshold : int.MaxValue;
-                int pullsInTier = Mathf.Max(0, Mathf.Min(pullsSoFar, tierEnd) - tierStart);
-
-                total += (long)pullsInTier * costIncrementTiers[i].Increment;
-            }
-
+            long total = CostIncrementTier.CalculateTotal(goldCostPerPull, costIncrementTiers, pullsSoFar);
             return (int)Mathf.Min(total, int.MaxValue);
         }
     }

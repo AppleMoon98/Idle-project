@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using Core;
 using Enhancement.Events;
 using Loot;
-using UnityEngine;
 
 namespace Enhancement
 {
@@ -136,25 +135,13 @@ namespace Enhancement
         }
 
         /// <summary>
-        /// 구간별로 강화 1회당 비용 증가폭이 달라지는 계단식 누적 비용. 각 구간은 해당 구간 시작
-        /// 레벨부터 다음 구간 시작 레벨(또는 마지막 구간이면 끝)까지 걸쳐있는 만큼만 기여한다.
-        /// 레벨/증가폭 자체는 여전히 유한하므로 long 누산으로 충분하다(BigNumber로 승격은 반환 시점).
+        /// 구간별로 강화 1회당 비용 증가폭이 달라지는 계단식 누적 비용. 실제 계산은
+        /// CostIncrementTier.CalculateTotal(레벨/증가폭 자체는 유한하므로 long 누산으로 충분,
+        /// BigNumber로의 승격은 반환 시점의 암시적 변환)이 담당한다.
         /// </summary>
         private static BigNumber CalculateTieredCost(EnhancementConfigSO config, int level)
         {
-            IReadOnlyList<CostIncrementTier> tiers = config.CostIncrementTiers;
-            long total = config.BaseCost;
-
-            for (int i = 0; i < tiers.Count; i++)
-            {
-                int tierStart = tiers[i].LevelThreshold;
-                int tierEnd = i + 1 < tiers.Count ? tiers[i + 1].LevelThreshold : int.MaxValue;
-                int levelsInTier = Mathf.Max(0, Mathf.Min(level, tierEnd) - tierStart);
-
-                total += (long)levelsInTier * tiers[i].Increment;
-            }
-
-            return total;
+            return CostIncrementTier.CalculateTotal(config.BaseCost, config.CostIncrementTiers, level);
         }
 
         /// <summary>
