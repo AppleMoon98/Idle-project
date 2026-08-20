@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Character;
 using Character.Events;
+using Combat;
 using Core;
 using Dungeon.Events;
 using Gacha;
@@ -182,6 +183,9 @@ namespace Dungeon
         /// 없으면(테스트 등) 원점 기준 적당한 기본 범위로 대체한다. 최대 시도 횟수 안에 조건을
         /// 만족하는 좌표를 못 찾은 구역은 마지막으로 시도한 좌표를 그대로 쓴다(입장 자체가
         /// 실패하지 않도록 하는 최선 노력 배치 — 아주 드물게만 최소 거리가 살짝 못 미칠 수 있다).
+        /// 화면 아래쪽 하단 UI(메인 탭 바 등)가 실제 플레이 화면 일부를 가리는 만큼
+        /// (Combat.SpawnGridLayout.BottomUiClearance — 병사 스폰 기준점이 이미 쓰는 것과 같은
+        /// 값)은 세로 범위 하단에서 제외해, 구역이 그 뒤에 가려진 채로 스폰되는 일이 없게 한다.
         /// </summary>
         private Vector3[] GenerateZonePositions()
         {
@@ -199,6 +203,8 @@ namespace Dungeon
                 halfExtent = new Vector2(8f, 16f);
             }
 
+            float minY = center.y - halfExtent.y + SpawnGridLayout.BottomUiClearance;
+
             var positions = new Vector3[Mathf.Max(config.ZoneCount, 0)];
 
             for (int i = 0; i < positions.Length; i++)
@@ -208,7 +214,7 @@ namespace Dungeon
                 for (int attempt = 0; attempt < MaxPlacementAttemptsPerZone; attempt++)
                 {
                     float x = Random.Range(center.x - halfExtent.x, center.x + halfExtent.x);
-                    float y = Random.Range(center.y - halfExtent.y, center.y + halfExtent.y);
+                    float y = Random.Range(minY, center.y + halfExtent.y);
                     candidate = new Vector3(x, y, 0f);
 
                     if (IsFarEnoughFromPrevious(candidate, positions, i))

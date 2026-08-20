@@ -13,7 +13,10 @@ namespace Character
     /// 레이어의 상대는 이 인스턴스 자신의 스캔에서 제외한다 — 예를 들어 기마병/기마궁수는 자기 편
     /// 레이어를 여기 넣어, 아군 무리를 뚫고 지나갈 때 밀려나지 않고 그대로 통과한다(오직 이 오브젝트
     /// 자신의 계산만 영향받는다 — 통과당하는 아군 쪽의 CharacterSeparation은 그대로 자기 자신을
-    /// 밀어내려 할 수 있다).
+    /// 밀어내려 할 수 있다). ignorePlayer(기본값 false)는 PlayerMarker로 식별되는 플레이어 자신만
+    /// 콕 집어 제외한다 — Player/Soldier가 같은 레이어를 공유해 ignoreLayerMask만으로는 "플레이어
+    /// 자신"과 "다른 병사"를 구분할 수 없기 때문에(레이어 기준 제외는 병사끼리도 함께 무시하게
+    /// 되어버린다) 별도 필드로 뒀다.
     /// </summary>
     [RequireComponent(typeof(CircleCollider2D))]
     public sealed class CharacterSeparation : MonoBehaviour, ITickable
@@ -23,6 +26,9 @@ namespace Character
 
         [SerializeField]
         private LayerMask ignoreLayerMask;
+
+        [SerializeField]
+        private bool ignorePlayer;
 
         private CircleCollider2D _collider;
         private float _bodyRadius;
@@ -66,6 +72,11 @@ namespace Character
                 }
 
                 if ((ignoreLayerMask.value & (1 << other.gameObject.layer)) != 0)
+                {
+                    continue;
+                }
+
+                if (ignorePlayer && other.TryGetComponent(out PlayerMarker _))
                 {
                     continue;
                 }

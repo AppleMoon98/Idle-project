@@ -287,6 +287,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  attackWindupLeadTime: 0
 --- !u!114 &6494660352676122869
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -404,7 +405,6 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 512
   decisionInterval: 0.5
-  postAttackLockDuration: 0.5
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.15
@@ -449,6 +449,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  ignorePlayer: 1
 --- !u!114 &5488968294148996119
 MonoBehaviour:
   m_ObjectHideFlags: 0

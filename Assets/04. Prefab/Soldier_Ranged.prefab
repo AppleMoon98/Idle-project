@@ -272,6 +272,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  attackWindupLeadTime: 0
 --- !u!114 &198481165696731778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -436,6 +437,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  ignorePlayer: 1
 --- !u!114 &1846010970007125863
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -477,7 +482,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dbcddbfaf69207948810d70921f75727, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.FormationFollower
-  followDistance: 1.5
   retargetInterval: 0.2
   detectionRange: 20
   allyLayerMask:

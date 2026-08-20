@@ -210,6 +210,13 @@ namespace Character
         /// (항상 false를 반환) - CameraZoomControl의 슬라이더 핸들을 터치했는데도 가끔 탭 이동이
         /// 발동하던 원인이 이것이다. EventSystem의 캐시된 상태를 묻는 대신 지금 이 프레임의
         /// 스크린 좌표로 직접 UI 레이캐스트를 쏴서 즉시 판정하면 이 한 프레임 지연 문제가 없다.
+        ///
+        /// 레이캐스트 결과 중 순수 UnityEngine.UI.Text(클릭 핸들러 없는 정보성 라벨 — 던전 HUD의
+        /// "제한시간" 텍스트 등)만 걸리는 경우는 탭 이동을 막지 않는다 - 새 Text를 만들면
+        /// raycastTarget이 기본값 true라 클릭 핸들러가 전혀 없는데도 그 밑을 탭해 이동하는 게
+        /// 막히는 버그가 실사용 중 발견됐다. 버튼의 라벨 Text를 눌러도 같은 버튼의 배경 Image가
+        /// 레이캐스트 결과에 함께 잡히므로 정상적으로 계속 막히고, 팝업 배경도 보통 Image라
+        /// 그대로 막힌다 - Text 하나만 단독으로 잡힐 때만 예외적으로 통과시킨다.
         /// </summary>
         private bool IsPointerOverUI(Vector2 screenPosition)
         {
@@ -221,7 +228,16 @@ namespace Character
             PointerEventData eventData = new(EventSystem.current) { position = screenPosition };
             _uiRaycastResults.Clear();
             EventSystem.current.RaycastAll(eventData, _uiRaycastResults);
-            return _uiRaycastResults.Count > 0;
+
+            foreach (RaycastResult result in _uiRaycastResults)
+            {
+                if (!result.gameObject.TryGetComponent(out UnityEngine.UI.Text _))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private Vector3 ScreenToWorld(Vector2 screenPosition)

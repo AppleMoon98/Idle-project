@@ -29688,6 +29688,7 @@ GameObject:
   - component: {fileID: 843023033926465276}
   - component: {fileID: 843023033926465277}
   - component: {fileID: 843023033926465278}
+  - component: {fileID: 843023033926465279}
   m_Layer: 8
   m_Name: Player
   m_TagString: Untagged
@@ -30015,7 +30016,8 @@ MonoBehaviour:
   separationStrength: 6
   ignoreLayerMask:
     serializedVersion: 2
-    m_Bits: 0
+    m_Bits: 256
+  ignorePlayer: 0
 --- !u!114 &762544254
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -87508,6 +87510,18 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: c4ab60b76d5f62b44b50b9ad69118b17, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.RankStatReceiver
+--- !u!114 &843023033926465279
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 762544235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a4487b90e1d87e94cb2d626ccacf102d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.PlayerMarker
 --- !u!1001 &2296313086806946606
 PrefabInstance:
   m_ObjectHideFlags: 0

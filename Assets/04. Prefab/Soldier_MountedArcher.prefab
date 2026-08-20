@@ -272,6 +272,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  attackWindupLeadTime: 0
 --- !u!114 &198481165696731778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -439,6 +440,7 @@ MonoBehaviour:
   ignoreLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  ignorePlayer: 1
 --- !u!114 &1846010970007125863
 MonoBehaviour:
   m_ObjectHideFlags: 0
