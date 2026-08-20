@@ -121,8 +121,6 @@ namespace Combat
         private CharacterSeparation _separation;
         private CameraFollowService _cameraFollowService;
         private Transform _retreatAnchor;
-        private float _baseKnockbackDistance;
-        private float _baseBonusDamagePerSpeed;
 
         private ChargeState _state;
         private float _elapsed;
@@ -145,28 +143,6 @@ namespace Combat
             _separation = GetComponent<CharacterSeparation>();
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _retreatAnchor = new GameObject("CavalryRetreatAnchor").transform;
-            _baseKnockbackDistance = knockbackDistance;
-            _baseBonusDamagePerSpeed = bonusDamagePerSpeed;
-        }
-
-        /// <summary>
-        /// 넉백 거리를 원본(프리팹에 authored된) 값 기준 배율로 재설정한다 — 병사 구출 던전(단계가
-        /// 높을수록 세게 넉백)처럼 컨텍스트에 따라 넉백 강도를 바꿔야 하는 외부 호출자를 위한
-        /// 것으로, 매번 원본값에서 다시 계산하므로 여러 번 호출해도 누적되지 않는다.
-        /// </summary>
-        public void SetKnockbackMultiplier(float multiplier)
-        {
-            knockbackDistance = _baseKnockbackDistance * multiplier;
-        }
-
-        /// <summary>
-        /// 돌진 속도 비례 추가 데미지(bonusDamagePerSpeed)를 원본 값 기준 배율로 재설정한다 -
-        /// SetKnockbackMultiplier와 같은 이유·같은 형태. 병사 구출 던전의 기마병처럼 "공격력은
-        /// 고정값 그대로, 속도 추댐만 없애고 싶다"는 경우 0을 넘기면 된다.
-        /// </summary>
-        public void SetBonusDamagePerSpeedMultiplier(float multiplier)
-        {
-            bonusDamagePerSpeed = _baseBonusDamagePerSpeed * multiplier;
         }
 
         private void OnEnable()

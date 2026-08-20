@@ -1,7 +1,4 @@
-using Core;
 using Dungeon;
-using Stage;
-using UI.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +7,7 @@ namespace UI
     /// <summary>
     /// 병사 구출 던전 팝업의 "입장" 버튼을 눌렀을 때, 선택된 단계를 읽어
     /// SoldierRescueDungeonSessionController를 시작시키고 열려 있던 팝업들을 닫아 게임 화면을
-    /// 드러낸다. StoneDungeonEntryUI와 동일한 형태.
+    /// 드러낸다. 입장에는 스테이지 클리어 조건이 없다 — 단계 상한(MaxStageNumber)만 적용된다.
     /// </summary>
     public sealed class SoldierRescueDungeonEntryUI : MonoBehaviour
     {
@@ -41,13 +38,6 @@ namespace UI
 
         private void OnEnterClicked()
         {
-            if (!session.IsStageUnlocked(stepper.CurrentStage, out StageSO requiredStage))
-            {
-                string message = $"스테이지 {requiredStage.Chapter}-{requiredStage.StageNumber} 클리어 시 입장이 가능합니다.";
-                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent(message));
-                return;
-            }
-
             foreach (SimplePopupUI popup in popupsToClose)
             {
                 popup.Close();

@@ -16,7 +16,7 @@ MonoBehaviour:
   attackPower: 10.5
   attackRange: 7
   moveSpeed: 1.1
-  attackInterval: 1.44
+  attackInterval: 2
   criticalChance: 0
   criticalDamageMultiplier: 0.5
   damageReduction: 2

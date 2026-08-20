@@ -11,9 +11,6 @@ namespace Dungeon
     public sealed class SoldierRescueDungeonConfigSO : ScriptableObject
     {
         [SerializeField]
-        private GameObject cavalryPrefab;
-
-        [SerializeField]
         private WarStructureSO structureDefinition;
 
         [SerializeField]
@@ -26,27 +23,16 @@ namespace Dungeon
         private float timeLimitSeconds = 180f;
 
         [SerializeField]
-        private float cavalrySpawnInterval = 4f;
-
-        [SerializeField]
         private int ticketsPerClearPerStage = 5;
 
         [SerializeField]
         private StageCatalogSO stageCatalog;
-
-        [SerializeField]
-        private float spawnViewportMargin = 0.2f;
 
         /// <summary>
         /// StoneDungeonConfigSO와 동일한 패턴 — 선택한 단계 N을 "챕터 N의 N-40 스테이지"(챕터
         /// 클라이맥스) 기준으로 해석한다.
         /// </summary>
         private const int ReferenceStageNumber = 40;
-
-        /// <summary>
-        /// 스폰할 기마병 프리팹. 넉백 등 이 던전 전용 수치를 가진 별도 프리팹을 쓴다.
-        /// </summary>
-        public GameObject CavalryPrefab => cavalryPrefab;
 
         /// <summary>
         /// 점령 구역(WarStructure) 프리팹에 물릴 데이터 정의. War 시스템의 기존 정의를 그대로 재사용한다.
@@ -69,19 +55,9 @@ namespace Dungeon
         public float TimeLimitSeconds => timeLimitSeconds;
 
         /// <summary>
-        /// 기마병 리스폰 주기(초).
-        /// </summary>
-        public float CavalrySpawnInterval => cavalrySpawnInterval;
-
-        /// <summary>
         /// 클리어 시 지급하는 병사 뽑기 재료 = ticketsPerClearPerStage × 선택한 단계.
         /// </summary>
         public int TicketsPerClearPerStage => ticketsPerClearPerStage;
-
-        /// <summary>
-        /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5). 기마병 스폰에 쓴다.
-        /// </summary>
-        public float SpawnViewportMargin => spawnViewportMargin;
 
         /// <summary>
         /// 선택한 단계 N의 기준 스테이지(챕터 N의 -40 스테이지)를 반환한다. 존재하지 않으면

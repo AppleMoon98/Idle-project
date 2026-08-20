@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Character;
 using Character.Events;
-using Combat;
 using Core;
 using Dungeon.Events;
 using Gacha;
@@ -18,11 +17,11 @@ namespace Dungeon
     /// <summary>
     /// 병사 구출 던전(구역 점령전) 한 판의 진행을 관리한다. War 시스템의 WarStructure(점령 게이지 +
     /// 주변 몬스터 밀어내기)를 매 시도마다 서로 최소 거리를 유지한 채 랜덤 위치에 zoneCount개
-    /// 생성하고, 기마병만 일정 주기로 계속 리스폰시킨다. 제한시간 안에 구역을 전부 점령하면 클리어
-    /// (병사 뽑기 재료 지급), 시간 초과나 플레이어 사망이면 실패(재도전/나가기 대기).
-    /// StoneDungeonSessionController와 같은 "StageSO/StageProgression은 건드리지 않는 오버레이"
-    /// 골격이지만, 이 던전은 병사 동행이 금지되므로 진입 시 SoldierSpawner를 통해 이미 배치된
-    /// 병사를 전부 비활성화하고 종료 시 되돌린다.
+    /// 생성한다. 제한시간 안에 구역을 전부 점령하면 클리어(병사 뽑기 재료 지급), 시간 초과나
+    /// 플레이어 사망이면 실패(재도전/나가기 대기). StoneDungeonSessionController와 같은
+    /// "StageSO/StageProgression은 건드리지 않는 오버레이" 골격이지만, 이 던전은 병사 동행이
+    /// 금지되므로 진입 시 SoldierSpawner를 통해 이미 배치된 병사를 전부 비활성화하고 종료 시
+    /// 되돌린다.
     ///
     /// War.Objectives.StructureCaptureObjective/War.WarBattleController는 재사용하지 않는다 —
     /// 둘 다 챕터 클라이맥스의 고정 배치를 전제하는데, 이 던전은 시도마다 위치가 랜덤이라
@@ -32,11 +31,6 @@ namespace Dungeon
     public sealed class SoldierRescueDungeonSessionController : MonoBehaviour, ITickable
     {
         private const int MaxPlacementAttemptsPerZone = 30;
-
-        /// <summary>
-        /// 기마병 이동속도 = BaseStats.MoveSpeed + 단계 × 이 값 (요청 사양 - 배율이 아니라 덧셈).
-        /// </summary>
-        private const float MoveSpeedPerStage = 0.1f;
 
         [SerializeField]
         private SoldierRescueDungeonConfigSO config;
@@ -57,11 +51,9 @@ namespace Dungeon
         private CaptureZoneAutoNavigator captureNavigator;
 
         private readonly List<WarStructure> _activeZones = new();
-        private readonly List<GameObject> _activeCavalry = new();
 
         private int _stageNumber;
         private float _remainingTime;
-        private float _cavalryElapsed;
         private bool _isActive;
         private bool _isFighting;
         private float _lastPublishedProgress;
@@ -89,34 +81,13 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// stageNumber 단계의 입장 조건 — 그 단계의 기준 스테이지(챕터 N의 N-40 스테이지)를 실제로
-        /// 클리어한 기록이 있는지 — 를 판정한다. Stone 던전의 IsStageUnlocked와 동일한 이유·형태.
-        /// </summary>
-        public bool IsStageUnlocked(int stageNumber, out StageSO requiredStage)
-        {
-            requiredStage = config != null ? config.GetReferenceStage(stageNumber) : null;
-
-            if (requiredStage == null)
-            {
-                return true;
-            }
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService))
-            {
-                return rankService.HasClearedStage(requiredStage);
-            }
-
-            return false;
-        }
-
-        /// <summary>
         /// 병사 구출 던전을 시작한다. 이미 진행 중이거나(자기 자신) 다른 오버레이가 이미 켜져
         /// 있으면(stageController.IsOverlayActive) 무시한다 — GoldDungeonSessionController.Enter와
         /// 동일한 이유(던전 중복 진입 방지).
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.CavalryPrefab == null || structurePrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || structurePrefab == null)
             {
                 return;
             }
@@ -166,7 +137,6 @@ namespace Dungeon
         private void StartAttempt()
         {
             _remainingTime = config.TimeLimitSeconds;
-            _cavalryElapsed = 0f;
             _isFighting = true;
             _lastPublishedProgress = -1f;
 
@@ -277,57 +247,7 @@ namespace Dungeon
                 return;
             }
 
-            TickCavalrySpawning(deltaTime);
             TickZoneProgress();
-        }
-
-        private void TickCavalrySpawning(float deltaTime)
-        {
-            _cavalryElapsed += deltaTime;
-
-            if (_cavalryElapsed < config.CavalrySpawnInterval)
-            {
-                return;
-            }
-
-            _cavalryElapsed = 0f;
-            SpawnCavalry();
-        }
-
-        private void SpawnCavalry()
-        {
-            if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
-            {
-                return;
-            }
-
-            pool.EnsurePool(config.CavalryPrefab, 1, 8);
-
-            Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(config.SpawnViewportMargin);
-            GameObject instance = pool.Get(config.CavalryPrefab, spawnPosition, Quaternion.identity);
-
-            // 체력/공격력은 프리팹 자체(MonsterStats_Cavalry_Rescue: 체력 90000/공격력 1)에 고정돼
-            // 있어 단계와 무관하다 - 단계에 비례해 세지는 건 넉백뿐이다(요청 사양).
-            if (instance.TryGetComponent(out CharacterStatsProvider statsProvider))
-            {
-                statsProvider.Stats.MoveSpeed = statsProvider.BaseStats.MoveSpeed + _stageNumber * MoveSpeedPerStage;
-            }
-
-            if (instance.TryGetComponent(out CavalryCharge cavalryCharge))
-            {
-                cavalryCharge.SetKnockbackMultiplier(_stageNumber);
-
-                // 공격력은 프리팹 고정값(1) 그대로 둔다 - 돌진 속도 비례 추가 데미지까지 더해지면
-                // 더 이상 "거의 무해한" 공격력이 아니게 되므로, 이 던전의 기마병만 꺼둔다.
-                cavalryCharge.SetBonusDamagePerSpeedMultiplier(0f);
-            }
-
-            if (instance.TryGetComponent(out IMonsterMovementInitializer movementInitializer))
-            {
-                movementInitializer.Initialize(playerTransform);
-            }
-
-            _activeCavalry.Add(instance);
         }
 
         /// <summary>
@@ -377,10 +297,6 @@ namespace Dungeon
 
         private void OnCharacterDied(CharacterDiedEvent evt)
         {
-            // 자연사한(플레이어에게 처치된) 기마병은 Character.PoolReleaseOnDeath가 알아서 풀로
-            // 반납하므로, 여기서는 추적만 정리해 세션 종료 시 이중 반납을 막는다.
-            _activeCavalry.Remove(evt.Character);
-
             if (playerTransform != null && evt.Character == playerTransform.gameObject)
             {
                 HandleFailure();
@@ -391,7 +307,6 @@ namespace Dungeon
         {
             StopFighting();
             ReleaseZones();
-            ReleaseRemainingCavalry();
 
             int ticketsEarned = config.TicketsPerClearPerStage * _stageNumber;
 
@@ -432,7 +347,6 @@ namespace Dungeon
         {
             StopFighting();
             ReleaseZones();
-            ReleaseRemainingCavalry();
 
             GameBootstrapper.Events?.Publish(new SoldierRescueDungeonAttemptFailedEvent());
         }
@@ -462,35 +376,12 @@ namespace Dungeon
             _activeZones.Clear();
         }
 
-        /// <summary>
-        /// 실패/클리어로 시도가 끝날 때 아직 살아있는(자연사하지 않은) 기마병을 강제로 회수한다.
-        /// 자연사한 개체는 OnCharacterDied에서 이미 추적 목록에서 빠졌으므로(Character.PoolReleaseOnDeath가
-        /// 알아서 반납) 여기 남은 것들만 반납하면 된다 - Stage.StageProgressTracker.ReleaseRemaining과
-        /// 같은 이유(시도가 도중에 강제로 끝나면 죽지 않은 개체는 스스로 반납되지 않는다).
-        /// </summary>
-        private void ReleaseRemainingCavalry()
-        {
-            if (DungeonSpawnUtility.TryGetPool(out PoolManager pool))
-            {
-                foreach (GameObject instance in _activeCavalry)
-                {
-                    if (instance != null)
-                    {
-                        pool.Release(instance);
-                    }
-                }
-            }
-
-            _activeCavalry.Clear();
-        }
-
         private void OnDestroy()
         {
             if (_isFighting)
             {
                 StopFighting();
                 ReleaseZones();
-                ReleaseRemainingCavalry();
             }
 
             if (_isActive)
