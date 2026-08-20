@@ -187,6 +187,11 @@ namespace Core
             Services.Register(squadMovementSyncService);
             _managers.Add(squadMovementSyncService);
 
+            var monsterSquadMovementSyncService = new MonsterSquadMovementSyncService();
+            monsterSquadMovementSyncService.Initialize();
+            Services.Register(monsterSquadMovementSyncService);
+            _managers.Add(monsterSquadMovementSyncService);
+
             var squadTacticService = new SquadTacticService(Events);
             squadTacticService.Initialize();
             Services.Register(squadTacticService);

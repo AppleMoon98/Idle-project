@@ -15,9 +15,13 @@ namespace Soldier
     /// 기마병/기마궁수(Combat.CavalryCharge/OrbitKiter 보유 — 등록 시 IsExempt로 표시)는 부대에
     /// 배치돼 있어도 항상 각개 행동이라 클램프 대상/기준 계산 양쪽에서 완전히 제외된다.
     /// SoldierBehaviorController.Evaluate가 매 결정 주기마다 SetMarching으로 "지금 이 유닛이
-    /// 부대와 함께 행군 중인지(Engage 모드 + 아직 교전 상대를 못 찾음)"를 알려주며, Hold/Retreat
-    /// 모드거나 이미 교전(주변에 적 감지)이 시작된 유닛은 그 순간부터 클램프에서 빠져 자기 본연
-    /// 속도로 되돌아간다.
+    /// 부대와 함께 행군 중인지(Engage 모드 + 아직 교전 상대를 못 찾음)"를 알려준다. 부대 안
+    /// 비면제(기마병/기마궁수 제외) 유닛 중 단 하나라도 교전에 들어가면(SetMarching false) 그
+    /// 순간 부대 전체가 함께 전투태세로 전환된다 — "한 명이라도 교전하면 전원 교전" 요청에 따라,
+    /// 각 유닛의 로컬 판정을 그대로 쓰지 않고 부대 전체의 AND 집계(GetEffectiveMarching)를
+    /// 별도로 유지해 이동속도 클램프와 SoldierBehaviorController.ApplyMode의 대형 이탈 판단
+    /// 양쪽에 공통으로 반영한다. 기마병/기마궁수는 원래부터 각개행동이라(IsExempt) 이 집계에서
+    /// 완전히 제외된다 — 다른 유닛의 교전에 끌려들지도, 자신의 교전이 부대에 전파되지도 않는다.
     ///
     /// "본연 속도"는 캐싱하지 않고 매번 CharacterStatsProvider.BaseStats.MoveSpeed + 병사 전역
     /// 이동속도 강화 레벨로 새로 계산한다(SoldierStatReceiver가 RuntimeStats.MoveSpeed에 적용하는
@@ -41,6 +45,7 @@ namespace Soldier
         private readonly EventBus _events;
         private readonly Dictionary<GameObject, Member> _members = new();
         private readonly Dictionary<int, List<Member>> _squadMembers = new();
+        private readonly Dictionary<int, bool> _squadEffectiveMarching = new();
 
         public SquadMovementSyncService(EventBus events)
         {
@@ -59,6 +64,7 @@ namespace Soldier
             _events?.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
             _members.Clear();
             _squadMembers.Clear();
+            _squadEffectiveMarching.Clear();
         }
 
         /// <summary>
@@ -142,6 +148,46 @@ namespace Soldier
             RecomputeSquad(SquadIndexOf(member.SlotIndex));
         }
 
+        /// <summary>
+        /// instance가 실제로 "행군 중"으로 취급돼야 하는지 — 이 유닛 자신의 로컬 판정이 아니라
+        /// 소속 부대의 AND 집계다(부대원 중 하나라도 교전 중이면 전원 false). 예외(기마병/기마궁수)는
+        /// 부대 집계와 무관하게 항상 자기 로컬 판정을 그대로 반환한다. SoldierBehaviorController.
+        /// ApplyMode가 이 값으로 궁병의 대형 이탈 여부를 판단한다 — SetMarching으로 보고한 로컬
+        /// isMarching을 그대로 쓰면 "한 명이라도 교전하면 전원 교전" 전파가 되지 않는다.
+        /// </summary>
+        public bool GetEffectiveMarching(GameObject instance)
+        {
+            if (instance == null || !_members.TryGetValue(instance, out Member member))
+            {
+                return true;
+            }
+
+            if (member.IsExempt)
+            {
+                return member.IsMarching;
+            }
+
+            return !_squadEffectiveMarching.TryGetValue(SquadIndexOf(member.SlotIndex), out bool marching) || marching;
+        }
+
+        /// <summary>
+        /// instance가 등록된 부대의 이동속도 클램프를 강제로 다시 계산한다. 던전 오버레이가 병사
+        /// 전체를 SetActive(false)→(true)로 순환시키는 경로(Soldier.SoldierRespawner.SetActiveAll)는
+        /// Register/SetMarching 어느 쪽도 거치지 않는데, 재활성화 시 OnEnable이
+        /// Soldier.SoldierStatReceiver를 통해 RuntimeStats.MoveSpeed를 본연 속도로 되돌려버려
+        /// 클램프가 저절로 재적용되지 않는다 — 그 경로가 끝난 뒤 이 메서드로 명시적으로 되돌린다.
+        /// 등록되지 않은 인스턴스는 조용히 무시한다.
+        /// </summary>
+        public void Resync(GameObject instance)
+        {
+            if (instance == null || !_members.TryGetValue(instance, out Member member))
+            {
+                return;
+            }
+
+            RecomputeSquad(SquadIndexOf(member.SlotIndex));
+        }
+
         private void OnCharacterDied(CharacterDiedEvent evt)
         {
             if (evt.Character == null || !_members.TryGetValue(evt.Character, out Member member))
@@ -183,11 +229,29 @@ namespace Soldier
                 return;
             }
 
+            bool squadMarching = true;
+
+            foreach (Member member in members)
+            {
+                if (member.IsExempt)
+                {
+                    continue;
+                }
+
+                if (!member.IsMarching)
+                {
+                    squadMarching = false;
+                    break;
+                }
+            }
+
+            _squadEffectiveMarching[squadIndex] = squadMarching;
+
             float squadMinSpeed = float.MaxValue;
 
             foreach (Member member in members)
             {
-                if (member.IsExempt || !member.IsMarching)
+                if (member.IsExempt || !squadMarching)
                 {
                     continue;
                 }
@@ -205,7 +269,7 @@ namespace Soldier
             foreach (Member member in members)
             {
                 float natural = NaturalMoveSpeed(member);
-                bool clamp = hasClampTarget && !member.IsExempt && member.IsMarching;
+                bool clamp = hasClampTarget && !member.IsExempt && squadMarching;
 
                 member.StatsProvider.Stats.MoveSpeed = clamp ? squadMinSpeed : natural;
             }

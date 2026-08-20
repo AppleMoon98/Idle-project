@@ -229,7 +229,13 @@ namespace Soldier
             bool isMarching = mode == BehaviorMode.Engage && !enemyInRange;
             _squadMovementSync?.SetMarching(gameObject, isMarching);
 
-            ApplyMode(mode, isMarching);
+            // ApplyMode에는 이 유닛 자신의 로컬 판정이 아니라 부대 전체의 집계값을 넘긴다 —
+            // 부대원 중 하나라도 교전에 들어가면(GetEffectiveMarching이 false) 아직 적을 못 찾은
+            // 나머지도 즉시 함께 전투태세로 전환된다(궁병의 대형 이탈 등). 기마병/기마궁수는
+            // GetEffectiveMarching이 항상 자기 로컬 값을 그대로 돌려주므로 원래처럼 계속 각개행동.
+            bool effectiveMarching = _squadMovementSync != null ? _squadMovementSync.GetEffectiveMarching(gameObject) : isMarching;
+
+            ApplyMode(mode, effectiveMarching);
         }
 
         /// <summary>

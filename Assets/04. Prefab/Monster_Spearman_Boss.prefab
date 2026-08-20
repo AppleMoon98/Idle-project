@@ -115,6 +115,7 @@ GameObject:
   - component: {fileID: 8518660914904533806}
   - component: {fileID: 6470145058086734646}
   - component: {fileID: 2319533675187206249}
+  - component: {fileID: 4454090797563477313}
   m_Layer: 9
   m_Name: Monster_Spearman_Boss
   m_TagString: Untagged
@@ -350,6 +351,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  attackWindupLeadTime: 0
 --- !u!114 &8304740955297524442
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -388,6 +390,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  ignorePlayer: 0
 --- !u!114 &6470145058086734646
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -400,7 +406,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dbcddbfaf69207948810d70921f75727, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.FormationFollower
-  followDistance: 1.5
   retargetInterval: 0.2
   detectionRange: 20
   allyLayerMask:
@@ -428,6 +433,19 @@ MonoBehaviour:
     m_Bits: 256
   postAttackLockFraction: 0.5
   enablePostAttackLock: 1
+--- !u!114 &4454090797563477313
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cdd9bfc52b972b54589769da2ef8a83b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.MonsterMarchingTracker
+  pollInterval: 0.2
 --- !u!1 &5626639420520912746
 GameObject:
   m_ObjectHideFlags: 0

@@ -63,6 +63,10 @@ namespace Soldier
         /// 금지된 던전 오버레이 진입/종료). 비활성화된 채로도 _activeSoldiers/_activeBySlot 추적은
         /// 그대로 유지되므로, 병사가 이 상태에서 죽는 일은 없다(비활성 GameObject는 애초에
         /// CharacterDiedEvent를 발행할 수 없다).
+        /// 재활성화(active=true) 시에는 OnEnable이 Soldier.SoldierStatReceiver를 통해
+        /// RuntimeStats.MoveSpeed를 본연 속도로 초기화해버리므로, 이 경로가 끝난 뒤
+        /// Soldier.SquadMovementSyncService.Resync로 부대 클램프를 명시적으로 다시 적용한다 —
+        /// 안 하면 던전을 한 번 다녀온 병사가 이후 계속 자기 본연 속도로 각자 따로 걷게 된다.
         /// </summary>
         public void SetActiveAll(bool active)
         {
@@ -71,6 +75,14 @@ namespace Soldier
                 if (soldier != null)
                 {
                     soldier.SetActive(active);
+                }
+            }
+
+            if (active && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadMovementSyncService squadSync))
+            {
+                foreach (GameObject soldier in _activeSoldiers.Keys)
+                {
+                    squadSync.Resync(soldier);
                 }
             }
         }
