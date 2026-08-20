@@ -95,38 +95,35 @@ namespace Stage
                 return;
             }
 
+            // 1패스: 하나라도 IsMarching=false면 그룹 전체가 전투태세(groupMarching=false), 동시에
+            // 클램프 후보 최저속(groupMinSpeed)도 함께 구한다 — groupMarching이 최종적으로 false로
+            // 판명나면 이 값은 그냥 버려진다(아래서 hasClampTarget이 걸러냄).
             bool groupMarching = true;
+            float groupMinSpeed = float.MaxValue;
 
             foreach (Member member in _members.Values)
             {
                 if (!member.IsMarching)
                 {
                     groupMarching = false;
-                    break;
                 }
-            }
 
-            float groupMinSpeed = float.MaxValue;
+                float natural = member.StatsProvider.BaseStats.MoveSpeed;
 
-            if (groupMarching)
-            {
-                foreach (Member member in _members.Values)
+                if (natural < groupMinSpeed)
                 {
-                    float natural = member.StatsProvider.BaseStats.MoveSpeed;
-
-                    if (natural < groupMinSpeed)
-                    {
-                        groupMinSpeed = natural;
-                    }
+                    groupMinSpeed = natural;
                 }
             }
 
             bool hasClampTarget = groupMarching && groupMinSpeed < float.MaxValue;
 
+            // 2패스: 그룹 전체가 행군 중일 때만 최저속으로, 아니면 각자 본연 속도로.
             foreach (Member member in _members.Values)
             {
-                float natural = member.StatsProvider.BaseStats.MoveSpeed;
-                member.StatsProvider.Stats.MoveSpeed = hasClampTarget ? groupMinSpeed : natural;
+                member.StatsProvider.Stats.MoveSpeed = hasClampTarget
+                    ? groupMinSpeed
+                    : member.StatsProvider.BaseStats.MoveSpeed;
             }
         }
     }

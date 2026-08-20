@@ -229,7 +229,11 @@ namespace Soldier
                 return;
             }
 
+            // 1패스: 비면제 유닛 중 하나라도 IsMarching=false면 부대 전체가 전투태세(squadMarching=false),
+            // 동시에 클램프 후보 최저속(squadMinSpeed)도 함께 구한다 — squadMarching이 최종적으로
+            // false로 판명나면 이 값은 그냥 버려진다(아래서 hasClampTarget이 걸러냄).
             bool squadMarching = true;
+            float squadMinSpeed = float.MaxValue;
 
             foreach (Member member in members)
             {
@@ -241,19 +245,6 @@ namespace Soldier
                 if (!member.IsMarching)
                 {
                     squadMarching = false;
-                    break;
-                }
-            }
-
-            _squadEffectiveMarching[squadIndex] = squadMarching;
-
-            float squadMinSpeed = float.MaxValue;
-
-            foreach (Member member in members)
-            {
-                if (member.IsExempt || !squadMarching)
-                {
-                    continue;
                 }
 
                 float natural = NaturalMoveSpeed(member);
@@ -264,14 +255,16 @@ namespace Soldier
                 }
             }
 
-            bool hasClampTarget = squadMinSpeed < float.MaxValue;
+            _squadEffectiveMarching[squadIndex] = squadMarching;
 
+            bool hasClampTarget = squadMarching && squadMinSpeed < float.MaxValue;
+
+            // 2패스: 클램프 대상(비면제 + 부대 전체 행군 중)만 squadMinSpeed로, 나머지는 각자 본연 속도로.
             foreach (Member member in members)
             {
-                float natural = NaturalMoveSpeed(member);
-                bool clamp = hasClampTarget && !member.IsExempt && squadMarching;
-
-                member.StatsProvider.Stats.MoveSpeed = clamp ? squadMinSpeed : natural;
+                member.StatsProvider.Stats.MoveSpeed = hasClampTarget && !member.IsExempt
+                    ? squadMinSpeed
+                    : NaturalMoveSpeed(member);
             }
         }
 
