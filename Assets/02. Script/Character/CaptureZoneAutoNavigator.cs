@@ -70,13 +70,16 @@ namespace Character
                 && GameBootstrapper.Services.TryGet(out PlayerControlModeService controlModeService)
                 && controlModeService.CurrentMode == PlayerControlMode.Auto;
 
+            // Manual 모드일 때는 EnemyTracker를 전혀 건드리지 않는다 — 그 상태를 계속 소유하는 건
+            // Character.PlayerManualMover다(Manual 모드에서는 항상 꺼져 있어야 하는 불변식,
+            // 탭 이동 중에는 도착할 때까지 꺼두는 것도 그쪽 책임). 예전엔 여기서 "꺼져 있으면
+            // 다시 켠다"를 했는데, 그러면 PlayerManualMover.BeginTapMove가 탭 이동을 위해 꺼둔
+            // 걸 같은 프레임/다음 프레임에 도로 켜버려 EnemyTracker가 재개되고, 이 던전엔 몬스터가
+            // 없어 매 retargetInterval(0.2초)마다 EnemyTracker가 CharacterMover.Target을 null로
+            // 덮어써 탭 이동 자체가 계속 취소되는 버그가 있었다(실사용 중 발견 — "수동 모드로
+            // 바꾸고 터치해도 잘 이동하지 않는다").
             if (!isAuto)
             {
-                if (_enemyTracker != null && !_enemyTracker.enabled)
-                {
-                    _enemyTracker.enabled = true;
-                }
-
                 return;
             }
 
