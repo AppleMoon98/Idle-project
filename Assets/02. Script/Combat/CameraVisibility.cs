@@ -59,5 +59,34 @@ namespace Combat
 
             return new Vector3(clampedX, clampedY, worldPosition.z);
         }
+
+        /// <summary>
+        /// origin(항상 사각형 안쪽에 있다고 가정)에서 direction(정규화된 방향) 쪽으로 나아갈 때
+        /// IsWithinBounds와 같은 사각형(center/halfExtent) 경계까지의 거리를 구한다. 축별 슬랩
+        /// 교차 거리 중 더 작은 쪽(먼저 벽에 닿는 축)을 취하는 표준 Ray-AABB 교차 계산 —
+        /// Dungeon.SoldierRescueSniperAttackSpawner가 플레이어를 관통하는 경고선의 양 끝(정방향/
+        /// 역방향 각각 호출)을, Dungeon.SoldierRescueSniperAttack이 명중 시 넉백 거리(맞은 방향
+        /// 그대로 화면 가장자리까지)를 구하는 데 재사용한다.
+        /// </summary>
+        public static float DistanceToBoundsEdge(Vector3 origin, Vector2 direction, Vector3 center, Vector2 halfExtent)
+        {
+            float distanceX = float.PositiveInfinity;
+
+            if (Mathf.Abs(direction.x) > 1e-6f)
+            {
+                float targetX = direction.x > 0f ? center.x + halfExtent.x : center.x - halfExtent.x;
+                distanceX = (targetX - origin.x) / direction.x;
+            }
+
+            float distanceY = float.PositiveInfinity;
+
+            if (Mathf.Abs(direction.y) > 1e-6f)
+            {
+                float targetY = direction.y > 0f ? center.y + halfExtent.y : center.y - halfExtent.y;
+                distanceY = (targetY - origin.y) / direction.y;
+            }
+
+            return Mathf.Max(0f, Mathf.Min(distanceX, distanceY));
+        }
     }
 }

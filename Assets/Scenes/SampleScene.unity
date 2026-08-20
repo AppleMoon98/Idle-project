@@ -29733,6 +29733,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
+  attackWindupLeadTime: 0
 --- !u!114 &762544238
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -38464,6 +38465,7 @@ GameObject:
   m_Component:
   - component: {fileID: 966188449}
   - component: {fileID: 966188448}
+  - component: {fileID: 966188450}
   m_Layer: 0
   m_Name: SoldierRescueDungeonSession
   m_TagString: Untagged
@@ -38489,6 +38491,7 @@ MonoBehaviour:
   playerTransform: {fileID: 762544236}
   structurePrefab: {fileID: 8480391494377752689, guid: ad0ae9340b5949a45a7294eeb4db2b61, type: 3}
   captureNavigator: {fileID: 843023033926465276}
+  sniperAttackSpawner: {fileID: 966188450}
 --- !u!4 &966188449
 Transform:
   m_ObjectHideFlags: 0
@@ -38504,6 +38507,25 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &966188450
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 966188447}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 48033e8debf9a4c488fdba8b1f9799ad, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Dungeon.SoldierRescueSniperAttackSpawner
+  attackPrefab: {fileID: 7807651917916641189, guid: 217e968f724e5154baa8bccd68532929, type: 3}
+  playerTransform: {fileID: 762544236}
+  baseInterval: 1
+  intervalDecreasePerStage: 0.1
+  minInterval: 0.3
+  poolCapacity: 4
+  poolMaxSize: 16
 --- !u!1 &966742677
 GameObject:
   m_ObjectHideFlags: 0

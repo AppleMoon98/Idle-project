@@ -50,6 +50,9 @@ namespace Dungeon
         [SerializeField]
         private CaptureZoneAutoNavigator captureNavigator;
 
+        [SerializeField]
+        private SoldierRescueSniperAttackSpawner sniperAttackSpawner;
+
         private readonly List<WarStructure> _activeZones = new();
 
         private int _stageNumber;
@@ -142,6 +145,7 @@ namespace Dungeon
 
             SpawnZones();
             captureNavigator?.Activate(_activeZones);
+            sniperAttackSpawner?.Activate(_stageNumber);
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Register(this);
@@ -356,6 +360,7 @@ namespace Dungeon
             _isFighting = false;
 
             captureNavigator?.Deactivate();
+            sniperAttackSpawner?.Deactivate();
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Unregister(this);
         }
