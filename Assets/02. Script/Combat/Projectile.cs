@@ -7,8 +7,10 @@ using UnityEngine;
 namespace Combat
 {
     /// <summary>
-    /// 타겟을 향해 유도 비행하다가 도달하면 데미지를 적용하고 스스로 풀로 반납되는 발사체.
-    /// 타겟이 죽으면(Health.IsDead) 자연히 반납되지만, 그것만으로는 부족하다 — Character.Health.Die가
+    /// 발사 시점 타겟 위치를 향해 직선으로 날아가다가 도달하면 데미지를 적용하고 스스로 풀로
+    /// 반납되는 발사체. 목적지는 Launch() 시점에 한 번만 고정되며(호밍 없음), 비행 중 타겟이
+    /// 움직여도 경로가 휘지 않는다 — 도달 판정 시 데미지는 여전히 원래 타겟(Health 참조)에게
+    /// 적용된다. 타겟이 죽으면(Health.IsDead) 자연히 반납되지만, 그것만으로는 부족하다 — Character.Health.Die가
     /// CharacterDiedEvent를 발행하면 스테이지 전환(플레이어 사망 → 스테이지 재시작 → 그 안에서
     /// Health.Revive)까지 전부 같은 호출 안에서 동기적으로 끝나버려, 그 사이 다른 발사체가 다음
     /// 틱에 IsDead를 확인할 때는 이미 부활해 false로 돌아가 있다(타겟이 죽었었다는 걸 영영 감지
@@ -29,6 +31,7 @@ namespace Combat
         private float _damage;
         private bool _isCritical;
         private bool _released;
+        private Vector3 _destination;
 
         private void OnEnable()
         {
@@ -56,6 +59,7 @@ namespace Combat
             _target = target;
             _damage = damage;
             _isCritical = isCritical;
+            _destination = target != null ? target.transform.position : transform.position;
         }
 
         void ITickable.Tick(float deltaTime)
@@ -66,10 +70,9 @@ namespace Combat
                 return;
             }
 
-            Vector3 targetPosition = _target.transform.position;
-            transform.position = Vector3.MoveTowards(transform.position, targetPosition, speed * deltaTime);
+            transform.position = Vector3.MoveTowards(transform.position, _destination, speed * deltaTime);
 
-            if (Vector3.Distance(transform.position, targetPosition) <= hitDistance)
+            if (Vector3.Distance(transform.position, _destination) <= hitDistance)
             {
                 _target.TakeDamage(_damage, _isCritical);
                 ReleaseSelf();
