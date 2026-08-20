@@ -186,6 +186,11 @@ namespace Save
         /// </summary>
         public string SkillGachaGoldPullCountsJson { get; }
 
+        /// <summary>
+        /// 마지막으로 저장된 보유 보스 토벌 증표. 기록이 없으면 0.
+        /// </summary>
+        public int BossTokenCount { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -219,7 +224,8 @@ namespace Save
             int equipmentGachaTicketCount,
             string squadTacticsJson,
             string soldierGachaGoldPullCountsJson,
-            string skillGachaGoldPullCountsJson)
+            string skillGachaGoldPullCountsJson,
+            int bossTokenCount)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -254,6 +260,7 @@ namespace Save
             SquadTacticsJson = squadTacticsJson;
             SoldierGachaGoldPullCountsJson = soldierGachaGoldPullCountsJson;
             SkillGachaGoldPullCountsJson = skillGachaGoldPullCountsJson;
+            BossTokenCount = bossTokenCount;
         }
     }
 }

@@ -1,6 +1,7 @@
 using System;
 using Behavior;
 using Core;
+using Dungeon.Events;
 using Enhancement;
 using Enhancement.Events;
 using Equipment;
@@ -138,6 +139,7 @@ namespace Save
         private const string SquadTacticsJsonKey = "Save.SquadTacticsJson";
         private const string SoldierGachaGoldPullCountsJsonKey = "Save.SoldierGachaGoldPullCountsJson";
         private const string SkillGachaGoldPullCountsJsonKey = "Save.SkillGachaGoldPullCountsJson";
+        private const string BossTokenCountKey = "Save.BossTokenCount";
 
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
@@ -187,6 +189,7 @@ namespace Save
         private string _squadTacticsJson = "";
         private string _soldierGachaGoldPullCountsJson = "";
         private string _skillGachaGoldPullCountsJson = "";
+        private int _bossTokenCount;
         private bool _isDirty;
 
         public SaveService(
@@ -261,6 +264,7 @@ namespace Save
             _squadTacticsJson = save.SquadTacticsJson;
             _soldierGachaGoldPullCountsJson = save.SoldierGachaGoldPullCountsJson;
             _skillGachaGoldPullCountsJson = save.SkillGachaGoldPullCountsJson;
+            _bossTokenCount = save.BossTokenCount;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -286,6 +290,7 @@ namespace Save
             _events.Subscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
             _events.Subscribe<SoldierPulledEvent>(OnSoldierPulled);
             _events.Subscribe<SkillPulledEvent>(OnSkillPulled);
+            _events.Subscribe<BossTokenChangedEvent>(OnBossTokenChanged);
 
             TickerRegistration.Register(this);
         }
@@ -318,6 +323,7 @@ namespace Save
             _events.Unsubscribe<SquadTacticChangedEvent>(OnSquadTacticChanged);
             _events.Unsubscribe<SoldierPulledEvent>(OnSoldierPulled);
             _events.Unsubscribe<SkillPulledEvent>(OnSkillPulled);
+            _events.Unsubscribe<BossTokenChangedEvent>(OnBossTokenChanged);
         }
 
         /// <summary>
@@ -358,6 +364,7 @@ namespace Save
             string squadTacticsJson = PlayerPrefs.GetString(SquadTacticsJsonKey, "");
             string soldierGachaGoldPullCountsJson = PlayerPrefs.GetString(SoldierGachaGoldPullCountsJsonKey, "");
             string skillGachaGoldPullCountsJson = PlayerPrefs.GetString(SkillGachaGoldPullCountsJsonKey, "");
+            int bossTokenCount = PlayerPrefs.GetInt(BossTokenCountKey, 0);
 
             return new SaveData(
                 gold,
@@ -392,7 +399,8 @@ namespace Save
                 equipmentGachaTicketCount,
                 squadTacticsJson,
                 soldierGachaGoldPullCountsJson,
-                skillGachaGoldPullCountsJson);
+                skillGachaGoldPullCountsJson,
+                bossTokenCount);
         }
 
         /// <summary>
@@ -454,6 +462,7 @@ namespace Save
             PlayerPrefs.SetString(SquadTacticsJsonKey, _squadTacticsJson);
             PlayerPrefs.SetString(SoldierGachaGoldPullCountsJsonKey, _soldierGachaGoldPullCountsJson);
             PlayerPrefs.SetString(SkillGachaGoldPullCountsJsonKey, _skillGachaGoldPullCountsJson);
+            PlayerPrefs.SetInt(BossTokenCountKey, _bossTokenCount);
             PlayerPrefs.Save();
 
             _isDirty = false;
@@ -740,6 +749,12 @@ namespace Save
         private void OnSkillScrollChanged(SkillScrollChangedEvent evt)
         {
             _skillScrollCount = evt.CurrentScrolls;
+            MarkDirty();
+        }
+
+        private void OnBossTokenChanged(BossTokenChangedEvent evt)
+        {
+            _bossTokenCount = evt.CurrentTokens;
             MarkDirty();
         }
 

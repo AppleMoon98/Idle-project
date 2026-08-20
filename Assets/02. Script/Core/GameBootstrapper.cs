@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Behavior;
 using Character;
 using Combat;
+using Dungeon;
 using Enhancement;
 using Equipment;
 using Gacha;
@@ -335,6 +336,11 @@ namespace Core
             skillScrollService.Initialize();
             Services.Register(skillScrollService);
             _managers.Add(skillScrollService);
+
+            var bossTokenService = new BossTokenService(Events, save.BossTokenCount);
+            bossTokenService.Initialize();
+            Services.Register(bossTokenService);
+            _managers.Add(bossTokenService);
 
             var skillGachaService = new SkillGachaService(Events, skillScrollService, currencyService, skillService, skillGachaTiers);
             skillGachaService.Initialize();
