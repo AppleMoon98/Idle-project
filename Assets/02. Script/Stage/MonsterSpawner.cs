@@ -23,6 +23,9 @@ namespace Stage
     /// 입장하자마자 대형부터 구성되도록 - 그게 모두 끝나면 이어서 일반 웨이브(MonsterSpawnEntry)를
     /// 처리한다. 전술 대형은 쌍(리더+추종자) 단위로 <see cref="TacticSpawnEntry.PairSpawnInterval"/>
     /// 만큼 시간차를 두고 스폰된다 - 이 값이 0(기본값)이면 한 틱에 전원이 한꺼번에 스폰된다.
+    /// 일반 웨이브(TickEntries/SpawnImmediateEntries)는 각자의 배치 안에서 AttackRange 오름차순으로
+    /// 스폰 순서를 다시 정렬한다 — 사거리가 짧을수록 앞쪽(얕은 행), 길수록 뒤쪽(깊은 행)에
+    /// 배치되도록(Soldier.SoldierGridPlacement와 같은 방향).
     /// </summary>
     public sealed class MonsterSpawner : ITickable, IDisposable
     {
@@ -138,20 +141,21 @@ namespace Stage
         /// <summary>
         /// 남은 일반 웨이브 전체(모든 엔트리의 Count 전부)를 시간차 없이 한 틱에 즉시 스폰한다.
         /// entry.SpawnInterval은 더 이상 이 경로에서 쓰이지 않는다(기존 스테이지 데이터 호환을
-        /// 위해 필드 자체는 남겨둠).
+        /// 위해 필드 자체는 남겨둠). 이 배치 안에서는 AttackRange 오름차순으로 스폰 순서를 다시
+        /// 정렬한다 — 사거리가 짧을수록 그리드 앞쪽(얕은 행, 화면에 더 가까움), 사거리가
+        /// 길수록 뒤쪽(깊은 행)에 배치되도록(Soldier.SoldierGridPlacement와 같은 방향).
         /// </summary>
         private void TickEntries(float deltaTime)
         {
-            while (_entryIndex < _entries.Length)
-            {
-                MonsterSpawnEntry entry = _entries[_entryIndex];
+            List<MonsterSpawnEntry> sorted = BuildRangeSortedBatch(_entryIndex, _entries.Length);
+            _entryIndex = _entries.Length;
 
+            foreach (MonsterSpawnEntry entry in sorted)
+            {
                 for (int i = 0; i < entry.Count; i++)
                 {
                     SpawnOne(entry);
                 }
-
-                _entryIndex++;
             }
         }
 
@@ -248,21 +252,72 @@ namespace Stage
         /// <summary>
         /// spawnEntries 배열 앞쪽부터, spawnWithTactics가 켜진 항목을 만나는 동안 그 Count 전부를
         /// 시간차 없이 즉시 스폰하고 _entryIndex를 그만큼 건너뛴다. 이후 TickEntries는 남은(즉시
-        /// 스폰이 아닌) 항목부터 기존처럼 처리한다.
+        /// 스폰이 아닌) 항목부터 기존처럼 처리한다. TickEntries와 동일하게 이 배치 안에서도
+        /// AttackRange 오름차순으로 스폰 순서를 다시 정렬한다.
         /// </summary>
         private void SpawnImmediateEntries()
         {
-            while (_entryIndex < _entries.Length && _entries[_entryIndex].SpawnWithTactics)
-            {
-                MonsterSpawnEntry entry = _entries[_entryIndex];
+            int batchEnd = _entryIndex;
 
+            while (batchEnd < _entries.Length && _entries[batchEnd].SpawnWithTactics)
+            {
+                batchEnd++;
+            }
+
+            List<MonsterSpawnEntry> sorted = BuildRangeSortedBatch(_entryIndex, batchEnd);
+            _entryIndex = batchEnd;
+
+            foreach (MonsterSpawnEntry entry in sorted)
+            {
                 for (int i = 0; i < entry.Count; i++)
                 {
                     SpawnOne(entry);
                 }
-
-                _entryIndex++;
             }
+        }
+
+        /// <summary>
+        /// _entries[startIndex, endIndex)를 AttackRange 오름차순(동률이면 원래 배열 순서 유지 —
+        /// 결과의 결정성을 위함)으로 정렬한 목록을 만든다. Soldier.SoldierGridPlacement의 정렬
+        /// 기준과 동일한 이유·형태.
+        /// </summary>
+        private List<MonsterSpawnEntry> BuildRangeSortedBatch(int startIndex, int endIndex)
+        {
+            var batch = new List<(MonsterSpawnEntry entry, int order)>();
+
+            for (int i = startIndex; i < endIndex; i++)
+            {
+                batch.Add((_entries[i], i));
+            }
+
+            batch.Sort((a, b) =>
+            {
+                int cmp = ResolveAttackRange(a.entry.MonsterPrefab).CompareTo(ResolveAttackRange(b.entry.MonsterPrefab));
+                return cmp != 0 ? cmp : a.order.CompareTo(b.order);
+            });
+
+            var result = new List<MonsterSpawnEntry>(batch.Count);
+
+            foreach ((MonsterSpawnEntry entry, int _) in batch)
+            {
+                result.Add(entry);
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// Soldier.SoldierGridPlacement.ResolveAttackRange와 동일한 형태 — CharacterStatsProvider/
+        /// BaseStats가 없으면 사거리 0(그리드 맨 앞줄)으로 취급한다.
+        /// </summary>
+        private static float ResolveAttackRange(GameObject prefab)
+        {
+            if (prefab != null && prefab.TryGetComponent(out CharacterStatsProvider provider) && provider.BaseStats != null)
+            {
+                return provider.BaseStats.AttackRange;
+            }
+
+            return 0f;
         }
 
         /// <summary>
