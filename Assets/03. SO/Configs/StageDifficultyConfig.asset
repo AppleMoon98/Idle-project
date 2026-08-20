@@ -20,6 +20,6 @@ MonoBehaviour:
   - stageIndexThreshold: 0
     multiplierPerIndex: 0.15
   - stageIndexThreshold: 9
-    multiplierPerIndex: 8
-  - stageIndexThreshold: 39
-    multiplierPerIndex: 9
+    multiplierPerIndex: 1
+  chapterScalingStartIndex: 39
+  stagesPerChapter: 40
