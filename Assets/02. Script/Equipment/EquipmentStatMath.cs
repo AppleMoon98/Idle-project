@@ -23,7 +23,39 @@ namespace Equipment
             float baseline = entry.BaseValue + entry.PerGradeIndex * clampedGradeIndex;
             baseline += ResolveGradeThresholdBonus(entry.GradeThresholdBonuses, clampedGradeIndex);
 
-            return baseline * (1f + statBonusPerLevel * enhancementLevel);
+            float effectiveStatBonusPerLevel = ResolveStatBonusPerLevel(
+                entry.GradeStatBonusPerLevelOverrides, clampedGradeIndex, statBonusPerLevel);
+
+            return baseline * (1f + effectiveStatBonusPerLevel * enhancementLevel);
+        }
+
+        /// <summary>
+        /// 조건을 만족하는 구간 중 GradeIndexThreshold가 가장 큰 것의 StatBonusPerLevel을
+        /// 고른다(순서 무관). 만족하는 구간이 없으면 fallback(전역 StatBonusPerLevel)을 그대로 쓴다.
+        /// </summary>
+        private static float ResolveStatBonusPerLevel(
+            EquipmentStatConfigSO.GradeStatBonusPerLevelTier[] tiers, int gradeIndex, float fallback)
+        {
+            if (tiers == null)
+            {
+                return fallback;
+            }
+
+            float result = fallback;
+            int bestThreshold = int.MinValue;
+
+            for (int i = 0; i < tiers.Length; i++)
+            {
+                EquipmentStatConfigSO.GradeStatBonusPerLevelTier tier = tiers[i];
+
+                if (gradeIndex >= tier.GradeIndexThreshold && tier.GradeIndexThreshold > bestThreshold)
+                {
+                    bestThreshold = tier.GradeIndexThreshold;
+                    result = tier.StatBonusPerLevel;
+                }
+            }
+
+            return result;
         }
 
         /// <summary>

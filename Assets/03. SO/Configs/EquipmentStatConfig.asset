@@ -26,6 +26,13 @@ MonoBehaviour:
       BonusAmount: 200
     - GradeIndexThreshold: 25
       BonusAmount: 500
+    GradeStatBonusPerLevelOverrides:
+    - GradeIndexThreshold: 15
+      StatBonusPerLevel: 0.1
+    - GradeIndexThreshold: 20
+      StatBonusPerLevel: 0.15
+    - GradeIndexThreshold: 25
+      StatBonusPerLevel: 0.2
   - Slot: 1
     StatType: 1
     BaseValue: 15
