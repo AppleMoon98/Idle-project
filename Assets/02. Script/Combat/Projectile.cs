@@ -27,6 +27,13 @@ namespace Combat
         [SerializeField]
         private float hitDistance = 0.2f;
 
+        /// <summary>
+        /// 켜면 매 틱 이동 방향으로 transform을 회전시킨다(예: 화살처럼 방향성이 뚜렷한 스프라이트).
+        /// 기본값 false라 기존에 방향과 무관하게 보여도 되는 발사체(원형 등)는 전혀 영향받지 않는다.
+        /// </summary>
+        [SerializeField]
+        private bool rotateToFaceDirection = false;
+
         private Health _target;
         private float _damage;
         private bool _isCritical;
@@ -68,6 +75,17 @@ namespace Combat
             {
                 ReleaseSelf();
                 return;
+            }
+
+            if (rotateToFaceDirection)
+            {
+                Vector3 direction = _destination - transform.position;
+
+                if (direction.sqrMagnitude > Mathf.Epsilon)
+                {
+                    float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+                    transform.rotation = Quaternion.Euler(0f, 0f, angle);
+                }
             }
 
             transform.position = Vector3.MoveTowards(transform.position, _destination, speed * deltaTime);

@@ -107,8 +107,10 @@ namespace Combat
                 return;
             }
 
-            _windupFired = true;
-
+            // _windupFired는 실제로 이벤트를 발행할 수 있을 때만 세운다 - 사거리 밖/화면 밖이라
+            // 이번 틱엔 조용히 실패했더라도, 다음 틱에 다시 시도할 수 있어야 한다(그렇지 않으면
+            // 이 사이클엔 예비동작 이벤트가 영영 안 뜨는데 실제 발사는 이 플래그와 무관하게 별도로
+            // 타겟을 찾아 그대로 실행돼, "예비동작 애니메이션 없이 화살만 나가는" 사이클이 생긴다).
             if (_cameraFollowService != null
                 && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position))
             {
@@ -119,6 +121,7 @@ namespace Combat
 
             if (target != null)
             {
+                _windupFired = true;
                 AttackWindupStarted?.Invoke(target);
             }
         }
