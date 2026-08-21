@@ -14,6 +14,19 @@ namespace Equipment
     public sealed class EquipmentStatConfigSO : ScriptableObject
     {
         /// <summary>
+        /// 등급 인덱스가 GradeIndexThreshold 이상일 때 적용되는 고정 보너스 한 구간.
+        /// Enhancement.CostIncrementTier/EquipmentPossessionConfigSO.PossessionEnhancementTier와
+        /// 같은 "구간별" 관례 - 여러 구간이 동시에 조건을 만족하면 가장 큰 GradeIndexThreshold를
+        /// 가진 구간 하나만 적용된다(누적 합산 아님).
+        /// </summary>
+        [Serializable]
+        public struct GradeThresholdBonusTier
+        {
+            public int GradeIndexThreshold;
+            public float BonusAmount;
+        }
+
+        /// <summary>
         /// 슬롯 하나가 기여하는 능력치 하나의 계산 계수. 등급 인덱스(EquipmentGradeCatalogSO 기준)에
         /// 대한 선형 공식(BaseValue + PerGradeIndex * gradeIndex)으로 기본값을 정하고,
         /// 강화 배율은 EquipmentEnhancementConfigSO.StatBonusPerLevel을 별도로 곱해 적용한다.
@@ -25,6 +38,13 @@ namespace Equipment
             public EnhancementStatType StatType;
             public float BaseValue;
             public float PerGradeIndex;
+
+            /// <summary>
+            /// 빈 배열(기본값)이면 완전히 무시된다 - 이 필드를 건드리지 않는 기존 엔트리는 전혀
+            /// 영향받지 않는다. 강화 배율은 이 보너스가 baseline에 더해진 이후에 곱해지므로,
+            /// 이 보너스도 함께 강화 스케일링을 받는다.
+            /// </summary>
+            public GradeThresholdBonusTier[] GradeThresholdBonuses;
         }
 
         [SerializeField]

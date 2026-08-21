@@ -17,6 +17,15 @@ MonoBehaviour:
     StatType: 0
     BaseValue: 5
     PerGradeIndex: 2
+    GradeThresholdBonuses:
+    - GradeIndexThreshold: 10
+      BonusAmount: 50
+    - GradeIndexThreshold: 15
+      BonusAmount: 100
+    - GradeIndexThreshold: 20
+      BonusAmount: 200
+    - GradeIndexThreshold: 25
+      BonusAmount: 500
   - Slot: 1
     StatType: 1
     BaseValue: 15
