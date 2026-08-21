@@ -9,6 +9,8 @@ using Core;
 using Core.Pooling;
 using Managers;
 using Services;
+using Skill.Events;
+using UI.Events;
 using UnityEngine;
 
 namespace Rank.Boss
@@ -353,6 +355,23 @@ namespace Rank.Boss
                 {
                     group.Add((verticalLineHitTemplate, origins[i], 90f, indicators[i]));
                 }
+
+                // "화면이 베이는" 슬래시 연출을 판정과 같은 순간에, 4줄 각각의 실제 위치에서
+                // 발행한다(볼리당 1번이 아니라 줄마다 1번 - 이 4연격 패턴 자체를 표현하는 것이
+                // 목적이라 각 줄이 저마다 자기 위치에서 그어져야 한다). UI.ScreenSlashEffectUI는
+                // 도메인을 몰라도 되도록 이벤트만 구독한다(Skill.Events.SkillCameraShakeRequestedEvent와
+                // 같은 방향). 세로줄 패턴이므로 각도는 90도(수직) 고정.
+                for (int i = 0; i < VerticalLinesPerVolley; i++)
+                {
+                    GameBootstrapper.Events?.Publish(new ScreenSlashRequestedEvent(90f, origins[i]));
+                }
+
+                // 화면 흔들림도 같은 순간에 함께 요청한다 - 4줄이 동시에 판정되므로 볼리당 한 번만
+                // 발행한다(CameraShakeService.OnShakeRequested는 재요청 시 누적하지 않고 갱신만 하므로
+                // 여러 번 불러도 안전하지만, 굳이 4번 반복할 이유가 없다). 이 서비스는 원래 Skill
+                // 도메인의 SkillCameraShakeRequestedEvent만 구독하도록 만들어졌지만 Duration/Magnitude
+                // 뿐인 순수 데이터 이벤트라 다른 도메인에서도 그대로 재사용한다.
+                GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(0.2f, 0.35f));
 
                 ResolveSimultaneousHits(group);
 
