@@ -29,6 +29,11 @@ namespace Character
     /// Attacker 동작, 이 컴포넌트가 생기기 전엔 애니메이션만 어색하게 멈추고 끝나는 정도였지만,
     /// CharacterMover까지 꺼버리는 지금은 그대로 두면 영구 정지로 이어진다 - 실사용 중 발견).
     /// maxAttackHoldSeconds 타임아웃으로 이 경우를 방어한다.
+    ///
+    /// 스프라이트 시트가 기본적으로 오른쪽을 보고 그려져 있어서, Target이 왼쪽에 있으면
+    /// SpriteRenderer.flipX로 좌우 반전한다. Target이 없는 동안은 마지막으로 바라보던 방향을
+    /// 그대로 유지한다(매 틱 되돌릴 근거가 없다). CharacterMover가 꺼져 있는 동안(찌르기 중)에도
+    /// Target 값 자체는 그대로 남아있어 방향은 계속 정확하게 갱신된다.
     /// </summary>
     [RequireComponent(typeof(Animator))]
     [RequireComponent(typeof(CharacterMover))]
@@ -44,6 +49,7 @@ namespace Character
         private Animator _animator;
         private CharacterMover _mover;
         private Attacker _attacker;
+        private SpriteRenderer _spriteRenderer;
 
         private bool _isAttacking;
         private float _attackElapsed;
@@ -53,6 +59,7 @@ namespace Character
             _animator = GetComponent<Animator>();
             _mover = GetComponent<CharacterMover>();
             _attacker = GetComponent<Attacker>();
+            _spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
         private void OnEnable()
@@ -119,6 +126,22 @@ namespace Character
 
             _animator.SetBool(IsMovingHash, isMoving);
             _animator.SetBool(IsInRangeHash, isInRange);
+            UpdateFacing();
+        }
+
+        private void UpdateFacing()
+        {
+            if (_mover.Target == null)
+            {
+                return;
+            }
+
+            float dx = _mover.Target.position.x - transform.position.x;
+
+            if (Mathf.Abs(dx) > 0.01f)
+            {
+                _spriteRenderer.flipX = dx < 0f;
+            }
         }
     }
 }

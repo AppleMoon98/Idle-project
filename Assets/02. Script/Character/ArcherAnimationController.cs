@@ -18,6 +18,10 @@ namespace Character
     /// 동작). IsShooting이 계속 true로 남으면 Shoot 클립(논루프)이 끝난 마지막 프레임에 영원히
     /// 멈춰버린다(실사용 중 발견 - Character.SpearmanAnimationController가 겪은 것과 같은 원인).
     /// maxShootHoldSeconds 타임아웃으로 방어한다.
+    ///
+    /// 스프라이트 시트가 기본적으로 오른쪽을 보고 그려져 있어서, Target이 왼쪽에 있으면
+    /// SpriteRenderer.flipX로 좌우 반전한다. Target이 없는 동안은 마지막으로 바라보던 방향을
+    /// 그대로 유지한다(매 틱 되돌릴 근거가 없다).
     /// </summary>
     [RequireComponent(typeof(Animator))]
     [RequireComponent(typeof(CharacterMover))]
@@ -32,6 +36,7 @@ namespace Character
         private Animator _animator;
         private CharacterMover _mover;
         private Attacker _attacker;
+        private SpriteRenderer _spriteRenderer;
 
         private bool _isShooting;
         private float _shootElapsed;
@@ -41,6 +46,7 @@ namespace Character
             _animator = GetComponent<Animator>();
             _mover = GetComponent<CharacterMover>();
             _attacker = GetComponent<Attacker>();
+            _spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
         private void OnEnable()
@@ -101,6 +107,22 @@ namespace Character
                 && Vector3.Distance(transform.position, _mover.Target.position) > _mover.StoppingDistance;
 
             _animator.SetBool(IsMovingHash, isMoving);
+            UpdateFacing();
+        }
+
+        private void UpdateFacing()
+        {
+            if (_mover.Target == null)
+            {
+                return;
+            }
+
+            float dx = _mover.Target.position.x - transform.position.x;
+
+            if (Mathf.Abs(dx) > 0.01f)
+            {
+                _spriteRenderer.flipX = dx < 0f;
+            }
         }
     }
 }
