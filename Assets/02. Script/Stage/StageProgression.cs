@@ -14,7 +14,10 @@ namespace Stage
     ///   따른다 — Breakthrough면 기존과 동일하게 다음 스테이지로(다음이 없으면 최고 기록 자리를
     ///   반복), Repeat이면 전진하지 않고 같은 스테이지를 계속 반복한다.
     /// - 플레이어 사망 시: 모드와 무관하게 한 칸 후퇴하되, 최고 기록 기준
-    ///   maxRegressionDistance칸 밑으로는 내려가지 않는다.
+    ///   maxRegressionDistance칸 밑으로는 내려가지 않는다. 이때 돌파 모드였다면 자동으로
+    ///   반복 모드로 전환한다(StageModeService.SetMode) - 사망으로 후퇴한 스테이지에서 같은
+    ///   자리를 계속 반복하며 재정비할 수 있도록, 별도 선택 절차 없이 곧바로 그 스테이지를
+    ///   반복 대상으로 삼는다.
     ///
     /// OnStageCleared/OnCharacterDied는 CharacterDiedEvent 처리 도중 재진입으로 호출된다(마지막
     /// 처치 → StageClearedEvent → 여기 → LoadStage까지 전부 같은 호출 스택). 이 안에서 곧바로
@@ -213,6 +216,11 @@ namespace Stage
             if (evt.Character != _playerTransform.gameObject)
             {
                 return;
+            }
+
+            if (IsBreakthrough)
+            {
+                _modeService?.SetMode(StageProgressionMode.Repeat);
             }
 
             int floor = Mathf.Max(0, _highestClearedIndex - _maxRegressionDistance);
