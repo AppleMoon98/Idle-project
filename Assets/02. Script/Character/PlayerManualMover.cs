@@ -26,6 +26,13 @@ namespace Character
     /// 카메라 줌 슬라이더를 끌어내는 제스처와 겹치지 않기 위함. 드로어가 열려 있는 동안은 실제
     /// Image/Slider가 화면에 있어 기존 IsPointerOverUI 체크가 자연스럽게 걸러주므로, 이 예외는
     /// 드로어가 닫혀 화면 밖에 있을 때(레이캐스트로 걸러지지 않는 상태)를 위한 것이다.
+    ///
+    /// 앱(에디터 창)이 포커스를 잃는 동안 마우스/터치 버튼을 뗀 경우, OS/입력 시스템이 그
+    /// 떼는 이벤트를 앱에 전달하지 못해 Pointer.press.isPressed가 포커스가 돌아온 뒤에도 계속
+    /// true로 눌린 채 남아있을 수 있다 - 그러면 실제로는 누른 적 없는데도 집결 홀드 누적이
+    /// 이어져 SquadMoveCommandEvent가 제멋대로 발동한다(실사용 중 발견 - "장시간 터치한 적
+    /// 없는데 부대가 갑자기 집결 이동함"). 포커스를 잃었다가 되찾는 순간 홀드 누적 상태를
+    /// 전부 리셋해, 그 시점에 남아있던 눌림 상태를 신뢰하지 않고 새로 눌러야만 인정한다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(EnemyTracker))]
@@ -49,6 +56,7 @@ namespace Character
         private float _pressHeldSeconds;
         private bool _hasTriggeredSquadRally;
         private bool _pressStartedOffUI;
+        private bool _wasApplicationFocused = true;
 
         private readonly List<RaycastResult> _uiRaycastResults = new();
 
@@ -106,12 +114,37 @@ namespace Character
 
         void ITickable.Tick(float deltaTime)
         {
+            HandleFocusChange();
             HandlePointerInput(deltaTime);
             HandleArrival();
         }
 
+        /// <summary>
+        /// 포커스를 잃었다가 되찾는 순간, 그 사이 놓쳤을 수 있는 눌림 해제 이벤트 때문에 남아있는
+        /// 눌림 누적 상태를 전부 버린다 - 실제로 새로 누르기 전까지는 집결 홀드가 다시 쌓이지
+        /// 않는다.
+        /// </summary>
+        private void HandleFocusChange()
+        {
+            bool isFocused = Application.isFocused;
+
+            if (isFocused && !_wasApplicationFocused)
+            {
+                _pressHeldSeconds = 0f;
+                _hasTriggeredSquadRally = false;
+                _pressStartedOffUI = false;
+            }
+
+            _wasApplicationFocused = isFocused;
+        }
+
         private void HandlePointerInput(float deltaTime)
         {
+            if (!Application.isFocused)
+            {
+                return;
+            }
+
             Pointer pointer = Pointer.current;
 
             if (pointer == null)

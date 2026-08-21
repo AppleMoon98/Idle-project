@@ -121,8 +121,16 @@ namespace Character
             bool hasTarget = _mover.Target != null;
             float distance = hasTarget ? Vector3.Distance(transform.position, _mover.Target.position) : 0f;
 
-            bool isMoving = hasTarget && distance > _mover.StoppingDistance;
-            bool isInRange = hasTarget && distance <= _mover.StoppingDistance;
+            // StoppingDistance는 실제 전투 사거리(EnemyTracker 등이 AttackRange로 설정)뿐 아니라
+            // 순수 이동 목적(화면 복귀/후퇴/집결 등, 전부 0으로 설정 - Combat.RangedKiter 등 전체
+            // 코드베이스에서 예외 없이 지켜지는 관례)으로도 재사용된다. 0이면 "지금 목표는 적이
+            // 아니라 그냥 지나가는 지점"이라는 뜻이므로 Defence 판정에서 제외해야 한다 - 그렇지
+            // 않으면 스테이지 시작 직후 화면 밖에서 복귀하는 도중(ScreenReturnAnchor, StoppingDistance
+            // 0) 그 지점에 도착할 때마다 distance<=0이 참이 되어 근처에 적이 전혀 없는데도 Defence
+            // 자세를 취하는 것처럼 보인다(Character.ShieldBearerAnimationController에서 실사용 중
+            // 먼저 발견된 것과 동일한 결함).
+            bool isInRange = hasTarget && _mover.StoppingDistance > 0f && distance <= _mover.StoppingDistance;
+            bool isMoving = hasTarget && !isInRange;
 
             _animator.SetBool(IsMovingHash, isMoving);
             _animator.SetBool(IsInRangeHash, isInRange);
