@@ -16,7 +16,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &2907990618944724884
 Transform:
   m_ObjectHideFlags: 0
@@ -107,7 +107,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &4637708435659552396
 Transform:
   m_ObjectHideFlags: 0
@@ -209,6 +209,8 @@ GameObject:
   - component: {fileID: 3036351468646390010}
   - component: {fileID: 9152427125350796579}
   - component: {fileID: 4564631735290286008}
+  - component: {fileID: 4623691213019634736}
+  - component: {fileID: 1317584484948643497}
   m_Layer: 9
   m_Name: Monster_ShieldBearer
   m_TagString: Untagged
@@ -283,7 +285,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: d53851a9ce3d4c9a9b4dc2ff09f2cb62, type: 3}
+  m_Sprite: {fileID: 7384290322352760091, guid: d630699711eda9e4b9c4dbb3a9e675a7, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -462,7 +464,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 256
-  attackWindupLeadTime: 0
+  attackWindupLeadTime: 0.8
 --- !u!114 &8304740955297524442
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -518,7 +520,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldGuard
   shieldHealthMultiplier: 1.5
-  shieldVisual: {fileID: 174511789874943354}
+  shieldVisual: {fileID: 0}
 --- !u!114 &3036351468646390010
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -549,7 +551,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 00c6a29f4a6b08f49ad5734ea67b32c1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldFacing
-  shieldVisual: {fileID: 2907990618944724884}
+  shieldVisual: {fileID: 0}
   verticalOffset: 0.4
   retargetInterval: 0.2
 --- !u!114 &4564631735290286008
@@ -565,6 +567,45 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MonsterMarchingTracker
   pollInterval: 0.2
+--- !u!95 &4623691213019634736
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 0bb061d576efc9140a5333c02ae8e2ec, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &1317584484948643497
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 417ea42daf4fe7e458c8aa73e15e7ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldBearerAnimationController
+  maxAttackHoldSeconds: 1.2
+  attack1Duration: 0.4
+  enemyLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!1 &5626639420520912746
 GameObject:
   m_ObjectHideFlags: 0

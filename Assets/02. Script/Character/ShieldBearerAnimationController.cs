@@ -40,6 +40,19 @@ namespace Character
     ///
     /// 스프라이트 시트가 기본적으로 오른쪽을 보고 그려져 있어서, Target이 왼쪽에 있으면
     /// SpriteRenderer.flipX로 좌우 반전한다.
+    ///
+    /// Guard 상태(사거리 안에 들어와 대기 중, 공격 중은 아님 - IsInRange&&!IsAttacking, 애니메이터가
+    /// Guard로 전이하는 조건과 정확히 동일)인 동안 Character.Health.TakeDamage가 가장 먼저 적용하는
+    /// Stats.DamageReductionPercent를 guardDamageReductionPercent만큼 얹어 받는 피해를 줄인다 -
+    /// ShieldGuard의 별도 방패 체력 흡수보다도 앞선 단계라, 방패 체력 소모 자체도 함께 줄어든다.
+    /// Guard를 벗어나는 즉시(공격 시작 등) 원래 값(BaseStats 기준)으로 되돌린다.
+    ///
+    /// 같은 오브젝트에 Character.ShieldGuard가 있고 그 방패가 이미 깨졌다면(HasShield==false),
+    /// 사거리 안에 들어와도 Guard로 전이하지 않는다(방패 없이 브레이스 자세를 취하는 게 어색하고,
+    /// 방패가 없는데 50% 피해 감소까지 받는 것도 앞뒤가 안 맞기 때문) - Idle/Run으로만 오간다.
+    /// 다만 물리적으로는 이미 사거리 안에 멈춰있는 상태이므로(CharacterMover가 StoppingDistance
+    /// 안에서 이동을 멈춤) 이 경우 IsMoving도 강제로 true를 만들지 않는다(제자리인데 Run이
+    /// 재생되는 "제자리 뜀"을 피하기 위함) - 자연히 Idle로 떨어진다.
     /// </summary>
     [RequireComponent(typeof(Animator))]
     [RequireComponent(typeof(CharacterMover))]
@@ -62,14 +75,19 @@ namespace Character
         [SerializeField]
         private LayerMask enemyLayerMask;
 
+        [SerializeField]
+        private float guardDamageReductionPercent = 0.5f;
+
         private Animator _animator;
         private CharacterMover _mover;
         private Attacker _attacker;
         private CharacterStatsProvider _statsProvider;
         private SpriteRenderer _spriteRenderer;
+        private ShieldGuard _shieldGuard;
 
         private bool _isAttacking;
         private bool _firstHitDealt;
+        private bool _isGuarding;
         private float _attackElapsed;
 
         private void Awake()
@@ -79,11 +97,17 @@ namespace Character
             _attacker = GetComponent<Attacker>();
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _spriteRenderer = GetComponent<SpriteRenderer>();
+            _shieldGuard = GetComponent<ShieldGuard>();
         }
 
         private void OnEnable()
         {
             TickerRegistration.Register(this);
+
+            // 풀에서 재사용되는 인스턴스는 Awake가 다시 실행되지 않아 이전 생의 _isGuarding이
+            // 그대로 남아있을 수 있다 - false로 리셋해, 스폰 직후 첫 Tick에서 실제 상태와 값이
+            // 우연히 같아 보여도(둘 다 true) 반드시 한 번은 실제로 스탯을 적용하도록 한다.
+            _isGuarding = false;
 
             if (_attacker != null)
             {
@@ -103,6 +127,7 @@ namespace Character
             }
 
             EndAttack();
+            SetGuarding(false);
         }
 
         private void OnWindupStarted(Health target)
@@ -154,12 +179,34 @@ namespace Character
             // 않으면 스테이지 시작 직후 화면 밖에서 복귀하는 도중(ScreenReturnAnchor, StoppingDistance
             // 0) 그 지점에 도착할 때마다 distance<=0이 참이 되어 근처에 적이 전혀 없는데도 Guard
             // 자세를 취하는 것처럼 보인다(실사용 중 발견).
-            bool isInRange = hasTarget && _mover.StoppingDistance > 0f && distance <= _mover.StoppingDistance;
-            bool isMoving = hasTarget && !isInRange;
+            bool isPhysicallyInRange = hasTarget && _mover.StoppingDistance > 0f && distance <= _mover.StoppingDistance;
+            bool hasShield = _shieldGuard == null || _shieldGuard.HasShield;
+            bool isInRange = isPhysicallyInRange && hasShield;
+            bool isMoving = hasTarget && !isPhysicallyInRange;
 
             _animator.SetBool(IsMovingHash, isMoving);
             _animator.SetBool(IsInRangeHash, isInRange);
             UpdateFacing();
+
+            // 애니메이터가 Guard로 전이하는 조건(IsInRange && !IsAttacking)과 정확히 동일한
+            // 조건으로 판정한다 - 별도로 GetCurrentAnimatorStateInfo를 읽지 않는 이유는, 상태
+            // 전이 도중(크로스페이드)에는 그 값이 소스/목적지 어느 쪽을 가리킬지 모호해지기
+            // 때문이다(실사용 중 확인). 여기서 쓰는 두 bool은 애니메이터에 넘기는 것과 완전히
+            // 같은 값이라 항상 애니메이션과 정확히 일치한다.
+            SetGuarding(isInRange && !_isAttacking);
+        }
+
+        private void SetGuarding(bool isGuarding)
+        {
+            if (isGuarding == _isGuarding)
+            {
+                return;
+            }
+
+            _isGuarding = isGuarding;
+
+            float basePercent = _statsProvider.BaseStats.DamageReductionPercent;
+            _statsProvider.Stats.DamageReductionPercent = isGuarding ? basePercent + guardDamageReductionPercent : basePercent;
         }
 
         /// <summary>

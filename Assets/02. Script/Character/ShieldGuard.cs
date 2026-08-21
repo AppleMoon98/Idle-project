@@ -49,6 +49,12 @@ namespace Character
 
         public float CurrentShieldHealth => _currentShieldHealth;
 
+        /// <summary>
+        /// 방패 최대 체력 - ResetShield()와 같은 공식(현재 MaxHealth × shieldHealthMultiplier)을
+        /// 그때그때 다시 계산해서 돌려준다(HealthBarUI가 체력바 흰 구간 비율을 그리는 데 쓴다).
+        /// </summary>
+        public float MaxShieldHealth => StatsProvider.Stats.MaxHealth * shieldHealthMultiplier;
+
         private void Awake()
         {
             ResetShield();
