@@ -99,7 +99,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: -8426932590203072280, guid: bebaa17c28cd57f48af18ebdc7293712, type: 3}
+  m_Sprite: {fileID: 1368942800, guid: bebaa17c28cd57f48af18ebdc7293712, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -278,7 +278,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 256
-  attackWindupLeadTime: 0.7
+  attackWindupLeadTime: 0.4
 --- !u!114 &6408278535112976322
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -368,7 +368,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a5884b874b1b1a64ca7d1fcc58f993fb, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.InfantryAnimationController
-  maxAttackHoldSeconds: 1
+  maxAttackHoldSeconds: 0.6
 --- !u!1 &3140490879305707709
 GameObject:
   m_ObjectHideFlags: 0
