@@ -37,14 +37,21 @@ namespace Character
         [SerializeField]
         private float fillTweenDuration = 0.15f;
 
+        [SerializeField]
+        private float referenceOrthographicSize = 8f;
+
         private Health _health;
         private ShieldGuard _shieldGuard;
+        private Camera _camera;
+        private Vector3 _baseScale;
         private float _targetFillAmount;
 
         private void Awake()
         {
             _health = GetComponentInParent<Health>();
             _shieldGuard = GetComponentInParent<ShieldGuard>();
+            _camera = Camera.main;
+            _baseScale = transform.localScale;
         }
 
         private void OnEnable()
@@ -83,6 +90,26 @@ namespace Character
             }
 
             TickShieldFill(deltaTime);
+            ApplyZoomCompensation();
+        }
+
+        /// <summary>
+        /// 카메라 줌 슬라이더(UI.CameraZoomSliderUI)로 Camera.orthographicSize가 바뀌어도 체력바의
+        /// 화면상 크기가 항상 일정해 보이도록, Combat.DamageNumber와 동일한 방식으로 현재
+        /// orthographicSize와 기준 크기의 비율만큼 자기 자신의 localScale을 보정한다. Awake에서
+        /// 캐싱한 _baseScale(예: Monster_Elite/_Boss가 몸집 확대를 상쇄하려고 이미 걸어둔
+        /// 1/1.2, 1/1.5 카운터 스케일, section X)을 기준으로 곱해, 등급별 카운터 스케일과
+        /// 줌 보정이 서로 덮어쓰지 않고 함께 적용된다.
+        /// </summary>
+        private void ApplyZoomCompensation()
+        {
+            if (_camera == null)
+            {
+                return;
+            }
+
+            float scale = _camera.orthographicSize / referenceOrthographicSize;
+            transform.localScale = _baseScale * scale;
         }
 
         private void TickShieldFill(float deltaTime)
