@@ -63,7 +63,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &100036308153815250
 Transform:
   m_ObjectHideFlags: 0
@@ -163,6 +163,8 @@ GameObject:
   - component: {fileID: 2692374472471921882}
   - component: {fileID: 5488968294148996119}
   - component: {fileID: 1418510802863437400}
+  - component: {fileID: 4194078287614350936}
+  - component: {fileID: 4633025169123771840}
   m_Layer: 8
   m_Name: Soldier
   m_TagString: Untagged
@@ -236,8 +238,8 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 77ae1c8425019a143a5b4c6e6cda1d4c, type: 3}
-  m_Color: {r: 0.3, g: 0.9, b: 0.3, a: 1}
+  m_Sprite: {fileID: -8426932590203072280, guid: 956b6b107bbdbd142b330314b85f2430, type: 3}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
   m_DrawMode: 0
@@ -286,7 +288,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
-  attackWindupLeadTime: 0
+  attackWindupLeadTime: 0.4
 --- !u!114 &6494660352676122869
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -481,6 +483,41 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierGradeScaler
   config: {fileID: 11400000, guid: 1bb8da3e1491b874fa5c2e553e918630, type: 2}
   recomputeInterval: 1
+--- !u!95 &4194078287614350936
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 4ca8bb19c0604234784610474c716dbb, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &4633025169123771840
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a5884b874b1b1a64ca7d1fcc58f993fb, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.InfantryAnimationController
+  maxAttackHoldSeconds: 0.6
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0
