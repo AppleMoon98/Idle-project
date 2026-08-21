@@ -23,9 +23,18 @@ namespace Combat
         private float attackWindupLeadTime = 0f;
 
         /// <summary>
-        /// 공격을 실제로 실행한 직후 발행된다. 같은 GameObject의 다른 컴포넌트가 구독해 후속 동작을
-        /// 트리거할 수 있도록 하기 위한 것으로(예: Soldier.SoldierBehaviorController의 원거리 카이팅),
-        /// EventBus를 쓰지 않는다 — 이미 같은 캐릭터 위에서 직접 참조하는 컴포넌트 사이의 알림이다.
+        /// 공격 사이클이 끝날 때마다 발행된다(줌 범위 밖이라 통째로 건너뛴 경우는 제외) - 실제로
+        /// 대상을 맞혔는지와 무관하게 항상 한 번 뜬다. AttackWindupStarted로 무언가를 표시/재생
+        /// 중인 구독자(RangedAttackTelegraph의 예고선, Character.ArcherAnimationController/
+        /// SpearmanAnimationController의 Shoot/Attack 애니메이션)가 "이번 사이클은 끝났다"는
+        /// 확실한 종료 신호를 받아야 하기 때문이다 - 예비동작 시점과 실제 발사 시점에 독립적으로
+        /// 타겟을 다시 찾다 보니(TryFireWindup/Tick 참고) 그 사이 타겟이 죽거나 사거리를 벗어나
+        /// 실제로는 아무도 맞히지 못하는 사이클이 생길 수 있는데, 예전엔 이 경우 이벤트가 아예
+        /// 안 떠서 구독자가 예비동작 상태에 영원히(또는 별도 타임아웃이 풀어줄 때까지) 멈춰있는
+        /// 문제가 있었다(실사용 중 발견 - Shoot 애니메이션이 마지막 프레임에 멈추거나, 창병이
+        /// CharacterMover까지 꺼둔 채 굳어버림). 같은 GameObject의 다른 컴포넌트가 구독해 후속
+        /// 동작을 트리거하기 위한 것으로, EventBus를 쓰지 않는다 - 이미 같은 캐릭터 위에서 직접
+        /// 참조하는 컴포넌트 사이의 알림이다.
         /// </summary>
         public event Action AttackPerformed;
 
@@ -92,8 +101,9 @@ namespace Combat
                 float damage = isCritical ? stats.AttackPower * (1f + stats.CriticalDamageMultiplier) : stats.AttackPower;
 
                 _attackBehavior.Execute(transform, target, damage, isCritical);
-                AttackPerformed?.Invoke();
             }
+
+            AttackPerformed?.Invoke();
         }
 
         /// <summary>
