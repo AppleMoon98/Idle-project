@@ -1,4 +1,5 @@
 using Core;
+using Skill;
 using Soldier;
 using Stage.Events;
 using UnityEngine;
@@ -47,6 +48,7 @@ namespace Character
         private void OnStageChanged(StageChangedEvent evt)
         {
             ResetPositions();
+            ResetSkillCooldowns();
         }
 
         /// <summary>
@@ -57,6 +59,20 @@ namespace Character
         {
             transform.localPosition = _startLocalPosition;
             soldierSpawner?.ResetSoldierPositions();
+        }
+
+        /// <summary>
+        /// 등록된 6개 스킬 슬롯 전체의 쿨다운을 즉시 발동 가능 상태로 되돌린다 —
+        /// Stage.StageController.ResetSkillCooldowns()(던전 입장 시점 전용)와 완전히 같은 조회
+        /// 방식을 여기서도 그대로 쓴다. 이쪽은 스테이지가 바뀔 때마다(진행/반복/사망 후퇴 전부)
+        /// 매번 호출된다 — 방금 쓴 스킬의 남은 쿨다운을 다음 스테이지까지 그대로 들고 가지 않도록.
+        /// </summary>
+        private void ResetSkillCooldowns()
+        {
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            {
+                loadout.ResetAllCooldowns();
+            }
         }
 
         /// <summary>
