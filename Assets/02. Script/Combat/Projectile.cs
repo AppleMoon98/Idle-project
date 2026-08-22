@@ -1,6 +1,7 @@
 using Character;
 using Core;
 using Managers;
+using Services;
 using Stage.Events;
 using UnityEngine;
 
@@ -10,7 +11,11 @@ namespace Combat
     /// 발사 시점 타겟 위치를 향해 직선으로 날아가다가 도달하면 데미지를 적용하고 스스로 풀로
     /// 반납되는 발사체. 목적지는 Launch() 시점에 한 번만 고정되며(호밍 없음), 비행 중 타겟이
     /// 움직여도 경로가 휘지 않는다 — 도달 판정 시 데미지는 여전히 원래 타겟(Health 참조)에게
-    /// 적용된다. 타겟이 죽으면(Health.IsDead) 자연히 반납되지만, 그것만으로는 부족하다 — Character.Health.Die가
+    /// 적용된다. 타겟이 비행 중 죽으면(Health.IsDead) 그 자리에서 즉시 사라지지 않고, 그 순간까지
+    /// 날아가던 방향 그대로 계속 직진하다가 최광각 고정 범위(Services.CameraFollowService, 줌
+    /// 배율과 무관 — 이 프로젝트 전역의 "판정 기준은 줌과 무관한 고정 범위" 관례, section CD/CG/CH와
+    /// 동일 원칙) 밖으로 나가는 순간 반납된다 — 화살이 죽은 타겟 자리에서 뚝 끊기지 않고 자연스럽게
+    /// 화면 밖으로 날아가 보이게 하기 위함. Character.Health.Die가
     /// CharacterDiedEvent를 발행하면 스테이지 전환(플레이어 사망 → 스테이지 재시작 → 그 안에서
     /// Health.Revive)까지 전부 같은 호출 안에서 동기적으로 끝나버려, 그 사이 다른 발사체가 다음
     /// 틱에 IsDead를 확인할 때는 이미 부활해 false로 돌아가 있다(타겟이 죽었었다는 걸 영영 감지
@@ -39,12 +44,17 @@ namespace Combat
         private bool _isCritical;
         private bool _released;
         private Vector3 _destination;
+        private Vector3 _direction;
+        private bool _targetLostMidFlight;
+        private CameraFollowService _cameraFollowService;
 
         private void OnEnable()
         {
             _released = false;
+            _targetLostMidFlight = false;
             TickerRegistration.Register(this);
             GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Services?.TryGet(out _cameraFollowService);
         }
 
         private void OnDisable()
@@ -67,13 +77,24 @@ namespace Combat
             _damage = damage;
             _isCritical = isCritical;
             _destination = target != null ? target.transform.position : transform.position;
+            _targetLostMidFlight = false;
+
+            Vector3 direction = _destination - transform.position;
+            _direction = direction.sqrMagnitude > Mathf.Epsilon ? direction.normalized : transform.right;
         }
 
         void ITickable.Tick(float deltaTime)
         {
+            if (_targetLostMidFlight)
+            {
+                TickFlyingPastDeadTarget(deltaTime);
+                return;
+            }
+
             if (_target == null || _target.IsDead)
             {
-                ReleaseSelf();
+                _targetLostMidFlight = true;
+                TickFlyingPastDeadTarget(deltaTime);
                 return;
             }
 
@@ -93,6 +114,21 @@ namespace Combat
             if (Vector3.Distance(transform.position, _destination) <= hitDistance)
             {
                 _target.TakeDamage(_damage, _isCritical);
+                ReleaseSelf();
+            }
+        }
+
+        /// <summary>
+        /// 타겟이 비행 중 죽은 뒤의 상태 — 더 이상 목적지를 향해 MoveTowards로 수렴하지 않고(그러면
+        /// 원래 목적지에서 멈춰버린다), Launch 시점에 고정해둔 방향으로 화면 밖까지 계속 직진한다.
+        /// </summary>
+        private void TickFlyingPastDeadTarget(float deltaTime)
+        {
+            transform.position += _direction * speed * deltaTime;
+
+            if (_cameraFollowService != null
+                && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position))
+            {
                 ReleaseSelf();
             }
         }
