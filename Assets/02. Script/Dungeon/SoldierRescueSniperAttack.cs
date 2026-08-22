@@ -12,9 +12,12 @@ namespace Dungeon
     /// 관리하는 자기완결형 컴포넌트(War.Boss.WarBossPatternRunner와 같은 성격). 플레이어의 현재
     /// 위치를 관통하는 무작위 각도의 선을 Launch() 시점에 한 번 고정해 telegraphDuration 동안
     /// 경고로 표시한다(선 좌표는 플레이어를 따라오지 않는다 — 경고 중 그 선에서 벗어나면 회피
-    /// 가능). 경고가 끝나면 같은 선을 따라 발사체가 실제로 날아가고, 발사체가 플레이어의 실시간
-    /// 위치에 닿으면 명중 — 그 순간의 진행 방향 그대로 화면(줌 최소 기준 고정 범위) 가장자리까지
-    /// 넉백시킨다.
+    /// 가능). 경고가 끝나면 경고선은 사라지고, 그 자리에 궁병(Combat.RangedAttackBehavior가 쓰는
+    /// 것과 같은 방향-회전 화살 스프라이트, Combat.Projectile.rotateToFaceDirection과 동일한
+    /// Atan2 공식)이 같은 선을 따라 실제로 날아간다 — 발사체가 플레이어의 실시간 위치에 닿으면
+    /// 명중, 그 순간의 진행 방향 그대로 화면(줌 최소 기준 고정 범위) 가장자리까지 넉백시킨다.
+    /// arrowSprite를 프리팹에 연결하지 않은 채로 두면(방어적 폴백) 예전처럼 발사 단계도 붉은
+    /// LineRenderer 트레일로 표시된다.
     /// </summary>
     [RequireComponent(typeof(LineRenderer))]
     public sealed class SoldierRescueSniperAttack : MonoBehaviour, ITickable, IPoolable
@@ -27,6 +30,13 @@ namespace Dungeon
 
         [SerializeField]
         private LineRenderer line;
+
+        /// <summary>
+        /// 발사 단계에서 경고선 대신(또는 line이 없을 때의 폴백과 별개로) 실제로 날아가는 화살
+        /// 스프라이트. null이면(미배선) 예전처럼 붉은 LineRenderer 트레일로 대체된다.
+        /// </summary>
+        [SerializeField]
+        private SpriteRenderer arrowSprite;
 
         [SerializeField]
         private float telegraphDuration = 2f;
@@ -85,6 +95,11 @@ namespace Dungeon
             line.sortingOrder = 5;
             line.material = new Material(Shader.Find("Sprites/Default"));
             line.enabled = false;
+
+            if (arrowSprite != null)
+            {
+                arrowSprite.enabled = false;
+            }
         }
 
         private void OnEnable()
@@ -125,6 +140,11 @@ namespace Dungeon
             _spawner = spawner;
             _remainingWarning = telegraphDuration;
             _state = State.Warning;
+
+            if (arrowSprite != null)
+            {
+                arrowSprite.enabled = false;
+            }
 
             line.enabled = true;
             line.startWidth = warningLineWidth;
@@ -168,19 +188,36 @@ namespace Dungeon
             _state = State.Flying;
             _currentPosition = _pointA;
 
-            line.startWidth = projectileLineWidth;
-            line.endWidth = projectileLineWidth;
-            line.startColor = projectileColor;
-            line.endColor = projectileColor;
+            if (arrowSprite != null)
+            {
+                line.enabled = false;
+                arrowSprite.enabled = true;
+                arrowSprite.transform.position = _currentPosition;
+                arrowSprite.transform.rotation = Quaternion.Euler(0f, 0f, Mathf.Atan2(_direction.y, _direction.x) * Mathf.Rad2Deg);
+            }
+            else
+            {
+                line.startWidth = projectileLineWidth;
+                line.endWidth = projectileLineWidth;
+                line.startColor = projectileColor;
+                line.endColor = projectileColor;
+            }
         }
 
         private void TickFlying(float deltaTime)
         {
             _currentPosition = Vector3.MoveTowards(_currentPosition, _pointB, projectileSpeed * deltaTime);
 
-            Vector3 trailStart = _currentPosition - (Vector3)(_direction * projectileSegmentLength);
-            line.SetPosition(0, trailStart);
-            line.SetPosition(1, _currentPosition);
+            if (arrowSprite != null)
+            {
+                arrowSprite.transform.position = _currentPosition;
+            }
+            else
+            {
+                Vector3 trailStart = _currentPosition - (Vector3)(_direction * projectileSegmentLength);
+                line.SetPosition(0, trailStart);
+                line.SetPosition(1, _currentPosition);
+            }
 
             if (_playerTransform != null && Vector3.Distance(_currentPosition, _playerTransform.position) <= hitRadius)
             {
@@ -222,6 +259,12 @@ namespace Dungeon
         public void OnDespawned()
         {
             line.enabled = false;
+
+            if (arrowSprite != null)
+            {
+                arrowSprite.enabled = false;
+            }
+
             _spawner?.NotifyAttackReleased(gameObject);
             _spawner = null;
             _playerTransform = null;
