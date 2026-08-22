@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using Character;
 using Character.Events;
 using Core;
 using Managers;
@@ -12,7 +13,7 @@ namespace Stage
     /// </summary>
     public sealed class StageProgressTracker
     {
-        private readonly HashSet<GameObject> _aliveMonsters = new();
+        private readonly Dictionary<GameObject, Vector3> _aliveMonsters = new();
         private readonly StageSO _stage;
         private readonly EventBus _events;
         private readonly int _totalToClear;
@@ -29,11 +30,12 @@ namespace Stage
         }
 
         /// <summary>
-        /// 스포너가 새로 스폰한 몬스터를 추적 대상으로 등록한다.
+        /// 스포너가 새로 스폰한 몬스터를 추적 대상으로 등록한다. spawnPosition은 오버레이(던전 등)에서
+        /// 돌아올 때 위치를 되돌리기 위해 함께 기억해둔다(SetActiveAll 참고).
         /// </summary>
-        public void RegisterSpawned(GameObject monster)
+        public void RegisterSpawned(GameObject monster, Vector3 spawnPosition)
         {
-            _aliveMonsters.Add(monster);
+            _aliveMonsters[monster] = spawnPosition;
         }
 
         /// <summary>
@@ -48,15 +50,33 @@ namespace Stage
         /// 살아있는 몬스터를 죽음 이벤트/보상 없이 전부 활성/비활성 전환한다. 던전 같은 오버레이가
         /// 잠깐 화면을 차지하는 동안 스테이지를 "일시정지 + 숨김" 상태로 두었다가 그대로 되돌리기
         /// 위한 것으로, 추적 중인 살아있는 개체 집합 자체는 건드리지 않는다.
+        /// 다시 활성화할 때(active=true)는 위치를 스폰 당시 좌표로, 체력을 최대치로 되돌린다 -
+        /// 오버레이 도중 플레이어가 입힌 피해나 몬스터 자신의 이동이 그대로 남아있으면(실사용 중
+        /// 발견) 오버레이 진입 전과 다른 상태로 스테이지가 재개된다. Character.StagePositionResetter가
+        /// Player/Soldier에 대해 이미 하는 것과 같은 방향의 리셋을 몬스터 쪽에도 적용한 것이다.
         /// </summary>
         public void SetActiveAll(bool active)
         {
-            foreach (GameObject monster in _aliveMonsters)
+            foreach (KeyValuePair<GameObject, Vector3> entry in _aliveMonsters)
             {
-                if (monster != null)
+                GameObject monster = entry.Key;
+
+                if (monster == null)
                 {
-                    monster.SetActive(active);
+                    continue;
                 }
+
+                if (active)
+                {
+                    monster.transform.position = entry.Value;
+
+                    if (monster.TryGetComponent(out Health health))
+                    {
+                        health.Revive();
+                    }
+                }
+
+                monster.SetActive(active);
             }
         }
 
@@ -66,7 +86,7 @@ namespace Stage
         /// </summary>
         public void ReleaseRemaining(PoolManager pool)
         {
-            foreach (GameObject monster in _aliveMonsters)
+            foreach (GameObject monster in _aliveMonsters.Keys)
             {
                 if (monster != null)
                 {

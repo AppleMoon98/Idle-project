@@ -396,7 +396,7 @@ namespace Stage
                 visual.ApplyVisualSet(visualSet);
             }
 
-            _tracker.RegisterSpawned(instance);
+            _tracker.RegisterSpawned(instance, position);
             return instance;
         }
 
