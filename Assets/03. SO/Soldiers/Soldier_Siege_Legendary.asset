@@ -14,6 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "레전더리 공성병"
   prefab: {fileID: 9114245855020254752, guid: 61411941cc768c942a87c4ca50f94b3c, type: 3}
-  icon: {fileID: 21300000, guid: cec9e94b460fe7d41bf4b37e2ce1c434, type: 3}
+  icon: {fileID: 21300000, guid: c00d5edcaf24dfc458f3c4fa4e06e9de, type: 3}
   grade: {fileID: 11400000, guid: 0aab388fbc2780549af9eb6a95d14859, type: 2}
   cost: 3
+  iconScale: 2
+  iconIgnoreGradeTint: 1
