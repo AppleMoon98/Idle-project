@@ -56,7 +56,11 @@ namespace Rank
         }
 
         /// <summary>
-        /// 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다.
+        /// 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다. 플레이어/병사 체력뿐
+        /// 아니라 위치도 함께 되돌린다(Character.StagePositionResetter, ResumeAfterOverlay가
+        /// 클리어/나가기 시점에 쓰는 것과 동일한 두 호출 조합) - 예전엔 죽었을 때만 체력만
+        /// Revive했는데, 사망 지점이 보스 스폰 위치와 멀리 떨어져 있으면 재도전 시 플레이어가
+        /// 그 자리 그대로 시작해 위치가 초기화되지 않는 것처럼 보였다(실사용 중 발견).
         /// </summary>
         public void Retry()
         {
@@ -65,9 +69,10 @@ namespace Rank
                 return;
             }
 
-            if (playerTransform != null && playerTransform.TryGetComponent(out Health playerHealth) && playerHealth.IsDead)
+            if (playerTransform != null && playerTransform.TryGetComponent(out StagePositionResetter positionResetter))
             {
-                playerHealth.Revive();
+                positionResetter.ResetPositions();
+                positionResetter.ResetHealth();
             }
 
             StartAttempt();
