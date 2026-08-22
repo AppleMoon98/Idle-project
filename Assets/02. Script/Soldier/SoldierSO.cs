@@ -23,6 +23,12 @@ namespace Soldier
         [SerializeField]
         private EquipmentGradeSO grade;
 
+        [SerializeField]
+        private float iconScale = 1f;
+
+        [SerializeField]
+        private bool iconIgnoreGradeTint = false;
+
         /// <summary>
         /// 병사 이름(로스터/가챠 결과 UI 표시용).
         /// </summary>
@@ -45,5 +51,19 @@ namespace Soldier
         /// 배율 없음(등급 개념이 없는 구형 항목).
         /// </summary>
         public EquipmentGradeSO Grade => grade;
+
+        /// <summary>
+        /// 아이콘 렌더링 배율(기본 1). 실사진풍 아바타처럼 원본 실루엣 플레이스홀더보다 여백이
+        /// 많은 아이콘을 교체했을 때, 이 항목만 개별적으로 키워서 다른 병종 아이콘과 시각적
+        /// 크기를 맞추기 위한 것 — 그 외 값이 1인 대다수 항목은 전혀 영향받지 않는다.
+        /// </summary>
+        public float IconScale => iconScale;
+
+        /// <summary>
+        /// true면 아이콘에 등급 틴트(Grade.TintColor)를 입히지 않고 항상 흰색(원본 색 그대로)으로
+        /// 표시한다. 실루엣 플레이스홀더 아이콘은 등급 틴트가 있어야 구분되지만(section DR), 이미
+        /// 자체 색을 가진 실사진풍 아바타는 틴트를 덧입히면 오히려 색이 탁해지므로 개별 예외로 둔다.
+        /// </summary>
+        public bool IconIgnoreGradeTint => iconIgnoreGradeTint;
     }
 }

@@ -56,10 +56,14 @@ namespace UI
 
             if (iconImage != null)
             {
-                Sprite icon = occupant?.Definition.Icon;
+                SoldierSO occupantDefinition = occupant?.Definition;
+                Sprite icon = occupantDefinition?.Icon;
                 iconImage.sprite = icon;
                 iconImage.enabled = icon != null;
-                iconImage.color = occupant?.Definition.Grade != null ? occupant.Definition.Grade.TintColor : Color.white;
+                iconImage.color = occupantDefinition != null && !occupantDefinition.IconIgnoreGradeTint && occupantDefinition.Grade != null
+                    ? occupantDefinition.Grade.TintColor
+                    : Color.white;
+                iconImage.rectTransform.localScale = Vector3.one * (occupantDefinition?.IconScale ?? 1f);
             }
 
             if (numberLabel != null)

@@ -63,27 +63,13 @@ namespace Dungeon
         }
 
         /// <summary>
-        /// stageNumber 단계의 입장 조건 — 그 단계의 기준 스테이지(챕터 N의 N-40 스테이지)를 실제로
-        /// 클리어한 기록이 있는지 — 를 판정한다. MaxStageNumber(챕터 단위)보다 훨씬 엄격한 검사다:
-        /// 챕터 N에 막 진입만 해도 MaxStageNumber는 N까지 올라가지만, N-40 자체는 아직 못 클리어했을
-        /// 수 있다. requiredStage는 조건 충족 여부와 무관하게 항상 채워 반환한다 — 실패 시 UI가 이
-        /// 값으로 안내 메시지("스테이지 N-40 클리어 시 입장이 가능합니다.")를 만든다.
+        /// stageNumber 단계의 입장 조건 — 제거됨(항상 true). requiredStage는 UI 호환을 위해 계속
+        /// 채워 반환하지만, 반환값 자체가 항상 true라 UI의 안내 메시지 분기는 더 이상 실행되지 않는다.
         /// </summary>
         public bool IsStageUnlocked(int stageNumber, out StageSO requiredStage)
         {
             requiredStage = config != null ? config.GetReferenceStage(stageNumber) : null;
-
-            if (requiredStage == null)
-            {
-                return true;
-            }
-
-            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService))
-            {
-                return rankService.HasClearedStage(requiredStage);
-            }
-
-            return false;
+            return true;
         }
 
         /// <summary>

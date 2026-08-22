@@ -76,8 +76,9 @@ namespace UI
             {
                 iconImage.sprite = definition.Icon;
                 iconImage.enabled = definition.Icon != null;
-                Color gradeIconTint = grade != null ? grade.TintColor : Color.white;
+                Color gradeIconTint = definition.IconIgnoreGradeTint || grade == null ? Color.white : grade.TintColor;
                 iconImage.color = isOwned ? gradeIconTint : unownedIconTint;
+                iconImage.rectTransform.localScale = Vector3.one * definition.IconScale;
             }
 
             if (background != null)
