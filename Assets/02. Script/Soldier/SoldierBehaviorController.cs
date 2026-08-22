@@ -46,7 +46,6 @@ namespace Soldier
         private EnemyTracker _enemyTracker;
         private RangedAttackBehavior _rangedAttack;
         private CavalryCharge _cavalryCharge;
-        private OrbitKiter _orbitKiter;
         private FormationFollower _formationFollower;
         private RangedKiter _formationKiter;
         private SoldierRosterService _roster;
@@ -67,7 +66,6 @@ namespace Soldier
             _enemyTracker = GetComponent<EnemyTracker>();
             _rangedAttack = GetComponent<RangedAttackBehavior>();
             _cavalryCharge = GetComponent<CavalryCharge>();
-            _orbitKiter = GetComponent<OrbitKiter>();
             _formationFollower = GetComponent<FormationFollower>();
             _formationKiter = GetComponent<RangedKiter>();
             GameBootstrapper.Services?.TryGet(out _roster);
@@ -117,7 +115,7 @@ namespace Soldier
         /// <summary>
         /// 이 유닛이 어떤 로스터 유닛(instanceId)이고, 후퇴 시 어디로 갈지(retreatPoint)를 주입하고
         /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다.
-        /// CavalryCharge/OrbitKiter/FormationFollower는 "탐지 범위 안에 아무 대상(몬스터)도 없을 때의
+        /// CavalryCharge/FormationFollower는 "탐지 범위 안에 아무 대상(몬스터)도 없을 때의
         /// 기본 위협"으로 플레이어를 주입받도록 설계돼 있지만(몬스터 쪽 MonsterSpawner.SpawnOne이
         /// IMonsterMovementInitializer.Initialize(playerTransform)를 호출하는 것과 같은 코드 형태),
         /// 그건 몬스터 입장(적이 없으면 플레이어를 향해 간다)에서만 의미가 있다. 병사에게 그대로
@@ -147,11 +145,6 @@ namespace Soldier
             if (_cavalryCharge != null)
             {
                 _cavalryCharge.Initialize(null);
-            }
-
-            if (_orbitKiter != null)
-            {
-                _orbitKiter.Initialize(null);
             }
 
             if (_formationFollower != null)
@@ -231,7 +224,7 @@ namespace Soldier
 
             // ApplyMode에는 이 유닛 자신의 로컬 판정이 아니라 부대 전체의 집계값을 넘긴다 —
             // 부대원 중 하나라도 교전에 들어가면(GetEffectiveMarching이 false) 아직 적을 못 찾은
-            // 나머지도 즉시 함께 전투태세로 전환된다(궁병의 대형 이탈 등). 기마병/기마궁수는
+            // 나머지도 즉시 함께 전투태세로 전환된다(궁병의 대형 이탈 등). 기마병은
             // GetEffectiveMarching이 항상 자기 로컬 값을 그대로 돌려주므로 원래처럼 계속 각개행동.
             bool effectiveMarching = _squadMovementSync != null ? _squadMovementSync.GetEffectiveMarching(gameObject) : isMarching;
 
@@ -272,15 +265,6 @@ namespace Soldier
                         }
 
                         _cavalryCharge.enabled = true;
-                    }
-                    else if (_orbitKiter != null)
-                    {
-                        if (_enemyTracker != null)
-                        {
-                            _enemyTracker.enabled = false;
-                        }
-
-                        _orbitKiter.enabled = true;
                     }
                     else if (_formationFollower != null && _rangedAttack != null)
                     {
@@ -366,11 +350,6 @@ namespace Soldier
             if (_cavalryCharge != null)
             {
                 _cavalryCharge.enabled = false;
-            }
-
-            if (_orbitKiter != null)
-            {
-                _orbitKiter.enabled = false;
             }
 
             if (_formationFollower != null)

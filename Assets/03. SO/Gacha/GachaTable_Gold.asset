@@ -44,12 +44,6 @@ MonoBehaviour:
     weight: 25
   - soldier: {fileID: 11400000, guid: 46d795a8697f4e7a96328ceae45807fd, type: 2}
     weight: 10
-  - soldier: {fileID: 11400000, guid: 6028dbdcbabc439cb80406de7dfbf631, type: 2}
-    weight: 65
-  - soldier: {fileID: 11400000, guid: 7c8b2f5184274aaa99ab3e35e9999267, type: 2}
-    weight: 25
-  - soldier: {fileID: 11400000, guid: d638a666ea9846bc9ab3e9f326da19a5, type: 2}
-    weight: 10
   - soldier: {fileID: 11400000, guid: ed24026bb3ab414dab614690077e7b65, type: 2}
     weight: 65
   - soldier: {fileID: 11400000, guid: a44ca0d684074db098de58d24be7eea1, type: 2}

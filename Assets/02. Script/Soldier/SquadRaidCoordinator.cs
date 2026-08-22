@@ -9,7 +9,7 @@ namespace Soldier
 {
     /// <summary>
     /// SquadTacticType.LeftRightRaid/RearRaid가 배정된 부대를 스테이지 시작 시 완전히 숨겼다가,
-    /// 부대 구성(전원 기마병/기마궁병인지)에 따라 정해진 시간 뒤 좌/우(또는 상단) 스폰 지점에서
+    /// 부대 구성(전원 기마병인지)에 따라 정해진 시간 뒤 좌/우(또는 상단) 스폰 지점에서
     /// 등장시킨다. SoldierSpawner가 그 스테이지의 모든 슬롯을 (재)스폰한 직후 OnStageStarted를
     /// 명시적으로 호출해준다 - EventBus 구독 순서에 기대지 않고 "스폰 완료 후"를 항상 보장하기
     /// 위함(반대로 SoldierSpawner보다 먼저 반응하면 아직 스폰되지 않은 빈 목록을 숨기는 꼴이 된다).
@@ -82,7 +82,7 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 부대 구성(전원 기마병/기마궁병인지)에 따라 카운트다운을 시작하고 부대원 전원을 즉시 숨긴다.
+        /// 부대 구성(전원 기마병인지)에 따라 카운트다운을 시작하고 부대원 전원을 즉시 숨긴다.
         /// </summary>
         private void ArmSquad(int squadIndex, SquadTacticType tactic)
         {
@@ -103,7 +103,7 @@ namespace Soldier
                     continue;
                 }
 
-                if (member.GetComponent<CavalryCharge>() == null && member.GetComponent<OrbitKiter>() == null)
+                if (member.GetComponent<CavalryCharge>() == null)
                 {
                     allCavalry = false;
                     break;

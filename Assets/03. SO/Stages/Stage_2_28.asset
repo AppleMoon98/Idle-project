@@ -16,7 +16,7 @@ MonoBehaviour:
   stageNumber: 28
   spawnEntries:
   - monsterPrefab: {fileID: 3104091886448902630, guid: 7da6041b108869f4882e0f8ae520fa1a, type: 3}
-    count: 7
+    count: 11
     spawnInterval: 0.7
     visualSet: {fileID: 0}
     spawnWithTactics: 0
@@ -34,12 +34,6 @@ MonoBehaviour:
     spawnWithTactics: 0
     placement: 0
   - monsterPrefab: {fileID: 3104091886448902630, guid: ce2afb4318eab8847ab33b317432204b, type: 3}
-    count: 4
-    spawnInterval: 0.7
-    visualSet: {fileID: 0}
-    spawnWithTactics: 0
-    placement: 0
-  - monsterPrefab: {fileID: 3104091886448902630, guid: 5ee334b8c18931c4d8dbd6242de82e81, type: 3}
     count: 4
     spawnInterval: 0.7
     visualSet: {fileID: 0}
