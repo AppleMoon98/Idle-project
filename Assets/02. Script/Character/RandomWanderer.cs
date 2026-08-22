@@ -15,6 +15,13 @@ namespace Character
     /// 실사용 중 재발견된 문제 — Dungeon.DungeonSpawnUtility.RandomWithinPlayAreaPosition, 섹션 CG와
     /// 같은 버그 계열). CameraFollowService를 못 구하면(테스트 등) 방어적으로 실시간 카메라
     /// 뷰포트로 대체한다.
+    ///
+    /// 목적지에 도착/타임아웃할 때마다 pauseChance(기본 10%) 확률로 곧장 다음 목적지를 고르는 대신
+    /// pauseDurationMin~Max 사이의 짧은 시간만큼 제자리에 멈춘다(Target을 null로 비워 CharacterMover
+    /// 자체가 안 움직이게 하고, Character.IdleRunAnimationController는 Target==null을 그대로
+    /// "정지"로 읽어 Idle 애니메이션으로 자연히 전환된다 - 별도 연동 불필요). 스폰 직후 첫
+    /// 목적지(OnEnable)는 이 확률 굴림 없이 항상 즉시 움직이도록 PickNewDestination을 직접 부른다 -
+    /// 막 스폰된 개체가 곧바로 멈춰 보이면 "죽은 것처럼" 보일 수 있어 제외했다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     public sealed class RandomWanderer : MonoBehaviour, ITickable
@@ -28,10 +35,22 @@ namespace Character
         [SerializeField]
         private float arrivalDistance = 0.3f;
 
+        [SerializeField]
+        [Range(0f, 1f)]
+        private float pauseChance = 0.1f;
+
+        [SerializeField]
+        private float pauseDurationMin = 0.5f;
+
+        [SerializeField]
+        private float pauseDurationMax = 1.5f;
+
         private CharacterMover _mover;
         private Transform _wanderAnchor;
         private Camera _camera;
         private float _elapsedSinceLastPick;
+        private bool _isPaused;
+        private float _pauseRemaining;
 
         private void Awake()
         {
@@ -62,14 +81,40 @@ namespace Character
 
         void ITickable.Tick(float deltaTime)
         {
+            if (_isPaused)
+            {
+                _pauseRemaining -= deltaTime;
+
+                if (_pauseRemaining <= 0f)
+                {
+                    _isPaused = false;
+                    PickNewDestination();
+                }
+
+                return;
+            }
+
             _elapsedSinceLastPick += deltaTime;
 
             float distance = Vector3.Distance(transform.position, _wanderAnchor.position);
 
             if (distance <= arrivalDistance || _elapsedSinceLastPick >= wanderInterval)
             {
-                PickNewDestination();
+                ResolveNextAction();
             }
+        }
+
+        private void ResolveNextAction()
+        {
+            if (Random.value < pauseChance)
+            {
+                _isPaused = true;
+                _pauseRemaining = Random.Range(pauseDurationMin, pauseDurationMax);
+                _mover.Target = null;
+                return;
+            }
+
+            PickNewDestination();
         }
 
         private void PickNewDestination()
