@@ -108368,6 +108368,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.InfantryAnimationController
   maxAttackHoldSeconds: 0.6
+  pauseMovementDuringAttack: 0
 --- !u!95 &843023033926465281
 Animator:
   serializedVersion: 7

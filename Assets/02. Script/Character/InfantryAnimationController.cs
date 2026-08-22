@@ -19,6 +19,9 @@ namespace Character
     /// 공격 동안(IsAttacking) CharacterMover를 잠깐 꺼서 제자리에 멈춘다 - SpearmanAnimationController
     /// 가 겪은 것과 같은 이유(Attacker의 독립적인 재탐색 타겟과 CharacterMover.Target이 다를 수 있어
     /// "공격 자세인데 미끄러지듯 이동" 하는 문제 방지). OnDisable에서도 무조건 다시 켠다.
+    /// pauseMovementDuringAttack(기본 true)을 끄면 이 정지 자체를 하지 않는다 - 플레이어는 공격
+    /// 중에도 이동이 끊기지 않아야 한다는 요청으로 추가됐다(Player 인스턴스에서만 false, Monster/
+    /// Soldier 프리팹은 이 컴포넌트를 그대로 공유하므로 기본값 유지).
     ///
     /// AttackPerformed가 항상 뒤따라온다는 보장은 없다(Combat.Attacker.Tick() 참고) -
     /// maxAttackHoldSeconds 타임아웃으로 방어한다.
@@ -35,6 +38,9 @@ namespace Character
 
         [SerializeField]
         private float maxAttackHoldSeconds = 0.6f;
+
+        [SerializeField]
+        private bool pauseMovementDuringAttack = true;
 
         private Animator _animator;
         private CharacterMover _mover;
@@ -79,7 +85,12 @@ namespace Character
         private void OnWindupStarted(Health target)
         {
             _animator.SetBool(IsAttackingHash, true);
-            _mover.enabled = false;
+
+            if (pauseMovementDuringAttack)
+            {
+                _mover.enabled = false;
+            }
+
             _isAttacking = true;
             _attackElapsed = 0f;
         }
@@ -92,7 +103,12 @@ namespace Character
         private void EndAttack()
         {
             _animator.SetBool(IsAttackingHash, false);
-            _mover.enabled = true;
+
+            if (pauseMovementDuringAttack)
+            {
+                _mover.enabled = true;
+            }
+
             _isAttacking = false;
         }
 
