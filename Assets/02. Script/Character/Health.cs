@@ -33,6 +33,11 @@ namespace Character
         /// </summary>
         public float Current => _current;
 
+        /// <summary>
+        /// 현재 최대 체력(강화/장비/랭크 등 적용 후 값).
+        /// </summary>
+        public float MaxHealth => _statsProvider.Stats.MaxHealth;
+
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();

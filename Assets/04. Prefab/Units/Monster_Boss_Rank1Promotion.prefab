@@ -328,7 +328,8 @@ MonoBehaviour:
     length: 5
     width: 2
     facingOffsetDegrees: 0
-    damage: 240
+    damage: 0
+    damagePercentOfMaxHealth: 0.25
     reachesMapEdge: 1
     anchorAtNearEdge: 0
   verticalLineHitTemplate:
@@ -338,7 +339,8 @@ MonoBehaviour:
     length: 5
     width: 1.5
     facingOffsetDegrees: 0
-    damage: 240
+    damage: 0
+    damagePercentOfMaxHealth: 0.25
     reachesMapEdge: 1
     anchorAtNearEdge: 0
 --- !u!1001 &5221313293063939603

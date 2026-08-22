@@ -462,7 +462,7 @@ namespace Rank.Boss
                 }
             }
 
-            float damage = group.Count > 0 ? group[0].Hit.Damage : 0f;
+            BossPatternHit sharedHit = group.Count > 0 ? group[0].Hit : null;
 
             // 데미지 적용 전에 인디케이터부터 전부 해제한다(ResolveHit과 동일한 재진입 방어 이유).
             foreach ((BossPatternHit _, Vector3 _, float _, GameObject indicator) in group)
@@ -470,10 +470,24 @@ namespace Rank.Boss
                 ReleaseIndicator(indicator);
             }
 
+            if (sharedHit == null)
+            {
+                return;
+            }
+
             foreach (Health health in targets)
             {
-                health.TakeDamage(damage);
+                health.TakeDamage(ResolveDamage(sharedHit, health));
             }
+        }
+
+        /// <summary>
+        /// DamagePercentOfMaxHealth가 설정돼 있으면(0보다 크면) 맞는 대상 자신의 최대 체력에
+        /// 비례한 데미지를, 아니면 기존처럼 고정 Damage를 반환한다.
+        /// </summary>
+        private static float ResolveDamage(BossPatternHit hit, Health target)
+        {
+            return hit.DamagePercentOfMaxHealth > 0f ? target.MaxHealth * hit.DamagePercentOfMaxHealth : hit.Damage;
         }
 
         /// <summary>
@@ -667,7 +681,7 @@ namespace Rank.Boss
 
             foreach (Health health in targets)
             {
-                health.TakeDamage(hit.Damage);
+                health.TakeDamage(ResolveDamage(hit, health));
             }
         }
 

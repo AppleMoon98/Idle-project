@@ -36,6 +36,9 @@ namespace Combat.BossPattern
         private float damage;
 
         [SerializeField]
+        private float damagePercentOfMaxHealth;
+
+        [SerializeField]
         private bool reachesMapEdge;
 
         [SerializeField]
@@ -70,6 +73,13 @@ namespace Combat.BossPattern
         public float FacingOffsetDegrees => facingOffsetDegrees;
 
         public float Damage => damage;
+
+        /// <summary>
+        /// 0보다 크면 Damage(고정값) 대신 "맞는 대상의 최대 체력 × 이 비율"을 데미지로 쓴다(예:
+        /// 0.25 = 최대 체력의 25%). 기본값 0 = 비활성화, 기존 고정 데미지 패턴은 전혀 영향받지
+        /// 않는다(RankSO.RequiredStage == null과 같은 sparse opt-in 관례).
+        /// </summary>
+        public float DamagePercentOfMaxHealth => damagePercentOfMaxHealth;
 
         /// <summary>
         /// true면 실행 시점 Length 대신 Services.CameraFollowService의 고정 경계 대각선 길이로
