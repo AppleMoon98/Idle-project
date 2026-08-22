@@ -1,4 +1,6 @@
 using Character;
+using Core;
+using Managers;
 using UnityEngine;
 using UnityEngine.Serialization;
 
@@ -12,6 +14,11 @@ namespace Combat
     /// 요청을 그대로 구현한 것 - 느린 이동/공격 속도는 MonsterStats_Siege의 moveSpeed/
     /// attackInterval 값만으로 표현되며, 이 컴포넌트는 공격이 실제로 발생했을 때 무엇을 하는지만
     /// 담당한다(Attacker의 공격 주기/사거리 판정은 그대로 재사용).
+    ///
+    /// explosionPrefab이 지정돼 있으면(sparse opt-in - 이 컴포넌트를 공유하는 Combat.CavalryCharge의
+    /// 근접 응전에는 설정하지 않는다) 정타가 적중하는 순간 Combat.ExplosionEffect를 splashRadius
+    /// 크기로 재생한다 - "공격 범위 크기로 데미지가 들어갈 때"라는 요청대로, 폭발 시각 크기가 실제
+    /// 판정 반경을 그대로 나타낸다.
     /// </summary>
     [RequireComponent(typeof(Attacker))]
     public sealed class SplashAttackBehavior : MonoBehaviour, IAttackBehavior
@@ -28,6 +35,30 @@ namespace Combat
 
         [SerializeField]
         private LayerMask splashLayerMask;
+
+        [SerializeField]
+        private GameObject explosionPrefab;
+
+        [SerializeField]
+        private int explosionPoolCapacity = 2;
+
+        [SerializeField]
+        private int explosionPoolMaxSize = 4;
+
+        private PoolManager _pool;
+
+        private void OnEnable()
+        {
+            if (explosionPrefab == null)
+            {
+                return;
+            }
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out _pool))
+            {
+                _pool.EnsurePool(explosionPrefab, explosionPoolCapacity, explosionPoolMaxSize);
+            }
+        }
 
         public void Execute(Transform origin, Health target, float damage, bool isCritical)
         {
@@ -48,9 +79,26 @@ namespace Combat
                 }
             }
 
+            SpawnExplosion(target.transform.position);
+
             if (weaponMotion != null)
             {
                 weaponMotion.Play();
+            }
+        }
+
+        private void SpawnExplosion(Vector3 position)
+        {
+            if (explosionPrefab == null || _pool == null)
+            {
+                return;
+            }
+
+            GameObject instance = _pool.Get(explosionPrefab, position, Quaternion.identity);
+
+            if (instance.TryGetComponent(out ExplosionEffect explosion))
+            {
+                explosion.Play(position, splashRadius);
             }
         }
     }

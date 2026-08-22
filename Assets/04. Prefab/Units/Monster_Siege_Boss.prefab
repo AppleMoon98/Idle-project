@@ -415,6 +415,9 @@ MonoBehaviour:
   splashLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &2569591883617053439
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -65,6 +65,15 @@ namespace Skill.Effects
         [SerializeField]
         private int vfxPoolMaxSize = 4;
 
+        [SerializeField]
+        private GameObject explosionPrefab;
+
+        [SerializeField]
+        private int explosionPoolCapacity = 2;
+
+        [SerializeField]
+        private int explosionPoolMaxSize = 4;
+
         private PoolManager _pool;
         private CharacterStatsProvider _statsProvider;
         private SkillSO _definition;
@@ -85,6 +94,11 @@ namespace Skill.Effects
                 if (telegraphIndicatorPrefab != null)
                 {
                     _pool.EnsurePool(telegraphIndicatorPrefab, telegraphPoolCapacity, telegraphPoolMaxSize);
+                }
+
+                if (explosionPrefab != null)
+                {
+                    _pool.EnsurePool(explosionPrefab, explosionPoolCapacity, explosionPoolMaxSize);
                 }
             }
 
@@ -286,8 +300,29 @@ namespace Skill.Effects
             });
 
             SkillEffectVfx.SpawnAndPlay(_pool, _definition, shell.Position, vfxPoolCapacity, vfxPoolMaxSize);
+            SpawnExplosion(shell.Position);
 
             ReleaseShell(shell);
+        }
+
+        /// <summary>
+        /// Combat.ExplosionEffect(공성병 포탄/광역 공격이 쓰는 것과 같은 이펙트, sparse opt-in)를
+        /// AreaRadius 크기로 재생한다 - 기존 SkillEffectVfx(SkillSO.VfxPrefab, 스킬별 커스텀
+        /// 이펙트)와는 별개의 추가 연출이다.
+        /// </summary>
+        private void SpawnExplosion(Vector3 position)
+        {
+            if (explosionPrefab == null || _pool == null)
+            {
+                return;
+            }
+
+            GameObject instance = _pool.Get(explosionPrefab, position, Quaternion.identity);
+
+            if (instance.TryGetComponent(out Combat.ExplosionEffect explosion))
+            {
+                explosion.Play(position, _definition.AreaRadius);
+            }
         }
 
         private void ReleaseShell(Shell shell)

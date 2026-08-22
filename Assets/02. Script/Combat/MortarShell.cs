@@ -32,6 +32,7 @@ namespace Combat
         private LayerMask _splashLayerMask;
         private Vector3 _destination;
         private GameObject _telegraphInstance;
+        private GameObject _explosionPrefab;
         private bool _released;
 
         private void OnEnable()
@@ -57,9 +58,11 @@ namespace Combat
         /// 포탄을 발사한다. 풀에서 꺼낸 직후 호출되어야 한다. spinClockwise는 발사 순간 공성병이
         /// 바라보던 방향(우측이면 시계 방향, 좌측이면 반시계 방향)으로 정한다. telegraphInstance는
         /// 착탄 지점에 이미 표시돼 있는 War.Boss.WarBossTelegraphIndicator 인스턴스 - 도착 시점에
-        /// 이 포탄이 함께 반납한다(포탄과 예고 표시의 생명주기를 하나로 묶는다).
+        /// 이 포탄이 함께 반납한다(포탄과 예고 표시의 생명주기를 하나로 묶는다). explosionPrefab이
+        /// 지정돼 있으면(sparse opt-in) 착탄 순간 Combat.ExplosionEffect를 splashRadius 크기로
+        /// 재생한다 - Combat.SplashAttackBehavior의 explosionPrefab과 같은 목적/관례.
         /// </summary>
-        public void Launch(Vector3 destination, Health target, float damage, bool isCritical, float speed, bool spinClockwise, float splashRadius, float splashDamageMultiplier, LayerMask splashLayerMask, GameObject telegraphInstance)
+        public void Launch(Vector3 destination, Health target, float damage, bool isCritical, float speed, bool spinClockwise, float splashRadius, float splashDamageMultiplier, LayerMask splashLayerMask, GameObject telegraphInstance, GameObject explosionPrefab)
         {
             _destination = destination;
             _target = target;
@@ -71,6 +74,7 @@ namespace Combat
             _splashDamageMultiplier = splashDamageMultiplier;
             _splashLayerMask = splashLayerMask;
             _telegraphInstance = telegraphInstance;
+            _explosionPrefab = explosionPrefab;
         }
 
         void ITickable.Tick(float deltaTime)
@@ -106,7 +110,23 @@ namespace Combat
                 }
             }
 
+            SpawnExplosion();
             ReleaseSelf();
+        }
+
+        private void SpawnExplosion()
+        {
+            if (_explosionPrefab == null || GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out PoolManager pool))
+            {
+                return;
+            }
+
+            GameObject instance = pool.Get(_explosionPrefab, _destination, Quaternion.identity);
+
+            if (instance.TryGetComponent(out ExplosionEffect explosion))
+            {
+                explosion.Play(_destination, _splashRadius);
+            }
         }
 
         private void ReleaseSelf()

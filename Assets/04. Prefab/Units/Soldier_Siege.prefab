@@ -430,6 +430,7 @@ MonoBehaviour:
   weaponMotion: {fileID: 2446143283646997398}
   shellPrefab: {fileID: 8241499120435491403, guid: 372bbb4e437efc842bd02cbe202ddfd4, type: 3}
   telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
   muzzle: {fileID: 2602501013443847862}
   launchDelaySeconds: 0.3
   projectileSpeed: 5
@@ -442,6 +443,8 @@ MonoBehaviour:
   shellPoolMaxSize: 4
   telegraphPoolCapacity: 2
   telegraphPoolMaxSize: 4
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &3866460624141847125
 MonoBehaviour:
   m_ObjectHideFlags: 0

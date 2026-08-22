@@ -36,6 +36,9 @@ namespace Combat
         private GameObject telegraphIndicatorPrefab;
 
         [SerializeField]
+        private GameObject explosionPrefab;
+
+        [SerializeField]
         private Transform muzzle;
 
         /// <summary>
@@ -67,6 +70,12 @@ namespace Combat
 
         [SerializeField]
         private int telegraphPoolMaxSize = 4;
+
+        [SerializeField]
+        private int explosionPoolCapacity = 2;
+
+        [SerializeField]
+        private int explosionPoolMaxSize = 4;
 
         private PoolManager _pool;
         private SpriteRenderer _spriteRenderer;
@@ -101,6 +110,11 @@ namespace Combat
             if (telegraphIndicatorPrefab != null)
             {
                 _pool.EnsurePool(telegraphIndicatorPrefab, telegraphPoolCapacity, telegraphPoolMaxSize);
+            }
+
+            if (explosionPrefab != null)
+            {
+                _pool.EnsurePool(explosionPrefab, explosionPoolCapacity, explosionPoolMaxSize);
             }
         }
 
@@ -172,7 +186,7 @@ namespace Combat
                 }
             }
 
-            shell.Launch(_pendingDestination, _pendingTarget, _pendingDamage, _pendingIsCritical, projectileSpeed, facingRight, splashRadius, splashDamageMultiplier, splashLayerMask, telegraphInstance);
+            shell.Launch(_pendingDestination, _pendingTarget, _pendingDamage, _pendingIsCritical, projectileSpeed, facingRight, splashRadius, splashDamageMultiplier, splashLayerMask, telegraphInstance, explosionPrefab);
         }
     }
 }

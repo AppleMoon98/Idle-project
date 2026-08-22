@@ -3239,6 +3239,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &82877837
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -57191,6 +57194,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &1061280282
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -60917,6 +60923,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &1151127062
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -62682,6 +62691,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &1207186230
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -70318,6 +70330,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &1437565083
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -80469,6 +80484,9 @@ MonoBehaviour:
   telegraphPoolMaxSize: 8
   vfxPoolCapacity: 2
   vfxPoolMaxSize: 4
+  explosionPrefab: {fileID: 1000000000000001, guid: c3d4e5f60718293a4b5c6d7e8fa0b1c2, type: 3}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!114 &1683189645
 MonoBehaviour:
   m_ObjectHideFlags: 0
