@@ -20,6 +20,10 @@ GameObject:
   - component: {fileID: 6840492953599145196}
   - component: {fileID: 3651733081445919950}
   - component: {fileID: 985043916233307103}
+  - component: {fileID: 7482139850784023222}
+  - component: {fileID: 1898650987528475540}
+  - component: {fileID: 5205365763317621814}
+  - component: {fileID: 8135493657945796891}
   m_Layer: 9
   m_Name: Boss_TrainingDummy
   m_TagString: Untagged
@@ -37,7 +41,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 10, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 3, y: 3, z: 3}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2231462704063233621}
@@ -92,7 +96,7 @@ SpriteRenderer:
   m_SortingLayer: 0
   m_SortingOrder: 0
   m_MaskInteraction: 0
-  m_Sprite: {fileID: 21300000, guid: 1f63255ad246fd14f88f03be07451fe5, type: 3}
+  m_Sprite: {fileID: -6367260613296689715, guid: 920bf70ddb177f043abe16ba0288918f, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_FlipX: 0
   m_FlipY: 0
@@ -264,6 +268,78 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  ignorePlayer: 0
+--- !u!114 &7482139850784023222
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2913678691088440627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6340b297ab5cdd74eb696732b8054510, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterMover
+--- !u!95 &1898650987528475540
+Animator:
+  serializedVersion: 7
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2913678691088440627}
+  m_Enabled: 1
+  m_Avatar: {fileID: 0}
+  m_Controller: {fileID: 9100000, guid: 8fc03e7df321df646861f220242c3d60, type: 2}
+  m_CullingMode: 0
+  m_UpdateMode: 0
+  m_ApplyRootMotion: 0
+  m_LinearVelocityBlending: 0
+  m_StabilizeFeet: 0
+  m_AnimatePhysics: 0
+  m_WarningMessage: 
+  m_HasTransformHierarchy: 1
+  m_AllowConstantClipSamplingOptimization: 1
+  m_KeepAnimatorStateOnDisable: 0
+  m_WriteDefaultValuesOnDisable: 0
+--- !u!114 &5205365763317621814
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2913678691088440627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6cad295cccf9aa14989080020ba80727, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.IdleRunAnimationController
+--- !u!114 &8135493657945796891
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2913678691088440627}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2c0490716a682d843a5dabab6cdba301, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.PulseKnockbackWanderer
+  moveDuration: 3
+  idleDuration: 5
+  viewportMargin: 0.05
+  arrivalDistance: 0.3
+  knockbackRadius: 4
+  knockbackDistance: 2
+  knockbackDuration: 0.3
+  allyLayerMask:
+    serializedVersion: 2
+    m_Bits: 256
 --- !u!1001 &7210608643880030075
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -322,15 +398,15 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 8855912889122042158, guid: a04292e76c97ab644a86039b8cceac20, type: 3}
       propertyPath: m_LocalScale.x
-      value: 0.6666667
+      value: 0.33333334
       objectReference: {fileID: 0}
     - target: {fileID: 8855912889122042158, guid: a04292e76c97ab644a86039b8cceac20, type: 3}
       propertyPath: m_LocalScale.y
-      value: 0.6666667
+      value: 0.33333334
       objectReference: {fileID: 0}
     - target: {fileID: 8855912889122042158, guid: a04292e76c97ab644a86039b8cceac20, type: 3}
       propertyPath: m_LocalScale.z
-      value: 0.6666667
+      value: 0.33333334
       objectReference: {fileID: 0}
     - target: {fileID: 8855912889122042158, guid: a04292e76c97ab644a86039b8cceac20, type: 3}
       propertyPath: m_LocalPosition.x
