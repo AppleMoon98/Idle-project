@@ -132,6 +132,8 @@ namespace Dungeon
             _selectedRank = selectedRank;
 
             stageController?.PauseForOverlay($"보스 토벌 - {selectedRank.DisplayName}");
+            stageController?.ResetCombatantsForRetry();
+            stageController?.ResetSkillCooldowns();
             soldierSpawner?.SetSoldiersActive(false);
 
             StartAttempt();

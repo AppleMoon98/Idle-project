@@ -100,6 +100,8 @@ namespace Dungeon
             _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
 
             stageController?.PauseForOverlay($"병사 구출 {_stageNumber}층");
+            stageController?.ResetCombatantsForRetry();
+            stageController?.ResetSkillCooldowns();
             soldierSpawner?.SetSoldiersActive(false);
 
             StartAttempt();

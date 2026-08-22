@@ -54,6 +54,8 @@ namespace Dungeon
             _stageNumber = stageNumber;
 
             stageController?.PauseForOverlay($"스킬 던전 {_stageNumber}층");
+            stageController?.ResetCombatantsForRetry();
+            stageController?.ResetSkillCooldowns();
 
             StartAttempt();
         }

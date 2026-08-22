@@ -32,6 +32,7 @@ namespace Skill
         private readonly SkillService _skillService;
         private readonly SkillSO[] _slots = new SkillSO[SlotCount];
         private readonly bool[] _enabled;
+        private readonly List<SkillSlot> _activeSlots = new List<SkillSlot>();
 
         public SkillLoadoutService(EventBus events, SkillService skillService)
         {
@@ -189,6 +190,42 @@ namespace Skill
         private static bool IsValidSlot(int slotIndex)
         {
             return slotIndex >= 0 && slotIndex < SlotCount;
+        }
+
+        /// <summary>
+        /// SkillSlot 컴포넌트가 자기 OnEnable에서 스스로 등록한다(Soldier.SquadMovementSyncService의
+        /// Register/Unregister와 동일한 관례) — ResetAllCooldowns이 실제 씬의 슬롯 인스턴스에 접근할
+        /// 방법이 이것뿐이기 때문(장착 정보만 갖고 있는 이 서비스 자신은 쿨다운 진행 상태를 모른다).
+        /// </summary>
+        public void RegisterSlot(SkillSlot slot)
+        {
+            if (slot != null && !_activeSlots.Contains(slot))
+            {
+                _activeSlots.Add(slot);
+            }
+        }
+
+        /// <summary>
+        /// RegisterSlot과 짝을 이루는 해제 — SkillSlot.OnDisable에서 호출한다.
+        /// </summary>
+        public void UnregisterSlot(SkillSlot slot)
+        {
+            _activeSlots.Remove(slot);
+        }
+
+        /// <summary>
+        /// 등록된 슬롯 전체(6개, 장착 여부 무관)의 쿨다운을 즉시 발동 가능 상태로 되돌린다.
+        /// 던전 입장 시점에 Stage.StageController.ResetSkillCooldowns()가 호출한다.
+        /// </summary>
+        public void ResetAllCooldowns()
+        {
+            foreach (SkillSlot slot in _activeSlots)
+            {
+                if (slot != null)
+                {
+                    slot.ResetCooldownReady();
+                }
+            }
         }
 
         /// <summary>

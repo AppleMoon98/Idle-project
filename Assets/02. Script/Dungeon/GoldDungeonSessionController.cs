@@ -110,6 +110,8 @@ namespace Dungeon
             _totalGoldEarned = 0;
 
             stageController?.PauseForOverlay($"골드 던전 {_stageNumber}층");
+            stageController?.ResetCombatantsForRetry();
+            stageController?.ResetSkillCooldowns();
 
             SpawnMonsters();
 

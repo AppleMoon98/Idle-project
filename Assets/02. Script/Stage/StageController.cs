@@ -344,11 +344,30 @@ namespace Stage
         /// 전혀 건드리지 않는다 — 오버레이 자체는 아직 끝나지 않았기 때문이다(재도전 대기 상태).
         /// 플레이어와 병사의 체력만 이번 시도를 시작할 때처럼 되돌린다
         /// (StagePositionResetter.ResetHealth, ResumeAfterOverlay가 클리어/나가기 시점에 쓰는 것과
-        /// 동일한 로직) — 던전 각 세션 컨트롤러의 Retry()가 호출한다.
+        /// 동일한 로직) — 던전 각 세션 컨트롤러의 Retry()가 호출한다. 이름과 달리 최초 입장
+        /// (Enter()) 시점에도 그대로 재사용한다 — PauseForOverlay 자체는 위치만 되돌릴 뿐(체력은
+        /// 건드리지 않음) 스테이지에서 입은 피해를 그대로 안고 던전에 들어가는 문제가 있었다
+        /// (실사용 중 발견) — 두 시점(입장/재도전) 모두 "이번 시도를 최대 체력으로 새로 시작한다"
+        /// 는 같은 의미라 별도 메서드를 만들지 않았다.
         /// </summary>
         public void ResetCombatantsForRetry()
         {
             positionResetter?.ResetHealth();
+        }
+
+        /// <summary>
+        /// 등록된 6개 스킬 슬롯 전체의 쿨다운을 즉시 발동 가능 상태로 되돌린다. 던전 입장 시점에
+        /// (ResetCombatantsForRetry와 같은 호출 지점, 각 던전 세션 컨트롤러의 Enter()) 호출해,
+        /// 스테이지에서 막 쓴 스킬의 남은 쿨다운을 그대로 안고 던전에 들어가지 않게 한다.
+        /// War 클라이맥스/랭크 승급전은 "던전"이 아니라는 기존 구분(section DY)을 그대로 따라 이
+        /// 메서드를 호출하지 않는다.
+        /// </summary>
+        public void ResetSkillCooldowns()
+        {
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out Skill.SkillLoadoutService loadout))
+            {
+                loadout.ResetAllCooldowns();
+            }
         }
 
         private void EndCurrentStage()

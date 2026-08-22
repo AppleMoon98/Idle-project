@@ -60,6 +60,11 @@ namespace Skill
             {
                 ticker.Register(this);
             }
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadoutService))
+            {
+                loadoutService.RegisterSlot(this);
+            }
         }
 
         private void OnDisable()
@@ -68,6 +73,34 @@ namespace Skill
             {
                 ticker.Unregister(this);
             }
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillLoadoutService loadoutService))
+            {
+                loadoutService.UnregisterSlot(this);
+            }
+        }
+
+        /// <summary>
+        /// 이 슬롯의 쿨다운을 즉시 "다 찬"(발동 가능) 상태로 되돌린다. 던전 입장 시점에
+        /// SkillLoadoutService.ResetAllCooldowns()가 등록된 슬롯 전부에 호출한다 - 장착된 스킬이
+        /// 없으면(definition == null) 조용히 아무 일도 하지 않는다.
+        /// </summary>
+        public void ResetCooldownReady()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillLoadoutService loadout))
+            {
+                return;
+            }
+
+            SkillSO definition = loadout.GetEquipped(slotIndex);
+
+            if (definition == null)
+            {
+                return;
+            }
+
+            _elapsed = definition.Cooldown;
+            CooldownProgress01 = 1f;
         }
 
         void ITickable.Tick(float deltaTime)
