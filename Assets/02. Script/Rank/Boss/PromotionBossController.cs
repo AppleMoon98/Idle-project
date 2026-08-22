@@ -67,6 +67,7 @@ namespace Rank.Boss
         private CharacterMover _mover;
         private Collider2D _collider;
         private SpriteRenderer _spriteRenderer;
+        private HealthBarUI _healthBarUI;
         private PoolManager _pool;
         private CameraFollowService _cameraFollowService;
 
@@ -91,6 +92,7 @@ namespace Rank.Boss
             _mover = GetComponent<CharacterMover>();
             _collider = GetComponent<Collider2D>();
             _spriteRenderer = GetComponent<SpriteRenderer>();
+            _healthBarUI = GetComponentInChildren<HealthBarUI>(includeInactive: true);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
         }
 
@@ -138,6 +140,8 @@ namespace Rank.Boss
             {
                 _spriteRenderer.enabled = true;
             }
+
+            _healthBarUI?.SetForceHidden(false);
 
             UnfreezeMovement();
         }
@@ -315,13 +319,28 @@ namespace Rank.Boss
                     group.Add((crossHitTemplate, center, CrossAngles[i], indicators[i]));
                 }
 
+                // 세로줄 볼리(AppendVerticalLineVolleySteps)와 동일하게, 판정과 같은 순간에 각
+                // 방향의 실제 각도로 화면 슬래시를 긋고 카메라를 흔든다 - 십자는 4방향이 전부 같은
+                // center에서 뻗어나가므로 위치는 공유하고 각도만 CrossAngles로 다르게 준다.
+                for (int i = 0; i < CrossAngles.Length; i++)
+                {
+                    GameBootstrapper.Events?.Publish(new ScreenSlashRequestedEvent(CrossAngles[i], center));
+                }
+
+                GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(0.2f, 0.35f));
+
                 ResolveSimultaneousHits(group);
 
                 // 십자 판정이 끝나는 순간 보스가 사라진다 - 세로줄 볼리가 진행되는 동안 계속 숨어있는다.
+                // 체력바(HealthBarUI)는 보스 자신과 별개의 자식 Canvas라 SpriteRenderer만 꺼서는
+                // 같이 안 숨겨진다(실사용 중 발견 - 몸은 사라졌는데 체력바만 허공에 남음). fillAmount
+                // 상태는 그대로 유지한 채(SetForceHidden) 표시만 같이 끈다.
                 if (_spriteRenderer != null)
                 {
                     _spriteRenderer.enabled = false;
                 }
+
+                _healthBarUI?.SetForceHidden(true);
             }));
         }
 
@@ -469,6 +488,8 @@ namespace Rank.Boss
             {
                 _spriteRenderer.enabled = true;
             }
+
+            _healthBarUI?.SetForceHidden(false);
 
             transform.position = center;
             _health.SetInvulnerable(false);

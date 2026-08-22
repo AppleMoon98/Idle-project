@@ -45,6 +45,8 @@ namespace Character
         private Camera _camera;
         private Vector3 _baseScale;
         private float _targetFillAmount;
+        private bool _isDamaged;
+        private bool _forceHidden;
 
         private void Awake()
         {
@@ -59,6 +61,8 @@ namespace Character
             visualRoot.SetActive(false);
             fillImage.fillAmount = 1f;
             _targetFillAmount = 1f;
+            _isDamaged = false;
+            _forceHidden = false;
 
             // ShieldGuard가 없는(대다수) 캐릭터는 0으로 시작해 계속 빈 채로 남아야 한다 - 1로
             // 시작해두면 TickShieldFill이 _shieldGuard==null일 때 조용히 아무것도 안 하고
@@ -122,7 +126,7 @@ namespace Character
             float shieldMax = _shieldGuard.MaxShieldHealth;
             float shieldFraction = shieldMax > 0f ? _shieldGuard.CurrentShieldHealth / shieldMax : 0f;
 
-            if (shieldFraction < 1f && !visualRoot.activeSelf)
+            if (!_forceHidden && shieldFraction < 1f && !visualRoot.activeSelf)
             {
                 visualRoot.SetActive(true);
             }
@@ -141,14 +145,34 @@ namespace Character
                 return;
             }
 
-            bool damaged = evt.Current < evt.Max;
-            visualRoot.SetActive(damaged);
+            _isDamaged = evt.Current < evt.Max;
             _targetFillAmount = evt.Max > 0f ? evt.Current / evt.Max : 0f;
 
-            if (!damaged)
+            if (!_isDamaged)
             {
                 fillImage.fillAmount = _targetFillAmount;
             }
+
+            RefreshVisibility();
+        }
+
+        /// <summary>
+        /// 체력 변화와 무관하게 외부(보스 패턴 등)에서 강제로 숨긴다/되돌린다 - 예: 랭크 승급전
+        /// 보스가 체력 50% 페이즈 도중 몸(SpriteRenderer)을 숨기는 동안 체력바만 허공에 남아있는
+        /// 것을 막기 위함(실사용 중 발견). fillAmount/피격 상태 자체는 그대로 유지한 채 표시만
+        /// 끄고 켜므로, 다시 켰을 때 마지막 실제 체력 그대로 이어서 보인다 - visualRoot 자체를
+        /// SetActive(false)했다 켜면 OnEnable이 다시 돌아 fillAmount가 1로 스냅되므로 그 방식은
+        /// 쓸 수 없다.
+        /// </summary>
+        public void SetForceHidden(bool hidden)
+        {
+            _forceHidden = hidden;
+            RefreshVisibility();
+        }
+
+        private void RefreshVisibility()
+        {
+            visualRoot.SetActive(_isDamaged && !_forceHidden);
         }
     }
 }
