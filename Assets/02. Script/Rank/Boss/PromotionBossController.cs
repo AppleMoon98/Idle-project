@@ -10,6 +10,7 @@ using Core.Pooling;
 using Managers;
 using Services;
 using Skill.Events;
+using UI;
 using UI.Events;
 using UnityEngine;
 
@@ -70,6 +71,10 @@ namespace Rank.Boss
         private HealthBarUI _healthBarUI;
         private PoolManager _pool;
         private CameraFollowService _cameraFollowService;
+        private CameraZoomSliderUI _cameraZoomSlider;
+        private Camera _camera;
+        private float _savedOrthographicSize;
+        private bool _zoomOverridden;
 
         private readonly TimedActionSequence _sequence = new();
         private readonly List<GameObject> _activeIndicators = new();
@@ -94,6 +99,8 @@ namespace Rank.Boss
             _spriteRenderer = GetComponent<SpriteRenderer>();
             _healthBarUI = GetComponentInChildren<HealthBarUI>(includeInactive: true);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
+            _cameraZoomSlider = UnityEngine.Object.FindFirstObjectByType<CameraZoomSliderUI>();
+            _camera = Camera.main;
         }
 
         private void OnEnable()
@@ -155,6 +162,14 @@ namespace Rank.Boss
             // 사이 플레이어가 죽어 RankPromotionBattleController.HandleFailure()가 이 보스를 풀에
             // 반납) EndPhaseTwo()가 끝까지 실행되지 못해 override가 영원히 안 풀릴 수 있다.
             _cameraFollowService?.SetOverrideTarget(null);
+
+            // 같은 이유로 최광각 줌 강제 전환도 되돌린다 - _zoomOverridden으로 가드한다(페이즈2가
+            // 아예 시작 전이었던 정상 사망까지 0으로 덮어써버리는 것을 방지).
+            if (_zoomOverridden && _camera != null)
+            {
+                _camera.orthographicSize = _savedOrthographicSize;
+                _zoomOverridden = false;
+            }
         }
 
         void ITickable.Tick(float deltaTime)
@@ -280,6 +295,19 @@ namespace Rank.Boss
             // 평면(z=0)이 아니라 원래 자기 depth(homePosition.z, 보통 -10)를 유지해야 한다 -
             // center(z=0)를 그대로 넘기면 카메라 자신이 게임 평면 위로 옮겨져 렌더링이 깨진다.
             _cameraFollowService?.SetOverrideTarget(homePosition);
+
+            // 플레이어가 확대해둔 상태였다면 십자/세로줄 패턴(맵 전체를 관통하는 판정)의 상당
+            // 부분이 화면 밖에서 벌어져 안 보인다 - 페이즈2 동안만 최광각(UI.CameraZoomSliderUI.
+            // WideOrthographicSize)으로 강제 전환하고, 끝나면(EndPhaseTwo) 플레이어가 원래
+            // 맞춰뒀던 확대/축소 값으로 되돌린다. 슬라이더 자신의 값(UI 표시)은 건드리지 않는다 -
+            // Camera.main.orthographicSize만 직접 덮어쓰고 복원하므로, 슬라이더를 실제로 만지면
+            // 그 시점 값 기준으로 다시 정상 동기화된다.
+            if (_camera != null && _cameraZoomSlider != null)
+            {
+                _savedOrthographicSize = _camera.orthographicSize;
+                _camera.orthographicSize = _cameraZoomSlider.WideOrthographicSize;
+                _zoomOverridden = true;
+            }
 
             List<(float delaySinceStart, Action execute)> steps = new();
             float t = phaseTwoCrossDelay;
@@ -502,6 +530,12 @@ namespace Rank.Boss
             UnfreezeMovement();
 
             _cameraFollowService?.SetOverrideTarget(null);
+
+            if (_zoomOverridden && _camera != null)
+            {
+                _camera.orthographicSize = _savedOrthographicSize;
+                _zoomOverridden = false;
+            }
 
             _elapsedSinceLastCast = 0f;
         }

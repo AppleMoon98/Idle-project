@@ -24,9 +24,6 @@ namespace Dungeon
         [SerializeField]
         private float extraStrengthMultiplier = 1.5f;
 
-        [SerializeField]
-        private float spawnViewportMargin = 0.2f;
-
         /// <summary>
         /// 승급전 보스 목록을 순서대로 나열한 랭크 카탈로그 — Dungeon.BossDungeonSessionController가
         /// 이 안에서 "실제 승급전 보스를 가진(Rank.Boss.PromotionBossController 보유) + 플레이어가
@@ -49,9 +46,5 @@ namespace Dungeon
         /// </summary>
         public float ExtraStrengthMultiplier => extraStrengthMultiplier;
 
-        /// <summary>
-        /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5).
-        /// </summary>
-        public float SpawnViewportMargin => spawnViewportMargin;
     }
 }

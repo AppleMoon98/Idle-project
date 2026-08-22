@@ -27,9 +27,6 @@ namespace Dungeon
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
 
-        [SerializeField]
-        private float spawnViewportMargin = 0.2f;
-
         /// <summary>
         /// 선택한 단계 N을 "챕터 N의 N-40 스테이지"(챕터 클라이맥스 보스 스테이지) 몬스터 체력
         /// 기준으로 해석할 때 쓰는 고정 스테이지 번호. GoldDungeonConfigSO의 ReferenceStageNumber(20)와
@@ -51,11 +48,6 @@ namespace Dungeon
         /// 클리어 시 지급하는 강화석 = stonesPerClearPerStage × 선택한 단계.
         /// </summary>
         public int StonesPerClearPerStage => stonesPerClearPerStage;
-
-        /// <summary>
-        /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5).
-        /// </summary>
-        public float SpawnViewportMargin => spawnViewportMargin;
 
         /// <summary>
         /// 선택한 단계 N을 "챕터 N의 N-40 스테이지"(챕터 클라이맥스 보스) 몬스터 체력 기준으로

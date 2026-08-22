@@ -24,9 +24,6 @@ namespace Rank
         [SerializeField]
         private Transform playerTransform;
 
-        [SerializeField]
-        private float spawnViewportMargin = 0.2f;
-
         private GameObject _bossInstance;
         private RankSO _targetRank;
         private bool _isActive;
@@ -112,7 +109,7 @@ namespace Rank
 
             pool.EnsurePool(_targetRank.BossPrefab, 1, 1);
 
-            Vector3 spawnPosition = DungeonSpawnUtility.RandomWithinPlayAreaPosition(spawnViewportMargin);
+            Vector3 spawnPosition = DungeonSpawnUtility.BossSpawnPosition();
             _bossInstance = pool.Get(_targetRank.BossPrefab, spawnPosition, Quaternion.identity);
         }
 

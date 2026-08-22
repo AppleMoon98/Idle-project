@@ -43,6 +43,7 @@ namespace Character
 
         private CharacterMover _mover;
         private Animator _animator;
+        private CharacterSeparation _separation;
         private Camera _camera;
         private Transform _wanderAnchor;
 
@@ -55,6 +56,7 @@ namespace Character
         {
             _mover = GetComponent<CharacterMover>();
             _animator = GetComponent<Animator>();
+            _separation = GetComponent<CharacterSeparation>();
             _camera = Camera.main;
 
             _wanderAnchor = new GameObject($"{name}_PulseWanderAnchor").transform;
@@ -183,9 +185,20 @@ namespace Character
             PushNearbyAllies();
         }
 
+        /// <summary>
+        /// 실제 판정 반경 = knockbackRadius(설정값) + 몸집 반지름(Character.CharacterSeparation.
+        /// BodyRadius, 콜라이더 반지름×lossyScale) 합연산. 몸집이 커질수록(예: 이 보스를 2배로
+        /// 키운 경우) 판정 반경도 그만큼 함께 늘어난다 - "덩치가 커진 만큼 닿는 거리도 늘어나야
+        /// 한다"는 요청 사양. CharacterSeparation이 없으면(방어적) 설정값만 쓴다.
+        /// </summary>
+        private float EffectiveKnockbackRadius()
+        {
+            return _separation != null ? knockbackRadius + _separation.BodyRadius : knockbackRadius;
+        }
+
         private void PushNearbyAllies()
         {
-            Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, knockbackRadius, allyLayerMask);
+            Collider2D[] hits = Physics2D.OverlapCircleAll(transform.position, EffectiveKnockbackRadius(), allyLayerMask);
 
             foreach (Collider2D hit in hits)
             {

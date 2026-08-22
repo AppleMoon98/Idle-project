@@ -31,9 +31,6 @@ namespace Dungeon
         [SerializeField]
         private StageDifficultyConfigSO difficultyConfig;
 
-        [SerializeField]
-        private float spawnViewportMargin = 0.2f;
-
         /// <summary>
         /// 스폰할 보스 프리팹(War 시스템의 보스를 그대로 재사용).
         /// </summary>
@@ -48,11 +45,6 @@ namespace Dungeon
         /// 클리어 시 지급하는 스킬 주문서 = scrollsPerClearPerStage × 선택한 단계.
         /// </summary>
         public int ScrollsPerClearPerStage => scrollsPerClearPerStage;
-
-        /// <summary>
-        /// 화면 가장자리로부터의 스폰 제외 여백(뷰포트 비율, 0~0.5).
-        /// </summary>
-        public float SpawnViewportMargin => spawnViewportMargin;
 
         /// <summary>
         /// 스토리에서 이 보스를 만났을 때의 스탯 배율(climaxStage 기준)에 extraStrengthMultiplier와
