@@ -49,11 +49,12 @@ namespace Soldier
         public const int SquadCount = 6;
 
         /// <summary>
-        /// 한 부대(SlotsPerSquad개 슬롯)에 동시에 배치할 수 있는 실제 인원 상한. 슬롯 칸 수(20,
-        /// 부대 편성 팝업의 4x5 그리드)와는 별개 개념 — 그리드 칸은 전부 보이지만 실제로 채울 수
-        /// 있는 인원은 이 값까지만이다.
+        /// 전체 배치 가능한 코스트 총합 상한 — 부대 단위 인원 상한(과거 MaxDeployedPerSquad)을
+        /// 대체한다. 배치는 더 이상 부대별로 관리하지 않고, 병과(Soldier.SoldierSO.Cost)별 코스트
+        /// 합이 이 값을 넘지 않는 한 자유롭게(어느 슬롯이든) 배치할 수 있다 — 플레이스홀더 값(20),
+        /// 추후 랭크 등으로 확장될 예정.
         /// </summary>
-        public const int MaxDeployedPerSquad = 12;
+        public const int MaxDeploymentCost = 20;
 
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
@@ -87,10 +88,11 @@ namespace Soldier
         }
 
         /// <summary>
-        /// instanceId 유닛을 slotIndex에 배정한다. 로스터에 없는 유닛이거나, slotIndex가 현재
-        /// 랭크로 아직 잠금 해제되지 않았으면 아무 변화 없이 false. 그 유닛이 이미 다른 슬롯에
-        /// 배치돼 있었다면 그 슬롯에서는 자동으로 해제한다 — 한 병사는 동시에 한 슬롯만 차지할 수
-        /// 있다(같은 병사를 여러 슬롯에 무한정 배치하는 것을 막는다).
+        /// instanceId 유닛을 slotIndex에 그대로 배정한다(코스트 예산 확인 없이 기계적으로 슬롯만
+        /// 채운다) — 로스터에 없는 유닛이거나, slotIndex가 현재 랭크로 아직 잠금 해제되지 않았으면
+        /// 아무 변화 없이 false. 그 유닛이 이미 다른 슬롯에 배치돼 있었다면 그 슬롯에서는 자동으로
+        /// 해제한다 — 한 병사는 동시에 한 슬롯만 차지할 수 있다. 코스트 예산 확인은 이 메서드를
+        /// 호출하는 TryDeploy가 담당한다(단일 책임 분리).
         /// </summary>
         public bool TryAssign(int slotIndex, int instanceId)
         {
@@ -104,24 +106,7 @@ namespace Soldier
                 return false;
             }
 
-            bool hasExistingSlot = TryGetSlotOf(instanceId, out int existingSlot);
-
-            // slotIndex가 이미 비어있는 자리를 새로 채우는 경우에만 인원 상한을 확인한다 - 이미
-            // 채워진 슬롯을 덮어쓰거나(부대원 교체) 같은 부대 안에서 옮기는 경우는 부대 전체 인원이
-            // 늘어나지 않으므로 막을 이유가 없다.
-            if (!_slotToInstanceId.ContainsKey(slotIndex))
-            {
-                int squadIndex = slotIndex / SlotsPerSquad;
-                bool vacatesWithinSameSquad = hasExistingSlot && existingSlot != slotIndex && existingSlot / SlotsPerSquad == squadIndex;
-                int projectedCount = GetOccupiedCount(squadIndex) + 1 - (vacatesWithinSameSquad ? 1 : 0);
-
-                if (projectedCount > MaxDeployedPerSquad)
-                {
-                    return false;
-                }
-            }
-
-            if (hasExistingSlot && existingSlot != slotIndex)
+            if (TryGetSlotOf(instanceId, out int existingSlot) && existingSlot != slotIndex)
             {
                 _slotToInstanceId.Remove(existingSlot);
                 _events.Publish(new SoldierDeploymentChangedEvent(existingSlot));
@@ -133,24 +118,86 @@ namespace Soldier
         }
 
         /// <summary>
-        /// squadIndex(SlotsPerSquad개 슬롯 구간)에 현재 배정이 있는 슬롯 수. UI(예: 부대 편성
-        /// 팝업의 "n/MaxDeployedPerSquad" 표시)가 그대로 읽을 수 있도록 공개한다.
+        /// 현재 배치된 모든 유닛의 Soldier.SoldierSO.Cost 합. UI(부대 편성 팝업의
+        /// "usedCost/MaxDeploymentCost" 표시)와 TryDeploy의 예산 확인이 함께 쓴다.
         /// </summary>
-        public int GetOccupiedCount(int squadIndex)
+        public int GetTotalDeployedCost()
         {
-            int start = squadIndex * SlotsPerSquad;
-            int end = start + SlotsPerSquad;
-            int count = 0;
+            int total = 0;
 
-            foreach (int occupiedSlot in _slotToInstanceId.Keys)
+            foreach (int instanceId in _slotToInstanceId.Values)
             {
-                if (occupiedSlot >= start && occupiedSlot < end)
+                if (_roster.TryGet(instanceId, out OwnedSoldier owned) && owned.Definition != null)
                 {
-                    count++;
+                    total += owned.Definition.Cost;
                 }
             }
 
-            return count;
+            return total;
+        }
+
+        /// <summary>
+        /// instanceId 유닛을 코스트 예산(MaxDeploymentCost) 안에서 자동으로 빈 슬롯을 찾아
+        /// 배치한다("부대 편성" 팝업 하단의 보유 병사 카드를 탭했을 때 쓰는 진입점 — 더 이상
+        /// 플레이어가 슬롯/부대를 직접 고르지 않는다). 이미 배치돼 있으면 AlreadyDeployed, 로스터에
+        /// 없으면 NotInRoster, 열린 슬롯이 하나도 없으면 NoFreeSlot, 코스트 예산을 넘기면
+        /// CostExceeded를 reason에 담아 false를 반환한다.
+        /// </summary>
+        public bool TryDeploy(int instanceId, out DeploymentFailureReason reason)
+        {
+            if (TryGetSlotOf(instanceId, out _))
+            {
+                reason = DeploymentFailureReason.AlreadyDeployed;
+                return false;
+            }
+
+            if (!_roster.TryGet(instanceId, out OwnedSoldier owned) || owned.Definition == null)
+            {
+                reason = DeploymentFailureReason.NotInRoster;
+                return false;
+            }
+
+            int unlockedCount = GetMaxUnlockedSlotCount();
+            int freeSlotIndex = -1;
+
+            for (int i = 0; i < unlockedCount; i++)
+            {
+                if (!_slotToInstanceId.ContainsKey(i))
+                {
+                    freeSlotIndex = i;
+                    break;
+                }
+            }
+
+            if (freeSlotIndex < 0)
+            {
+                reason = DeploymentFailureReason.NoFreeSlot;
+                return false;
+            }
+
+            if (GetTotalDeployedCost() + owned.Definition.Cost > MaxDeploymentCost)
+            {
+                reason = DeploymentFailureReason.CostExceeded;
+                return false;
+            }
+
+            reason = DeploymentFailureReason.None;
+            return TryAssign(freeSlotIndex, instanceId);
+        }
+
+        /// <summary>
+        /// instanceId 유닛의 배치를 해제한다("부대 편성" 팝업 상단의 배치된 병사 카드를 탭했을
+        /// 때 쓰는 진입점). 배치돼 있지 않으면 false.
+        /// </summary>
+        public bool TryUndeploy(int instanceId)
+        {
+            if (!TryGetSlotOf(instanceId, out int slotIndex))
+            {
+                return false;
+            }
+
+            Unassign(slotIndex);
+            return true;
         }
 
         /// <summary>
@@ -180,46 +227,6 @@ namespace Soldier
             {
                 _events.Publish(new SoldierDeploymentChangedEvent(slotIndex));
             }
-        }
-
-        /// <summary>
-        /// slotA와 slotB의 배정을 서로 맞바꾼다. 한쪽만 채워져 있으면 그 유닛이 반대쪽으로 옮겨가고
-        /// 원래 자리는 빈 칸이 되는 것(이동)과 결과적으로 동일하다 — "스왑"과 "이동"을 굳이 나누지
-        /// 않고 한 메서드로 처리한다. 두 슬롯 다 비어있으면 아무 일도 일어나지 않는다(이벤트도
-        /// 발행하지 않는다). TryAssign과 달리 잠금 해제 여부(GetMaxUnlockedSlotCount)를 확인하지
-        /// 않는다 — 이미 배정이 존재하는 슬롯끼리(또는 그런 슬롯과 인접한 빈 슬롯) 주고받는
-        /// 것이라, 애초에 슬롯이 잠겨 있었다면 그 자리에 배정이 있을 수 없다.
-        /// </summary>
-        public void Swap(int slotA, int slotB)
-        {
-            bool hasA = _slotToInstanceId.TryGetValue(slotA, out int instanceAtA);
-            bool hasB = _slotToInstanceId.TryGetValue(slotB, out int instanceAtB);
-
-            if (!hasA && !hasB)
-            {
-                return;
-            }
-
-            if (hasA)
-            {
-                _slotToInstanceId[slotB] = instanceAtA;
-            }
-            else
-            {
-                _slotToInstanceId.Remove(slotB);
-            }
-
-            if (hasB)
-            {
-                _slotToInstanceId[slotA] = instanceAtB;
-            }
-            else
-            {
-                _slotToInstanceId.Remove(slotA);
-            }
-
-            _events.Publish(new SoldierDeploymentChangedEvent(slotA));
-            _events.Publish(new SoldierDeploymentChangedEvent(slotB));
         }
 
         /// <summary>

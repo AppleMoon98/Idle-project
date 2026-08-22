@@ -12,7 +12,9 @@ namespace UI
     /// SquadTacticType의 모든 값을 SoldierPickerRowUI("이름+버튼" 형태의 범용 행, section DR에서
     /// 등급 틴트 아이콘까지 지원하도록 확장됨)로 하나씩 나열한다 — 전술 종류가 늘어나도 이
     /// 팝업의 코드는 손댈 필요가 없다, SquadTacticType에 값만 추가하고
-    /// SquadTacticDisplayNames에 이름만 채우면 목록에 자동으로 나타난다.
+    /// SquadTacticDisplayNames에 이름만 채우면 목록에 자동으로 나타난다. 배치가 단일 풀 방식으로
+    /// 바뀌면서 부대 인덱스 없이 선택한 전술을 SquadTacticService.SetTacticForAll로 전체 부대에
+    /// 동일 적용한다.
     /// </summary>
     public sealed class SquadTacticOptionPopupUI : MonoBehaviour
     {
@@ -28,7 +30,6 @@ namespace UI
         [SerializeField]
         private Button closeButton;
 
-        private int _squadIndex;
         private readonly List<SoldierPickerRowUI> _spawnedRows = new();
 
         private void Awake()
@@ -38,13 +39,10 @@ namespace UI
         }
 
         /// <summary>
-        /// squadIndex 부대의 전술 선택 목록을 연다. current는 목록에서 "(선택됨)" 표시로 구분할
-        /// 현재 전술이다.
+        /// 전술 선택 목록을 연다. current는 목록에서 "(선택됨)" 표시로 구분할 현재 전술이다.
         /// </summary>
-        public void Open(int squadIndex, SquadTacticType current)
+        public void Open(SquadTacticType current)
         {
-            _squadIndex = squadIndex;
-
             foreach (SoldierPickerRowUI row in _spawnedRows)
             {
                 Destroy(row.gameObject);
@@ -69,7 +67,7 @@ namespace UI
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadTacticService tactics))
             {
-                tactics.SetTactic(_squadIndex, tactic);
+                tactics.SetTacticForAll(tactic);
             }
 
             Close();

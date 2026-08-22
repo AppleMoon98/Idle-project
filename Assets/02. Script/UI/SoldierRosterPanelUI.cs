@@ -14,7 +14,7 @@ namespace UI
     /// 뽑지 못한 종류도 슬롯으로 함께 표시하되 회색 비활성 상태로 보여준다(0개 보유 스택). 슬롯을
     /// 탭하면 보유 스택이 1개면 바로 SoldierEquipmentPopupUI를 그 병사로 열고, 2개 이상이면
     /// 먼저 SoldierRosterStackPopupUI로 개별 유닛을 고르게 한 뒤 그 유닛으로 장비 팝업을 연다.
-    /// 배치는 배치 관리(SquadDeploymentSlotGridUI), 행동은 부대 편성의 전술(SquadTacticOptionPopupUI)
+    /// 배치는 부대 편성(SoldierDeploymentPanelUI/SquadDeployedPanelUI), 행동은 부대 편성의 전술(SquadTacticOptionPopupUI)
     /// 화면으로 각각 이관돼 로스터에서는 더 이상 다루지 않는다 - 예전엔 배치/장비/행동을 고르는
     /// SoldierRosterSlotActionPopupUI를 한 번 더 거쳤지만, 남은 액션이 장비 하나뿐이라 그 선택
     /// 단계 자체를 없애고 곧장 장비 팝업으로 이동한다.

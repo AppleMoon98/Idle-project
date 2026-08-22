@@ -16,3 +16,4 @@ MonoBehaviour:
   prefab: {fileID: 9114245855020254752, guid: cec66cbf5b715ad4bb7fa6465649da24, type: 3}
   icon: {fileID: 21300000, guid: 166db80f78594b248ad72cc3d8af4e6d, type: 3}
   grade: {fileID: 11400000, guid: 6b4245a4032c6854a8b7606d782434e4, type: 2}
+  cost: 4

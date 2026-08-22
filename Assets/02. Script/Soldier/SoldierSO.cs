@@ -29,6 +29,9 @@ namespace Soldier
         [SerializeField]
         private bool iconIgnoreGradeTint = false;
 
+        [SerializeField]
+        private int cost = 1;
+
         /// <summary>
         /// 병사 이름(로스터/가챠 결과 UI 표시용).
         /// </summary>
@@ -65,5 +68,12 @@ namespace Soldier
         /// 자체 색을 가진 실사진풍 아바타는 틴트를 덧입히면 오히려 색이 탁해지므로 개별 예외로 둔다.
         /// </summary>
         public bool IconIgnoreGradeTint => iconIgnoreGradeTint;
+
+        /// <summary>
+        /// 배치 코스트(병과별 고정값, 등급과 무관 — 같은 병과의 6개 등급은 전부 동일한 Cost를
+        /// 갖는다). Soldier.SoldierDeploymentService.MaxDeploymentCost 예산 안에서만 배치할 수
+        /// 있다. 플레이스홀더 밸런스 수치(나중 튜닝 과제) — 기본값 1.
+        /// </summary>
+        public int Cost => cost;
     }
 }

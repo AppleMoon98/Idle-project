@@ -18,3 +18,4 @@ MonoBehaviour:
   grade: {fileID: 11400000, guid: 496aa1851a5ca564c979dcce23e0dc5d, type: 2}
   iconScale: 2
   iconIgnoreGradeTint: 1
+  cost: 2

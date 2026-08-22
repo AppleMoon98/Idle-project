@@ -7,16 +7,15 @@ using UnityEngine.UI;
 namespace UI
 {
     /// <summary>
-    /// 부대 편성 팝업(SquadDetailPopup) 제목 줄, 전술 버튼 왼쪽에 그 부대의 현재 배치 인원을
-    /// "n/MaxDeployedPerSquad" 형식으로 보여준다. SoldierSquadSelectorUI가 부대 버튼을 탭할
-    /// 때마다 ShowSquad로 갱신하고, SoldierDeploymentChangedEvent로 실시간 반영한다.
+    /// 부대 편성 팝업 제목 줄, 전술 버튼 왼쪽에 현재 배치 코스트를 "usedCost/MaxDeploymentCost"
+    /// 형식으로 보여준다. 배치가 부대별 인원 관리(옛 "n/MaxDeployedPerSquad")에서 병과별 코스트
+    /// 예산 하나로 바뀌면서, 부대 인덱스 없이 전체 배치 코스트 합만 보여주는 것으로 단순화됐다.
+    /// SoldierDeploymentChangedEvent로 실시간 반영한다.
     /// </summary>
     public sealed class SquadDeploymentCountUI : MonoBehaviour
     {
         [SerializeField]
         private Text countText;
-
-        private int _squadIndex;
 
         private void OnEnable()
         {
@@ -27,15 +26,6 @@ namespace UI
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<SoldierDeploymentChangedEvent>(OnDeploymentChanged);
-        }
-
-        /// <summary>
-        /// 표시할 부대를 바꾸고 즉시 새로고침한다. SoldierSquadSelectorUI가 부대 버튼을 탭할 때 호출한다.
-        /// </summary>
-        public void ShowSquad(int squadIndex)
-        {
-            _squadIndex = squadIndex;
-            Refresh();
         }
 
         private void OnDeploymentChanged(SoldierDeploymentChangedEvent evt)
@@ -50,14 +40,14 @@ namespace UI
                 return;
             }
 
-            int occupied = 0;
+            int usedCost = 0;
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierDeploymentService deployment))
             {
-                occupied = deployment.GetOccupiedCount(_squadIndex);
+                usedCost = deployment.GetTotalDeployedCost();
             }
 
-            countText.text = $"{occupied}/{SoldierDeploymentService.MaxDeployedPerSquad}";
+            countText.text = $"{usedCost}/{SoldierDeploymentService.MaxDeploymentCost}";
         }
     }
 }

@@ -69,6 +69,19 @@ namespace Soldier
         }
 
         /// <summary>
+        /// 6개 백엔드 부대 전체에 같은 전술을 적용한다 — 배치 UI가 더 이상 부대를 개별 선택하지
+        /// 않으므로(단일 풀), 전술 선택도 부대별이 아니라 전체 단위 하나로 통합됐다. 내부적으로는
+        /// SetTactic을 부대마다 호출할 뿐이라 부대별 저장 구조(_tactics)는 그대로 유지된다.
+        /// </summary>
+        public void SetTacticForAll(SquadTacticType tactic)
+        {
+            for (int i = 0; i < SoldierDeploymentService.SquadCount; i++)
+            {
+                SetTactic(i, tactic);
+            }
+        }
+
+        /// <summary>
         /// 현재 전술이 배정된 부대(None 제외) 전체를 세이브용 스냅샷으로 내보낸다.
         /// </summary>
         public SquadTacticSnapshotEntry[] ExportSnapshot()

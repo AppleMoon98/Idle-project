@@ -97,7 +97,7 @@ namespace Rank
             SpawnBoss();
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
-            GameBootstrapper.Events?.Publish(new RankPromotionAttemptStartedEvent(_targetRank));
+            GameBootstrapper.Events?.Publish(new RankPromotionAttemptStartedEvent(_targetRank, _bossInstance));
         }
 
         private void SpawnBoss()

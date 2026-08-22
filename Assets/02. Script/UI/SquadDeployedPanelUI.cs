@@ -4,21 +4,19 @@ using Equipment;
 using Rank.Events;
 using Soldier;
 using Soldier.Events;
-using UI.Events;
 using UnityEngine;
 
 namespace UI
 {
     /// <summary>
-    /// "부대 편성" 팝업 하단 — 어디에도 배치되지 않은 채 1마리 이상 남은 병사를 스택 카드로
-    /// 보여준다(이미 배치된 유닛/0개 보유 종류는 목록에서 자연히 빠진다). 배치가 더 이상 부대를
-    /// 개별 선택하지 않는 단일 풀 방식으로 바뀌면서, 카드를 탭하면 곧장
-    /// Soldier.SoldierDeploymentService.TryDeploy로 배치가 확정된다(빈 슬롯을 직접 골라 배치를
-    /// 확정하던 SquadDeploymentSlotGridUI는 삭제됨) — 성공하면 그 유닛은 다음 새로고침에서
-    /// 스택 개수가 1 줄어들거나(×N 배지) 0이 되면 목록에서 사라지므로, 같은 유닛을 두 번 배치할
-    /// 방법 자체가 없다. 실패(코스트 예산 초과/빈 슬롯 없음)하면 토스트로 원인을 안내한다.
+    /// "부대 편성" 팝업 상단 — 현재 배치돼 있는 병사 전체를 하단(SoldierDeploymentPanelUI)과
+    /// 정확히 같은 스택 카드 방식으로 보여준다. 옛 4x5 슬롯 그리드(SquadDeploymentSlotGridUI,
+    /// 삭제됨)를 대체 — 배치가 부대별 슬롯 선택에서 단일 풀 방식으로 바뀌면서, 어느 슬롯에
+    /// 배치돼 있는지는 더 이상 화면에 드러나지 않고 "배치돼 있다/아니다"만 구분한다. 카드를
+    /// 탭하면 곧장 Soldier.SoldierDeploymentService.TryUndeploy로 배치를 해제해 하단 목록으로
+    /// 돌려보낸다.
     /// </summary>
-    public sealed class SoldierDeploymentPanelUI : MonoBehaviour
+    public sealed class SquadDeployedPanelUI : MonoBehaviour
     {
         [SerializeField]
         private Transform rowContainer;
@@ -77,30 +75,30 @@ namespace UI
                 return;
             }
 
-            var availableByDefinition = new Dictionary<SoldierSO, List<OwnedSoldier>>();
+            var deployedByDefinition = new Dictionary<SoldierSO, List<OwnedSoldier>>();
 
             foreach (OwnedSoldier owned in roster.Roster)
             {
-                if (deployment.TryGetSlotOf(owned.InstanceId, out _))
+                if (!deployment.TryGetSlotOf(owned.InstanceId, out _))
                 {
                     continue;
                 }
 
-                if (!availableByDefinition.TryGetValue(owned.Definition, out List<OwnedSoldier> stack))
+                if (!deployedByDefinition.TryGetValue(owned.Definition, out List<OwnedSoldier> stack))
                 {
                     stack = new List<OwnedSoldier>();
-                    availableByDefinition[owned.Definition] = stack;
+                    deployedByDefinition[owned.Definition] = stack;
                 }
 
                 stack.Add(owned);
             }
 
-            var orderedDefinitions = new List<SoldierSO>(availableByDefinition.Keys);
+            var orderedDefinitions = new List<SoldierSO>(deployedByDefinition.Keys);
             orderedDefinitions.Sort((a, b) => GradeIndex(b) - GradeIndex(a));
 
             foreach (SoldierSO definition in orderedDefinitions)
             {
-                List<OwnedSoldier> stack = availableByDefinition[definition];
+                List<OwnedSoldier> stack = deployedByDefinition[definition];
 
                 SoldierRosterRowUI row = Instantiate(rowPrefab, rowContainer);
                 row.Initialize(definition, stack, OnStackTapped);
@@ -120,8 +118,7 @@ namespace UI
         }
 
         /// <summary>
-        /// stack(어느 것이든 동일하므로 첫 번째 유닛 기준)을 탭하면 곧장 배치를 시도한다. 실패
-        /// 원인별로 다른 토스트 문구를 보여준다.
+        /// stack(어느 것이든 동일하므로 첫 번째 유닛 기준)을 탭하면 곧장 배치를 해제한다.
         /// </summary>
         private void OnStackTapped(IReadOnlyList<OwnedSoldier> stack)
         {
@@ -130,23 +127,7 @@ namespace UI
                 return;
             }
 
-            if (deployment.TryDeploy(stack[0].InstanceId, out DeploymentFailureReason reason))
-            {
-                return;
-            }
-
-            string message = "배치할 수 없습니다.";
-
-            if (reason == DeploymentFailureReason.CostExceeded)
-            {
-                message = "배치 코스트가 가득 찼습니다.";
-            }
-            else if (reason == DeploymentFailureReason.NoFreeSlot)
-            {
-                message = "배치 슬롯이 부족합니다.";
-            }
-
-            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent(message));
+            deployment.TryUndeploy(stack[0].InstanceId);
         }
     }
 }
