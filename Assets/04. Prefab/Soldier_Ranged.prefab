@@ -328,6 +328,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.RangedAttackBehavior
   projectilePrefab: {fileID: 1823810130927531987, guid: ac9200f18a25395488d1dfed6777ffcf, type: 3}
+  targetLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
   muzzle: {fileID: 2602501013443847862}
   poolCapacity: 4
   poolMaxSize: 16
@@ -523,6 +526,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 24148a1bbc1d2274ba31951fd1677762, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.ArcherAnimationController
+  maxShootHoldSeconds: 1.2
 --- !u!1001 &7154002393889260610
 PrefabInstance:
   m_ObjectHideFlags: 0

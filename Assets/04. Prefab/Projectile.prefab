@@ -105,4 +105,4 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.Projectile
   speed: 10
-  hitDistance: 0.2
+  hitRadius: 0.2

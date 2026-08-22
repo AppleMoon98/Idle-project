@@ -8,29 +8,30 @@ using UnityEngine;
 namespace Combat
 {
     /// <summary>
-    /// 발사 시점 타겟 위치를 향해 직선으로 날아가다가 도달하면 데미지를 적용하고 스스로 풀로
-    /// 반납되는 발사체. 목적지는 Launch() 시점에 한 번만 고정되며(호밍 없음), 비행 중 타겟이
-    /// 움직여도 경로가 휘지 않는다 — 도달 판정 시 데미지는 여전히 원래 타겟(Health 참조)에게
-    /// 적용된다. 타겟이 비행 중 죽으면(Health.IsDead) 그 자리에서 즉시 사라지지 않고, 그 순간까지
-    /// 날아가던 방향 그대로 계속 직진하다가 최광각 고정 범위(Services.CameraFollowService, 줌
-    /// 배율과 무관 — 이 프로젝트 전역의 "판정 기준은 줌과 무관한 고정 범위" 관례, section CD/CG/CH와
-    /// 동일 원칙) 밖으로 나가는 순간 반납된다 — 화살이 죽은 타겟 자리에서 뚝 끊기지 않고 자연스럽게
-    /// 화면 밖으로 날아가 보이게 하기 위함. Character.Health.Die가
-    /// CharacterDiedEvent를 발행하면 스테이지 전환(플레이어 사망 → 스테이지 재시작 → 그 안에서
-    /// Health.Revive)까지 전부 같은 호출 안에서 동기적으로 끝나버려, 그 사이 다른 발사체가 다음
-    /// 틱에 IsDead를 확인할 때는 이미 부활해 false로 돌아가 있다(타겟이 죽었었다는 걸 영영 감지
-    /// 못함). 몬스터 쪽도 Stage.StageProgressTracker.ReleaseRemaining이 남은 몬스터를 죽음 처리
-    /// 없이 그냥 풀로 반환하면 마찬가지다. 그래서 Stage.Events.StageChangedEvent(진행/반복/사망
-    /// 후퇴 전부)를 직접 구독해, 타겟 상태와 무관하게 스테이지가 바뀌는 순간 무조건 스스로
-    /// 반납한다 — 몬스터/병사 쪽이 이미 쓰는 "스테이지 경계 = 완전 초기화" 관례와 동일하다.
+    /// 발사 시점 조준 방향으로 직선으로 날아가는 발사체. Launch() 시점에 방향만 한 번 고정하고
+    /// (호밍 없음), 그 뒤로는 목적지도 특정 타겟 참조도 없이 그 방향으로 계속 날아간다 - "예고선은
+    /// 방향만 잡아주고, 발사된 이후로는 그 방향으로 그냥 쭉 날아가는 단일 오브젝트"라는 설계.
+    /// 발사체는 데미지 정보만 들고 있으면 되고, 명중 판정은 매 틱 이번 프레임에 실제로 지나온
+    /// 경로를 targetLayerMask 기준으로 Physics2D.CircleCast(터널링 방지 - 프레임이 조금만 굵어져도
+    /// 얇은 판정을 그대로 관통하는 걸 막는다, 모바일 프레임 드랍 고려)해 스스로 판단한다 - 원래
+    /// 조준했던 대상이 아니어도 이 레이어의 살아있는 Health를 처음 스친 대상이면 그 자리에서
+    /// 맞고 소멸하고, 레이어에 안 걸리는 대상(적이 아닌 것)은 그냥 통과해 계속 날아간다. 끝내
+    /// 아무것도 못 맞히면 최광각 고정 범위(Services.CameraFollowService, 줌 배율과 무관 — section
+    /// CD/CG/CH와 동일 원칙) 밖으로 나가는 순간 반납된다 - 화살이 허공에서 뚝 끊기지 않고 자연스럽게
+    /// 화면 밖으로 날아가 보이게 하기 위함. Stage.Events.StageChangedEvent(진행/반복/사망 후퇴 전부)를
+    /// 직접 구독해, 명중 여부와 무관하게 스테이지가 바뀌는 순간 무조건 스스로 반납한다 — 몬스터/
+    /// 병사 쪽이 이미 쓰는 "스테이지 경계 = 완전 초기화" 관례와 동일하다.
     /// </summary>
     public sealed class Projectile : MonoBehaviour, ITickable
     {
         [SerializeField]
         private float speed = 10f;
 
+        /// <summary>
+        /// 명중 판정에 쓰는 원형 스윕의 반지름 - 발사체 자체의 "두께" 개념.
+        /// </summary>
         [SerializeField]
-        private float hitDistance = 0.2f;
+        private float hitRadius = 0.2f;
 
         /// <summary>
         /// 켜면 매 틱 이동 방향으로 transform을 회전시킨다(예: 화살처럼 방향성이 뚜렷한 스프라이트).
@@ -39,19 +40,16 @@ namespace Combat
         [SerializeField]
         private bool rotateToFaceDirection = false;
 
-        private Health _target;
         private float _damage;
         private bool _isCritical;
+        private LayerMask _hitLayerMask;
         private bool _released;
-        private Vector3 _destination;
         private Vector3 _direction;
-        private bool _targetLostMidFlight;
         private CameraFollowService _cameraFollowService;
 
         private void OnEnable()
         {
             _released = false;
-            _targetLostMidFlight = false;
             TickerRegistration.Register(this);
             GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
@@ -69,62 +67,40 @@ namespace Combat
         }
 
         /// <summary>
-        /// 발사체를 발사한다. 풀에서 꺼낸 직후 호출되어야 한다.
+        /// 발사체를 발사한다. 풀에서 꺼낸 직후 호출되어야 한다. aimTarget은 발사 순간의 조준
+        /// 방향을 정하는 데만 쓰이고(그 위치를 향하는 방향을 한 번 계산한 뒤 버림), 이후로는
+        /// 전혀 참조하지 않는다 - 명중 판정은 hitLayerMask에 걸리는 아무 대상이나 대상으로 삼는다.
         /// </summary>
-        public void Launch(Health target, float damage, bool isCritical)
+        public void Launch(Health aimTarget, float damage, bool isCritical, LayerMask hitLayerMask)
         {
-            _target = target;
             _damage = damage;
             _isCritical = isCritical;
-            _destination = target != null ? target.transform.position : transform.position;
-            _targetLostMidFlight = false;
+            _hitLayerMask = hitLayerMask;
 
-            Vector3 direction = _destination - transform.position;
+            Vector3 aimPoint = aimTarget != null ? aimTarget.transform.position : transform.position;
+            Vector3 direction = aimPoint - transform.position;
             _direction = direction.sqrMagnitude > Mathf.Epsilon ? direction.normalized : transform.right;
+
+            if (rotateToFaceDirection)
+            {
+                float angle = Mathf.Atan2(_direction.y, _direction.x) * Mathf.Rad2Deg;
+                transform.rotation = Quaternion.Euler(0f, 0f, angle);
+            }
         }
 
         void ITickable.Tick(float deltaTime)
         {
-            if (_targetLostMidFlight)
+            float distance = speed * deltaTime;
+            RaycastHit2D hit = Physics2D.CircleCast(transform.position, hitRadius, _direction, distance, _hitLayerMask);
+
+            if (hit.collider != null && hit.collider.TryGetComponent(out Health health) && !health.IsDead)
             {
-                TickFlyingPastDeadTarget(deltaTime);
-                return;
-            }
-
-            if (_target == null || _target.IsDead)
-            {
-                _targetLostMidFlight = true;
-                TickFlyingPastDeadTarget(deltaTime);
-                return;
-            }
-
-            if (rotateToFaceDirection)
-            {
-                Vector3 direction = _destination - transform.position;
-
-                if (direction.sqrMagnitude > Mathf.Epsilon)
-                {
-                    float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
-                    transform.rotation = Quaternion.Euler(0f, 0f, angle);
-                }
-            }
-
-            transform.position = Vector3.MoveTowards(transform.position, _destination, speed * deltaTime);
-
-            if (Vector3.Distance(transform.position, _destination) <= hitDistance)
-            {
-                _target.TakeDamage(_damage, _isCritical);
+                health.TakeDamage(_damage, _isCritical);
                 ReleaseSelf();
+                return;
             }
-        }
 
-        /// <summary>
-        /// 타겟이 비행 중 죽은 뒤의 상태 — 더 이상 목적지를 향해 MoveTowards로 수렴하지 않고(그러면
-        /// 원래 목적지에서 멈춰버린다), Launch 시점에 고정해둔 방향으로 화면 밖까지 계속 직진한다.
-        /// </summary>
-        private void TickFlyingPastDeadTarget(float deltaTime)
-        {
-            transform.position += _direction * speed * deltaTime;
+            transform.position += _direction * distance;
 
             if (_cameraFollowService != null
                 && !CameraVisibility.IsWithinBounds(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position))
