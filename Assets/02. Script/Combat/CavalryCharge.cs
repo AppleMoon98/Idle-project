@@ -8,38 +8,40 @@ using UnityEngine;
 namespace Combat
 {
     /// <summary>
-    /// 기마병(Cavalry) 전용 이동+공격 컴포넌트 — MonsterTargetSelector를 대신한다. 위협과 거리가
-    /// chargeStartDistance보다 가까우면 KiteRetreatCalculator로 물러나 거리를 벌리고(Positioning),
-    /// 충분히 벌어지면 그 순간 위협의 위치를 향해 방향을 고정하고 돌진을 시작한다(Charging).
-    /// 돌진 중에는 CharacterMover를 거치지 않고 이 컴포넌트가 직접 transform을 이동시켜, 가속과
+    /// 기마병(곰) 전용 이동+공격 컴포넌트 — MonsterTargetSelector를 대신한다. 위협과의 거리가
+    /// chargeStartDistance 이상이면 그 순간 위협의 위치를 향해 방향을 고정하고 즉시 최대 속도로
+    /// 돌진을 시작한다(Charging). chargeStartDistance보다 가까우면 물러나지 않고 CharacterMover로
+    /// 위협에게 다가가 Stats.AttackRange(사거리 2 안팎의 근접 교전 거리)에서 멈춘다(Engaging) —
+    /// 그 뒤로는 같은 오브젝트의 Attacker+Combat.SplashAttackBehavior가 완전히 독립적으로 사거리를
+    /// 판정해 광역 공격을 반복한다(EnemyTracker가 CharacterMover를 세팅해두고 Attacker가 알아서
+    /// 쏘는 것과 동일한 분업 — 이 컴포넌트는 "어디에 세워둘지"만 결정한다).
+    ///
+    /// 돌진(Charging) 중에는 CharacterMover를 거치지 않고 이 컴포넌트가 직접 transform을 이동시켜
     /// 조향을 정밀하게 제어한다:
-    /// - 가속: 속도가 매초 chargeAcceleration만큼 증가해 maxChargeSpeed에서 상한.
+    /// - 속도: BeginCharge 시점에 즉시 maxChargeSpeed로 시작한다(더 이상 가속 구간이 없다 — "즉시
+    ///   최대 이동속도로 돌진"이라는 요청 사양). chargeStartSpeed는 실제 시작 속도가 아니라 보너스
+    ///   데미지/조향 둔화 계산의 기준값(0점)으로만 남아있다.
     /// - 조향: 상대가 옆으로 피하면 그쪽으로 방향을 틀 수 있지만, 회전 가능 각속도가 현재 속도에
     ///   반비례해서 줄어든다(빠를수록 핸들링 저하) — minTurnRateDegreesPerSecond 밑으로는 내려가지
-    ///   않아 완전히 조향 불능이 되지는 않는다.
-    /// 충돌(자기 몸 반경 + hitCheckReach 안에 위협이 들어옴)하면 기본 공격력에 (현재속도-시작속도)×
-    /// bonusDamagePerSpeed만큼 추가 피해를 Health.TakeDamage로 직접 적용하고(공격 주기 시스템을
-    /// 거치지 않는다 — War.Boss.WarBossPatternRunner의 광역딜과 같은 이유), 맞은 대상에
-    /// KnockbackReceiver가 있으면 넉백시킨다(넉백 방향은 돌진 정면이 아니라 knockbackSidewaysAngleDegrees
-    /// 만큼 옆으로 꺾은 방향 — 정면 그대로 밀어내면 돌진 속도가 넉백 속도보다 빨라 계속 따라붙으며
-    /// 대상을 끝까지 끌고 가는 것처럼 보였다(실사용 중 발견). 옆으로 꺾어야 관통 경로에서 대상이
-    /// 완전히 벗어난다). 명중해도 돌진을 끊지 않고 그대로
+    ///   않아 완전히 조향 불능이 되지는 않는다. 이제 속도가 항상 maxChargeSpeed로 일정하므로 이
+    ///   각속도도 돌진 내내 일정하다(예전처럼 초반엔 민첩하다가 점점 둔해지는 곡선이 아니다).
+    /// 충돌(자기 몸 반경 + hitCheckReach 안에 위협이 들어옴)하면 기본 공격력에 (현재속도-
+    /// chargeStartSpeed)×bonusDamagePerSpeed만큼 추가 피해를 Health.TakeDamage로 직접 적용하고
+    /// (공격 주기 시스템을 거치지 않는다 — War.Boss.WarBossPatternRunner의 광역딜과 같은 이유),
+    /// 맞은 대상에 KnockbackReceiver가 있으면 넉백시킨다(넉백 방향은 돌진 정면이 아니라
+    /// knockbackSidewaysAngleDegrees만큼 옆으로 꺾은 방향 — 정면 그대로 밀어내면 돌진 속도가
+    /// 넉백 속도보다 빨라 계속 따라붙으며 대상을 끝까지 끌고 가는 것처럼 보였다(실사용 중 발견).
+    /// 옆으로 꺾어야 관통 경로에서 대상이 완전히 벗어난다). 명중해도 돌진을 끊지 않고 그대로
     /// 관통해서 직진한다(같은 돌진에서 이미 맞힌 대상은 _hitTargetsThisCharge로 걸러 중복 피해를
     /// 주지 않는다) — 첫 명중 시점(_hitElapsedMark)부터 chargeOverrunDuration만큼 더 지나야 비로소
-    /// Positioning으로 돌아가 다음 돌진을 준비한다(ShouldEndCharge). 아직 한 번도 못 맞혔으면
+    /// Positioning으로 돌아가 다음 판단을 준비한다(ShouldEndCharge). 아직 한 번도 못 맞혔으면
     /// maxChargeDuration을 안전망 삼아 그때까지는 절대 조기 종료되지 않는다 — 위협(특히 계속
     /// 움직이는 플레이어)을 따라잡는 데 필요한 실제 거리를 BeginCharge 시점 스냅샷 거리로 미리
-    /// 못박아두지 않기 위함이다(실사용 중 발견: 스냅샷 거리 기반으로 미리 정해둔 제한 시간을 쓰면,
-    /// 위협이 돌진 도중 이동해 실제 필요 거리가 늘어날 때 명중 전에 시간이 다 돼 돌진이 끊기고
-    /// Positioning→BeginCharge로 처음 속도부터 재가속하는 게 "한 번 움찔 멈췄다 재돌진"하는 것처럼
-    /// 보였다). 첫 명중 이후에는 위협을 다시 조준하는 조향(TickCharging의 방향 보정)도
-    /// 멈춘다 — 그렇지 않으면 방금 지나친 대상이 여전히 가장 가까운 위협으로 잡혀 그쪽으로 다시
-    /// 돌아서려 해, "관통해서 직진"이 아니라 제자리에서 맴도는 것처럼 보인다. 돌진 중에는 자신의
-    /// CharacterSeparation(모든 캐릭터가 서로 겹치지 않게 매 틱 밀어내는 범용 컴포넌트)도 꺼둔다 —
-    /// 켜둔 채로 대상과 충돌하면 그 반작용으로 기마병 자신도 반대 방향으로 밀려나 버려, 관통은커녕
-    /// 튕겨 나가는 것처럼 보였다(실사용 중 발견). 근접 기본 공격(Attacker+MeleeAttackBehavior)은
-    /// 이 컴포넌트와 별개로 그대로 동작한다 — 돌진 사이사이 위협이 우연히 근접 사거리에 들어오면
-    /// 평범한 공격도 함께 들어간다.
+    /// 못박아두지 않기 위함이다. 첫 명중 이후에는 위협을 다시 조준하는 조향(TickCharging의 방향
+    /// 보정)도 멈춘다 — 그렇지 않으면 방금 지나친 대상이 여전히 가장 가까운 위협으로 잡혀 그쪽으로
+    /// 다시 돌아서려 해, "관통해서 직진"이 아니라 제자리에서 맴도는 것처럼 보인다. 돌진 중에는
+    /// 자신의 CharacterSeparation도 꺼둔다 — 켜둔 채로 대상과 충돌하면 그 반작용으로 기마병 자신도
+    /// 반대 방향으로 밀려나 버려, 관통은커녕 튕겨 나가는 것처럼 보였다(실사용 중 발견).
     ///
     /// 돌진 시작 전 아군이 경로를 막고 있는지 확인해 옆으로 비켜서던 회피 판정(및 그 판정이 계속
     /// 실패할 때의 강제 돌진 폴백)은 제거됐다 — Character.CharacterSeparation.ignoreLayerMask가 이
@@ -65,25 +67,16 @@ namespace Combat
         [SerializeField]
         private LayerMask allyLayerMask;
 
-        [Header("거리 벌리기")]
+        [Header("교전 판단")]
         [SerializeField]
         private float chargeStartDistance = 5f;
 
-        [SerializeField]
-        private float retreatStepDistance = 2f;
-
-        [SerializeField]
-        private float retreatScreenMargin = 0.05f;
-
-        [Header("돌진 가속/조향")]
+        [Header("돌진 속도/조향")]
         [SerializeField]
         private float chargeStartSpeed = 3f;
 
         [SerializeField]
         private float maxChargeSpeed = 9f;
-
-        [SerializeField]
-        private float chargeAcceleration = 4f;
 
         [SerializeField]
         private float baseTurnRateDegreesPerSecond = 180f;
@@ -120,7 +113,6 @@ namespace Combat
         private CharacterStatsProvider _statsProvider;
         private CharacterSeparation _separation;
         private CameraFollowService _cameraFollowService;
-        private Transform _retreatAnchor;
 
         private ChargeState _state;
         private float _elapsed;
@@ -136,13 +128,27 @@ namespace Combat
         /// </summary>
         public Transform PlayerTransform { get; private set; }
 
+        /// <summary>
+        /// 지금 돌진 중인지 여부 — 이 컴포넌트가 CharacterMover를 거치지 않고 직접 이동시키는 동안은
+        /// CharacterMover 기반의 일반적인 "이동 중" 판정(Target != null && 거리 > StoppingDistance)이
+        /// 통하지 않으므로, 애니메이션 컨트롤러(Character.CavalryAnimationController)가 Run 재생
+        /// 여부를 판단하는 데 이 값을 직접 읽는다.
+        /// </summary>
+        public bool IsCharging => _state == ChargeState.Charging;
+
+        /// <summary>
+        /// 돌진 중 실제 이동 방향(정규화됨). 애니메이션 컨트롤러가 좌우 반전을 판정하는 데 쓴다 —
+        /// 돌진 중에는 CharacterMover.Target이 없어(직접 transform을 옮기므로) 그 판정을 대신할
+        /// 기준이 필요하다.
+        /// </summary>
+        public Vector3 ChargeDirection => _chargeDirection;
+
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
             _statsProvider = GetComponent<CharacterStatsProvider>();
             _separation = GetComponent<CharacterSeparation>();
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
-            _retreatAnchor = new GameObject("CavalryRetreatAnchor").transform;
         }
 
         private void OnEnable()
@@ -177,14 +183,6 @@ namespace Combat
             if (_separation != null)
             {
                 _separation.enabled = true;
-            }
-        }
-
-        private void OnDestroy()
-        {
-            if (_retreatAnchor != null)
-            {
-                Destroy(_retreatAnchor.gameObject);
             }
         }
 
@@ -231,6 +229,12 @@ namespace Combat
             return nearest != null ? nearest.transform : PlayerTransform;
         }
 
+        /// <summary>
+        /// 위협과의 거리가 chargeStartDistance 이상이면 돌진을 시작하고, 그보다 가까우면 물러나지
+        /// 않고 CharacterMover.Target을 위협으로 세팅해 Stats.AttackRange까지 다가가게 한다 —
+        /// 이후 광역 공격은 같은 오브젝트의 Attacker+SplashAttackBehavior가 완전히 독립적으로
+        /// 처리한다(이 메서드는 "어디로 걸어갈지"만 결정한다).
+        /// </summary>
         private void EvaluatePositioning()
         {
             Transform threat = FindThreat();
@@ -245,18 +249,8 @@ namespace Combat
 
             if (distance < chargeStartDistance)
             {
-                if (_cameraFollowService != null
-                    && KiteRetreatCalculator.TryFindRetreatPoint(_cameraFollowService.HomeLocalPosition, _cameraFollowService.GetWorldBoundsHalfExtent(), transform.position, threat.position, retreatStepDistance, retreatScreenMargin, out Vector3 retreatPoint))
-                {
-                    _retreatAnchor.position = retreatPoint;
-                    _mover.Target = _retreatAnchor;
-                    _mover.StoppingDistance = 0f;
-                }
-                else
-                {
-                    _mover.Target = null;
-                }
-
+                _mover.Target = threat;
+                _mover.StoppingDistance = _statsProvider.Stats.AttackRange;
                 return;
             }
 
@@ -268,7 +262,7 @@ namespace Combat
             _state = ChargeState.Charging;
             _mover.Target = null;
             _chargeDirection = (targetPosition - transform.position).normalized;
-            _chargeSpeed = chargeStartSpeed;
+            _chargeSpeed = maxChargeSpeed;
             _chargeElapsed = 0f;
             _hitElapsedMark = 0f;
             _hasHitThisCharge = false;
@@ -284,11 +278,6 @@ namespace Combat
         /// 아직 아무것도 못 맞혔으면 maxChargeDuration(안전망 — 위협이 계속 피하거나 다른 이유로
         /// 영영 안 맞을 때만 발동)을, 이미 맞혔으면 그 순간(_hitElapsedMark)부터
         /// chargeOverrunDuration만 더 지나면 돌진을 끝낸다. 명중 시점 기준으로 재는 게 핵심 —
-        /// 예전에는 BeginCharge 시점 스냅샷 거리로 총 돌진 시간을 미리 계산해뒀는데(distance ÷
-        /// 속도), 위협(특히 플레이어)이 돌진 도중 계속 움직이면 실제로 따라잡는 데 필요한 거리가
-        /// 그 추정치보다 길어질 수 있어 — 명중하기도 전에 시간이 다 돼 돌진이 끊기고 Positioning으로
-        /// 돌아갔다가 다시 BeginCharge로 처음부터(chargeStartSpeed부터) 재가속하는 게 눈에 "한 번
-        /// 움찔 멈췄다 재돌진"하는 것처럼 보였다(실사용 중 발견). 명중 여부만으로 끝을 판단하면
         /// 위협이 아무리 움직여도 실제로 따라잡을 때까지는 절대 조기 종료되지 않는다.
         /// </summary>
         private bool ShouldEndCharge()
@@ -307,8 +296,6 @@ namespace Combat
                 EndCharge();
                 return;
             }
-
-            _chargeSpeed = Mathf.Min(maxChargeSpeed, _chargeSpeed + chargeAcceleration * deltaTime);
 
             if (!_hasHitThisCharge)
             {
