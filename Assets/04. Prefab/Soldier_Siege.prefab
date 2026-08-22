@@ -162,9 +162,10 @@ GameObject:
   - component: {fileID: 2692374472471921882}
   - component: {fileID: 5488968294148996119}
   - component: {fileID: 1418510802863437400}
-  - component: {fileID: 5035043355273583172}
   - component: {fileID: 2109888271869776113}
   - component: {fileID: 1926550129555886831}
+  - component: {fileID: 4238056677043195766}
+  - component: {fileID: 3866460624141847125}
   m_Layer: 8
   m_Name: Soldier_Siege
   m_TagString: Untagged
@@ -288,7 +289,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 512
-  attackWindupLeadTime: 0
+  attackWindupLeadTime: 1
 --- !u!114 &198481165696731778
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -470,24 +471,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierGradeScaler
   config: {fileID: 11400000, guid: 1bb8da3e1491b874fa5c2e553e918630, type: 2}
   recomputeInterval: 1
---- !u!114 &5035043355273583172
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9114245855020254752}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: c089e8d10b3d91c40b47912645981975, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Combat.SplashAttackBehavior
-  weaponMotion: {fileID: 2446143283646997398}
-  splashRadius: 2.5
-  splashDamageMultiplier: 0.5
-  splashLayerMask:
-    serializedVersion: 2
-    m_Bits: 512
 --- !u!95 &2109888271869776113
 Animator:
   serializedVersion: 7
@@ -524,6 +507,47 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Character.InfantryAnimationController
   maxAttackHoldSeconds: 0.6
   pauseMovementDuringAttack: 1
+--- !u!114 &4238056677043195766
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: d18d47ef559897d45aee0bfab0f3b0c4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.SiegeMortarAttackBehavior
+  weaponMotion: {fileID: 2446143283646997398}
+  shellPrefab: {fileID: 8241499120435491403, guid: 372bbb4e437efc842bd02cbe202ddfd4, type: 3}
+  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
+  muzzle: {fileID: 2602501013443847862}
+  launchDelaySeconds: 0.3
+  projectileSpeed: 5
+  splashRadius: 2.5
+  splashDamageMultiplier: 0.5
+  splashLayerMask:
+    serializedVersion: 2
+    m_Bits: 512
+  shellPoolCapacity: 2
+  shellPoolMaxSize: 4
+  telegraphPoolCapacity: 2
+  telegraphPoolMaxSize: 4
+--- !u!114 &3866460624141847125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3b7d5d05bda88a0418b62809dfda6b42, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.RangedAttackTelegraph
+  lineColor: {r: 0.2, g: 0.5, b: 1, a: 0.85}
+  lineWidth: 0.05
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0
