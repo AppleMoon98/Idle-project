@@ -68,6 +68,19 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// 실제로 전투/점령이 진행 중인지(실패 화면 대기 중이 아닌지) 여부. 화면 밖 점령지 화살표
+        /// 안내(UI.SoldierRescueZoneIndicatorUI) 등, 실패 화면이 떠 있는 동안엔 표시할 필요가 없는
+        /// UI가 이 값으로 게이트한다.
+        /// </summary>
+        public bool IsFighting => _isFighting;
+
+        /// <summary>
+        /// 현재 시도의 점령 구역 목록(읽기 전용). UI.SoldierRescueZoneIndicatorUI가 화면 밖 구역을
+        /// 찾아 화살표로 안내하는 데 쓴다.
+        /// </summary>
+        public IReadOnlyList<WarStructure> ActiveZones => _activeZones;
+
+        /// <summary>
         /// UI가 스테퍼의 최대 선택 가능 단계를 읽어가기 위한 접근자. Gold/Stone 던전과 동일한
         /// 이유·동일한 계산 — 플레이어가 실제로 클리어한 챕터를 기준으로 삼는다.
         /// </summary>

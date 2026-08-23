@@ -25,6 +25,7 @@ namespace War
         [SerializeField]
         private WarBossTelegraphIndicator rangeIndicator;
 
+        private SpriteRenderer _spriteRenderer;
         private float _elapsed;
 
         /// <summary>
@@ -50,6 +51,8 @@ namespace War
         /// </summary>
         private void Awake()
         {
+            _spriteRenderer = GetComponent<SpriteRenderer>();
+
             if (rangeIndicator != null && definition != null)
             {
                 rangeIndicator.Show(transform.position, definition.ActivationRadius);
@@ -73,13 +76,21 @@ namespace War
         }
 
         /// <summary>
-        /// 새 War 시도를 위해 점령 상태를 초기화한다.
+        /// 새 War 시도를 위해 점령 상태를 초기화한다. 직전 시도에서 점령 완료로 숨겨져 있었을 수
+        /// 있는 몸체/판정 범위 표시도 함께 되돌린다.
         /// </summary>
         public void ResetForNewAttempt()
         {
             Control = 0f;
             IsCaptured = false;
             _elapsed = 0f;
+
+            if (_spriteRenderer != null)
+            {
+                _spriteRenderer.enabled = true;
+            }
+
+            rangeIndicator?.SetVisible(true);
         }
 
         void ITickable.Tick(float deltaTime)
@@ -109,6 +120,18 @@ namespace War
                 if (Control >= 1f)
                 {
                     IsCaptured = true;
+
+                    // 점령이 끝난 구조물은 몸체/판정 범위 표시를 숨긴다 - 여러 구역을 동시에
+                    // 상대하는 콘텐츠(병사 구출 던전 등)에서 이미 끝난 구역이 화면에 계속 남아있으면
+                    // 아직 진행해야 할 구역과 구분이 안 돼 확인하기 어렵다는 문제가 있었다(실사용
+                    // 중 발견). 판정/틱 자체는 멈추지 않는다 - 오직 시각적으로만 사라진다.
+                    if (_spriteRenderer != null)
+                    {
+                        _spriteRenderer.enabled = false;
+                    }
+
+                    rangeIndicator?.SetVisible(false);
+
                     GameBootstrapper.Events?.Publish(new WarStructureCapturedEvent(this));
                 }
             }

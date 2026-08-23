@@ -66,6 +66,15 @@ namespace War.Boss
             spriteRenderer.color = color;
         }
 
+        /// <summary>
+        /// 표시 여부를 직접 켜고 끈다(War.WarStructure가 점령 완료 시 자기 판정 범위 표시를 숨기는
+        /// 용도 등) - Show()처럼 위치/색을 다시 설정하지 않는다.
+        /// </summary>
+        public void SetVisible(bool visible)
+        {
+            spriteRenderer.enabled = visible;
+        }
+
         public void OnSpawned()
         {
         }
