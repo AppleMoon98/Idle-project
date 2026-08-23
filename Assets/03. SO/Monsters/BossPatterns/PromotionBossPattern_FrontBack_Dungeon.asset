@@ -29,7 +29,7 @@ MonoBehaviour:
     teleportToRangeEnd: 0
     leaveResolveFlash: 1
   - delay: 1
-    telegraphDuration: 0.5
+    telegraphDuration: 1
     shape: 1
     length: 5
     width: 180
@@ -42,7 +42,7 @@ MonoBehaviour:
     emitScreenSlashAndShake: 0
     teleportToRangeEnd: 0
     leaveResolveFlash: 1
-  - delay: 1.5
+  - delay: 2
     telegraphDuration: 0.5
     shape: 1
     length: 12
@@ -56,7 +56,7 @@ MonoBehaviour:
     emitScreenSlashAndShake: 0
     teleportToRangeEnd: 0
     leaveResolveFlash: 1
-  - delay: 2
+  - delay: 2.5
     telegraphDuration: 0.5
     shape: 1
     length: 12
@@ -70,7 +70,7 @@ MonoBehaviour:
     emitScreenSlashAndShake: 0
     teleportToRangeEnd: 0
     leaveResolveFlash: 1
-  - delay: 2.5
+  - delay: 3
     telegraphDuration: 0.5
     shape: 1
     length: 12
@@ -84,7 +84,7 @@ MonoBehaviour:
     emitScreenSlashAndShake: 0
     teleportToRangeEnd: 0
     leaveResolveFlash: 1
-  - delay: 3
+  - delay: 3.5
     telegraphDuration: 0.5
     shape: 1
     length: 12
