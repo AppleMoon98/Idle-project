@@ -23,10 +23,10 @@ GameObject:
   - component: {fileID: 7914894287243995459}
   - component: {fileID: 655619628559261670}
   - component: {fileID: 5878049024289008002}
-  - component: {fileID: 3870837778376361444}
-  - component: {fileID: 3725447607178273923}
+  - component: {fileID: 3864075704232435913}
+  - component: {fileID: 2996821876033207223}
   m_Layer: 9
-  m_Name: Monster_Boss_Rank1Promotion
+  m_Name: Monster_BossDungeon_Rank1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -182,7 +182,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: eb8b7b99c2462634882d688f1b9717f8, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterStatsProvider
-  baseStats: {fileID: 11400000, guid: 7c30dec8b2359f948b9051dba6bb5c00, type: 2}
+  baseStats: {fileID: 11400000, guid: 15b7df6a976e4f443bc9bda8ec4548bd, type: 2}
 --- !u!114 &1005590566792382908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -315,9 +315,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Rank.Boss.PromotionBossController
   patterns:
-  - {fileID: 11400000, guid: 1e27ebe022ab6e742b870569004e1b30, type: 2}
-  - {fileID: 11400000, guid: f36fb216afec4094ab25f93ae1e4e98e, type: 2}
-  - {fileID: 11400000, guid: 30ee3cdf9bfb83b4a8c9861c508da328, type: 2}
+  - {fileID: 11400000, guid: 158b206957038b6479e14b9629b73996, type: 2}
+  - {fileID: 11400000, guid: 09b0f8bbc9848844d8bb70b686ede204, type: 2}
   intervalBetweenPatterns: 4
   detectionRange: 30
   allyLayerMask:
@@ -357,7 +356,7 @@ MonoBehaviour:
     emitScreenSlashAndShake: 0
     teleportToRangeEnd: 0
     leaveResolveFlash: 0
---- !u!95 &3870837778376361444
+--- !u!95 &3864075704232435913
 Animator:
   serializedVersion: 7
   m_ObjectHideFlags: 0
@@ -379,7 +378,7 @@ Animator:
   m_AllowConstantClipSamplingOptimization: 1
   m_KeepAnimatorStateOnDisable: 0
   m_WriteDefaultValuesOnDisable: 0
---- !u!114 &3725447607178273923
+--- !u!114 &2996821876033207223
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}

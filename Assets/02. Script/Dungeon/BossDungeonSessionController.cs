@@ -80,12 +80,14 @@ namespace Dungeon
 
             foreach (RankSO rank in config.RankCatalog.Ranks)
             {
-                if (rank == null || rank.BossPrefab == null)
+                GameObject effectivePrefab = ResolveBossPrefab(rank);
+
+                if (rank == null || effectivePrefab == null)
                 {
                     continue;
                 }
 
-                if (!rank.BossPrefab.TryGetComponent(out PromotionBossController _))
+                if (!effectivePrefab.TryGetComponent(out PromotionBossController _))
                 {
                     continue;
                 }
@@ -192,15 +194,31 @@ namespace Dungeon
                 return;
             }
 
-            pool.EnsurePool(_selectedRank.BossPrefab, 1, 1);
+            GameObject bossPrefab = ResolveBossPrefab(_selectedRank);
+
+            pool.EnsurePool(bossPrefab, 1, 1);
 
             Vector3 spawnPosition = DungeonSpawnUtility.BossSpawnPosition();
-            _bossInstance = pool.Get(_selectedRank.BossPrefab, spawnPosition, Quaternion.identity);
+            _bossInstance = pool.Get(bossPrefab, spawnPosition, Quaternion.identity);
 
             if (_bossInstance.TryGetComponent(out StageMonsterScaler scaler))
             {
                 scaler.ApplyScale(config.ExtraStrengthMultiplier);
             }
+        }
+
+        /// <summary>
+        /// rank.BossDungeonPrefab이 있으면(승급전과 별도로 튜닝된 보스 토벌 전용 콘텐츠) 그걸,
+        /// 없으면(기본값) rank.BossPrefab을 그대로 재사용한다.
+        /// </summary>
+        private static GameObject ResolveBossPrefab(RankSO rank)
+        {
+            if (rank == null)
+            {
+                return null;
+            }
+
+            return rank.BossDungeonPrefab != null ? rank.BossDungeonPrefab : rank.BossPrefab;
         }
 
         void ITickable.Tick(float deltaTime)

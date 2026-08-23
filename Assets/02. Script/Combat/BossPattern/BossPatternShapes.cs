@@ -31,9 +31,10 @@ namespace Combat.BossPattern
 
         /// <summary>
         /// origin을 꼭짓점으로, forwardDirection 방향을 중심으로 angleDeg만큼 벌어진 부채꼴
-        /// (반지름 radius) 범위 안의 살아있는 대상을 모은다.
+        /// (반지름 radius) 범위 안의 살아있는 대상을 모은다. innerRadius가 0보다 크면 그 안쪽은
+        /// 제외해 고리(도넛) 모양으로 판정한다(기본값 0 = 기존과 동일한 꽉 찬 부채꼴).
         /// </summary>
-        public static IEnumerable<Health> FindHitsInSector(Vector2 origin, float radius, float angleDeg, Vector2 forwardDirection, LayerMask layerMask)
+        public static IEnumerable<Health> FindHitsInSector(Vector2 origin, float radius, float angleDeg, Vector2 forwardDirection, LayerMask layerMask, float innerRadius = 0f)
         {
             Collider2D[] candidates = Physics2D.OverlapCircleAll(origin, radius, layerMask);
             float halfAngle = angleDeg * 0.5f;
@@ -46,6 +47,11 @@ namespace Combat.BossPattern
                 }
 
                 Vector2 toCandidate = (Vector2)candidate.transform.position - origin;
+
+                if (innerRadius > 0f && toCandidate.sqrMagnitude < innerRadius * innerRadius)
+                {
+                    continue;
+                }
 
                 // 대상이 꼭짓점과 정확히 겹치면(0벡터) 각도가 정의되지 않으므로 그냥 판정 안에
                 // 있는 것으로 취급한다.

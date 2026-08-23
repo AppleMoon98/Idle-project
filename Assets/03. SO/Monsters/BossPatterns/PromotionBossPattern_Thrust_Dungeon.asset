@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba611d6f9133457469a1b67e337a77c9, type: 3}
+  m_Name: PromotionBossPattern_Thrust_Dungeon
+  m_EditorClassIdentifier: Assembly-CSharp::Rank.Boss.PromotionBossPatternSO
+  displayName: "\uCC0C\uB974\uAE30"
+  hits:
+  - delay: 0
+    telegraphDuration: 1
+    shape: 0
+    length: 12
+    width: 2
+    facingOffsetDegrees: 0
+    damage: 400
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 0
+    anchorAtNearEdge: 1
+    emitScreenSlashAndShake: 1
+    teleportToRangeEnd: 1
+    leaveResolveFlash: 0

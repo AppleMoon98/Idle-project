@@ -42,7 +42,19 @@ namespace Combat.BossPattern
         private bool reachesMapEdge;
 
         [SerializeField]
+        private float innerRadius;
+
+        [SerializeField]
         private bool anchorAtNearEdge;
+
+        [SerializeField]
+        private bool emitScreenSlashAndShake;
+
+        [SerializeField]
+        private bool teleportToRangeEnd;
+
+        [SerializeField]
+        private bool leaveResolveFlash;
 
         /// <summary>
         /// 패턴 시작 후 이 판정의 예고가 표시되기까지 걸리는 시간(초).
@@ -89,6 +101,13 @@ namespace Combat.BossPattern
         public bool ReachesMapEdge => reachesMapEdge;
 
         /// <summary>
+        /// 부채꼴 전용(직사각형은 무시). 0보다 크면 원점에서 이 거리 안쪽은 판정/표시에서 제외돼
+        /// 고리(도넛) 모양이 된다 - "이미 공격한 안쪽 범위를 제외한 바깥쪽"처럼 앞선 판정과 겹치지
+        /// 않아야 하는 후속 공격에 쓴다. 기본값 0 = 기존과 동일한 꽉 찬 부채꼴.
+        /// </summary>
+        public float InnerRadius => innerRadius;
+
+        /// <summary>
         /// 직사각형 전용(부채꼴은 무시 - 부채꼴은 항상 꼭짓점 기준). false(기본값)면 넘겨받은
         /// 위치가 곧 직사각형의 중심(Physics2D.OverlapBoxAll의 point와 동일한 의미) - 페이즈2의
         /// 십자/세로줄처럼 한 지점을 중심으로 대칭으로 뻗는 판정에 쓴다. true면 넘겨받은 위치가
@@ -97,5 +116,27 @@ namespace Combat.BossPattern
         /// 뻗어나가는 판정에 쓴다.
         /// </summary>
         public bool AnchorAtNearEdge => anchorAtNearEdge;
+
+        /// <summary>
+        /// true면 판정이 실제로 적용되는 순간 이 판정의 방향/위치를 따라 화면 슬래시
+        /// (UI.Events.ScreenSlashRequestedEvent)와 카메라 흔들림(Skill.Events.
+        /// SkillCameraShakeRequestedEvent)을 함께 요청한다. 기본값 false = 기존 판정은 전혀
+        /// 영향받지 않는다(다른 sparse opt-in 필드와 같은 관례).
+        /// </summary>
+        public bool EmitScreenSlashAndShake => emitScreenSlashAndShake;
+
+        /// <summary>
+        /// true면(직사각형 판정 전용, 찌르기처럼 앞으로 뻗어나가는 판정에 쓴다) 판정이 적용된
+        /// 직후 시전자를 이 판정 범위가 끝나는 지점(origin + 방향 × Length)으로 순간이동시킨다 -
+        /// "찌르기 거리만큼 앞으로 파고드는" 돌진형 연출. 기본값 false.
+        /// </summary>
+        public bool TeleportToRangeEnd => teleportToRangeEnd;
+
+        /// <summary>
+        /// true면 판정이 적용되는 순간 예고 표시가 즉시 사라지지 않고 흰색+완전 불투명 잔상으로
+        /// 0.1초(Combat.BossPattern.BossShapeTelegraphIndicator.PlayResolveFlash) 남았다가 사라진다.
+        /// 기본값 false = 기존처럼 판정과 동시에 즉시 사라짐.
+        /// </summary>
+        public bool LeaveResolveFlash => leaveResolveFlash;
     }
 }

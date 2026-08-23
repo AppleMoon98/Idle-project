@@ -1,0 +1,100 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ba611d6f9133457469a1b67e337a77c9, type: 3}
+  m_Name: PromotionBossPattern_FrontBack_Dungeon
+  m_EditorClassIdentifier: Assembly-CSharp::Rank.Boss.PromotionBossPatternSO
+  displayName: "\uC55E\uB4A4 \uAC00\uB974\uAE30"
+  hits:
+  - delay: 0
+    telegraphDuration: 1.5
+    shape: 1
+    length: 5
+    width: 180
+    facingOffsetDegrees: 0
+    damage: 100
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 0
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1
+  - delay: 1
+    telegraphDuration: 0.5
+    shape: 1
+    length: 5
+    width: 180
+    facingOffsetDegrees: 180
+    damage: 400
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 0
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1
+  - delay: 1.5
+    telegraphDuration: 0.5
+    shape: 1
+    length: 12
+    width: 180
+    facingOffsetDegrees: 0
+    damage: 500
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 5
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1
+  - delay: 2
+    telegraphDuration: 0.5
+    shape: 1
+    length: 12
+    width: 180
+    facingOffsetDegrees: 180
+    damage: 600
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 5
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1
+  - delay: 2.5
+    telegraphDuration: 0.5
+    shape: 1
+    length: 12
+    width: 180
+    facingOffsetDegrees: 0
+    damage: 700
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 5
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1
+  - delay: 3
+    telegraphDuration: 0.5
+    shape: 1
+    length: 12
+    width: 180
+    facingOffsetDegrees: 180
+    damage: 800
+    damagePercentOfMaxHealth: 0
+    reachesMapEdge: 0
+    innerRadius: 5
+    anchorAtNearEdge: 0
+    emitScreenSlashAndShake: 0
+    teleportToRangeEnd: 0
+    leaveResolveFlash: 1

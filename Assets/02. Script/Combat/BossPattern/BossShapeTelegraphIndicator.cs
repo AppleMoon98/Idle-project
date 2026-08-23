@@ -1,5 +1,7 @@
 using System.Collections.Generic;
+using Core;
 using Core.Pooling;
+using Managers;
 using UnityEngine;
 
 namespace Combat.BossPattern
@@ -12,7 +14,7 @@ namespace Combat.BossPattern
     /// 코드로 생성해 모든 인스턴스가 공유한다.
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
-    public sealed class BossShapeTelegraphIndicator : MonoBehaviour, IPoolable
+    public sealed class BossShapeTelegraphIndicator : MonoBehaviour, IPoolable, ITickable
     {
         private const int RectangleTextureSize = 8;
 
@@ -27,11 +29,32 @@ namespace Combat.BossPattern
         // 월드 유닛이 되도록 생성한다 - 그래야 ShowSector가 반지름을 곱하기만 하면 된다.
         private const float WedgeUnitRadius = 1f;
 
+        private static readonly Color NormalFillColor = new(1f, 0.15f, 0.1f, 1f);
+
+        // 판정이 실제로 적용되는 순간 공격 범위가 바로 사라지지 않고 흰색/완전 불투명으로 잠깐
+        // 남아있게 하는 잔상 연출의 지속 시간 - 어떤 패턴(찌르기/앞뒤 가르기/부채꼴/페이즈2 등)이든
+        // PlayResolveFlash()만 부르면 이 잔상을 그대로 재사용할 수 있다.
+        private const float ResolveFlashDuration = 0.1f;
+
         private static Sprite _sharedRectangleSprite;
-        private static readonly Dictionary<int, Sprite> SharedWedgeSpritesByAngle = new();
+        private static Sprite _sharedRectangleFlashSprite;
+        private static readonly Dictionary<string, Sprite> SharedWedgeSprites = new();
+        private static readonly Dictionary<string, Sprite> SharedWedgeFlashSprites = new();
+
+        private enum LastShapeKind
+        {
+            Rectangle,
+            Sector
+        }
 
         [SerializeField]
         private SpriteRenderer spriteRenderer;
+
+        private LastShapeKind _lastShapeKind;
+        private float _lastWedgeAngleDeg;
+        private float _lastWedgeInnerRadiusRatio;
+        private bool _isFlashing;
+        private float _flashElapsed;
 
         private void Awake()
         {
@@ -41,6 +64,17 @@ namespace Combat.BossPattern
             }
         }
 
+        private void OnEnable()
+        {
+            TickerRegistration.Register(this);
+        }
+
+        private void OnDisable()
+        {
+            TickerRegistration.Unregister(this);
+            _isFlashing = false;
+        }
+
         /// <summary>
         /// center를 중심으로 angleDeg만큼 회전된 length×width 직사각형 예고를 표시한다.
         /// angleDeg=0이면 length 방향이 월드 +X를 향한다(Combat.BossPatternShapes.FindHitsInRectangle과
@@ -48,7 +82,10 @@ namespace Combat.BossPattern
         /// </summary>
         public void ShowRectangle(Vector3 center, float length, float width, float angleDeg)
         {
-            spriteRenderer.sprite = GetOrCreateRectangleSprite();
+            _isFlashing = false;
+            _lastShapeKind = LastShapeKind.Rectangle;
+
+            spriteRenderer.sprite = GetOrCreateRectangleSprite(NormalFillColor, ref _sharedRectangleSprite);
             transform.position = center;
             transform.eulerAngles = new Vector3(0f, 0f, angleDeg);
             transform.localScale = new Vector3(length, width, 1f);
@@ -58,10 +95,18 @@ namespace Combat.BossPattern
         /// <summary>
         /// origin을 꼭짓점으로, facingDeg 방향을 중심으로 angleDeg만큼 벌어진 반지름 radius
         /// 부채꼴 예고를 표시한다(Combat.BossPatternShapes.FindHitsInSector와 동일한 좌표 규약).
+        /// innerRadius가 0보다 크면 그 안쪽을 비워 고리(도넛) 모양으로 그린다.
         /// </summary>
-        public void ShowSector(Vector3 origin, float radius, float angleDeg, float facingDeg)
+        public void ShowSector(Vector3 origin, float radius, float angleDeg, float facingDeg, float innerRadius = 0f)
         {
-            spriteRenderer.sprite = GetOrCreateWedgeSprite(angleDeg);
+            float innerRadiusRatio = radius > 0f ? Mathf.Clamp01(innerRadius / radius) : 0f;
+
+            _isFlashing = false;
+            _lastShapeKind = LastShapeKind.Sector;
+            _lastWedgeAngleDeg = angleDeg;
+            _lastWedgeInnerRadiusRatio = innerRadiusRatio;
+
+            spriteRenderer.sprite = GetOrCreateWedgeSprite(angleDeg, innerRadiusRatio, NormalFillColor, SharedWedgeSprites);
             transform.position = origin;
             transform.eulerAngles = new Vector3(0f, 0f, facingDeg);
             float scale = radius / WedgeUnitRadius;
@@ -79,19 +124,61 @@ namespace Combat.BossPattern
             spriteRenderer.color = color;
         }
 
+        /// <summary>
+        /// 판정이 실제로 적용되는 순간 호출한다 - 지금 표시 중이던 모양(직사각형이든 부채꼴이든,
+        /// 마지막 Show*() 호출 그대로) 그대로 흰색+완전 불투명으로 바꾸고 ResolveFlashDuration
+        /// (0.1초) 뒤 스스로 풀에 반납한다. 호출자는 이제 이 메서드만 부르면 되고, 직접
+        /// PoolManager.Release를 즉시 호출할 필요가 없다(Combat.DamageNumber와 동일한 "스스로
+        /// 타이머를 관리하다 스스로 반납"하는 자기완결형 패턴 - 호출자가 몇 초 뒤 반납할지 따로
+        /// 챙기지 않아도 된다).
+        /// </summary>
+        public void PlayResolveFlash()
+        {
+            spriteRenderer.sprite = _lastShapeKind == LastShapeKind.Sector
+                ? GetOrCreateWedgeSprite(_lastWedgeAngleDeg, _lastWedgeInnerRadiusRatio, Color.white, SharedWedgeFlashSprites)
+                : GetOrCreateRectangleSprite(Color.white, ref _sharedRectangleFlashSprite);
+
+            spriteRenderer.color = Color.white;
+            _isFlashing = true;
+            _flashElapsed = 0f;
+        }
+
+        void ITickable.Tick(float deltaTime)
+        {
+            if (!_isFlashing)
+            {
+                return;
+            }
+
+            _flashElapsed += deltaTime;
+
+            if (_flashElapsed < ResolveFlashDuration)
+            {
+                return;
+            }
+
+            _isFlashing = false;
+
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PoolManager pool))
+            {
+                pool.Release(gameObject);
+            }
+        }
+
         public void OnSpawned()
         {
         }
 
         public void OnDespawned()
         {
+            _isFlashing = false;
         }
 
-        private static Sprite GetOrCreateRectangleSprite()
+        private static Sprite GetOrCreateRectangleSprite(Color fillColor, ref Sprite cache)
         {
-            if (_sharedRectangleSprite != null)
+            if (cache != null)
             {
-                return _sharedRectangleSprite;
+                return cache;
             }
 
             var texture = new Texture2D(RectangleTextureSize, RectangleTextureSize, TextureFormat.RGBA32, false)
@@ -100,32 +187,32 @@ namespace Combat.BossPattern
                 filterMode = FilterMode.Bilinear
             };
 
-            Color fill = new Color(1f, 0.15f, 0.1f, 1f);
-
             for (int y = 0; y < RectangleTextureSize; y++)
             {
                 for (int x = 0; x < RectangleTextureSize; x++)
                 {
-                    texture.SetPixel(x, y, fill);
+                    texture.SetPixel(x, y, fillColor);
                 }
             }
 
             texture.Apply();
 
-            _sharedRectangleSprite = Sprite.Create(
+            cache = Sprite.Create(
                 texture,
                 new Rect(0f, 0f, RectangleTextureSize, RectangleTextureSize),
                 new Vector2(0.5f, 0.5f),
                 RectangleTextureSize);
 
-            return _sharedRectangleSprite;
+            return cache;
         }
 
-        private static Sprite GetOrCreateWedgeSprite(float angleDeg)
+        private static Sprite GetOrCreateWedgeSprite(float angleDeg, float innerRadiusRatio, Color fillColor, Dictionary<string, Sprite> cacheDictionary)
         {
             int key = Mathf.RoundToInt(angleDeg);
+            int holeKey = Mathf.RoundToInt(innerRadiusRatio * 100f);
+            string cacheKey = key + "_" + holeKey;
 
-            if (SharedWedgeSpritesByAngle.TryGetValue(key, out Sprite cached))
+            if (cacheDictionary.TryGetValue(cacheKey, out Sprite cached))
             {
                 return cached;
             }
@@ -151,7 +238,12 @@ namespace Combat.BossPattern
             // 페더링 폭(픽셀)은 해상도에 비례해야 한다 - 고정 3px로 두면 해상도를 올릴수록
             // 반지름 대비 페더링 비율이 오히려 얇아져(3/512 < 3/128) 원래 의도한 시각적 두께를
             // 잃는다.
-            float innerRadius = outerRadius - (WedgeTextureSize / 128f * 3f);
+            float edgeFeatherPixels = WedgeTextureSize / 128f * 3f;
+            float outerEdgeFeatherStart = outerRadius - edgeFeatherPixels;
+
+            // 고리(도넛) 모양 - innerRadiusRatio가 0보다 크면 원점 쪽 holeRadiusPixels 안쪽을
+            // 바깥 경계와 동일한 방식(페더링 포함)으로 비운다. 0이면 기존과 완전히 동일(구멍 없음).
+            float holeRadiusPixels = outerRadius * holeKey / 100f;
 
             // 반지름 경계(innerRadius~outerRadius)는 원래도 부드럽게 페더링되어 있었지만, 각도
             // 경계(부채꼴의 대각선 변)는 "각도가 halfAngle 이하면 그리고, 아니면 안 그린다"는
@@ -170,11 +262,16 @@ namespace Combat.BossPattern
                     float distance = Mathf.Sqrt(dx * dx + dy * dy);
                     float angleFromForward = Mathf.Abs(Mathf.Atan2(dy, dx) * Mathf.Rad2Deg);
 
-                    float radialAlpha = Mathf.Clamp01(1f - Mathf.InverseLerp(innerRadius, outerRadius, distance));
+                    float radialAlpha = Mathf.Clamp01(1f - Mathf.InverseLerp(outerEdgeFeatherStart, outerRadius, distance));
                     float angularAlpha = Mathf.Clamp01(1f - Mathf.InverseLerp(halfAngle - AngleFeatherDegrees, halfAngle, angleFromForward));
-                    float alpha = radialAlpha * angularAlpha;
+                    float holeAlpha = holeRadiusPixels > 0f
+                        ? Mathf.Clamp01(Mathf.InverseLerp(holeRadiusPixels, holeRadiusPixels + edgeFeatherPixels, distance))
+                        : 1f;
+                    float alpha = radialAlpha * angularAlpha * holeAlpha;
 
-                    texture.SetPixel(x, y, new Color(1f, 0.15f, 0.1f, alpha));
+                    Color pixel = fillColor;
+                    pixel.a = alpha;
+                    texture.SetPixel(x, y, pixel);
                 }
             }
 
@@ -190,7 +287,7 @@ namespace Combat.BossPattern
                 new Vector2(0f, 0.5f),
                 canvasWidth);
 
-            SharedWedgeSpritesByAngle[key] = sprite;
+            cacheDictionary[cacheKey] = sprite;
             return sprite;
         }
     }

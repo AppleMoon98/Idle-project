@@ -26,6 +26,9 @@ namespace Rank
         private GameObject bossPrefab;
 
         [SerializeField]
+        private GameObject bossDungeonPrefab;
+
+        [SerializeField]
         private float playerStatBonusPercent;
 
         /// <summary>
@@ -60,6 +63,17 @@ namespace Rank
         /// 승급 가능 버튼이 뜨지 않는다(RankService.IsNextRankAvailable 참고).
         /// </summary>
         public GameObject BossPrefab => bossPrefab;
+
+        /// <summary>
+        /// 보스 토벌 던전(Dungeon.BossDungeonSessionController)이 승급전 대신 스폰할 별도
+        /// 프리팹. null이면(기본값, 콘텐츠 미비 랭크 포함) BossPrefab을 그대로 재사용한다 - 승급전과
+        /// 보스 토벌의 패턴/스탯이 서로 다르게 튜닝돼야 하는 랭크만 이 필드를 채우면 된다
+        /// (RankSO.RequiredStage == null과 같은 sparse opt-in 관례). "병사" 랭크는 승급전
+        /// (Monster_Boss_Rank1Promotion, HP5000/ATK100)과 보스 토벌(Monster_BossDungeon_Rank1,
+        /// HP40000/ATK500 + 별도 패턴)이 완전히 독립된 프리팹/데이터를 쓴다 - 하나를 공유하던 시절
+        /// 보스 토벌 쪽만 조정하려던 패턴 변경이 승급전에도 그대로 새어 들어간 문제가 있었다.
+        /// </summary>
+        public GameObject BossDungeonPrefab => bossDungeonPrefab;
 
         /// <summary>
         /// 이 랭크에서 플레이어 자신의 공격력/체력에 적용되는 보너스 비율(기본 스탯 대비, 예:

@@ -86,6 +86,30 @@ namespace Character.Animation
             }
         }
 
+        /// <summary>
+        /// Attacker 컴포넌트가 없는 소유자(예: Rank.Boss.PromotionBossController처럼 패턴 기반으로
+        /// 직접 공격을 관리하는 보스)가 외부에서 직접 공격 애니메이션을 켜고 끌 수 있는 공개
+        /// 진입점 - Attacker 이벤트 경로(OnWindupStarted/EndAttack)와 완전히 같은 상태 머신
+        /// (Animator bool + PauseMovementDuringAttack + maxAttackHoldSeconds 타임아웃)을 그대로
+        /// 재사용한다. true를 여러 번 불러도(이미 IsAttacking인 상태에서) 타임아웃 카운트가
+        /// 새로 시작되지 않도록 중복 호출은 무시한다 - 패턴 하나가 여러 판정에 걸쳐 계속
+        /// "공격 중"으로 유지되는 동안 타임아웃에 걸려 애니메이션이 끊기면 안 되기 때문이다.
+        /// </summary>
+        public void SetExternalAttacking(bool isAttacking)
+        {
+            if (isAttacking)
+            {
+                if (!IsAttacking)
+                {
+                    OnWindupStarted(null);
+                }
+            }
+            else
+            {
+                EndAttack();
+            }
+        }
+
         private void OnWindupStarted(Health target)
         {
             Anim.SetBool(AttackAnimatorBoolHash, true);

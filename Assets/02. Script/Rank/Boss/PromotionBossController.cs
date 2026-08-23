@@ -69,6 +69,7 @@ namespace Rank.Boss
         private Collider2D _collider;
         private SpriteRenderer _spriteRenderer;
         private HealthBarUI _healthBarUI;
+        private Character.Animation.UnitAnimationControllerBase _animationController;
         private PoolManager _pool;
         private CameraFollowService _cameraFollowService;
         private CameraZoomSliderUI _cameraZoomSlider;
@@ -98,6 +99,7 @@ namespace Rank.Boss
             _collider = GetComponent<Collider2D>();
             _spriteRenderer = GetComponent<SpriteRenderer>();
             _healthBarUI = GetComponentInChildren<HealthBarUI>(includeInactive: true);
+            _animationController = GetComponent<Character.Animation.UnitAnimationControllerBase>();
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
             _cameraZoomSlider = UnityEngine.Object.FindFirstObjectByType<CameraZoomSliderUI>();
             _camera = Camera.main;
@@ -246,6 +248,8 @@ namespace Rank.Boss
             {
                 _mover.Target = null;
             }
+
+            _animationController?.SetExternalAttacking(true);
         }
 
         /// <summary>
@@ -258,6 +262,8 @@ namespace Rank.Boss
             {
                 _targetSelector.enabled = true;
             }
+
+            _animationController?.SetExternalAttacking(false);
         }
 
         /// <summary>
@@ -453,7 +459,7 @@ namespace Rank.Boss
                 else
                 {
                     Vector2 forward = BossPatternShapes.AngleToDirection(angle);
-                    hits = BossPatternShapes.FindHitsInSector(origin, length, hit.Width, forward, allyLayerMask);
+                    hits = BossPatternShapes.FindHitsInSector(origin, length, hit.Width, forward, allyLayerMask, hit.InnerRadius);
                 }
 
                 foreach (Health health in hits)
@@ -465,9 +471,9 @@ namespace Rank.Boss
             BossPatternHit sharedHit = group.Count > 0 ? group[0].Hit : null;
 
             // 데미지 적용 전에 인디케이터부터 전부 해제한다(ResolveHit과 동일한 재진입 방어 이유).
-            foreach ((BossPatternHit _, Vector3 _, float _, GameObject indicator) in group)
+            foreach ((BossPatternHit groupHit, Vector3 _, float _, GameObject indicator) in group)
             {
-                ReleaseIndicator(indicator);
+                ReleaseIndicator(indicator, groupHit.LeaveResolveFlash);
             }
 
             if (sharedHit == null)
@@ -625,7 +631,7 @@ namespace Rank.Boss
             }
             else
             {
-                indicator.ShowSector(origin, length, hit.Width, angle);
+                indicator.ShowSector(origin, length, hit.Width, angle, hit.InnerRadius);
             }
 
             _telegraphProgress.Add((indicator, _sequence.Elapsed, hit.TelegraphDuration));
@@ -670,18 +676,37 @@ namespace Rank.Boss
             else
             {
                 Vector2 forward = BossPatternShapes.AngleToDirection(angle);
-                targets = new List<Health>(BossPatternShapes.FindHitsInSector(origin, length, hit.Width, forward, allyLayerMask));
+                targets = new List<Health>(BossPatternShapes.FindHitsInSector(origin, length, hit.Width, forward, allyLayerMask, hit.InnerRadius));
             }
 
             // 데미지 적용 전에 이 판정 자신의 상태(인디케이터 해제)부터 정리한다 - TakeDamage가
             // 플레이어를 죽이면 Rank.RankPromotionBattleController.HandleFailure()가 동기적으로
             // 이 보스 자신을 풀에 반납해(ReleaseBoss) OnDespawned()가 이 시퀀스를 취소시킬 수
             // 있다(War.Boss.WarBossPatternRunner.ResolvePattern과 동일한 재진입 함정).
-            ReleaseIndicator(indicatorInstance);
+            ReleaseIndicator(indicatorInstance, hit.LeaveResolveFlash);
+
+            if (hit.EmitScreenSlashAndShake)
+            {
+                Vector3 slashPosition = hit.Shape == BossShapeKind.Rectangle
+                    ? ResolveRectangleCenter(hit, origin, angle, length)
+                    : origin;
+
+                GameBootstrapper.Events?.Publish(new ScreenSlashRequestedEvent(angle, slashPosition));
+                GameBootstrapper.Events?.Publish(new SkillCameraShakeRequestedEvent(0.2f, 0.35f));
+            }
 
             foreach (Health health in targets)
             {
                 health.TakeDamage(ResolveDamage(hit, health));
+            }
+
+            // 대상에게 피해를 다 입힌 뒤 시전자 자신을 옮긴다 - 순서를 바꾸면(텔레포트 먼저) 위의
+            // targets가 이미 옛 위치 기준으로 스캔을 끝낸 뒤라 영향은 없지만, "찌르기가 맞고 나서
+            // 파고든다"는 연출 순서와 코드 순서를 일치시켜 두는 편이 이해하기 쉽다.
+            if (hit.TeleportToRangeEnd && hit.Shape == BossShapeKind.Rectangle)
+            {
+                Vector2 direction = BossPatternShapes.AngleToDirection(angle);
+                transform.position = origin + (Vector3)(direction * length);
             }
         }
 
@@ -719,7 +744,12 @@ namespace Rank.Boss
                 : NearestHealthScan.FindNearest(transform.position, detectionRange, allyLayerMask);
         }
 
-        private void ReleaseIndicator(GameObject instance)
+        /// <summary>
+        /// leaveFlash가 true면 즉시 풀에 반납하는 대신 BossShapeTelegraphIndicator.PlayResolveFlash()로
+        /// 흰색 잔상을 남기고 그 인디케이터 스스로 알아서 반납하도록 맡긴다(자기완결형 - 이후 이
+        /// 컨트롤러는 더 이상 그 인스턴스를 신경 쓰지 않는다).
+        /// </summary>
+        private void ReleaseIndicator(GameObject instance, bool leaveFlash = false)
         {
             if (instance == null)
             {
@@ -728,6 +758,12 @@ namespace Rank.Boss
 
             _activeIndicators.Remove(instance);
             _telegraphProgress.RemoveAll(entry => entry.Indicator != null && entry.Indicator.gameObject == instance);
+
+            if (leaveFlash && instance.TryGetComponent(out BossShapeTelegraphIndicator indicator))
+            {
+                indicator.PlayResolveFlash();
+                return;
+            }
 
             if (_pool != null)
             {
