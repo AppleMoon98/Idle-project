@@ -1,16 +1,17 @@
 using Character;
 using Combat;
-using Core;
 using UnityEngine;
 
 namespace Character.Animation
 {
     /// <summary>
-    /// 방패 보병 몸 스프라이트 시트 애니메이션(Idle/Run/Guard/Attack1/Attack2)을 기존 신호만으로
-    /// 재생한다 - SpearmanAnimationController와 같은 방향. CharacterMover.Target/StoppingDistance만
-    /// 으로 IsMoving/IsInRange를 계산한다("Guard"는 Spearman의 "Defence"와 동일 역할 - 사거리 안에
-    /// 들어오면 사용). IsAttacking은 같은 오브젝트의 Attacker가 발행하는
-    /// AttackWindupStarted/AttackPerformed로 구동한다.
+    /// 방패 보병 몸 스프라이트 시트 애니메이션(Idle/Run/Guard/Attack1/Attack2)을 재생한다. 공통
+    /// 로직(컴포넌트 캐싱, 공격 예비동작~종료 라이프사이클, 좌우 반전)은
+    /// UnitAnimationControllerBase가 담당하고, 여기서는 방패병 고유의 Guard 상태/1타 판정만
+    /// 구현한다.
+    ///
+    /// CharacterMover.Target/StoppingDistance만으로 IsMoving/IsInRange를 계산한다("Guard"는
+    /// Spearman의 "Defence"와 동일 역할 - 사거리 안에 들어오면 사용).
     ///
     /// 공격 애니메이션은 Attack1 -> Attack2 두 클립이 이어져 재생된다. Attack1 진입은 AnyState가
     /// 아니라 Idle/Run/Guard 각각에서 Attack1로 가는 개별 전이(조건 IsAttacking==true)로 만들었다 -
@@ -25,13 +26,6 @@ namespace Character.Animation
     /// 이 문제 자체가 구조적으로 발생할 수 없다. Attack1->Attack2는 원래대로 클립이 끝까지 재생된
     /// 뒤 자동으로 이어지는 전이(hasExitTime, 조건 없음)를 그대로 쓴다.
     ///
-    /// 공격 동안(IsAttacking) CharacterMover를 잠깐 꺼서 제자리에 멈춘다 - SpearmanAnimationController
-    /// 가 겪은 것과 같은 이유(Attacker의 독립적인 재탐색 타겟과 CharacterMover.Target이 다를 수 있어
-    /// "공격 자세인데 미끄러지듯 이동" 하는 문제 방지). OnDisable에서도 무조건 다시 켠다.
-    ///
-    /// AttackPerformed가 항상 뒤따라온다는 보장은 없다(Combat.Attacker.Tick() 참고) - maxAttackHoldSeconds
-    /// 타임아웃으로 방어한다.
-    ///
     /// 데미지는 사이클당 2회 들어간다 - Attack2가 끝나는 시점(Combat.Attacker의 정상적인
     /// AttackPerformed, Combat.MeleeAttackBehavior를 거쳐 이미 처리됨)과, Attack1이 끝나는
     /// 시점(attack1Duration 경과, 이 컨트롤러가 직접 처리) 둘 다 한 번씩. 후자는 Combat.Attacker의
@@ -39,10 +33,7 @@ namespace Character.Animation
     /// 돌진 명중 판정과 같은 방식(Health.TakeDamage 직접 호출, IAttackBehavior 사이클 밖)으로
     /// 처리한다. AttackPower는 사이클당 2회 타격을 반영해 기존의 절반으로 낮춰뒀다(DPS 유지).
     ///
-    /// 스프라이트 시트가 기본적으로 오른쪽을 보고 그려져 있어서, Target이 왼쪽에 있으면
-    /// SpriteRenderer.flipX로 좌우 반전한다.
-    ///
-    /// Guard 상태(사거리 안에 들어와 대기 중, 공격 중은 아님 - IsInRange&&!IsAttacking, 애니메이터가
+    /// Guard 상태(사거리 안에 들어와 대기 중, 공격 중은 아님 - IsInRange&amp;&amp;!IsAttacking, 애니메이터가
     /// Guard로 전이하는 조건과 정확히 동일)인 동안 Character.Health.TakeDamage가 가장 먼저 적용하는
     /// Stats.DamageReductionPercent를 guardDamageReductionPercent만큼 얹어 받는 피해를 줄인다 -
     /// ShieldGuard의 별도 방패 체력 흡수보다도 앞선 단계라, 방패 체력 소모 자체도 함께 줄어든다.
@@ -55,16 +46,9 @@ namespace Character.Animation
     /// 안에서 이동을 멈춤) 이 경우 IsMoving도 강제로 true를 만들지 않는다(제자리인데 Run이
     /// 재생되는 "제자리 뜀"을 피하기 위함) - 자연히 Idle로 떨어진다.
     /// </summary>
-    [RequireComponent(typeof(Animator))]
-    [RequireComponent(typeof(CharacterMover))]
-    public sealed class ShieldBearerAnimationController : MonoBehaviour, ITickable
+    public sealed class ShieldBearerAnimationController : UnitAnimationControllerBase
     {
-        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
         private static readonly int IsInRangeHash = Animator.StringToHash("IsInRange");
-        private static readonly int IsAttackingHash = Animator.StringToHash("IsAttacking");
-
-        [SerializeField]
-        private float maxAttackHoldSeconds = 1.2f;
 
         /// <summary>
         /// Attack1 클립 실제 길이(초) - 이 시간이 지나면 Attack1 종료 타격을 직접 적용한다.
@@ -79,99 +63,52 @@ namespace Character.Animation
         [SerializeField]
         private float guardDamageReductionPercent = 0.5f;
 
-        private Animator _animator;
-        private CharacterMover _mover;
-        private Attacker _attacker;
         private CharacterStatsProvider _statsProvider;
-        private SpriteRenderer _spriteRenderer;
         private ShieldGuard _shieldGuard;
 
-        private bool _isAttacking;
         private bool _firstHitDealt;
         private bool _isGuarding;
-        private float _attackElapsed;
 
-        private void Awake()
+        protected override void Awake()
         {
-            _animator = GetComponent<Animator>();
-            _mover = GetComponent<CharacterMover>();
-            _attacker = GetComponent<Attacker>();
+            base.Awake();
             _statsProvider = GetComponent<CharacterStatsProvider>();
-            _spriteRenderer = GetComponent<SpriteRenderer>();
             _shieldGuard = GetComponent<ShieldGuard>();
         }
 
-        private void OnEnable()
+        protected override void OnEnable()
         {
-            TickerRegistration.Register(this);
-
             // 풀에서 재사용되는 인스턴스는 Awake가 다시 실행되지 않아 이전 생의 _isGuarding이
             // 그대로 남아있을 수 있다 - false로 리셋해, 스폰 직후 첫 Tick에서 실제 상태와 값이
             // 우연히 같아 보여도(둘 다 true) 반드시 한 번은 실제로 스탯을 적용하도록 한다.
             _isGuarding = false;
-
-            if (_attacker != null)
-            {
-                _attacker.AttackWindupStarted += OnWindupStarted;
-                _attacker.AttackPerformed += OnAttackPerformed;
-            }
+            base.OnEnable();
         }
 
-        private void OnDisable()
+        protected override void OnDisable()
         {
-            TickerRegistration.Unregister(this);
-
-            if (_attacker != null)
-            {
-                _attacker.AttackWindupStarted -= OnWindupStarted;
-                _attacker.AttackPerformed -= OnAttackPerformed;
-            }
-
-            EndAttack();
+            base.OnDisable();
             SetGuarding(false);
         }
 
-        private void OnWindupStarted(Health target)
+        protected override void OnAttackStarted()
         {
-            _animator.SetBool(IsAttackingHash, true);
-            _mover.enabled = false;
-            _isAttacking = true;
             _firstHitDealt = false;
-            _attackElapsed = 0f;
         }
 
-        private void OnAttackPerformed()
+        protected override void OnAttackTick(float attackElapsed)
         {
-            EndAttack();
-        }
-
-        private void EndAttack()
-        {
-            _animator.SetBool(IsAttackingHash, false);
-            _mover.enabled = true;
-            _isAttacking = false;
-        }
-
-        void ITickable.Tick(float deltaTime)
-        {
-            if (_isAttacking)
+            if (!_firstHitDealt && attackElapsed >= attack1Duration)
             {
-                _attackElapsed += deltaTime;
-
-                if (!_firstHitDealt && _attackElapsed >= attack1Duration)
-                {
-                    DealFirstHit();
-                    _firstHitDealt = true;
-                }
-
-                if (_attackElapsed >= maxAttackHoldSeconds)
-                {
-                    EndAttack();
-                }
+                DealFirstHit();
+                _firstHitDealt = true;
             }
+        }
 
-            bool hasTarget = _mover.Target != null;
-            float distance = hasTarget ? Vector3.Distance(transform.position, _mover.Target.position) : 0f;
+        protected override void TickMovement(float deltaTime)
+        {
+            bool hasTarget = Mover.Target != null;
+            float distance = hasTarget ? Vector3.Distance(transform.position, Mover.Target.position) : 0f;
 
             // StoppingDistance는 실제 전투 사거리(EnemyTracker 등이 AttackRange로 설정)뿐 아니라
             // 순수 이동 목적(화면 복귀/후퇴/집결 등, 전부 0으로 설정 - Combat.RangedKiter 등 전체
@@ -180,21 +117,20 @@ namespace Character.Animation
             // 않으면 스테이지 시작 직후 화면 밖에서 복귀하는 도중(ScreenReturnAnchor, StoppingDistance
             // 0) 그 지점에 도착할 때마다 distance<=0이 참이 되어 근처에 적이 전혀 없는데도 Guard
             // 자세를 취하는 것처럼 보인다(실사용 중 발견).
-            bool isPhysicallyInRange = hasTarget && _mover.StoppingDistance > 0f && distance <= _mover.StoppingDistance;
+            bool isPhysicallyInRange = hasTarget && Mover.StoppingDistance > 0f && distance <= Mover.StoppingDistance;
             bool hasShield = _shieldGuard == null || _shieldGuard.HasShield;
             bool isInRange = isPhysicallyInRange && hasShield;
             bool isMoving = hasTarget && !isPhysicallyInRange;
 
-            _animator.SetBool(IsMovingHash, isMoving);
-            _animator.SetBool(IsInRangeHash, isInRange);
-            UpdateFacing();
+            Anim.SetBool(IsMovingHash, isMoving);
+            Anim.SetBool(IsInRangeHash, isInRange);
 
             // 애니메이터가 Guard로 전이하는 조건(IsInRange && !IsAttacking)과 정확히 동일한
             // 조건으로 판정한다 - 별도로 GetCurrentAnimatorStateInfo를 읽지 않는 이유는, 상태
             // 전이 도중(크로스페이드)에는 그 값이 소스/목적지 어느 쪽을 가리킬지 모호해지기
             // 때문이다(실사용 중 확인). 여기서 쓰는 두 bool은 애니메이터에 넘기는 것과 완전히
             // 같은 값이라 항상 애니메이션과 정확히 일치한다.
-            SetGuarding(isInRange && !_isAttacking);
+            SetGuarding(isInRange && !IsAttacking);
         }
 
         private void SetGuarding(bool isGuarding)
@@ -229,21 +165,6 @@ namespace Character.Animation
             float damage = isCritical ? stats.AttackPower * (1f + stats.CriticalDamageMultiplier) : stats.AttackPower;
 
             target.TakeDamage(damage, isCritical);
-        }
-
-        private void UpdateFacing()
-        {
-            if (_mover.Target == null)
-            {
-                return;
-            }
-
-            float dx = _mover.Target.position.x - transform.position.x;
-
-            if (Mathf.Abs(dx) > 0.01f)
-            {
-                _spriteRenderer.flipX = dx < 0f;
-            }
         }
     }
 }

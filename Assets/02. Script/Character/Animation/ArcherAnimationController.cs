@@ -1,129 +1,28 @@
-using Character;
-using Combat;
-using Core;
 using UnityEngine;
 
 namespace Character.Animation
 {
     /// <summary>
-    /// 아처(궁병) 몸 스프라이트 시트 애니메이션(Idle/Run/Shoot)을 기존 신호만으로 재생한다 - 새
-    /// 게임플레이 로직을 추가하지 않고, Combat.MonsterMarchingTracker가 이미 쓰는 것과 동일한
-    /// "Target까지 거리가 StoppingDistance보다 크면 이동 중" 공식으로 IsMoving을, 같은 오브젝트의
-    /// Combat.Attacker가 이미 발행하는 AttackWindupStarted/AttackPerformed(RangedAttackTelegraph가
-    /// 예고선에 쓰는 것과 동일한 이벤트, EventBus 아님 - 같은 캐릭터 위 컴포넌트 간 직접 알림)로
-    /// IsShooting을 구동한다.
-    ///
-    /// AttackPerformed가 항상 뒤따라온다는 보장은 없다 - Combat.Attacker.Tick()은 예비동작 발행
-    /// 이후 실제 발사 시점에 다시 한번 독립적으로 타겟을 찾는데, 그 사이 타겟이 죽거나 사거리를
-    /// 벗어나면 AttackPerformed를 아예 발행하지 않고 조용히 다음 주기로 넘어간다(기존 Attacker
-    /// 동작). IsShooting이 계속 true로 남으면 Shoot 클립(논루프)이 끝난 마지막 프레임에 영원히
-    /// 멈춰버린다(실사용 중 발견 - Character.SpearmanAnimationController가 겪은 것과 같은 원인).
-    /// maxShootHoldSeconds 타임아웃으로 방어한다.
-    ///
-    /// 스프라이트 시트가 기본적으로 오른쪽을 보고 그려져 있어서, Target이 왼쪽에 있으면
-    /// SpriteRenderer.flipX로 좌우 반전한다. Target이 없는 동안은 마지막으로 바라보던 방향을
-    /// 그대로 유지한다(매 틱 되돌릴 근거가 없다).
+    /// 아처(궁병) 몸 스프라이트 시트 애니메이션(Idle/Run/Shoot)을 재생한다. 공통 로직(컴포넌트 캐싱,
+    /// 공격 예비동작~종료 라이프사이클, 좌우 반전)은 UnitAnimationControllerBase가 담당한다 -
+    /// 다만 애니메이터의 공격 상태 bool 이름이 다른 병종의 "IsAttacking"과 달리 "IsShooting"이라
+    /// AttackAnimatorBoolHash를 오버라이드하고, 활을 쏘는 동안 CharacterMover를 멈추지 않는다
+    /// (PauseMovementDuringAttack=false로 고정).
     /// </summary>
-    [RequireComponent(typeof(Animator))]
-    [RequireComponent(typeof(CharacterMover))]
-    public sealed class ArcherAnimationController : MonoBehaviour, ITickable
+    public sealed class ArcherAnimationController : UnitAnimationControllerBase
     {
-        private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
         private static readonly int IsShootingHash = Animator.StringToHash("IsShooting");
 
-        [SerializeField]
-        private float maxShootHoldSeconds = 1.2f;
+        protected override bool PauseMovementDuringAttack => false;
 
-        private Animator _animator;
-        private CharacterMover _mover;
-        private Attacker _attacker;
-        private SpriteRenderer _spriteRenderer;
+        protected override int AttackAnimatorBoolHash => IsShootingHash;
 
-        private bool _isShooting;
-        private float _shootElapsed;
-
-        private void Awake()
+        protected override void TickMovement(float deltaTime)
         {
-            _animator = GetComponent<Animator>();
-            _mover = GetComponent<CharacterMover>();
-            _attacker = GetComponent<Attacker>();
-            _spriteRenderer = GetComponent<SpriteRenderer>();
-        }
+            bool isMoving = Mover.Target != null
+                && Vector3.Distance(transform.position, Mover.Target.position) > Mover.StoppingDistance;
 
-        private void OnEnable()
-        {
-            TickerRegistration.Register(this);
-
-            if (_attacker != null)
-            {
-                _attacker.AttackWindupStarted += OnWindupStarted;
-                _attacker.AttackPerformed += OnAttackPerformed;
-            }
-        }
-
-        private void OnDisable()
-        {
-            TickerRegistration.Unregister(this);
-
-            if (_attacker != null)
-            {
-                _attacker.AttackWindupStarted -= OnWindupStarted;
-                _attacker.AttackPerformed -= OnAttackPerformed;
-            }
-
-            EndShoot();
-        }
-
-        private void OnWindupStarted(Health target)
-        {
-            _animator.SetBool(IsShootingHash, true);
-            _isShooting = true;
-            _shootElapsed = 0f;
-        }
-
-        private void OnAttackPerformed()
-        {
-            EndShoot();
-        }
-
-        private void EndShoot()
-        {
-            _animator.SetBool(IsShootingHash, false);
-            _isShooting = false;
-        }
-
-        void ITickable.Tick(float deltaTime)
-        {
-            if (_isShooting)
-            {
-                _shootElapsed += deltaTime;
-
-                if (_shootElapsed >= maxShootHoldSeconds)
-                {
-                    EndShoot();
-                }
-            }
-
-            bool isMoving = _mover.Target != null
-                && Vector3.Distance(transform.position, _mover.Target.position) > _mover.StoppingDistance;
-
-            _animator.SetBool(IsMovingHash, isMoving);
-            UpdateFacing();
-        }
-
-        private void UpdateFacing()
-        {
-            if (_mover.Target == null)
-            {
-                return;
-            }
-
-            float dx = _mover.Target.position.x - transform.position.x;
-
-            if (Mathf.Abs(dx) > 0.01f)
-            {
-                _spriteRenderer.flipX = dx < 0f;
-            }
+            Anim.SetBool(IsMovingHash, isMoving);
         }
     }
 }
