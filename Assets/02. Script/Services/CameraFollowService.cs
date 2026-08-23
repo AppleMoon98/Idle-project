@@ -17,6 +17,18 @@ namespace Services
     {
         private const float FollowThresholdEpsilon = 0.0001f;
 
+        /// <summary>
+        /// 세로 뷰(2×orthographicSize)는 기기와 무관하게 항상 고정이지만, 가로 뷰는
+        /// orthographicSize×Camera.aspect라 화면비가 넓은(좌우로 넓은) 기기일수록 최광각에서
+        /// 더 넓은 가로 폭이 그대로 노출된다 - 배경 아트가 덮은 폭을 넘어서면 맵 바깥이,
+        /// 스폰/방황 좌표(GetRandomPointWithinBounds 등)도 더 멀리서 뽑혀 화면에 그대로
+        /// 보일 수 있다. 실제 안드로이드/iOS 폰 대부분은 9:16(0.5625)보다 좁아(세로로 더 김)
+        /// 이 상한 안쪽이고, 이보다 넓은 기기(태블릿 등 예외 케이스)에서만 아래
+        /// ApplyAspectPillarbox가 카메라 Rect를 좁혀 좌우에 여백을 준다 - Screen Space Overlay
+        /// Canvas는 카메라 Rect와 무관하게 항상 전체 화면을 쓰므로 UI는 이 영향을 받지 않는다.
+        /// </summary>
+        private const float MaxSupportedAspect = 0.5625f;
+
         private readonly Transform _playerTransform;
         private readonly CameraZoomSliderUI _zoomSlider;
 
@@ -24,6 +36,8 @@ namespace Services
         private Camera _camera;
         private Vector3 _homeLocalPosition;
         private Vector3? _overrideTargetPosition;
+        private int _lastPillarboxScreenWidth;
+        private int _lastPillarboxScreenHeight;
 
         /// <summary>
         /// 카메라의 원래 고정 위치(경계 사각형의 중심). Camera.main이 루트(부모 없음)라는 기존
@@ -45,6 +59,7 @@ namespace Services
             {
                 _cameraTransform = _camera.transform;
                 _homeLocalPosition = _cameraTransform.localPosition;
+                ApplyAspectPillarbox();
             }
 
             TickerRegistration.Register(this);
@@ -117,6 +132,11 @@ namespace Services
                 return;
             }
 
+            if (Screen.width != _lastPillarboxScreenWidth || Screen.height != _lastPillarboxScreenHeight)
+            {
+                ApplyAspectPillarbox();
+            }
+
             Vector3 target = ComputeTargetLocalPosition();
 
             Vector3 shakeOffset = Vector3.zero;
@@ -126,6 +146,35 @@ namespace Services
             }
 
             _cameraTransform.localPosition = target + shakeOffset;
+        }
+
+        /// <summary>
+        /// 실제 화면비가 MaxSupportedAspect보다 넓으면 카메라 Rect를 좌우로 좁혀(필러박스) 그
+        /// 이상 가로로 세계가 노출되지 않게 한다 - 이후 Camera.aspect(읽기 전용, Rect에서
+        /// 자동 재계산됨)를 쓰는 GetWorldBoundsHalfExtent 등 모든 계산이 이 클램프된 값을
+        /// 자연히 물려받는다. 상한 이내(실제 폰 대부분)에서는 Rect를 항상 전체 화면으로 되돌려
+        /// 기존과 동일한 풀스크린 동작을 유지한다.
+        /// </summary>
+        private void ApplyAspectPillarbox()
+        {
+            _lastPillarboxScreenWidth = Screen.width;
+            _lastPillarboxScreenHeight = Screen.height;
+
+            if (Screen.width <= 0 || Screen.height <= 0)
+            {
+                return;
+            }
+
+            float actualAspect = (float)Screen.width / Screen.height;
+
+            if (actualAspect <= MaxSupportedAspect)
+            {
+                _camera.rect = new Rect(0f, 0f, 1f, 1f);
+                return;
+            }
+
+            float widthScale = MaxSupportedAspect / actualAspect;
+            _camera.rect = new Rect((1f - widthScale) * 0.5f, 0f, widthScale, 1f);
         }
 
         private Vector3 ComputeTargetLocalPosition()
