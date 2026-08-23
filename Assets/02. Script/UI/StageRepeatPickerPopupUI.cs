@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using Core;
 using Stage;
+using UI.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -44,7 +45,10 @@ namespace UI
         }
 
         /// <summary>
-        /// 후보 스테이지 목록을 새로 채우고 팝업을 연다.
+        /// 후보 스테이지 목록을 새로 채우고 팝업을 연다. 아직 한 번도 클리어한 스테이지가 없으면
+        /// (예: 1-1을 아직 못 깬 새 세이브) 고를 항목 자체가 없으므로 팝업을 열지 않고 토스트로만
+        /// 안내한다 - 예전엔 이 경우에도 팝업이 텅 빈 채로 열려 아무것도 못 고르고 닫기만 해야
+        /// 했다(실사용 중 발견).
         /// </summary>
         public void Open()
         {
@@ -55,16 +59,23 @@ namespace UI
 
             _spawnedRows.Clear();
 
-            if (stageController != null)
-            {
-                foreach (StageSO stage in stageController.GetRepeatableStages(stageWindowSize))
-                {
-                    StageSO captured = stage;
-                    SoldierPickerRowUI row = Instantiate(rowPrefab, rowContainer);
-                    row.Initialize($"스테이지 {stage.Chapter}-{stage.StageNumber}", () => OnPicked(captured));
+            StageSO[] repeatableStages = stageController != null
+                ? stageController.GetRepeatableStages(stageWindowSize)
+                : System.Array.Empty<StageSO>();
 
-                    _spawnedRows.Add(row);
-                }
+            if (repeatableStages.Length == 0)
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("클리어한 스테이지가 하나도 없습니다."));
+                return;
+            }
+
+            foreach (StageSO stage in repeatableStages)
+            {
+                StageSO captured = stage;
+                SoldierPickerRowUI row = Instantiate(rowPrefab, rowContainer);
+                row.Initialize($"스테이지 {stage.Chapter}-{stage.StageNumber}", () => OnPicked(captured));
+
+                _spawnedRows.Add(row);
             }
 
             popupRoot.SetActive(true);
