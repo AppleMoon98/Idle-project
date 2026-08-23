@@ -1,6 +1,7 @@
 using Stage;
 using War;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace Dungeon
 {
@@ -22,8 +23,9 @@ namespace Dungeon
         [SerializeField]
         private float timeLimitSeconds = 180f;
 
+        [FormerlySerializedAs("ticketsPerClearPerStage")]
         [SerializeField]
-        private int ticketsPerClearPerStage = 5;
+        private int ticketsPerClear = 30;
 
         [SerializeField]
         private StageCatalogSO stageCatalog;
@@ -55,9 +57,10 @@ namespace Dungeon
         public float TimeLimitSeconds => timeLimitSeconds;
 
         /// <summary>
-        /// 클리어 시 지급하는 병사 뽑기 재료 = ticketsPerClearPerStage × 선택한 단계.
+        /// 클리어 시 지급하는 병사 뽑기 재료(소환권) 고정 수량 — 선택한 단계와 무관하게 항상 이
+        /// 값만큼 지급한다(과거엔 단계에 비례해 지급했으나, 고정 지급으로 변경됨).
         /// </summary>
-        public int TicketsPerClearPerStage => ticketsPerClearPerStage;
+        public int TicketsPerClear => ticketsPerClear;
 
         /// <summary>
         /// 선택한 단계 N의 기준 스테이지(챕터 N의 -40 스테이지)를 반환한다. 존재하지 않으면

@@ -18,7 +18,7 @@ MonoBehaviour:
   minDistanceBetweenZones: 4
   timeLimitSeconds: 180
   cavalrySpawnInterval: 4
-  ticketsPerClearPerStage: 5
+  ticketsPerClear: 30
   extraStrengthMultiplier: 1.5
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
   difficultyConfig: {fileID: 11400000, guid: e85792491420be54db002961e13cee57, type: 2}

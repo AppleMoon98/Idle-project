@@ -320,7 +320,7 @@ namespace Dungeon
             StopFighting();
             ReleaseZones();
 
-            int ticketsEarned = config.TicketsPerClearPerStage * _stageNumber;
+            int ticketsEarned = config.TicketsPerClear;
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierTicketService ticketService))
             {
