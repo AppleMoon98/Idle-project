@@ -15,8 +15,9 @@ MonoBehaviour:
   maxHealth: 500
   attackPower: 70
   attackRange: 2.5
-  moveSpeed: 1
+  moveSpeed: 2
   attackInterval: 2
   criticalChance: 0
   criticalDamageMultiplier: 0.5
   damageReduction: 0
+  damageReductionPercent: 0

@@ -310,7 +310,7 @@ MonoBehaviour:
     m_Bits: 256
   chargeStartDistance: 5
   chargeStartSpeed: 3
-  maxChargeSpeed: 9
+  maxChargeSpeed: 10
   baseTurnRateDegreesPerSecond: 180
   minTurnRateDegreesPerSecond: 20
   turnRatePenaltyPerSpeed: 25
@@ -366,6 +366,9 @@ MonoBehaviour:
   splashLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  explosionPrefab: {fileID: 0}
+  explosionPoolCapacity: 2
+  explosionPoolMaxSize: 4
 --- !u!95 &7127497247695331611
 Animator:
   serializedVersion: 7
