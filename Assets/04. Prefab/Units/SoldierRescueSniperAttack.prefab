@@ -249,7 +249,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Dungeon.SoldierRescueSniperAttack
   line: {fileID: 0}
   arrowSprite: {fileID: 3060764423244008464}
-  telegraphDuration: 2
+  telegraphDuration: 3
   projectileSpeed: 40
   hitRadius: 0.5
   knockbackDuration: 0.4

@@ -18,6 +18,10 @@ namespace Dungeon
     /// 명중, 그 순간의 진행 방향 그대로 화면(줌 최소 기준 고정 범위) 가장자리까지 넉백시킨다.
     /// arrowSprite를 프리팹에 연결하지 않은 채로 두면(방어적 폴백) 예전처럼 발사 단계도 붉은
     /// LineRenderer 트레일로 표시된다.
+    ///
+    /// 경고선은 남은 시간(blinkStartRemainingSeconds, 기본 1초) 안으로 들어오기 전까지는 서서히
+    /// 짙어지는 페이드로(TickFade), 그 이후엔 빠른 깜빡임으로(TickBlink) 전환돼 명중이 임박했음을
+    /// 더 급박하게 알린다.
     /// </summary>
     [RequireComponent(typeof(LineRenderer))]
     public sealed class SoldierRescueSniperAttack : MonoBehaviour, ITickable, IPoolable
@@ -39,7 +43,26 @@ namespace Dungeon
         private SpriteRenderer arrowSprite;
 
         [SerializeField]
-        private float telegraphDuration = 2f;
+        private float telegraphDuration = 3f;
+
+        /// <summary>
+        /// 경고 남은 시간이 이 값 이하로 줄어들면, 서서히 짙어지던 페이드 대신 빠른 깜빡임으로
+        /// 전환한다 - 명중까지 얼마 안 남았다는 걸 더 급박하게 알리기 위함.
+        /// </summary>
+        [SerializeField]
+        private float blinkStartRemainingSeconds = 1f;
+
+        /// <summary>
+        /// 깜빡임 한 번의 간격(초) - 이 시간마다 켜짐/꺼짐이 토글된다. 작을수록 더 빠르게 깜빡인다.
+        /// </summary>
+        [SerializeField]
+        private float blinkIntervalSeconds = 0.08f;
+
+        [SerializeField]
+        private float blinkOnAlpha = 1f;
+
+        [SerializeField]
+        private float blinkOffAlpha = 0.1f;
 
         [SerializeField]
         private float projectileSpeed = 20f;
@@ -171,16 +194,54 @@ namespace Dungeon
         {
             _remainingWarning -= deltaTime;
 
-            float progress = telegraphDuration > 0f ? 1f - Mathf.Clamp01(_remainingWarning / telegraphDuration) : 1f;
-            Color color = warningColor;
-            color.a = Mathf.Lerp(warningColor.a, 0.75f, progress);
-            line.startColor = color;
-            line.endColor = color;
+            if (_remainingWarning <= blinkStartRemainingSeconds)
+            {
+                TickBlink();
+            }
+            else
+            {
+                TickFade();
+            }
 
             if (_remainingWarning <= 0f)
             {
                 BeginFlying();
             }
+        }
+
+        /// <summary>
+        /// 경고 시작~블링크 전환 시점까지, 점점 짙어지는 페이드(기존 동작 그대로) - 블링크 구간
+        /// 길이만큼을 뺀 나머지 구간에서 0→1로 진행하므로, 블링크가 시작되는 순간 알파가 정확히
+        /// 0.75(블링크의 켜짐/꺼짐 사이 자연스러운 시작점)에 도달해 있다.
+        /// </summary>
+        private void TickFade()
+        {
+            float fadeDuration = telegraphDuration - blinkStartRemainingSeconds;
+            float progress = fadeDuration > 0f
+                ? 1f - Mathf.Clamp01((_remainingWarning - blinkStartRemainingSeconds) / fadeDuration)
+                : 1f;
+
+            Color color = warningColor;
+            color.a = Mathf.Lerp(warningColor.a, 0.75f, progress);
+            line.startColor = color;
+            line.endColor = color;
+        }
+
+        /// <summary>
+        /// 남은 blinkIntervalSeconds마다 켜짐/꺼짐 알파를 토글한다 - 실시간(Time.time)이 아니라
+        /// 남은 경고 시간(_remainingWarning) 기준이라, deltaTime이 큰 프레임에도 항상 결정적으로
+        /// 같은 결과를 낸다.
+        /// </summary>
+        private void TickBlink()
+        {
+            float elapsedSinceBlinkStart = blinkStartRemainingSeconds - _remainingWarning;
+            bool isOn = blinkIntervalSeconds > 0f
+                && Mathf.FloorToInt(elapsedSinceBlinkStart / blinkIntervalSeconds) % 2 == 0;
+
+            Color color = warningColor;
+            color.a = isOn ? blinkOnAlpha : blinkOffAlpha;
+            line.startColor = color;
+            line.endColor = color;
         }
 
         private void BeginFlying()
