@@ -20,6 +20,9 @@ namespace Rank
         private int maxDeployableSquads;
 
         [SerializeField]
+        private int maxDeploymentCost;
+
+        [SerializeField]
         private GameObject bossPrefab;
 
         [SerializeField]
@@ -44,6 +47,13 @@ namespace Rank
         /// 담당한다(이 값 × SlotsPerSquad).
         /// </summary>
         public int MaxDeployableSquads => maxDeployableSquads;
+
+        /// <summary>
+        /// 이 랭크에서 배치 가능한 전체 코스트 예산(Soldier.SoldierDeploymentService.TryDeploy가
+        /// 소모하는, Soldier.SoldierSO.Cost 합의 상한). 랭크가 오를수록 늘어난다 - 예: 시골 소년
+        /// 10, 병사 20, 십인 대장 30.
+        /// </summary>
+        public int MaxDeploymentCost => maxDeploymentCost;
 
         /// <summary>
         /// 이 랭크로 승급하기 위해 처치해야 하는 보스. null이면(콘텐츠 미비) 조건을 만족해도

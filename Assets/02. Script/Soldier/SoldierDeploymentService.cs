@@ -48,14 +48,6 @@ namespace Soldier
 
         public const int SquadCount = 6;
 
-        /// <summary>
-        /// 전체 배치 가능한 코스트 총합 상한 — 부대 단위 인원 상한(과거 MaxDeployedPerSquad)을
-        /// 대체한다. 배치는 더 이상 부대별로 관리하지 않고, 병과(Soldier.SoldierSO.Cost)별 코스트
-        /// 합이 이 값을 넘지 않는 한 자유롭게(어느 슬롯이든) 배치할 수 있다 — 플레이스홀더 값(20),
-        /// 추후 랭크 등으로 확장될 예정.
-        /// </summary>
-        public const int MaxDeploymentCost = 20;
-
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
         private readonly RankService _rankService;
@@ -76,6 +68,15 @@ namespace Soldier
         {
             int squads = _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeployableSquads : 0;
             return squads * SlotsPerSquad;
+        }
+
+        /// <summary>
+        /// 현재 랭크에서 배치 가능한 전체 코스트 예산(Rank.RankSO.MaxDeploymentCost) — 랭크가
+        /// 오를수록 늘어난다(예: 시골 소년 10, 병사 20, 십인 대장 30). 랭크 정보가 없으면 0.
+        /// </summary>
+        public int GetMaxDeploymentCost()
+        {
+            return _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeploymentCost : 0;
         }
 
         public void Initialize()
@@ -137,7 +138,7 @@ namespace Soldier
         }
 
         /// <summary>
-        /// instanceId 유닛을 코스트 예산(MaxDeploymentCost) 안에서 자동으로 빈 슬롯을 찾아
+        /// instanceId 유닛을 코스트 예산(GetMaxDeploymentCost) 안에서 자동으로 빈 슬롯을 찾아
         /// 배치한다("부대 편성" 팝업 하단의 보유 병사 카드를 탭했을 때 쓰는 진입점 — 더 이상
         /// 플레이어가 슬롯/부대를 직접 고르지 않는다). 이미 배치돼 있으면 AlreadyDeployed, 로스터에
         /// 없으면 NotInRoster, 열린 슬롯이 하나도 없으면 NoFreeSlot, 코스트 예산을 넘기면
@@ -175,7 +176,7 @@ namespace Soldier
                 return false;
             }
 
-            if (GetTotalDeployedCost() + owned.Definition.Cost > MaxDeploymentCost)
+            if (GetTotalDeployedCost() + owned.Definition.Cost > GetMaxDeploymentCost())
             {
                 reason = DeploymentFailureReason.CostExceeded;
                 return false;

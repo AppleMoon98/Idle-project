@@ -71,8 +71,9 @@ namespace Soldier
 
         /// <summary>
         /// 배치 코스트(병과별 고정값, 등급과 무관 — 같은 병과의 6개 등급은 전부 동일한 Cost를
-        /// 갖는다). Soldier.SoldierDeploymentService.MaxDeploymentCost 예산 안에서만 배치할 수
-        /// 있다. 플레이스홀더 밸런스 수치(나중 튜닝 과제) — 기본값 1.
+        /// 갖는다). 현재 랭크의 예산(Rank.RankSO.MaxDeploymentCost, Soldier.SoldierDeploymentService.
+        /// GetMaxDeploymentCost) 안에서만 배치할 수 있다. 플레이스홀더 밸런스 수치(나중 튜닝 과제) —
+        /// 기본값 1.
         /// </summary>
         public int Cost => cost;
     }

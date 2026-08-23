@@ -41,13 +41,15 @@ namespace UI
             }
 
             int usedCost = 0;
+            int maxCost = 0;
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierDeploymentService deployment))
             {
                 usedCost = deployment.GetTotalDeployedCost();
+                maxCost = deployment.GetMaxDeploymentCost();
             }
 
-            countText.text = $"{usedCost}/{SoldierDeploymentService.MaxDeploymentCost}";
+            countText.text = $"{usedCost}/{maxCost}";
         }
     }
 }

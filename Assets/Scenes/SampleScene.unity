@@ -12352,7 +12352,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 6c5235554f163c443b84d01c531a30d2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UI.SoldierPanelGateUI
-  requiredRank: {fileID: 11400000, guid: 5b34ed3fcfbdffc40bb74038bf0e39a3, type: 2}
+  requiredRank: {fileID: 0}
   lockedView: {fileID: 1672010137}
   lockedMessageText: {fileID: 1480148174}
   unlockedContent:
@@ -77299,7 +77299,7 @@ MonoBehaviour:
   - slotIndex: 117
   - slotIndex: 118
   - slotIndex: 119
-  requiredRank: {fileID: 11400000, guid: 5b34ed3fcfbdffc40bb74038bf0e39a3, type: 2}
+  requiredRank: {fileID: 0}
   playerStats: {fileID: 762544239}
   raidCoordinator: {fileID: 1606090363}
 --- !u!4 &1606090362
