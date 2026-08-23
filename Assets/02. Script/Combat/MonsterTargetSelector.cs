@@ -82,7 +82,7 @@ namespace Combat
         }
 
         /// <summary>
-        /// 카메라 최광각 고정 범위(줌 배율과 무관) 안의 대상만 이동 목표로 고려한다 — Combat.CavalryCharge와
+        /// 카메라 최광각 고정 범위(줌 배율과 무관) 안의 대상만 이동 목표로 고려한다 — Combat.BearCharge와
         /// 같은 이유로, 범위 밖 대상까지 detectionRange만 보고 잡으면 화면 밖의 먼 대상에 반응이
         /// 늦어 보이는 일관성 문제가 생긴다. CameraFollowService를 못 구했을 때만(방어적 폴백)
         /// 기존 raw-radius 스캔으로 대체한다.

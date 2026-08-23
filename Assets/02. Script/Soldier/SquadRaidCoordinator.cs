@@ -20,13 +20,13 @@ namespace Soldier
         private StageController stageController;
 
         [SerializeField]
-        private float leftRightRaidDelayCavalry = 4f;
+        private float leftRightRaidDelayBear = 4f;
 
         [SerializeField]
         private float leftRightRaidDelayOther = 8f;
 
         [SerializeField]
-        private float rearRaidDelayCavalry = 8f;
+        private float rearRaidDelayBear = 8f;
 
         [SerializeField]
         private float rearRaidDelayOther = 16f;
@@ -94,7 +94,7 @@ namespace Soldier
                 return;
             }
 
-            bool allCavalry = true;
+            bool allBear = true;
 
             foreach (GameObject member in members)
             {
@@ -103,14 +103,14 @@ namespace Soldier
                     continue;
                 }
 
-                if (member.GetComponent<CavalryCharge>() == null)
+                if (member.GetComponent<BearCharge>() == null)
                 {
-                    allCavalry = false;
+                    allBear = false;
                     break;
                 }
             }
 
-            _remaining[squadIndex] = GetDelay(tactic, allCavalry);
+            _remaining[squadIndex] = GetDelay(tactic, allBear);
             _isPending[squadIndex] = true;
 
             foreach (GameObject member in members)
@@ -122,12 +122,12 @@ namespace Soldier
             }
         }
 
-        private float GetDelay(SquadTacticType tactic, bool allCavalry)
+        private float GetDelay(SquadTacticType tactic, bool allBear)
         {
             return tactic switch
             {
-                SquadTacticType.LeftRightRaid => allCavalry ? leftRightRaidDelayCavalry : leftRightRaidDelayOther,
-                SquadTacticType.RearRaid => allCavalry ? rearRaidDelayCavalry : rearRaidDelayOther,
+                SquadTacticType.LeftRightRaid => allBear ? leftRightRaidDelayBear : leftRightRaidDelayOther,
+                SquadTacticType.RearRaid => allBear ? rearRaidDelayBear : rearRaidDelayOther,
                 _ => 0f,
             };
         }

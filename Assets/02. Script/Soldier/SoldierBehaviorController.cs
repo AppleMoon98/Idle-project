@@ -45,7 +45,7 @@ namespace Soldier
         private CharacterMover _mover;
         private EnemyTracker _enemyTracker;
         private RangedAttackBehavior _rangedAttack;
-        private CavalryCharge _cavalryCharge;
+        private BearCharge _bearCharge;
         private FormationFollower _formationFollower;
         private RangedKiter _formationKiter;
         private SoldierRosterService _roster;
@@ -65,7 +65,7 @@ namespace Soldier
             _mover = GetComponent<CharacterMover>();
             _enemyTracker = GetComponent<EnemyTracker>();
             _rangedAttack = GetComponent<RangedAttackBehavior>();
-            _cavalryCharge = GetComponent<CavalryCharge>();
+            _bearCharge = GetComponent<BearCharge>();
             _formationFollower = GetComponent<FormationFollower>();
             _formationKiter = GetComponent<RangedKiter>();
             GameBootstrapper.Services?.TryGet(out _roster);
@@ -115,7 +115,7 @@ namespace Soldier
         /// <summary>
         /// 이 유닛이 어떤 로스터 유닛(instanceId)이고, 후퇴 시 어디로 갈지(retreatPoint)를 주입하고
         /// 즉시 한 번 평가한다. 스폰 직후 SoldierSpawner/SoldierRespawner가 호출한다.
-        /// CavalryCharge/FormationFollower는 "탐지 범위 안에 아무 대상(몬스터)도 없을 때의
+        /// BearCharge/FormationFollower는 "탐지 범위 안에 아무 대상(몬스터)도 없을 때의
         /// 기본 위협"으로 플레이어를 주입받도록 설계돼 있지만(몬스터 쪽 MonsterSpawner.SpawnOne이
         /// IMonsterMovementInitializer.Initialize(playerTransform)를 호출하는 것과 같은 코드 형태),
         /// 그건 몬스터 입장(적이 없으면 플레이어를 향해 간다)에서만 의미가 있다. 병사에게 그대로
@@ -142,9 +142,9 @@ namespace Soldier
             _retreatPoint = retreatPoint;
             _elapsed = 0f;
 
-            if (_cavalryCharge != null)
+            if (_bearCharge != null)
             {
-                _cavalryCharge.Initialize(null);
+                _bearCharge.Initialize(null);
             }
 
             if (_formationFollower != null)
@@ -257,14 +257,14 @@ namespace Soldier
             switch (mode)
             {
                 case BehaviorMode.Engage:
-                    if (_cavalryCharge != null)
+                    if (_bearCharge != null)
                     {
                         if (_enemyTracker != null)
                         {
                             _enemyTracker.enabled = false;
                         }
 
-                        _cavalryCharge.enabled = true;
+                        _bearCharge.enabled = true;
                     }
                     else if (_formationFollower != null && _rangedAttack != null)
                     {
@@ -347,9 +347,9 @@ namespace Soldier
                 _enemyTracker.enabled = false;
             }
 
-            if (_cavalryCharge != null)
+            if (_bearCharge != null)
             {
-                _cavalryCharge.enabled = false;
+                _bearCharge.enabled = false;
             }
 
             if (_formationFollower != null)

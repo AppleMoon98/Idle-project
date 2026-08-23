@@ -25,7 +25,7 @@ namespace Combat
         /// <summary>
         /// 공격 사이클이 끝날 때마다 발행된다(줌 범위 밖이라 통째로 건너뛴 경우는 제외) - 실제로
         /// 대상을 맞혔는지와 무관하게 항상 한 번 뜬다. AttackWindupStarted로 무언가를 표시/재생
-        /// 중인 구독자(RangedAttackTelegraph의 예고선, Character.ArcherAnimationController/
+        /// 중인 구독자(RangedAttackTelegraph의 예고선, Character.Animation.ArcherAnimationController/
         /// SpearmanAnimationController의 Shoot/Attack 애니메이션)가 "이번 사이클은 끝났다"는
         /// 확실한 종료 신호를 받아야 하기 때문이다 - 예비동작 시점과 실제 발사 시점에 독립적으로
         /// 타겟을 다시 찾다 보니(TryFireWindup/Tick 참고) 그 사이 타겟이 죽거나 사거리를 벗어나

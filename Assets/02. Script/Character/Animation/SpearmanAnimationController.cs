@@ -1,8 +1,9 @@
+using Character;
 using Combat;
 using Core;
 using UnityEngine;
 
-namespace Character
+namespace Character.Animation
 {
     /// <summary>
     /// 창병 몸 스프라이트 시트 애니메이션(Idle/Run/Defence/Attack)을 기존 신호만으로 재생한다 -

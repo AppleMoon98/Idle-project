@@ -600,7 +600,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 417ea42daf4fe7e458c8aa73e15e7ed1, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::Character.ShieldBearerAnimationController
+  m_EditorClassIdentifier: Assembly-CSharp::Character.Animation.ShieldBearerAnimationController
   maxAttackHoldSeconds: 1.2
   attack1Duration: 0.4
   enemyLayerMask:

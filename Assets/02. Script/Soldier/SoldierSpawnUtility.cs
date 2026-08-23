@@ -46,7 +46,7 @@ namespace Soldier
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadMovementSyncService squadSync))
             {
-                bool isExempt = instance.GetComponent<CavalryCharge>() != null;
+                bool isExempt = instance.GetComponent<BearCharge>() != null;
                 squadSync.Register(instance, slot.SlotIndex, isExempt);
             }
 

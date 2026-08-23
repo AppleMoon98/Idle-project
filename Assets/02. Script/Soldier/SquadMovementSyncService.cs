@@ -12,7 +12,7 @@ namespace Soldier
     /// <summary>
     /// 같은 부대(슬롯 인덱스 / SoldierDeploymentService.SlotsPerSquad)에 배치된 병사들이 교전
     /// 전까지 부대 내 최저속 유닛 기준으로 함께 이동하도록 RuntimeStats.MoveSpeed를 조정한다.
-    /// 기마병(Combat.CavalryCharge 보유 — 등록 시 IsExempt로 표시)은 부대에
+    /// 기마병(Combat.BearCharge 보유 — 등록 시 IsExempt로 표시)은 부대에
     /// 배치돼 있어도 항상 각개 행동이라 클램프 대상/기준 계산 양쪽에서 완전히 제외된다.
     /// SoldierBehaviorController.Evaluate가 매 결정 주기마다 SetMarching으로 "지금 이 유닛이
     /// 부대와 함께 행군 중인지(Engage 모드 + 아직 교전 상대를 못 찾음)"를 알려준다. 부대 안
@@ -69,7 +69,7 @@ namespace Soldier
 
         /// <summary>
         /// 스폰(최초 배치/재소환)된 병사를 등록한다. SoldierSpawnUtility.TrySpawnAssigned가 등급
-        /// 스케일까지 끝낸 직후 호출한다. isExempt는 기마병 여부(호출부가 CavalryCharge
+        /// 스케일까지 끝낸 직후 호출한다. isExempt는 기마병 여부(호출부가 BearCharge
         /// 컴포넌트 존재로 판단).
         /// </summary>
         public void Register(GameObject instance, int slotIndex, bool isExempt)

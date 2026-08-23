@@ -1,8 +1,9 @@
+using Character;
 using Combat;
 using Core;
 using UnityEngine;
 
-namespace Character
+namespace Character.Animation
 {
     /// <summary>
     /// 방패 보병 몸 스프라이트 시트 애니메이션(Idle/Run/Guard/Attack1/Attack2)을 기존 신호만으로
@@ -34,7 +35,7 @@ namespace Character
     /// 데미지는 사이클당 2회 들어간다 - Attack2가 끝나는 시점(Combat.Attacker의 정상적인
     /// AttackPerformed, Combat.MeleeAttackBehavior를 거쳐 이미 처리됨)과, Attack1이 끝나는
     /// 시점(attack1Duration 경과, 이 컨트롤러가 직접 처리) 둘 다 한 번씩. 후자는 Combat.Attacker의
-    /// 정규 공격 주기와 무관한 별도 타격이라 War.Boss.WarBossPatternRunner/Combat.CavalryCharge의
+    /// 정규 공격 주기와 무관한 별도 타격이라 War.Boss.WarBossPatternRunner/Combat.BearCharge의
     /// 돌진 명중 판정과 같은 방식(Health.TakeDamage 직접 호출, IAttackBehavior 사이클 밖)으로
     /// 처리한다. AttackPower는 사이클당 2회 타격을 반영해 기존의 절반으로 낮춰뒀다(DPS 유지).
     ///
@@ -211,7 +212,7 @@ namespace Character
 
         /// <summary>
         /// Attack1이 끝나는 순간의 타격 - Combat.Attacker의 정규 공격 주기와 별개로, 이 컨트롤러가
-        /// 직접 타겟을 찾아 데미지를 적용한다(War.Boss.WarBossPatternRunner/Combat.CavalryCharge의
+        /// 직접 타겟을 찾아 데미지를 적용한다(War.Boss.WarBossPatternRunner/Combat.BearCharge의
         /// 직접 Health.TakeDamage 호출과 같은 방식). 사거리 안에 살아있는 적이 없으면 조용히 무시.
         /// </summary>
         private void DealFirstHit()

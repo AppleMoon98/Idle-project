@@ -12,7 +12,7 @@ namespace Combat
     /// 컴포넌트(MonsterTargetSelector/RangedKiter/FormationFollower/GuardPositioner)가
     /// Target/StoppingDistance를 설정했는지는 몰라도 된다 — CharacterMover 하나만 폴링한다.
     ///
-    /// Combat.CavalryCharge(목표에 다가가 멈춘다는 개념 자체가 없는 자체 상태 기계 — 기마병은
+    /// Combat.BearCharge(목표에 다가가 멈춘다는 개념 자체가 없는 자체 상태 기계 — 기마병은
     /// 돌진 중 CharacterMover.Target을 직접 null로 비우고 transform을 스스로 몬다)를 가진 몬스터는
     /// Awake에서 감지해 등록 자체를 건너뛴다 — Soldier.SoldierBehaviorController가 기마병을
     /// 부대 이동속도 동기화에서 제외하는 것과 정확히 같은 이유.
@@ -36,7 +36,7 @@ namespace Combat
         private void Awake()
         {
             _mover = GetComponent<CharacterMover>();
-            _isExempt = GetComponent<CavalryCharge>() != null;
+            _isExempt = GetComponent<BearCharge>() != null;
 
             if (!_isExempt)
             {

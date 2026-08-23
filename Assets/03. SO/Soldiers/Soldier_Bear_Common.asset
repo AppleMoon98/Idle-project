@@ -10,7 +10,7 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
-  m_Name: Soldier_Cavalry_Common
+  m_Name: Soldier_Bear_Common
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
   displayName: "커먼 곰"
   prefab: {fileID: 9114245855020254752, guid: cec66cbf5b715ad4bb7fa6465649da24, type: 3}

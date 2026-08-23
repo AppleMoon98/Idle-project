@@ -1,15 +1,16 @@
+using Character;
 using Combat;
 using Core;
 using UnityEngine;
 
-namespace Character
+namespace Character.Animation
 {
     /// <summary>
-    /// 기마병(곰) 몸 스프라이트 시트 애니메이션(Idle/Run/Attack)을 재생한다. Combat.CavalryCharge가
+    /// 기마병(곰) 몸 스프라이트 시트 애니메이션(Idle/Run/Attack)을 재생한다. Combat.BearCharge가
     /// 돌진(Charging) 중에는 CharacterMover를 거치지 않고 직접 transform을 이동시키므로,
     /// InfantryAnimationController류가 쓰는 "Target != null && 거리 > StoppingDistance" 판정만으로는
-    /// 돌진을 감지할 수 없다 - CavalryCharge.IsCharging을 직접 읽어 그 경우도 Run으로 잡는다.
-    /// 근접 교전 거리(chargeStartDistance보다 가까울 때)에서는 CavalryCharge가 CharacterMover.Target을
+    /// 돌진을 감지할 수 없다 - BearCharge.IsCharging을 직접 읽어 그 경우도 Run으로 잡는다.
+    /// 근접 교전 거리(chargeStartDistance보다 가까울 때)에서는 BearCharge가 CharacterMover.Target을
     /// 위협으로 세팅해두므로, 그 경우는 기존 판정 그대로 다가가는 동안 Run, 사거리 안에 서면 Idle로
     /// 떨어진다.
     ///
@@ -27,8 +28,8 @@ namespace Character
     /// </summary>
     [RequireComponent(typeof(Animator))]
     [RequireComponent(typeof(CharacterMover))]
-    [RequireComponent(typeof(CavalryCharge))]
-    public sealed class CavalryAnimationController : MonoBehaviour, ITickable
+    [RequireComponent(typeof(BearCharge))]
+    public sealed class BearAnimationController : MonoBehaviour, ITickable
     {
         private static readonly int IsMovingHash = Animator.StringToHash("IsMoving");
         private static readonly int IsAttackingHash = Animator.StringToHash("IsAttacking");
@@ -39,7 +40,7 @@ namespace Character
         private Animator _animator;
         private CharacterMover _mover;
         private Attacker _attacker;
-        private CavalryCharge _cavalryCharge;
+        private BearCharge _bearCharge;
         private SpriteRenderer _spriteRenderer;
 
         private bool _isAttacking;
@@ -50,7 +51,7 @@ namespace Character
             _animator = GetComponent<Animator>();
             _mover = GetComponent<CharacterMover>();
             _attacker = GetComponent<Attacker>();
-            _cavalryCharge = GetComponent<CavalryCharge>();
+            _bearCharge = GetComponent<BearCharge>();
             _spriteRenderer = GetComponent<SpriteRenderer>();
         }
 
@@ -110,7 +111,7 @@ namespace Character
                 }
             }
 
-            bool isMoving = _cavalryCharge.IsCharging
+            bool isMoving = _bearCharge.IsCharging
                 || (_mover.Target != null && Vector3.Distance(transform.position, _mover.Target.position) > _mover.StoppingDistance);
 
             _animator.SetBool(IsMovingHash, isMoving);
@@ -121,9 +122,9 @@ namespace Character
         {
             float dx;
 
-            if (_cavalryCharge.IsCharging)
+            if (_bearCharge.IsCharging)
             {
-                dx = _cavalryCharge.ChargeDirection.x;
+                dx = _bearCharge.ChargeDirection.x;
             }
             else if (_mover.Target != null)
             {

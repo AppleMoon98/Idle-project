@@ -1,7 +1,8 @@
+using Character;
 using Core;
 using UnityEngine;
 
-namespace Character
+namespace Character.Animation
 {
     /// <summary>
     /// Idle/Run 두 상태만 있는 몸 스프라이트 시트 애니메이션을 재생한다 - 공격하지 않는 캐릭터용

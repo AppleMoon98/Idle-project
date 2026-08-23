@@ -15,7 +15,7 @@ namespace Combat
     /// attackInterval 값만으로 표현되며, 이 컴포넌트는 공격이 실제로 발생했을 때 무엇을 하는지만
     /// 담당한다(Attacker의 공격 주기/사거리 판정은 그대로 재사용).
     ///
-    /// explosionPrefab이 지정돼 있으면(sparse opt-in - 이 컴포넌트를 공유하는 Combat.CavalryCharge의
+    /// explosionPrefab이 지정돼 있으면(sparse opt-in - 이 컴포넌트를 공유하는 Combat.BearCharge의
     /// 근접 응전에는 설정하지 않는다) 정타가 적중하는 순간 Combat.ExplosionEffect를 splashRadius
     /// 크기로 재생한다 - "공격 범위 크기로 데미지가 들어갈 때"라는 요청대로, 폭발 시각 크기가 실제
     /// 판정 반경을 그대로 나타낸다.

@@ -18,7 +18,7 @@ namespace Character
     ///
     /// 목적지에 도착/타임아웃할 때마다 pauseChance(기본 10%) 확률로 곧장 다음 목적지를 고르는 대신
     /// pauseDurationMin~Max 사이의 짧은 시간만큼 제자리에 멈춘다(Target을 null로 비워 CharacterMover
-    /// 자체가 안 움직이게 하고, Character.IdleRunAnimationController는 Target==null을 그대로
+    /// 자체가 안 움직이게 하고, Character.Animation.IdleRunAnimationController는 Target==null을 그대로
     /// "정지"로 읽어 Idle 애니메이션으로 자연히 전환된다 - 별도 연동 불필요). 스폰 직후 첫
     /// 목적지(OnEnable)는 이 확률 굴림 없이 항상 즉시 움직이도록 PickNewDestination을 직접 부른다 -
     /// 막 스폰된 개체가 곧바로 멈춰 보이면 "죽은 것처럼" 보일 수 있어 제외했다.

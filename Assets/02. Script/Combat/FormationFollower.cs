@@ -118,7 +118,7 @@ namespace Combat
         }
 
         /// <summary>
-        /// 카메라 최광각 고정 범위(줌 배율과 무관) 안의 대상만 위협으로 고려한다 — Combat.CavalryCharge의
+        /// 카메라 최광각 고정 범위(줌 배율과 무관) 안의 대상만 위협으로 고려한다 — Combat.BearCharge의
         /// 동일한 수정과 같은 이유. CameraFollowService를 못 구했을 때만(방어적 폴백) 기존
         /// raw-radius 스캔으로 대체한다. 리더 없이(ApproachDirectly) 혼자 위협을 찾을 때만 쓴다.
         /// </summary>

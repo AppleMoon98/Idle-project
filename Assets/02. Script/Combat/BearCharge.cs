@@ -50,7 +50,7 @@ namespace Combat
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
-    public sealed class CavalryCharge : MonoBehaviour, ITickable, IMonsterMovementInitializer
+    public sealed class BearCharge : MonoBehaviour, ITickable, IMonsterMovementInitializer
     {
         private enum ChargeState
         {
@@ -131,7 +131,7 @@ namespace Combat
         /// <summary>
         /// 지금 돌진 중인지 여부 — 이 컴포넌트가 CharacterMover를 거치지 않고 직접 이동시키는 동안은
         /// CharacterMover 기반의 일반적인 "이동 중" 판정(Target != null && 거리 > StoppingDistance)이
-        /// 통하지 않으므로, 애니메이션 컨트롤러(Character.CavalryAnimationController)가 Run 재생
+        /// 통하지 않으므로, 애니메이션 컨트롤러(Character.Animation.BearAnimationController)가 Run 재생
         /// 여부를 판단하는 데 이 값을 직접 읽는다.
         /// </summary>
         public bool IsCharging => _state == ChargeState.Charging;
@@ -165,7 +165,7 @@ namespace Combat
 
         /// <summary>
         /// 몬스터 쪽은 스테이지 종료 시 이미 풀로 반환·비활성화된 뒤라 이 이벤트를 받을 일이 없다
-        /// - 실질적으로는 병사(Soldier_Cavalry)처럼 스테이지 전환에도 파괴되지 않고 그 자리에서
+        /// - 실질적으로는 병사(Soldier_Bear)처럼 스테이지 전환에도 파괴되지 않고 그 자리에서
         /// 순간이동만 당하는 경우를 위한 것이다. Charging 상태로 돌진 중이던 유닛을 텔레포트만
         /// 시키고 _chargeDirection/_chargeSpeed 등 내부 상태를 그대로 두면, 다음 틱에 텔레포트된
         /// 새 위치에서 이전 방향 그대로 다시 튀어나가 "잠깐 계속 움직이는" 것처럼 보인다(실사용 중
