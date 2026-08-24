@@ -11,11 +11,13 @@ namespace UI
     /// <summary>
     /// 병사 로스터 전체(카탈로그의 모든 종류)를 슬롯 그리드로 보여준다. 같은 SoldierSO(등급+병종)를
     /// 가진 유닛은 장비 인벤토리처럼 슬롯 하나에 개수로 쌓인다(SoldierRosterRowUI). 아직 한 마리도
-    /// 뽑지 못한 종류도 슬롯으로 함께 표시하되 회색 비활성 상태로 보여준다(0개 보유 스택). 순수
-    /// 보유 현황 표시 전용이다 - 탭해도 아무것도 열리지 않는다(병사 전용 장비 시스템이 제거되면서,
-    /// 슬롯을 탭했을 때 열던 SoldierEquipmentPopupUI/SoldierRosterStackPopupUI가 함께 사라졌다).
-    /// 배치는 부대 편성(SoldierDeploymentPanelUI/SquadDeployedPanelUI), 행동은 부대 편성의 전술(SquadTacticOptionPopupUI)
-    /// 화면으로 각각 이관돼 로스터에서는 더 이상 다루지 않는다.
+    /// 뽑지 못한 종류도 슬롯으로 함께 표시하되 회색 비활성 상태로 보여준다(0개 보유 스택). 슬롯을
+    /// 탭하면 SoldierDetailPopupUI를 그 SoldierSO 원형으로 연다(Idle 애니메이션 미리보기 +
+    /// 스탯) - 개별 유닛 단위가 아니라 병종+등급 원형 단위라, 스택 안 어느 유닛을 골랐는지는
+    /// 무시한다(정의만 넘긴다). 배치는 부대 편성(SoldierDeploymentPanelUI/SquadDeployedPanelUI),
+    /// 행동은 부대 편성의 전술(SquadTacticOptionPopupUI) 화면으로 각각 이관돼 로스터에서는 더 이상
+    /// 다루지 않는다(병사 전용 장비 시스템이 제거되면서, 슬롯을 탭했을 때 열던
+    /// SoldierEquipmentPopupUI/SoldierRosterStackPopupUI가 함께 사라졌다).
     /// 정렬 순서는 (1) 보유 여부(보유 먼저) → (2) 등급(높은 등급 먼저) → (3) 병과 순(로드맵 순서:
     /// 보병/궁병/기마궁수/기마병/기사/창병/방패보병/공성병) 고정이다.
     /// </summary>
@@ -39,6 +41,9 @@ namespace UI
 
         [SerializeField]
         private EquipmentGradeCatalogSO gradeCatalog;
+
+        [SerializeField]
+        private SoldierDetailPopupUI detailPopup;
 
         private readonly List<SoldierRosterRowUI> _spawnedRows = new();
 
@@ -112,7 +117,7 @@ namespace UI
                 }
 
                 SoldierRosterRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize(definition, stack, null);
+                row.Initialize(definition, stack, _ => detailPopup.Open(definition));
 
                 _spawnedRows.Add(row);
             }
