@@ -5,6 +5,7 @@ using Dungeon.Events;
 using Gacha;
 using Managers;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -40,12 +41,18 @@ namespace Dungeon
 
         /// <summary>
         /// 스킬 던전을 시작한다. stageNumber는 보스 강함/보상 계산에 쓰인다. 이미 진행 중이거나
-        /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시한다
-        /// — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).
+        /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시하고
+        /// 토스트로 안내한다 — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.BossPrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive))
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("이미 던전에 입장중입니다."));
+                return;
+            }
+
+            if (config == null || config.BossPrefab == null)
             {
                 return;
             }

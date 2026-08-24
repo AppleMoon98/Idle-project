@@ -6,6 +6,7 @@ using Equipment;
 using Managers;
 using Rank;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -74,15 +75,21 @@ namespace Dungeon
 
         /// <summary>
         /// 강화석 던전을 시작한다. stageNumber는 보스 강함/보상 계산에 쓰인다. 이미 진행 중이거나
-        /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시한다
-        /// — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지). MaxStageNumber
-        /// (플레이어가 실제로 클리어한 챕터 기준)로 즉시 정규화해서 저장하므로, UI가 실수로(또는
-        /// 스테퍼 상한 설정 전에) 아직 클리어하지 못한 단계를 넘겨도 보스 체력과 강화석 보상이
-        /// 항상 같은 유효 단계를 기준으로 계산된다.
+        /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시하고
+        /// 토스트로 안내한다 — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입
+        /// 방지). MaxStageNumber(플레이어가 실제로 클리어한 챕터 기준)로 즉시 정규화해서 저장하므로,
+        /// UI가 실수로(또는 스테퍼 상한 설정 전에) 아직 클리어하지 못한 단계를 넘겨도 보스 체력과
+        /// 강화석 보상이 항상 같은 유효 단계를 기준으로 계산된다.
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.BossPrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive))
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("이미 던전에 입장중입니다."));
+                return;
+            }
+
+            if (config == null || config.BossPrefab == null)
             {
                 return;
             }

@@ -8,6 +8,7 @@ using Rank;
 using Rank.Boss;
 using Soldier;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -104,12 +105,18 @@ namespace Dungeon
         /// <summary>
         /// selectedRank의 승급전 보스로 보스 던전을 시작한다. selectedRank가 선택 가능한 목록에
         /// 없으면(잠긴 랭크를 억지로 넘기는 등) 무시한다. 이미 진행 중이거나(자기 자신) 다른
-        /// 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시한다 —
-        /// GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).
+        /// 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시하고 토스트로 안내한다
+        /// — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).
         /// </summary>
         public void Enter(RankSO selectedRank)
         {
-            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || selectedRank == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive))
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("이미 던전에 입장중입니다."));
+                return;
+            }
+
+            if (config == null || selectedRank == null)
             {
                 return;
             }

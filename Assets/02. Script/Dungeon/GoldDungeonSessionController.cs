@@ -7,6 +7,7 @@ using Loot.Events;
 using Managers;
 using Rank;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Dungeon
@@ -84,15 +85,21 @@ namespace Dungeon
         /// <summary>
         /// 골드 던전을 시작한다. stageNumber는 보상 계산에 쓰인다. 이미 진행 중이거나(자기 자신)
         /// 다른 오버레이(다른 던전, 랭크 승급전 등)가 이미 켜져 있으면(stageController.
-        /// IsOverlayActive) 무시한다 — 이게 없으면 던전 안에서 다른 던전 팝업의 입장 버튼을 눌러
-        /// 중복 진입할 수 있었다(실사용 중 발견). MaxStageNumber(플레이어가 실제로 클리어한 챕터
-        /// 기준)로 즉시 정규화해서 저장하므로, UI가 실수로(또는 스테퍼 상한 설정 전에) 아직
-        /// 클리어하지 못한 단계를 넘겨도 몹 체력과 골드 보상이 항상 같은 유효 단계를 기준으로
+        /// IsOverlayActive) 무시하고 토스트로 안내한다 — 이게 없으면 던전 안에서 다른 던전 팝업의
+        /// 입장 버튼을 눌러 중복 진입할 수 있었다(실사용 중 발견). MaxStageNumber(플레이어가 실제로
+        /// 클리어한 챕터 기준)로 즉시 정규화해서 저장하므로, UI가 실수로(또는 스테퍼 상한 설정 전에)
+        /// 아직 클리어하지 못한 단계를 넘겨도 몹 체력과 골드 보상이 항상 같은 유효 단계를 기준으로
         /// 계산된다 — 체력은 진행도에서 멈추는데 보상만 계속 커지는 문제를 여기서 막는다.
         /// </summary>
         public void Enter(int stageNumber)
         {
-            if (_isActive || (stageController != null && stageController.IsOverlayActive) || config == null || config.MonsterPrefab == null)
+            if (_isActive || (stageController != null && stageController.IsOverlayActive))
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("이미 던전에 입장중입니다."));
+                return;
+            }
+
+            if (config == null || config.MonsterPrefab == null)
             {
                 return;
             }
