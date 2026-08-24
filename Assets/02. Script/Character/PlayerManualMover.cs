@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using Character.Events;
 using Combat;
 using Core;
+using Stage.Events;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.InputSystem;
@@ -64,6 +65,7 @@ namespace Character
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<PlayerControlModeChangedEvent>(OnControlModeChanged);
+            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
             TickerRegistration.Register(this);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out PlayerControlModeService controlModeService))
@@ -75,6 +77,7 @@ namespace Character
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<PlayerControlModeChangedEvent>(OnControlModeChanged);
+            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
             TickerRegistration.Unregister(this);
         }
 
@@ -87,20 +90,48 @@ namespace Character
         }
 
         /// <summary>
-        /// Manual로 바뀌면 즉시 EnemyTracker를 끈다(탭 중이었든 아니든 무조건). Auto로 바뀌면,
-        /// 지금 탭 이동 중이 아닐 때만 즉시 켠다 — 탭 이동 중이라면 도착 시점의
-        /// HandleArrival이 알아서 재개하므로 여기서 미리 켜서 이동을 방해하지 않는다.
+        /// Manual로 바뀌면 즉시 EnemyTracker를 끄고(탭 중이었든 아니든 무조건), 탭 이동 중이
+        /// 아니라면 CharacterMover.Target도 함께 비운다 - EnemyTracker가 꺼져도 CharacterMover는
+        /// 마지막으로 설정된 Target을 향해 계속 이동하므로, 안 비우면 Auto 상태에서 쫓던 몬스터를
+        /// 향해 Manual로 전환한 뒤에도 계속 끌려간다. Auto로 바뀌면, 지금 탭 이동 중이 아닐 때만
+        /// 즉시 켠다 — 탭 이동 중이라면 도착 시점의 HandleArrival이 알아서 재개하므로 여기서
+        /// 미리 켜서 이동을 방해하지 않는다.
         /// </summary>
         private void OnControlModeChanged(PlayerControlModeChangedEvent evt)
         {
             if (evt.Mode == PlayerControlMode.Manual)
             {
                 _enemyTracker.enabled = false;
+
+                if (!_isMovingToTap)
+                {
+                    _mover.Target = null;
+                }
             }
             else if (!_isMovingToTap)
             {
                 _enemyTracker.enabled = true;
             }
+        }
+
+        /// <summary>
+        /// 스테이지 전환/반복/사망 후퇴 전부에서 발행된다. StagePositionResetter가 플레이어의
+        /// *위치*만 시작 지점으로 되돌릴 뿐 CharacterMover.Target은 손대지 않으므로, 이전
+        /// 스테이지에서 남은 탭 이동 목표(_tapAnchor)나 EnemyTracker가 마지막으로 가리키던 몬스터
+        /// Transform이 그대로 남아있으면 - 몬스터는 항상 화면 위쪽 스폰 지점에서 다시 태어나므로 -
+        /// 위치가 리셋된 직후 플레이어가 그 잔여 Target을 향해 곧장 위로 끌려가는 문제가 실사용
+        /// 중(특히 Auto와 달리 EnemyTracker가 스스로 재보정해주지 않는 Manual 모드에서) 발견됐다.
+        /// 진행 중이던 탭 이동도 함께 취소하고, Auto 모드면 EnemyTracker를 다시 켠다(탭 이동
+        /// 중이었다면 HandleArrival이 켜줬을 것을 여기서 대신 켜주는 것 - 그 도착을 건너뛰고
+        /// 강제로 취소했으므로).
+        /// </summary>
+        private void OnStageChanged(StageChangedEvent evt)
+        {
+            _isMovingToTap = false;
+            _mover.Target = null;
+            _mover.StoppingDistance = 0f;
+
+            EnableEnemyTrackerIfAuto();
         }
 
         void ITickable.Tick(float deltaTime)
@@ -216,7 +247,11 @@ namespace Character
             }
 
             _isMovingToTap = false;
+            EnableEnemyTrackerIfAuto();
+        }
 
+        private void EnableEnemyTrackerIfAuto()
+        {
             bool isAuto = GameBootstrapper.Services != null
                 && GameBootstrapper.Services.TryGet(out PlayerControlModeService controlModeService)
                 && controlModeService.CurrentMode == PlayerControlMode.Auto;
