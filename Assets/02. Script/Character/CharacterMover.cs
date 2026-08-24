@@ -22,6 +22,15 @@ namespace Character
         /// </summary>
         public float StoppingDistance { get; set; }
 
+        /// <summary>
+        /// null이 아니면 이번 이동에 Stats.MoveSpeed 대신 이 값을 쓴다 — 카이팅 후퇴처럼 "이
+        /// 순간만 평소보다 느리게/빠르게 움직인다"는 걸 강화/장비 등이 계속 갱신하는 실제
+        /// RuntimeStats.MoveSpeed를 건드리지 않고 표현하기 위함(Combat.RangedKiter/Soldier.
+        /// SoldierBehaviorController가 카이팅 진입/이탈 시 직접 설정·해제한다). null이면 기존과
+        /// 동일하게 Stats.MoveSpeed를 그대로 쓴다.
+        /// </summary>
+        public float? SpeedOverride { get; set; }
+
         private void Awake()
         {
             _statsProvider = GetComponent<CharacterStatsProvider>();
@@ -51,7 +60,7 @@ namespace Character
                 return;
             }
 
-            float speed = _statsProvider.Stats.MoveSpeed;
+            float speed = SpeedOverride ?? _statsProvider.Stats.MoveSpeed;
             transform.position = Vector3.MoveTowards(transform.position, Target.position, speed * deltaTime);
         }
     }

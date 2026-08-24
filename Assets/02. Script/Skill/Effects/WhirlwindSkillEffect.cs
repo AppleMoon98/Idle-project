@@ -2,6 +2,7 @@ using Character;
 using Combat;
 using Core;
 using Managers;
+using Stage.Events;
 using UnityEngine;
 
 namespace Skill.Effects
@@ -12,7 +13,10 @@ namespace Skill.Effects
     /// 시전자 위치에 이펙트를 새로 재생해(VfxFollowCaster 여부와 무관하게 항상 시전자를 따라감)
     /// "캐릭터 주변에 계속 이펙트가 나오는" 것처럼 보이게 한다 - 하나의 이펙트가 계속 재생되는
     /// 대신 SkillEffectVfx의 기존 "1회 재생 후 자동 반납" 파이프라인을 틱마다 재사용하는 방식이라
-    /// 새 루프 이펙트 컴포넌트가 필요 없다.
+    /// 새 루프 이펙트 컴포넌트가 필요 없다. Stage.Events.CombatFieldResetEvent(스테이지 전환/던전
+    /// 등 오버레이 진입·복귀)를 받으면 남은 지속시간과 무관하게 즉시 종료한다 - 안 그러면 시전자
+    /// (플레이어) 위치를 계속 스캔하는 특성상 다음 스테이지/던전에 새로 나타난 대상까지 계속
+    /// 피해를 입힌다.
     /// </summary>
     [RequireComponent(typeof(SkillSlot))]
     public sealed class WhirlwindSkillEffect : MonoBehaviour, ISkillEffect, ITickable
@@ -48,6 +52,8 @@ namespace Skill.Effects
                 _pool = pool;
             }
 
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Register(this);
@@ -56,10 +62,17 @@ namespace Skill.Effects
 
         private void OnDisable()
         {
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Unregister(this);
             }
+        }
+
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
+        {
+            _isActive = false;
         }
 
         public bool HasTargetInRange(Transform origin, SkillSO definition)

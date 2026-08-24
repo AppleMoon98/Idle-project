@@ -161,6 +161,7 @@ namespace Stage
 
             bool isBreakthrough = _progression?.IsBreakthrough ?? true;
             GameBootstrapper.Events?.Publish(new StageChangedEvent(stage.Chapter, stage.StageNumber, isBreakthrough));
+            GameBootstrapper.Events?.Publish(new CombatFieldResetEvent());
         }
 
         /// <summary>
@@ -184,7 +185,9 @@ namespace Stage
         /// overlayLabel을 주면(예: "골드 던전 1층") StageOverlayLabelChangedEvent로 발행해
         /// UI.StageInfoUI가 상단 스테이지 정보 텍스트를 그 라벨로 잠깐 바꾸도록 한다 - 랭크
         /// 승급전/War 클라이맥스처럼 이 인자를 생략하는 호출부는 기존과 동일하게 아무 표시 변화가
-        /// 없다.
+        /// 없다. overlayLabel 유무와 무관하게 항상 CombatFieldResetEvent를 발행한다 - 발사된
+        /// 화살/시전 중인 지속 스킬(독/회오리/운석 등)이 스테이지에서 입은 잔여 판정을 그대로
+        /// 안고 오버레이 안까지 들어가 던전 몬스터·병사를 계속 공격하는 문제를 막기 위함.
         /// </summary>
         public void PauseForOverlay(string overlayLabel = null)
         {
@@ -203,6 +206,8 @@ namespace Stage
             {
                 GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(overlayLabel));
             }
+
+            GameBootstrapper.Events?.Publish(new CombatFieldResetEvent());
         }
 
         /// <summary>
@@ -332,6 +337,7 @@ namespace Stage
             positionResetter?.ResetPositions();
             positionResetter?.ResetHealth();
             GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(null));
+            GameBootstrapper.Events?.Publish(new CombatFieldResetEvent());
 
             if (_spawner != null)
             {

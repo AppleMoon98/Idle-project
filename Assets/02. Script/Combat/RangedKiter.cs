@@ -18,6 +18,11 @@ namespace Combat
     /// "거리 유지" 로직이라 궁병 전용이 아니라 사거리가 긴 다른 근접 유닛(창병 등)에도
     /// 재사용된다(section BZ/EY) — enablePostAttackLock을 끄면 이 고정 없이 매번 재평가만으로
     /// 계속 움직인다(Soldier 쪽 창병 밸런스 조정으로 추가된 옵트아웃, 몬스터 쪽 기본 동작은 그대로).
+    /// enableKiteSpeedOverride를 켜면(기본값 꺼짐 — 여러 병과가 공유하는 컴포넌트라 opt-in) 후퇴
+    /// 동안만 CharacterMover.SpeedOverride를 kiteMoveSpeed로 설정한다 — 강화/장비가 계속 갱신하는
+    /// RuntimeStats.MoveSpeed 자체는 건드리지 않고, "후퇴할 때만 이 속도로" 표현한다. 접근/대기
+    /// 등 후퇴가 아닌 모든 분기에서 반드시 SpeedOverride를 다시 null로 되돌려야 한다 — 안 그러면
+    /// 다음 재평가 주기까지 느려진 속도가 그대로 남는다.
     /// </summary>
     [RequireComponent(typeof(CharacterMover))]
     [RequireComponent(typeof(CharacterStatsProvider))]
@@ -46,6 +51,12 @@ namespace Combat
 
         [SerializeField]
         private bool enablePostAttackLock = true;
+
+        [SerializeField]
+        private bool enableKiteSpeedOverride = false;
+
+        [SerializeField]
+        private float kiteMoveSpeed = 0.5f;
 
         private CharacterMover _mover;
         private CharacterStatsProvider _statsProvider;
@@ -158,6 +169,7 @@ namespace Combat
             if (threat == null)
             {
                 _mover.Target = null;
+                _mover.SpeedOverride = null;
                 return;
             }
 
@@ -171,10 +183,12 @@ namespace Combat
                     _kiteAnchor.position = retreatPoint;
                     _mover.Target = _kiteAnchor;
                     _mover.StoppingDistance = 0f;
+                    _mover.SpeedOverride = enableKiteSpeedOverride ? kiteMoveSpeed : (float?)null;
                 }
                 else
                 {
                     _mover.Target = null;
+                    _mover.SpeedOverride = null;
                 }
 
                 return;
@@ -182,6 +196,7 @@ namespace Combat
 
             _mover.Target = threat;
             _mover.StoppingDistance = _statsProvider.Stats.AttackRange;
+            _mover.SpeedOverride = null;
         }
     }
 }

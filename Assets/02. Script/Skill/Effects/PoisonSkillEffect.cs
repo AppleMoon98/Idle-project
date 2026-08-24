@@ -3,6 +3,7 @@ using Character.Events;
 using Combat;
 using Core;
 using Managers;
+using Stage.Events;
 using UnityEngine;
 
 namespace Skill.Effects
@@ -13,7 +14,9 @@ namespace Skill.Effects
     /// GetBuffDuration(레벨) 동안 반복한다. 각 틱은 Character.Health.TakeDamage(isPoison: true)로
     /// 적용되어 데미지 숫자가 평소와 다른 색(초록)으로 표시된다(Combat.DamageNumber 참고). 재시전
     /// 시 이전 대상의 독은 그냥 새 대상으로 교체된다(스탯을 되돌릴 필요가 없는 순수 피해 효과라
-    /// SelfBuffSkillEffect처럼 "되돌리기"가 필요 없다).
+    /// SelfBuffSkillEffect처럼 "되돌리기"가 필요 없다). Stage.Events.CombatFieldResetEvent(스테이지
+    /// 전환/던전 등 오버레이 진입·복귀)를 받으면 남은 시전을 무조건 무효화한다 - 안 그러면 독을
+    /// 건 대상이 죽지 않고 그대로 다음 스테이지/던전까지 남아 엉뚱한 대상에게 계속 피해를 준다.
     /// </summary>
     [RequireComponent(typeof(SkillSlot))]
     public sealed class PoisonSkillEffect : MonoBehaviour, ISkillEffect, ITickable
@@ -49,6 +52,7 @@ namespace Skill.Effects
             }
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
@@ -59,6 +63,7 @@ namespace Skill.Effects
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
@@ -128,6 +133,12 @@ namespace Skill.Effects
             {
                 _isActive = false;
             }
+        }
+
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
+        {
+            _isActive = false;
+            _targetHealth = null;
         }
     }
 }

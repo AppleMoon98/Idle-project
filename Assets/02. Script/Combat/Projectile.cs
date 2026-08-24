@@ -18,9 +18,12 @@ namespace Combat
     /// 맞고 소멸하고, 레이어에 안 걸리는 대상(적이 아닌 것)은 그냥 통과해 계속 날아간다. 끝내
     /// 아무것도 못 맞히면 최광각 고정 범위(Services.CameraFollowService, 줌 배율과 무관 — section
     /// CD/CG/CH와 동일 원칙) 밖으로 나가는 순간 반납된다 - 화살이 허공에서 뚝 끊기지 않고 자연스럽게
-    /// 화면 밖으로 날아가 보이게 하기 위함. Stage.Events.StageChangedEvent(진행/반복/사망 후퇴 전부)를
-    /// 직접 구독해, 명중 여부와 무관하게 스테이지가 바뀌는 순간 무조건 스스로 반납한다 — 몬스터/
-    /// 병사 쪽이 이미 쓰는 "스테이지 경계 = 완전 초기화" 관례와 동일하다.
+    /// 화면 밖으로 날아가 보이게 하기 위함. Stage.Events.CombatFieldResetEvent(스테이지 전환뿐
+    /// 아니라 던전 등 오버레이 진입·복귀까지 포함)를 직접 구독해, 명중 여부와 무관하게 전장이
+    /// 초기화되는 순간 무조건 스스로 반납한다 — 몬스터/병사 쪽이 이미 쓰는 "전장 경계 = 완전
+    /// 초기화" 관례와 동일하다. 예전에는 Stage.Events.StageChangedEvent만 구독해 실제 스테이지
+    /// 전환에서는 정상 반납됐지만, 던전 입장(PauseForOverlay)은 이 이벤트를 발행하지 않아 발사
+    /// 중이던 화살이 던전 안까지 그대로 날아 들어가 엉뚱한 대상을 맞히는 문제가 있었다.
     /// </summary>
     public sealed class Projectile : MonoBehaviour, ITickable
     {
@@ -51,17 +54,17 @@ namespace Combat
         {
             _released = false;
             TickerRegistration.Register(this);
-            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
-            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
         }
 
-        private void OnStageChanged(StageChangedEvent evt)
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
         {
             ReleaseSelf();
         }
@@ -111,7 +114,7 @@ namespace Combat
 
         /// <summary>
         /// 명중이 곧바로 스테이지 클리어→전환으로 이어지면(예: 마지막 몬스터를 죽인 발사체),
-        /// TakeDamage 안에서 StageChangedEvent가 동기적으로 발행돼 OnStageChanged가 먼저
+        /// TakeDamage 안에서 CombatFieldResetEvent가 동기적으로 발행돼 OnCombatFieldReset이 먼저
         /// ReleaseSelf를 부르고, Tick의 나머지 코드가 이어서 또 한 번 부르는 이중 반납이 같은
         /// 프레임 안에서 일어날 수 있다 — 풀 스택에 같은 인스턴스가 두 번 들어가면 이후 서로
         /// 다른 두 호출자가 같은 GameObject를 동시에 "새로" 받는 심각한 오염으로 이어지므로,

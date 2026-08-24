@@ -40,6 +40,9 @@ namespace Soldier
         [SerializeField]
         private float screenReturnMargin = 0.15f;
 
+        [SerializeField]
+        private float rangedKiteMoveSpeed = 0.5f;
+
         private Health _health;
         private CharacterStatsProvider _statsProvider;
         private CharacterMover _mover;
@@ -137,6 +140,8 @@ namespace Soldier
             {
                 _enemyTracker.enabled = true;
             }
+
+            _mover.SpeedOverride = null;
 
             _instanceId = instanceId;
             _retreatPoint = retreatPoint;
@@ -250,10 +255,16 @@ namespace Soldier
                 screenReturnMargin);
             _mover.Target = _returnAnchor;
             _mover.StoppingDistance = 0f;
+            _mover.SpeedOverride = null;
         }
 
         private void ApplyMode(BehaviorMode mode, bool isMarching)
         {
+            // 매 평가 주기 초기화 — 이번 주기에 실제로 카이팅 후퇴 분기를 타는 경우에만
+            // TickRangedKiting()이 아래에서 다시 설정한다. 여기서 되돌리지 않으면 이전 주기의
+            // "후퇴 중" 속도가 Hold/Retreat 등 다른 모드로 전환된 뒤에도 그대로 남는다.
+            _mover.SpeedOverride = null;
+
             switch (mode)
             {
                 case BehaviorMode.Engage:
@@ -367,7 +378,10 @@ namespace Soldier
         /// 원거리 병사 전용 이동 로직 — EnemyTracker를 대신해 이 컨트롤러가 직접 타겟을 찾고,
         /// 사거리 밖이면 접근, 사거리 안이면 대기, 사거리 안으로 적이 너무 가까워지면 반대
         /// 방향으로 후퇴한다(카이팅). 공격 직후에도 멈추지 않고 계속 움직인다(공격 후 경직
-        /// 패널티 없음 — 실사용 피드백으로 제거됨). 매 decisionInterval마다 재평가된다.
+        /// 패널티 없음 — 실사용 피드백으로 제거됨). 매 decisionInterval마다 재평가된다. 후퇴하는
+        /// 동안만 CharacterMover.SpeedOverride를 rangedKiteMoveSpeed로 낮춘다(강화/장비가 계속
+        /// 갱신하는 RuntimeStats.MoveSpeed 자체는 건드리지 않음) — 접근/대기 등 후퇴가 아닌 모든
+        /// 분기에서 반드시 null로 되돌린다.
         /// </summary>
         private void TickRangedKiting()
         {
@@ -376,6 +390,7 @@ namespace Soldier
             if (nearestEnemy == null)
             {
                 _mover.Target = null;
+                _mover.SpeedOverride = null;
                 return;
             }
 
@@ -386,6 +401,7 @@ namespace Soldier
             {
                 _mover.Target = nearestEnemy.transform;
                 _mover.StoppingDistance = attackRange;
+                _mover.SpeedOverride = null;
                 return;
             }
 
@@ -394,11 +410,13 @@ namespace Soldier
                 _kiteAnchor.position = retreatPoint;
                 _mover.Target = _kiteAnchor;
                 _mover.StoppingDistance = 0f;
+                _mover.SpeedOverride = rangedKiteMoveSpeed;
             }
             else
             {
                 // 화면 안 어느 방향으로도 물러날 여유가 없다 — 화면 밖으로 밀려나지 않도록 그 자리에서 버틴다.
                 _mover.Target = null;
+                _mover.SpeedOverride = null;
             }
         }
 

@@ -12,6 +12,10 @@ namespace UI
     /// 하나의 입장 버튼. 목록 행을 탭하면 선택만 되고(라벨에 "(선택됨)" 표시), 입장 버튼을
     /// 눌러야 실제로 session.Enter가 호출된다 — Squad.SquadTacticOptionPopupUI가 이미 쓰는
     /// "선택 상태를 라벨 문자열로 표시" 방식과 동일(별도 하이라이트 오버레이 없이 재사용 가능).
+    /// 입장 시 popupsToClose(DungeonPopup/IntegratedMenuPopup 등, 이 팝업을 열기까지 거쳐온 상위
+    /// 팝업들)도 함께 닫는다 — Gold/Stone/Skill/SoldierRescue 던전의 각 EntryUI가 이미 쓰던
+    /// 것과 동일한 관례. 이게 빠져 있던 것이 "보스 토벌 입장 후 던전 목록 팝업이 뒤에 계속 떠
+    /// 있는" 버그의 원인이었다.
     /// </summary>
     public sealed class BossDungeonSelectPopupUI : MonoBehaviour
     {
@@ -32,6 +36,9 @@ namespace UI
 
         [SerializeField]
         private BossDungeonSessionController session;
+
+        [SerializeField]
+        private SimplePopupUI[] popupsToClose;
 
         private readonly List<SoldierPickerRowUI> _spawnedRows = new();
 
@@ -98,6 +105,12 @@ namespace UI
 
             RankSO rankToEnter = _selectedRank;
             Close();
+
+            foreach (SimplePopupUI popup in popupsToClose)
+            {
+                popup.Close();
+            }
+
             session.Enter(rankToEnter);
         }
     }

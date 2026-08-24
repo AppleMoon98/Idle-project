@@ -13,7 +13,9 @@ namespace Combat
     /// splashRadius 안의 다른 대상에게 splashDamage를 입힌 뒤 스스로 반납된다(Combat.
     /// SplashAttackBehavior의 즉시 적용 로직을 "도착 시점"으로 미룬 것과 같은 공식). 타겟이 비행
     /// 중 죽어도 착탄 지점 자체는 이미 고정돼 있어 경로에 영향이 없다 - Combat.Projectile이 겪었던
-    /// "타겟 사망 시 처리"(section FO) 문제가 애초에 없다.
+    /// "타겟 사망 시 처리"(section FO) 문제가 애초에 없다. Stage.Events.CombatFieldResetEvent(스테이지
+    /// 전환뿐 아니라 던전 등 오버레이 진입·복귀까지 포함)를 구독해, 도착 여부와 무관하게 전장이
+    /// 초기화되는 순간 무조건 스스로(+예고 표시까지) 반납한다 - Combat.Projectile과 동일한 이유.
     /// </summary>
     public sealed class MortarShell : MonoBehaviour, ITickable
     {
@@ -40,16 +42,16 @@ namespace Combat
             _released = false;
             transform.rotation = Quaternion.identity;
             TickerRegistration.Register(this);
-            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
         }
 
         private void OnDisable()
         {
             TickerRegistration.Unregister(this);
-            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
         }
 
-        private void OnStageChanged(StageChangedEvent evt)
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
         {
             ReleaseSelf();
         }

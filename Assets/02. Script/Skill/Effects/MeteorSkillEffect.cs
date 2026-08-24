@@ -5,6 +5,7 @@ using Core;
 using Dungeon;
 using Managers;
 using Services;
+using Stage.Events;
 using UnityEngine;
 using War.Boss;
 
@@ -19,7 +20,10 @@ namespace Skill.Effects
     /// 시각 컴포넌트라 도메인 의존 없이 재사용 가능). SkillSO.MeteorTelegraphDuration 뒤 그
     /// 자리에 남아있는 적 전체에게 (시전자 현재 공격력 + magnitude)만큼의 피해를 준다. 여러
     /// 포탄이 동시에 서로 다른 진행도로 카운트다운되므로 War.Boss.WarBossPatternRunner(포탄
-    /// 하나만 순차 처리)와 달리 리스트로 여러 개를 동시에 추적한다.
+    /// 하나만 순차 처리)와 달리 리스트로 여러 개를 동시에 추적한다. Stage.Events.
+    /// CombatFieldResetEvent(스테이지 전환/던전 등 오버레이 진입·복귀)를 받으면 아직 낙하 중인
+    /// 포탄 전체를 예고 표시까지 포함해 즉시 반납한다 - 안 그러면 예고 원이 화면에 그대로 남은
+    /// 채 다음 스테이지/던전에서 카운트다운이 끝나 엉뚱한 대상에게 피해를 준다.
     /// </summary>
     [RequireComponent(typeof(SkillSlot))]
     public sealed class MeteorSkillEffect : MonoBehaviour, ISkillEffect, ITickable
@@ -102,6 +106,8 @@ namespace Skill.Effects
                 }
             }
 
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Register(this);
@@ -110,11 +116,18 @@ namespace Skill.Effects
 
         private void OnDisable()
         {
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
+
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Unregister(this);
             }
 
+            ReleaseAllShells();
+        }
+
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
+        {
             ReleaseAllShells();
         }
 

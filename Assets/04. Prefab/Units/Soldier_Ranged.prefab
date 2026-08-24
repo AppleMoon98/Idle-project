@@ -400,7 +400,7 @@ MonoBehaviour:
   decisionInterval: 0.5
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
-  screenReturnMargin: 0.15
+  screenReturnMargin: 0.03
 --- !u!114 &5808185526638659028
 MonoBehaviour:
   m_ObjectHideFlags: 0

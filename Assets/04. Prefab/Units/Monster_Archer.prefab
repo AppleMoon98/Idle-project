@@ -417,7 +417,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Combat.RangedKiter
   retargetInterval: 0.2
   detectionRange: 20
-  kiteTriggerDistance: 2
+  kiteTriggerDistance: 7
   kiteStepDistance: 2
   kiteScreenMargin: 0.05
   allyLayerMask:
@@ -425,6 +425,8 @@ MonoBehaviour:
     m_Bits: 256
   postAttackLockFraction: 0.5
   enablePostAttackLock: 0
+  enableKiteSpeedOverride: 1
+  kiteMoveSpeed: 0.5
 --- !u!114 &7112207535746188794
 MonoBehaviour:
   m_ObjectHideFlags: 0

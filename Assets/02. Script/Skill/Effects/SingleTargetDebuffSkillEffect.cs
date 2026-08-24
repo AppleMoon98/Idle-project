@@ -15,10 +15,11 @@ namespace Skill.Effects
     /// AffectedStats로 정한다(DebuffSkillEffect=쇠약=이속+공속, CurseSkillEffect=저주=최대체력+
     /// 공격력). magnitude는 "현재 값 대비 감소 비율"(최대 maxPercentReduction으로 클램프)로
     /// 해석되고 Skill.SkillBuffStatApplier로 적용/원복한다. 재시전 시 이전 대상의 디버프를 먼저
-    /// 되돌린 뒤 새 대상에게 건다. 대상이 죽거나 스테이지가 전환되면(죽지 않고 풀로 강제 반환되는
-    /// 경우까지 포함) 안전하게 정리한다 - StageMonsterScaler가 MaxHealth/AttackPower만 리스폰 시
-    /// 재계산하고 MoveSpeed/AttackInterval은 그대로 두므로, 정리를 누락하면 디버프가 다음 재사용
-    /// 개체에 그대로 눌러붙는다.
+    /// 되돌린 뒤 새 대상에게 건다. 대상이 죽거나 전장이 초기화되면(스테이지 전환뿐 아니라 던전 등
+    /// 오버레이 진입·복귀까지 포함, Stage.Events.CombatFieldResetEvent - 죽지 않고 풀로 강제
+    /// 반환되는 경우까지 포함) 안전하게 정리한다 - StageMonsterScaler가 MaxHealth/AttackPower만
+    /// 리스폰 시 재계산하고 MoveSpeed/AttackInterval은 그대로 두므로, 정리를 누락하면 디버프가
+    /// 다음 재사용 개체에 그대로 눌러붙는다.
     /// </summary>
     [RequireComponent(typeof(SkillSlot))]
     public abstract class SingleTargetDebuffSkillEffect : MonoBehaviour, ISkillEffect, ITickable
@@ -44,7 +45,7 @@ namespace Skill.Effects
         private void OnEnable()
         {
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
-            GameBootstrapper.Events?.Subscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Subscribe<CombatFieldResetEvent>(OnCombatFieldReset);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
@@ -55,7 +56,7 @@ namespace Skill.Effects
         private void OnDisable()
         {
             GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
-            GameBootstrapper.Events?.Unsubscribe<StageChangedEvent>(OnStageChanged);
+            GameBootstrapper.Events?.Unsubscribe<CombatFieldResetEvent>(OnCombatFieldReset);
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
@@ -131,11 +132,11 @@ namespace Skill.Effects
             }
         }
 
-        private void OnStageChanged(StageChangedEvent evt)
+        private void OnCombatFieldReset(CombatFieldResetEvent evt)
         {
-            // 스테이지 전환 시 남아있는 적은 죽지 않고 그대로 풀에 강제 반환될 수 있다
-            // (Stage.StageProgressTracker.ReleaseRemaining) - 이때는 CharacterDiedEvent가 뜨지
-            // 않으므로 여기서 명시적으로 되돌린다.
+            // 스테이지 전환/던전 등 오버레이 진입·복귀 시 남아있는 적은 죽지 않고 그대로 풀에
+            // 강제 반환될 수 있다(Stage.StageProgressTracker.ReleaseRemaining) - 이때는
+            // CharacterDiedEvent가 뜨지 않으므로 여기서 명시적으로 되돌린다.
             RevertIfActive();
         }
 
