@@ -34,6 +34,15 @@ namespace Dungeon
     {
         private const int MaxPlacementAttemptsPerZone = 30;
 
+        /// <summary>
+        /// 화면 위쪽 상단 UI(스테이지 정보/체력바/골드/메뉴 버튼 등)가 실제 플레이 화면 일부를
+        /// 가리는 만큼, 최광각 고정 범위 상단에서 이 폭만큼 제외한다 - SpawnGridLayout.
+        /// BottomUiClearance(하단 탭 바 대응)와 같은 이유의 반대쪽 버전. 이게 없으면 점령지
+        /// (WarStructure)가 상단 UI 뒤에 가려진 채로 스폰돼 시각적으로 안 보이는 경우가 있었다
+        /// (실사용 중 발견). 눈대중 플레이스홀더 값 - 나중 튜닝 과제.
+        /// </summary>
+        private const float TopUiClearance = 5f;
+
         [SerializeField]
         private SoldierRescueDungeonConfigSO config;
 
@@ -207,7 +216,8 @@ namespace Dungeon
         /// 실패하지 않도록 하는 최선 노력 배치 — 아주 드물게만 최소 거리가 살짝 못 미칠 수 있다).
         /// 화면 아래쪽 하단 UI(메인 탭 바 등)가 실제 플레이 화면 일부를 가리는 만큼
         /// (Combat.SpawnGridLayout.BottomUiClearance — 병사 스폰 기준점이 이미 쓰는 것과 같은
-        /// 값)은 세로 범위 하단에서 제외해, 구역이 그 뒤에 가려진 채로 스폰되는 일이 없게 한다.
+        /// 값)은 세로 범위 하단에서, 위쪽 상단 UI(스테이지 정보 등)가 가리는 만큼(TopUiClearance)은
+        /// 상단에서 제외해, 구역이 그 뒤에 가려진 채로 스폰되는 일이 없게 한다.
         /// </summary>
         private Vector3[] GenerateZonePositions()
         {
@@ -226,6 +236,7 @@ namespace Dungeon
             }
 
             float minY = center.y - halfExtent.y + SpawnGridLayout.BottomUiClearance;
+            float maxY = center.y + halfExtent.y - TopUiClearance;
 
             var positions = new Vector3[Mathf.Max(config.ZoneCount, 0)];
 
@@ -236,7 +247,7 @@ namespace Dungeon
                 for (int attempt = 0; attempt < MaxPlacementAttemptsPerZone; attempt++)
                 {
                     float x = Random.Range(center.x - halfExtent.x, center.x + halfExtent.x);
-                    float y = Random.Range(minY, center.y + halfExtent.y);
+                    float y = Random.Range(minY, maxY);
                     candidate = new Vector3(x, y, 0f);
 
                     if (IsFarEnoughFromPrevious(candidate, positions, i))
