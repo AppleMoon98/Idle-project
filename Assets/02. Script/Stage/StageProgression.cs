@@ -28,8 +28,11 @@ namespace Stage
     /// 지적으로 발견. 그래서 LoadStage 호출 자체를 즉시 실행하지 않고 _pendingLoadStage에
     /// 적어두었다가 다음 틱(Tick)에서 실행한다 — 그러면 같은 프레임에 몰린 나머지 사망 이벤트가
     /// 전부 원래 트래커에 정상 도달한 뒤에야 트래커가 교체된다. JumpTo/JumpToHighestCleared/
-    /// JumpToBreakthroughFrontier는 UI에서 직접 호출돼(EventBus 재진입이 아님) 그대로 즉시
-    /// LoadStage한다.
+    /// JumpToBreakthroughFrontier는 UI에서 직접 호출돼(EventBus 재진입이 아님) _isSuppressed가
+    /// 아닌 한 그대로 즉시 LoadStage한다 - 오버레이(던전 등) 활성 중에는 OnStageCleared/
+    /// OnCharacterDied와 마찬가지로 _isSuppressed를 확인해 아무 일도 하지 않는다(실사용 중 발견된
+    /// 버그 - 이 세 메서드만 이 체크가 빠져 있어 던전 안에서 돌파/반복 토글을 조작하면 오버레이가
+    /// 활성인 채로 LoadStage가 실행돼 스포너/트래커 상태가 꼬였다).
     /// </summary>
     public sealed class StageProgression : ITickable
     {
@@ -113,9 +116,19 @@ namespace Stage
         /// 클리어하지 않은 스테이지(최고 기록보다 앞선 인덱스)로는 이동할 수 없다 - 반복 모드는
         /// 이미 증명된 난이도만 반복한다는 기존 전제(OfflineProgressService와 동일)를 그대로
         /// 따른다. 이미 그 자리라면 재로드 없이 성공만 반환한다. 성공하면 true.
+        ///
+        /// _isSuppressed(던전 등 오버레이 활성 중)일 때는 무조건 실패한다 - OnStageCleared/
+        /// OnCharacterDied가 이미 이 플래그로 오버레이 중 LoadStage를 막고 있는 것과 같은 이유인데,
+        /// 이 메서드들만 빠져 있어 던전 안에서 돌파/반복 토글을 조작하면 오버레이가 활성인 채로
+        /// LoadStage가 그대로 실행돼 스포너/트래커 상태가 꼬이는 버그가 실사용 중 발견됐다.
         /// </summary>
         public bool JumpTo(StageSO stage)
         {
+            if (_isSuppressed)
+            {
+                return false;
+            }
+
             int index = _catalog.IndexOf(stage);
 
             if (index < 0 || index > _highestClearedIndex)
@@ -149,11 +162,12 @@ namespace Stage
         /// 현재 스테이지를 역대 최고 클리어 스테이지로 옮긴다(예: 랭크 승급 가능 시 자동 반복
         /// 전환, section AY/AZ 이후 추가 기능). 이미 그 자리라면(예: 방금 그 스테이지를 클리어해
         /// highest==current가 된 직후) 아무 일도 하지 않는다 - OnStageCleared 안에서 재진입으로
-        /// 호출돼도 중복 LoadStage가 발생하지 않도록 하기 위함.
+        /// 호출돼도 중복 LoadStage가 발생하지 않도록 하기 위함. _isSuppressed일 때는 JumpTo와
+        /// 같은 이유로 아무 일도 하지 않는다.
         /// </summary>
         public void JumpToHighestCleared()
         {
-            if (_currentIndex == _highestClearedIndex)
+            if (_isSuppressed || _currentIndex == _highestClearedIndex)
             {
                 return;
             }
@@ -168,9 +182,15 @@ namespace Stage
         /// 되돌아갈 때 쓴다 - 방금까지 반복하던 스테이지에 그대로 머무르지 않고 실제 돌파해야 할
         /// 지점으로 복귀시킨다. 다음 스테이지가 없으면(카탈로그 마지막 스테이지가 곧 최고 기록인
         /// 경우) 최고 기록 자리 그대로 둔다 - OnStageCleared의 돌파 전진 fallback과 동일하다.
+        /// _isSuppressed일 때는 JumpTo와 같은 이유로 아무 일도 하지 않는다.
         /// </summary>
         public void JumpToBreakthroughFrontier()
         {
+            if (_isSuppressed)
+            {
+                return;
+            }
+
             StageSO next = _catalog.GetAt(_highestClearedIndex + 1);
             int targetIndex = next != null ? _highestClearedIndex + 1 : _highestClearedIndex;
 

@@ -16,7 +16,10 @@ namespace UI
     /// (RankPromotionAttemptStartedEvent~RankPromotionSessionEndedEvent) "승급" 표기를 잠깐 접어두고
     /// 평소의 돌파/반복 표기로 되돌아간다 - RankUpAvailableTextUI가 이 구간에 스스로 숨는 것과 같은
     /// 이유(중복 시작 방지). StageModeChangedEvent를 받을 때마다 토스트로 "돌파/반복 모드로
-    /// 변경되었습니다."를 안내한다.
+    /// 변경되었습니다."를 안내한다. 던전 등 오버레이가 활성 중(StageController.IsOverlayActive)
+    /// 이면 모드 전환 자체를 막고 토스트로 안내한다 - 오버레이 중 LoadStage가 실행돼 스포너/
+    /// 트래커 상태가 꼬이는 버그가 실사용 중 발견됐다(StageProgression.JumpTo 등의 _isSuppressed
+    /// 체크 누락이 근본 원인이라 거기서도 막혔지만, 여기서 먼저 막아 사용자에게 이유를 알려준다).
     /// </summary>
     public sealed class StageModeToggleUI : MonoBehaviour
     {
@@ -64,6 +67,12 @@ namespace UI
             if (IsPromotionAvailable(out RankService rankService))
             {
                 battleController?.Enter(rankService.GetNextRank());
+                return;
+            }
+
+            if (stageController != null && stageController.IsOverlayActive)
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("던전 입장 중에는 스테이지 모드를 변경할 수 없습니다."));
                 return;
             }
 

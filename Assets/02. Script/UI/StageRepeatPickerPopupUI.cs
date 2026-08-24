@@ -48,10 +48,17 @@ namespace UI
         /// 후보 스테이지 목록을 새로 채우고 팝업을 연다. 아직 한 번도 클리어한 스테이지가 없으면
         /// (예: 1-1을 아직 못 깬 새 세이브) 고를 항목 자체가 없으므로 팝업을 열지 않고 토스트로만
         /// 안내한다 - 예전엔 이 경우에도 팝업이 텅 빈 채로 열려 아무것도 못 고르고 닫기만 해야
-        /// 했다(실사용 중 발견).
+        /// 했다(실사용 중 발견). 던전 등 오버레이가 활성 중이면 같은 이유로(StageModeToggleUI 참고
+        /// - 오버레이 중 스테이지 이동은 스포너/트래커 상태를 꼬이게 한다) 팝업 자체를 열지 않는다.
         /// </summary>
         public void Open()
         {
+            if (stageController != null && stageController.IsOverlayActive)
+            {
+                GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("던전 입장 중에는 스테이지 모드를 변경할 수 없습니다."));
+                return;
+            }
+
             foreach (SoldierPickerRowUI row in _spawnedRows)
             {
                 Destroy(row.gameObject);
