@@ -25,9 +25,10 @@ namespace Combat
     ///   반비례해서 줄어든다(빠를수록 핸들링 저하) — minTurnRateDegreesPerSecond 밑으로는 내려가지
     ///   않아 완전히 조향 불능이 되지는 않는다. 이제 속도가 항상 maxChargeSpeed로 일정하므로 이
     ///   각속도도 돌진 내내 일정하다(예전처럼 초반엔 민첩하다가 점점 둔해지는 곡선이 아니다).
-    /// 충돌(자기 몸 반경 + hitCheckReach 안에 위협이 들어옴)하면 기본 공격력에 (현재속도-
-    /// chargeStartSpeed)×bonusDamagePerSpeed만큼 추가 피해를 Health.TakeDamage로 직접 적용하고
-    /// (공격 주기 시스템을 거치지 않는다 — War.Boss.WarBossPatternRunner의 광역딜과 같은 이유),
+    /// 충돌(자기 몸 반경 + hitCheckReach 안에 위협이 들어옴)하면 기본 공격력만큼 피해를
+    /// Health.TakeDamage로 직접 적용하고(공격 주기 시스템을 거치지 않는다 — War.Boss.
+    /// WarBossPatternRunner의 광역딜과 같은 이유. 이동속도 비례 추가 피해는 실사용 피드백으로
+    /// 제거됐다 — chargeStartSpeed는 조향 둔화 계산의 기준값으로만 남아있다),
     /// 맞은 대상에 KnockbackReceiver가 있으면 넉백시킨다(넉백 방향은 돌진 정면이 아니라
     /// knockbackSidewaysAngleDegrees만큼 옆으로 꺾은 방향 — 정면 그대로 밀어내면 돌진 속도가
     /// 넉백 속도보다 빨라 계속 따라붙으며 대상을 끝까지 끌고 가는 것처럼 보였다(실사용 중 발견).
@@ -96,9 +97,6 @@ namespace Combat
         [Header("충돌")]
         [SerializeField]
         private float hitCheckReach = 0.3f;
-
-        [SerializeField]
-        private float bonusDamagePerSpeed = 2f;
 
         [SerializeField]
         private float knockbackDistance = 2f;
@@ -334,8 +332,7 @@ namespace Combat
                     _hitElapsedMark = _chargeElapsed;
                 }
 
-                float bonusDamage = (_chargeSpeed - chargeStartSpeed) * bonusDamagePerSpeed;
-                health.TakeDamage(_statsProvider.Stats.AttackPower + bonusDamage);
+                health.TakeDamage(_statsProvider.Stats.AttackPower);
 
                 if (hit.TryGetComponent(out KnockbackReceiver knockback))
                 {

@@ -318,7 +318,6 @@ MonoBehaviour:
   chargeOverrunDuration: 0.6
   maxChargeDuration: 3
   hitCheckReach: 0.3
-  bonusDamagePerSpeed: 2
   knockbackDistance: 4
   knockbackDuration: 0.6
   knockbackSidewaysAngleDegrees: 70
