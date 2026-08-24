@@ -13,9 +13,10 @@ namespace UI
     /// 세로길이 전체만큼 벌리는 동작이 narrowOrthographicSize~wideOrthographicSize 전체 범위를
     /// 커버하도록, 민감도를 고정 배율 대신 Screen.height 기준으로 매 프레임 동적으로 계산한다 -
     /// 해상도가 달라도 항상 같은 손가락 이동 비율이 같은 줌 비율이 되도록 하기 위함. 마우스 휠은
-    /// 실제 기기별 회전 단위가 표준화돼 있지 않아(모바일 타겟이라 정밀 튜닝 대상도 아님) 별도의
-    /// mouseScrollSensitivity 배율을 곱한다 - 이 프로젝트는 모바일 타겟이지만 PC 환경에서도
-    /// 테스트하는 경우가 있어 추가된, 개발 편의용 보조 입력이다.
+    /// 원시값 크기가 기기/드라이버마다 표준화돼 있지 않아(핀치처럼 원시값에 비례시키면 노치 하나로
+    /// 체감 불가능한 변화만 날 수 있다) 방향만 읽어 노치 하나당 mouseScrollStepSize만큼의 고정
+    /// 스텝으로 움직인다 - 이 프로젝트는 모바일 타겟이지만 PC 환경에서도 테스트하는 경우가 있어
+    /// 추가된, 개발 편의용 보조 입력이다.
     ///
     /// wideOrthographicSize/narrowOrthographicSize는 예전 슬라이더와 똑같은 역할을 그대로 이어받는다
     /// - Services.CameraFollowService(카메라 추적 시작 임계값이자 플레이어 이동 제한 경계로 재사용)와
@@ -40,12 +41,16 @@ namespace UI
         private float narrowOrthographicSize = 6f;
 
         /// <summary>
-        /// 마우스 휠 스크롤 한 단위(Mouse.scroll.y 원시값, 보통 노치 하나당 ±120 근방)당
-        /// orthographicSize를 얼마나 바꿀지 - 기기/드라이버별 원시값 스케일이 표준화돼 있지 않은
-        /// PC 보조 입력용 플레이스홀더 값(나중 튜닝 과제).
+        /// 휠 노치 한 번당 orthographicSize를 얼마나 바꿀지(고정 스텝). Mouse.scroll.y의 원시값
+        /// 크기는 기기/드라이버마다 표준화돼 있지 않다 - 실측 결과 이 환경에서는 노치 하나당 겨우
+        /// ±1 근방만 들어와, 원시값에 비례한 배율(과거 0.02)로는 노치 하나로는 체감 불가능한 변화
+        /// (18 범위 중 0.02)만 나서 "휠을 굴려도 줌이 안 움직인다"는 것으로 보고됐었다 - 그래서
+        /// 원시값 크기를 아예 무시하고 방향(Mathf.Sign)만 읽어 매 노치마다 이 고정 크기만큼
+        /// 움직이도록 바꿨다. 휠은 핀치와 달리 연속적인 제스처가 아니라 이산적인 "노치" 입력이라
+        /// 이 방식이 더 자연스럽다.
         /// </summary>
         [SerializeField]
-        private float mouseScrollSensitivity = 0.02f;
+        private float mouseScrollStepSize = 1.5f;
 
         /// <summary>
         /// 가장 좁은(확대된) orthographicSize. Services.CameraFollowService가 카메라 추적 시작
@@ -159,7 +164,7 @@ namespace UI
                 return;
             }
 
-            ApplyOrthographicSizeDelta(-scrollY * mouseScrollSensitivity);
+            ApplyOrthographicSizeDelta(-Mathf.Sign(scrollY) * mouseScrollStepSize);
         }
 
         private void ApplyOrthographicSizeDelta(float orthographicSizeDelta)
