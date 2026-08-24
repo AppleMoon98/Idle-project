@@ -14,7 +14,8 @@ namespace UI
     /// 삭제됨)를 대체 — 배치가 부대별 슬롯 선택에서 단일 풀 방식으로 바뀌면서, 어느 슬롯에
     /// 배치돼 있는지는 더 이상 화면에 드러나지 않고 "배치돼 있다/아니다"만 구분한다. 카드를
     /// 탭하면 곧장 Soldier.SoldierDeploymentService.TryUndeploy로 배치를 해제해 하단 목록으로
-    /// 돌려보낸다.
+    /// 돌려보낸다. 정렬 순서는 (1) 등급(높은 등급 먼저) → (2) 병과 순(Soldier.SoldierUnitTypeOrder,
+    /// 로스터/배치 하단 목록과 동일한 기준 공유) 고정이다.
     /// </summary>
     public sealed class SquadDeployedPanelUI : MonoBehaviour
     {
@@ -94,7 +95,7 @@ namespace UI
             }
 
             var orderedDefinitions = new List<SoldierSO>(deployedByDefinition.Keys);
-            orderedDefinitions.Sort((a, b) => GradeIndex(b) - GradeIndex(a));
+            orderedDefinitions.Sort(CompareDefinitions);
 
             foreach (SoldierSO definition in orderedDefinitions)
             {
@@ -105,6 +106,16 @@ namespace UI
 
                 _spawnedRows.Add(row);
             }
+        }
+
+        /// <summary>
+        /// 1차 등급(높은 등급 먼저) → 2차 병과(Soldier.SoldierUnitTypeOrder, 로스터 목록과 동일한
+        /// 기준 공유) 순으로 정렬한다.
+        /// </summary>
+        private int CompareDefinitions(SoldierSO a, SoldierSO b)
+        {
+            int gradeCompare = GradeIndex(b) - GradeIndex(a);
+            return gradeCompare != 0 ? gradeCompare : SoldierUnitTypeOrder.IndexOf(a) - SoldierUnitTypeOrder.IndexOf(b);
         }
 
         private int GradeIndex(SoldierSO definition)

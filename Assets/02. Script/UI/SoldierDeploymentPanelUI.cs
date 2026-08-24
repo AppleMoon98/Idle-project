@@ -17,6 +17,8 @@ namespace UI
     /// 확정하던 SquadDeploymentSlotGridUI는 삭제됨) — 성공하면 그 유닛은 다음 새로고침에서
     /// 스택 개수가 1 줄어들거나(×N 배지) 0이 되면 목록에서 사라지므로, 같은 유닛을 두 번 배치할
     /// 방법 자체가 없다. 실패(코스트 예산 초과/빈 슬롯 없음)하면 토스트로 원인을 안내한다.
+    /// 정렬 순서는 (1) 등급(높은 등급 먼저) → (2) 병과 순(Soldier.SoldierUnitTypeOrder, 로스터
+    /// 목록과 동일한 기준 공유) 고정이다.
     /// </summary>
     public sealed class SoldierDeploymentPanelUI : MonoBehaviour
     {
@@ -96,7 +98,7 @@ namespace UI
             }
 
             var orderedDefinitions = new List<SoldierSO>(availableByDefinition.Keys);
-            orderedDefinitions.Sort((a, b) => GradeIndex(b) - GradeIndex(a));
+            orderedDefinitions.Sort(CompareDefinitions);
 
             foreach (SoldierSO definition in orderedDefinitions)
             {
@@ -107,6 +109,16 @@ namespace UI
 
                 _spawnedRows.Add(row);
             }
+        }
+
+        /// <summary>
+        /// 1차 등급(높은 등급 먼저) → 2차 병과(Soldier.SoldierUnitTypeOrder, 로스터 목록과 동일한
+        /// 기준 공유) 순으로 정렬한다.
+        /// </summary>
+        private int CompareDefinitions(SoldierSO a, SoldierSO b)
+        {
+            int gradeCompare = GradeIndex(b) - GradeIndex(a);
+            return gradeCompare != 0 ? gradeCompare : SoldierUnitTypeOrder.IndexOf(a) - SoldierUnitTypeOrder.IndexOf(b);
         }
 
         private int GradeIndex(SoldierSO definition)

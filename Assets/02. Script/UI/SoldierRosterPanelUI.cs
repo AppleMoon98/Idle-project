@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 using Core;
 using Equipment;
@@ -18,16 +17,11 @@ namespace UI
     /// 행동은 부대 편성의 전술(SquadTacticOptionPopupUI) 화면으로 각각 이관돼 로스터에서는 더 이상
     /// 다루지 않는다(병사 전용 장비 시스템이 제거되면서, 슬롯을 탭했을 때 열던
     /// SoldierEquipmentPopupUI/SoldierRosterStackPopupUI가 함께 사라졌다).
-    /// 정렬 순서는 (1) 보유 여부(보유 먼저) → (2) 등급(높은 등급 먼저) → (3) 병과 순(로드맵 순서:
-    /// 보병/궁병/기마궁수/기마병/기사/창병/방패보병/공성병) 고정이다.
+    /// 정렬 순서는 (1) 보유 여부(보유 먼저) → (2) 등급(높은 등급 먼저) → (3) 병과 순
+    /// (Soldier.SoldierUnitTypeOrder, 부대 편성 목록과 동일한 기준 공유) 고정이다.
     /// </summary>
     public sealed class SoldierRosterPanelUI : MonoBehaviour
     {
-        private static readonly string[] UnitTypeOrder =
-        {
-            "보병", "궁병", "기마궁수", "기마병", "기사", "창병", "방패보병", "공성병"
-        };
-
         private static readonly List<OwnedSoldier> EmptyStack = new();
 
         [SerializeField]
@@ -139,7 +133,7 @@ namespace UI
                 return gradeCompare;
             }
 
-            return UnitTypeIndex(a) - UnitTypeIndex(b);
+            return SoldierUnitTypeOrder.IndexOf(a) - SoldierUnitTypeOrder.IndexOf(b);
         }
 
         private int GradeIndex(SoldierSO definition)
@@ -150,16 +144,6 @@ namespace UI
             }
 
             return gradeCatalog.IndexOf(definition.Grade);
-        }
-
-        private static int UnitTypeIndex(SoldierSO definition)
-        {
-            string name = definition.DisplayName;
-            int spaceIndex = name.LastIndexOf(' ');
-            string unitType = spaceIndex >= 0 ? name.Substring(spaceIndex + 1) : name;
-
-            int index = Array.IndexOf(UnitTypeOrder, unitType);
-            return index >= 0 ? index : UnitTypeOrder.Length;
         }
     }
 }
