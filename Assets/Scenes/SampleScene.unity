@@ -7146,6 +7146,7 @@ GameObject:
   - component: {fileID: 202894495}
   - component: {fileID: 202894494}
   - component: {fileID: 202894497}
+  - component: {fileID: 202894498}
   m_Layer: 0
   m_Name: MenuButton
   m_TagString: Untagged
@@ -7267,6 +7268,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
+--- !u!114 &202894498
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 202894492}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9a7c41671870554b9c5d1daffe9109f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ButtonPressedTextOffsetUI
+  text: {fileID: 1002776846}
+  pressedBottom: 0
+  pressedTop: 16
 --- !u!1 &204250497
 GameObject:
   m_ObjectHideFlags: 0
@@ -58195,6 +58211,7 @@ GameObject:
   - component: {fileID: 1087615291}
   - component: {fileID: 1087615290}
   - component: {fileID: 1087615294}
+  - component: {fileID: 1087615295}
   m_Layer: 0
   m_Name: PlayerControlModeToggle
   m_TagString: Untagged
@@ -58330,6 +58347,21 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5d104b5c84530ea4fb5623173ba80b82, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UI.SafeAreaFitter
+--- !u!114 &1087615295
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1087615288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9a7c41671870554b9c5d1daffe9109f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ButtonPressedTextOffsetUI
+  text: {fileID: 834248484}
+  pressedBottom: 0
+  pressedTop: 16
 --- !u!1 &1094093433
 GameObject:
   m_ObjectHideFlags: 0
@@ -94598,6 +94630,7 @@ GameObject:
   - component: {fileID: 2073761122}
   - component: {fileID: 2073761121}
   - component: {fileID: 2073761120}
+  - component: {fileID: 2073761125}
   m_Layer: 0
   m_Name: StageModeToggle
   m_TagString: Untagged
@@ -94736,6 +94769,21 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2073761118}
   m_CullTransparentMesh: 1
+--- !u!114 &2073761125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2073761118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9a7c41671870554b9c5d1daffe9109f, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ButtonPressedTextOffsetUI
+  text: {fileID: 242144990}
+  pressedBottom: 0
+  pressedTop: 16
 --- !u!1 &2075194398
 GameObject:
   m_ObjectHideFlags: 0
