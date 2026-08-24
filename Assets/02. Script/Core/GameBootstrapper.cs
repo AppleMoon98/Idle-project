@@ -16,7 +16,6 @@ using Services;
 using Skill;
 using Soldier;
 using SoldierEnhancement;
-using SoldierEquipment;
 using Stage;
 using UnityEngine;
 
@@ -98,9 +97,6 @@ namespace Core
 
         [SerializeField]
         private SkillGachaTableSO[] skillGachaTiers;
-
-        [SerializeField]
-        private SoldierEquipmentCatalogSO soldierEquipmentCatalog;
 
         [SerializeField]
         private BehaviorProfileCatalogSO behaviorProfileCatalog;
@@ -202,16 +198,6 @@ namespace Core
             Services.Register(squadShieldWallCoordinator);
             _managers.Add(squadShieldWallCoordinator);
 
-            var soldierEquipmentInventoryService = new SoldierEquipmentInventoryService(Events);
-            soldierEquipmentInventoryService.Initialize();
-            Services.Register(soldierEquipmentInventoryService);
-            _managers.Add(soldierEquipmentInventoryService);
-
-            var soldierEquippedGearService = new SoldierEquippedGearService(Events, soldierEquipmentInventoryService);
-            soldierEquippedGearService.Initialize();
-            Services.Register(soldierEquippedGearService);
-            _managers.Add(soldierEquippedGearService);
-
             var skillService = new SkillService(Events);
             skillService.Initialize();
             Services.Register(skillService);
@@ -231,9 +217,6 @@ namespace Core
                 soldierCatalog,
                 soldierDeploymentService,
                 behaviorProfileCatalog,
-                soldierEquipmentInventoryService,
-                soldierEquippedGearService,
-                soldierEquipmentCatalog,
                 skillService,
                 skillCatalog,
                 skillLoadoutService,
@@ -246,7 +229,6 @@ namespace Core
             _initialSave = save;
             saveService.RestoreInventory(save);
             saveService.RestoreSoldierRoster(save);
-            saveService.RestoreSoldierEquipment(save);
             saveService.RestoreSkills(save);
             saveService.RestoreSkillCounts(save);
             saveService.RestoreSkillLoadout(save);

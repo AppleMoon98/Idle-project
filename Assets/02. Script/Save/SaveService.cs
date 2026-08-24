@@ -18,8 +18,6 @@ using Skill.Events;
 using Soldier;
 using Soldier.Events;
 using SoldierEnhancement.Events;
-using SoldierEquipment;
-using SoldierEquipment.Events;
 using Stage.Events;
 using UnityEngine;
 
@@ -27,13 +25,12 @@ namespace Save
 {
     /// <summary>
     /// 오프라인 보상 계산에 필요한 최소 게임 상태(재화, 현재/최고 스테이지, 마지막 접속 시각)와
-    /// 보유 장비/장착 상태, 보유 병사 로스터(행동 프로필 배정 + 배치 슬롯 배정 포함), 병사 전용 장비
-    /// 보유/장착 상태를 PlayerPrefs에 저장/로드한다. 각 스냅샷 조회·복원을 위해
-    /// InventoryService/EquippedGearService/EquipmentCatalogSO, SoldierRosterService/SoldierCatalogSO/
-    /// SoldierDeploymentService/BehaviorProfileCatalogSO, SoldierEquipmentInventoryService/
-    /// SoldierEquippedGearService/SoldierEquipmentCatalogSO를 직접 참조한다(EnhancementService가
-    /// CurrencyService를 참조하는 것과 같은 성격의 합성 의존성 — 순수 이벤트 구독만으로는 가변 길이
-    /// 컬렉션 전체를 스냅샷할 수 없다).
+    /// 보유 장비/장착 상태, 보유 병사 로스터(행동 프로필 배정 + 배치 슬롯 배정 포함)를 PlayerPrefs에
+    /// 저장/로드한다. 각 스냅샷 조회·복원을 위해 InventoryService/EquippedGearService/
+    /// EquipmentCatalogSO, SoldierRosterService/SoldierCatalogSO/SoldierDeploymentService/
+    /// BehaviorProfileCatalogSO를 직접 참조한다(EnhancementService가 CurrencyService를 참조하는
+    /// 것과 같은 성격의 합성 의존성 — 순수 이벤트 구독만으로는 가변 길이 컬렉션 전체를 스냅샷할 수
+    /// 없다).
     ///
     /// 추적 대상 이벤트(골드/장비/스킬/병사 등 20여 종)가 올 때마다 매번 즉시 PlayerPrefs.Save()
     /// (동기 디스크 flush, 이 클래스에서 가장 비싼 호출)까지 실행하면, 골드 뽑기 300연처럼 같은
@@ -60,13 +57,6 @@ namespace Save
             public SoldierRosterService.OwnedSoldierSnapshot[] Roster;
             public int NextInstanceId;
             public SoldierDeploymentService.DeploymentSnapshotEntry[] Deployment;
-        }
-
-        [Serializable]
-        private class SoldierEquipmentSaveBlob
-        {
-            public SoldierEquipmentInventoryService.OwnedSoldierEquipmentSnapshot[] Owned;
-            public SoldierEquippedGearService.EquippedSnapshotEntry[] Equipped;
         }
 
         [Serializable]
@@ -123,7 +113,6 @@ namespace Save
         private const string RankIndexKey = "Save.RankIndex";
         private const string SoldierTicketCountKey = "Save.SoldierTicketCount";
         private const string SoldierRosterJsonKey = "Save.SoldierRosterJson";
-        private const string SoldierEquipmentJsonKey = "Save.SoldierEquipmentJson";
         private const string SkillLevelsJsonKey = "Save.SkillLevelsJson";
         private const string SoldierAttackPowerLevelKey = "Save.SoldierAttackPowerLevel";
         private const string SoldierMaxHealthLevelKey = "Save.SoldierMaxHealthLevel";
@@ -149,9 +138,6 @@ namespace Save
         private readonly SoldierCatalogSO _soldierCatalog;
         private readonly SoldierDeploymentService _soldierDeployment;
         private readonly BehaviorProfileCatalogSO _behaviorProfileCatalog;
-        private readonly SoldierEquipmentInventoryService _soldierEquipmentInventory;
-        private readonly SoldierEquippedGearService _soldierEquippedGear;
-        private readonly SoldierEquipmentCatalogSO _soldierEquipmentCatalog;
         private readonly SkillService _skill;
         private readonly SkillCatalogSO _skillCatalog;
         private readonly SkillLoadoutService _skillLoadout;
@@ -173,7 +159,6 @@ namespace Save
         private int _rankIndex;
         private int _soldierTicketCount;
         private string _soldierRosterJson = "";
-        private string _soldierEquipmentJson = "";
         private string _skillLevelsJson = "";
         private int _soldierAttackPowerLevel;
         private int _soldierMaxHealthLevel;
@@ -201,9 +186,6 @@ namespace Save
             SoldierCatalogSO soldierCatalog,
             SoldierDeploymentService soldierDeployment,
             BehaviorProfileCatalogSO behaviorProfileCatalog,
-            SoldierEquipmentInventoryService soldierEquipmentInventory,
-            SoldierEquippedGearService soldierEquippedGear,
-            SoldierEquipmentCatalogSO soldierEquipmentCatalog,
             SkillService skill,
             SkillCatalogSO skillCatalog,
             SkillLoadoutService skillLoadout,
@@ -217,9 +199,6 @@ namespace Save
             _soldierCatalog = soldierCatalog;
             _soldierDeployment = soldierDeployment;
             _behaviorProfileCatalog = behaviorProfileCatalog;
-            _soldierEquipmentInventory = soldierEquipmentInventory;
-            _soldierEquippedGear = soldierEquippedGear;
-            _soldierEquipmentCatalog = soldierEquipmentCatalog;
             _skill = skill;
             _skillCatalog = skillCatalog;
             _skillLoadout = skillLoadout;
@@ -248,7 +227,6 @@ namespace Save
             _rankIndex = save.RankIndex;
             _soldierTicketCount = save.SoldierTicketCount;
             _soldierRosterJson = save.SoldierRosterJson;
-            _soldierEquipmentJson = save.SoldierEquipmentJson;
             _skillLevelsJson = save.SkillLevelsJson;
             _soldierAttackPowerLevel = save.SoldierAttackPowerLevel;
             _soldierMaxHealthLevel = save.SoldierMaxHealthLevel;
@@ -278,8 +256,6 @@ namespace Save
             _events.Subscribe<SoldierRosterChangedEvent>(OnSoldierRosterChanged);
             _events.Subscribe<SoldierDeploymentChangedEvent>(OnSoldierDeploymentChanged);
             _events.Subscribe<SoldierBehaviorProfileChangedEvent>(OnSoldierBehaviorProfileChanged);
-            _events.Subscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
-            _events.Subscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             _events.Subscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
@@ -311,8 +287,6 @@ namespace Save
             _events.Unsubscribe<SoldierRosterChangedEvent>(OnSoldierRosterChanged);
             _events.Unsubscribe<SoldierDeploymentChangedEvent>(OnSoldierDeploymentChanged);
             _events.Unsubscribe<SoldierBehaviorProfileChangedEvent>(OnSoldierBehaviorProfileChanged);
-            _events.Unsubscribe<SoldierEquipmentInventoryChangedEvent>(OnSoldierEquipmentInventoryChanged);
-            _events.Unsubscribe<SoldierEquipmentEquippedEvent>(OnSoldierEquipmentEquipped);
             _events.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             _events.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             _events.Unsubscribe<SoldierStatEnhancedEvent>(OnSoldierStatEnhanced);
@@ -348,7 +322,6 @@ namespace Save
             int rankIndex = PlayerPrefs.GetInt(RankIndexKey, 0);
             int soldierTicketCount = PlayerPrefs.GetInt(SoldierTicketCountKey, 0);
             string soldierRosterJson = PlayerPrefs.GetString(SoldierRosterJsonKey, "");
-            string soldierEquipmentJson = PlayerPrefs.GetString(SoldierEquipmentJsonKey, "");
             string skillLevelsJson = PlayerPrefs.GetString(SkillLevelsJsonKey, "");
             int soldierAttackPowerLevel = PlayerPrefs.GetInt(SoldierAttackPowerLevelKey, 0);
             int soldierMaxHealthLevel = PlayerPrefs.GetInt(SoldierMaxHealthLevelKey, 0);
@@ -384,7 +357,6 @@ namespace Save
                 rankIndex,
                 soldierTicketCount,
                 soldierRosterJson,
-                soldierEquipmentJson,
                 skillLevelsJson,
                 soldierAttackPowerLevel,
                 soldierMaxHealthLevel,
@@ -446,7 +418,6 @@ namespace Save
             PlayerPrefs.SetInt(RankIndexKey, _rankIndex);
             PlayerPrefs.SetInt(SoldierTicketCountKey, _soldierTicketCount);
             PlayerPrefs.SetString(SoldierRosterJsonKey, _soldierRosterJson);
-            PlayerPrefs.SetString(SoldierEquipmentJsonKey, _soldierEquipmentJson);
             PlayerPrefs.SetString(SkillLevelsJsonKey, _skillLevelsJson);
             PlayerPrefs.SetInt(SoldierAttackPowerLevelKey, _soldierAttackPowerLevel);
             PlayerPrefs.SetInt(SoldierMaxHealthLevelKey, _soldierMaxHealthLevel);
@@ -519,23 +490,6 @@ namespace Save
 
             _soldierRoster.RestoreSnapshot(blob.Roster, _soldierCatalog, _behaviorProfileCatalog, blob.NextInstanceId);
             _soldierDeployment.RestoreSnapshot(blob.Deployment);
-        }
-
-        /// <summary>
-        /// save.SoldierEquipmentJson으로 병사 전용 장비의 보유 재고/장착 상태를 복원한다.
-        /// GameBootstrapper.Awake()에서 관련 서비스 생성 직후, Load() 결과를 넘겨 한 번 호출한다.
-        /// </summary>
-        public void RestoreSoldierEquipment(SaveData save)
-        {
-            SoldierEquipmentSaveBlob blob = ParseBlobOrNull<SoldierEquipmentSaveBlob>(save.SoldierEquipmentJson);
-
-            if (blob == null)
-            {
-                return;
-            }
-
-            _soldierEquipmentInventory.RestoreSnapshot(blob.Owned, _soldierEquipmentCatalog);
-            _soldierEquippedGear.RestoreSnapshot(blob.Equipped, _soldierEquipmentCatalog, _soldierEquipmentInventory);
         }
 
         /// <summary>
@@ -827,18 +781,6 @@ namespace Save
             MarkDirty();
         }
 
-        private void OnSoldierEquipmentInventoryChanged(SoldierEquipmentInventoryChangedEvent evt)
-        {
-            RebuildSoldierEquipmentSnapshot();
-            MarkDirty();
-        }
-
-        private void OnSoldierEquipmentEquipped(SoldierEquipmentEquippedEvent evt)
-        {
-            RebuildSoldierEquipmentSnapshot();
-            MarkDirty();
-        }
-
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
         {
             RebuildSkillSnapshot();
@@ -933,21 +875,6 @@ namespace Save
             };
 
             _soldierRosterJson = JsonUtility.ToJson(blob);
-        }
-
-        /// <summary>
-        /// SoldierEquipmentInventoryService/SoldierEquippedGearService의 현재 상태 전체를 JSON으로
-        /// 다시 직렬화한다. RebuildInventorySnapshot과 같은 이유.
-        /// </summary>
-        private void RebuildSoldierEquipmentSnapshot()
-        {
-            var blob = new SoldierEquipmentSaveBlob
-            {
-                Owned = _soldierEquipmentInventory.ExportSnapshot(_soldierEquipmentCatalog),
-                Equipped = _soldierEquippedGear.ExportSnapshot(_soldierEquipmentCatalog)
-            };
-
-            _soldierEquipmentJson = JsonUtility.ToJson(blob);
         }
 
         /// <summary>

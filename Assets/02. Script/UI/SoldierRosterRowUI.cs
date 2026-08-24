@@ -11,9 +11,10 @@ namespace UI
     /// 로스터 패널의 병사 한 슬롯(그리드 칸 하나)을 표시/제어한다. SoldierRosterPanelUI가 같은
     /// SoldierSO(등급+병종)를 가진 유닛들을 하나의 스택으로 묶어 이 프리팹 하나로 표시한다 —
     /// 장비 인벤토리의 "같은 라인은 개수로 쌓인다" 관례를 로스터에도 적용한 것. 스택 개수가
-    /// 2개 이상이면 countBadge에 "×N"을 표시한다. 슬롯 전체가 하나의 버튼이라 탭하면
-    /// onSlotTapped로 이 스택 전체를 그대로 넘긴다 — 스택이 1개면 SoldierRosterPanelUI가 바로
-    /// 액션 팝업을 열고, 여러 개면 먼저 개별 유닛을 고르는 SoldierRosterStackPopupUI를 연다.
+    /// 2개 이상이면 countBadge에 "×N"을 표시한다. 슬롯 전체가 하나의 버튼이라 탭하면 onSlotTapped로
+    /// 이 스택 전체를 그대로 넘긴다 — onSlotTapped를 무엇으로 넘길지는 호출자 몫이다.
+    /// SoldierRosterPanelUI(순수 보유 현황 표시)는 null을 넘겨 탭이 아무 동작도 하지 않게 하고,
+    /// SoldierDeploymentPanelUI(부대 편성의 배치 대상 선택)는 실제 콜백을 넘긴다.
     /// stack이 비어있으면(0개 보유) 회색으로 비활성 표시만 하고 탭을 막는다 — SoldierRosterPanelUI가
     /// 카탈로그 전체를 순회하며 아직 안 뽑은 병사도 "미보유" 슬롯으로 함께 보여줄 때 쓴다.
     /// </summary>

@@ -11,13 +11,11 @@ namespace UI
     /// <summary>
     /// 병사 로스터 전체(카탈로그의 모든 종류)를 슬롯 그리드로 보여준다. 같은 SoldierSO(등급+병종)를
     /// 가진 유닛은 장비 인벤토리처럼 슬롯 하나에 개수로 쌓인다(SoldierRosterRowUI). 아직 한 마리도
-    /// 뽑지 못한 종류도 슬롯으로 함께 표시하되 회색 비활성 상태로 보여준다(0개 보유 스택). 슬롯을
-    /// 탭하면 보유 스택이 1개면 바로 SoldierEquipmentPopupUI를 그 병사로 열고, 2개 이상이면
-    /// 먼저 SoldierRosterStackPopupUI로 개별 유닛을 고르게 한 뒤 그 유닛으로 장비 팝업을 연다.
+    /// 뽑지 못한 종류도 슬롯으로 함께 표시하되 회색 비활성 상태로 보여준다(0개 보유 스택). 순수
+    /// 보유 현황 표시 전용이다 - 탭해도 아무것도 열리지 않는다(병사 전용 장비 시스템이 제거되면서,
+    /// 슬롯을 탭했을 때 열던 SoldierEquipmentPopupUI/SoldierRosterStackPopupUI가 함께 사라졌다).
     /// 배치는 부대 편성(SoldierDeploymentPanelUI/SquadDeployedPanelUI), 행동은 부대 편성의 전술(SquadTacticOptionPopupUI)
-    /// 화면으로 각각 이관돼 로스터에서는 더 이상 다루지 않는다 - 예전엔 배치/장비/행동을 고르는
-    /// SoldierRosterSlotActionPopupUI를 한 번 더 거쳤지만, 남은 액션이 장비 하나뿐이라 그 선택
-    /// 단계 자체를 없애고 곧장 장비 팝업으로 이동한다.
+    /// 화면으로 각각 이관돼 로스터에서는 더 이상 다루지 않는다.
     /// 정렬 순서는 (1) 보유 여부(보유 먼저) → (2) 등급(높은 등급 먼저) → (3) 병과 순(로드맵 순서:
     /// 보병/궁병/기마궁수/기마병/기사/창병/방패보병/공성병) 고정이다.
     /// </summary>
@@ -35,12 +33,6 @@ namespace UI
 
         [SerializeField]
         private SoldierRosterRowUI rowPrefab;
-
-        [SerializeField]
-        private SoldierEquipmentPopupUI equipmentPopup;
-
-        [SerializeField]
-        private SoldierRosterStackPopupUI stackPopup;
 
         [SerializeField]
         private SoldierCatalogSO catalog;
@@ -120,7 +112,7 @@ namespace UI
                 }
 
                 SoldierRosterRowUI row = Instantiate(rowPrefab, rowContainer);
-                row.Initialize(definition, stack, OnSlotTapped);
+                row.Initialize(definition, stack, null);
 
                 _spawnedRows.Add(row);
             }
@@ -163,22 +155,6 @@ namespace UI
 
             int index = Array.IndexOf(UnitTypeOrder, unitType);
             return index >= 0 ? index : UnitTypeOrder.Length;
-        }
-
-        private void OnSlotTapped(IReadOnlyList<OwnedSoldier> stack)
-        {
-            if (stack.Count == 0)
-            {
-                return;
-            }
-
-            if (stack.Count == 1)
-            {
-                equipmentPopup.Open(stack[0].InstanceId);
-                return;
-            }
-
-            stackPopup.Open(stack);
         }
     }
 }

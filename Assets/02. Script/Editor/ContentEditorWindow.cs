@@ -32,7 +32,6 @@ namespace Editor
                 new CatalogRegistration("Skill", "Assets/03. SO/Skills/SkillCatalog.asset", "skills", typeof(Skill.SkillSO)),
                 new CatalogRegistration("Rank", "Assets/03. SO/Ranks/RankCatalog.asset", "ranks", typeof(Rank.RankSO)),
                 new CatalogRegistration("Equipment Grade", "Assets/03. SO/Items/Grades/EquipmentGradeCatalog.asset", "grades", typeof(Equipment.EquipmentGradeSO)),
-                new CatalogRegistration("Soldier Equipment", "Assets/03. SO/SoldierEquipment/SoldierEquipmentCatalog.asset", "items", typeof(SoldierEquipment.SoldierEquipmentSO)),
                 new CatalogRegistration("Behavior Profile", "Assets/03. SO/Behavior/BehaviorProfileCatalog.asset", "profiles", typeof(Behavior.BehaviorProfileSO)),
                 new CatalogRegistration("Monster Visual Set", "Assets/03. SO/Monsters/MonsterVisualSetCatalog.asset", "sets", typeof(Character.MonsterVisualSetSO)),
             });
