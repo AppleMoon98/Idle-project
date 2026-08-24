@@ -5,11 +5,12 @@ using UnityEngine;
 namespace Services
 {
     /// <summary>
-    /// UI.CameraZoomSliderUI 슬라이더 value가 0(가장 넓은 시야, wideOrthographicSize)보다 조금이라도
-    /// 확대돼 있으면 카메라가 플레이어를 따라간다. value=0일 때 보이던 사각형(카메라의 원래 고정
-    /// 위치를 중심으로 한 wideOrthographicSize 기준 뷰) 밖으로는 어떤 줌 배율에서도 카메라가 나갈 수
-    /// 없다 — 그 경계값을 Character.PlayerWorldBoundsConstraint가 그대로 재사용해 플레이어 자신의
-    /// 이동도 같은 사각형 안으로 제한한다(HomeLocalPosition/GetWorldBoundsHalfExtent로 공개).
+    /// UI.CameraPinchZoomUI(핀치 줌)로 orthographicSize가 wideOrthographicSize보다 조금이라도
+    /// 작아져(확대돼) 있으면 카메라가 플레이어를 따라간다. orthographicSize=wideOrthographicSize일
+    /// 때 보이던 사각형(카메라의 원래 고정 위치를 중심으로 한 wideOrthographicSize 기준 뷰) 밖으로는
+    /// 어떤 줌 배율에서도 카메라가 나갈 수 없다 — 그 경계값을 Character.PlayerWorldBoundsConstraint가
+    /// 그대로 재사용해 플레이어 자신의 이동도 같은 사각형 안으로 제한한다(HomeLocalPosition/
+    /// GetWorldBoundsHalfExtent로 공개).
     /// 카메라 위치(transform.localPosition)를 쓰는 유일한 지점이며, CameraShakeService의 흔들림
     /// 오프셋을 매 틱 조회해 자신이 계산한 목표 위치에 더한다(등록 순서 의존 없이 항상 합성됨).
     /// </summary>
@@ -30,7 +31,7 @@ namespace Services
         private const float MaxSupportedAspect = 0.5625f;
 
         private readonly Transform _playerTransform;
-        private readonly CameraZoomSliderUI _zoomSlider;
+        private readonly CameraPinchZoomUI _pinchZoom;
 
         private Transform _cameraTransform;
         private Camera _camera;
@@ -45,10 +46,10 @@ namespace Services
         /// </summary>
         public Vector3 HomeLocalPosition => _homeLocalPosition;
 
-        public CameraFollowService(Transform playerTransform, CameraZoomSliderUI zoomSlider)
+        public CameraFollowService(Transform playerTransform, CameraPinchZoomUI pinchZoom)
         {
             _playerTransform = playerTransform;
-            _zoomSlider = zoomSlider;
+            _pinchZoom = pinchZoom;
         }
 
         public void Initialize()
@@ -83,23 +84,23 @@ namespace Services
         }
 
         /// <summary>
-        /// value=0(wideOrthographicSize) 기준 뷰의 절반 폭/높이. Camera.main이 없거나
-        /// zoomSlider가 없으면 Vector2.zero(경계 없음이 아니라 "계산 불가"를 뜻함 — 호출부에서
+        /// wideOrthographicSize 기준 뷰의 절반 폭/높이. Camera.main이 없거나
+        /// pinchZoom이 없으면 Vector2.zero(경계 없음이 아니라 "계산 불가"를 뜻함 — 호출부에서
         /// 별도로 null 체크할 필요 없이 클램프 폭이 0이 되어 홈 위치에 고정되는 것으로 안전하게 처리됨).
         /// </summary>
         public Vector2 GetWorldBoundsHalfExtent()
         {
-            if (_camera == null || _zoomSlider == null)
+            if (_camera == null || _pinchZoom == null)
             {
                 return Vector2.zero;
             }
 
-            float wideSize = _zoomSlider.WideOrthographicSize;
+            float wideSize = _pinchZoom.WideOrthographicSize;
             return new Vector2(wideSize * _camera.aspect, wideSize);
         }
 
         /// <summary>
-        /// value=0(wideOrthographicSize) 기준 고정 범위 안의 랜덤한 월드 좌표를 반환한다. margin은
+        /// wideOrthographicSize 기준 고정 범위 안의 랜덤한 월드 좌표를 반환한다. margin은
         /// 범위 가장자리에서 제외할 비율(0~0.5). 줌 배율과 무관하게 항상 같은 범위에서 뽑아야 하는
         /// 모든 곳(던전 스폰, 몬스터 방황 목적지 등)이 이 하나의 계산을 공유한다 — 실시간
         /// Camera.main 뷰포트를 직접 쓰면 플레이어가 확대할수록 범위가 좁아져 버리는 문제가
@@ -185,8 +186,8 @@ namespace Services
             }
 
             bool shouldFollow = _playerTransform != null
-                && _zoomSlider != null
-                && _camera.orthographicSize < _zoomSlider.WideOrthographicSize - FollowThresholdEpsilon;
+                && _pinchZoom != null
+                && _camera.orthographicSize < _pinchZoom.WideOrthographicSize - FollowThresholdEpsilon;
 
             if (!shouldFollow)
             {
@@ -194,7 +195,7 @@ namespace Services
             }
 
             float aspect = _camera.aspect;
-            float wideSize = _zoomSlider.WideOrthographicSize;
+            float wideSize = _pinchZoom.WideOrthographicSize;
             float maxOffsetY = Mathf.Max(0f, wideSize - _camera.orthographicSize);
             float maxOffsetX = Mathf.Max(0f, (wideSize - _camera.orthographicSize) * aspect);
 

@@ -72,7 +72,7 @@ namespace Rank.Boss
         private Character.Animation.UnitAnimationControllerBase _animationController;
         private PoolManager _pool;
         private CameraFollowService _cameraFollowService;
-        private CameraZoomSliderUI _cameraZoomSlider;
+        private CameraPinchZoomUI _cameraPinchZoom;
         private Camera _camera;
         private float _savedOrthographicSize;
         private bool _zoomOverridden;
@@ -101,7 +101,7 @@ namespace Rank.Boss
             _healthBarUI = GetComponentInChildren<HealthBarUI>(includeInactive: true);
             _animationController = GetComponent<Character.Animation.UnitAnimationControllerBase>();
             GameBootstrapper.Services?.TryGet(out _cameraFollowService);
-            _cameraZoomSlider = UnityEngine.Object.FindFirstObjectByType<CameraZoomSliderUI>();
+            _cameraPinchZoom = UnityEngine.Object.FindFirstObjectByType<CameraPinchZoomUI>();
             _camera = Camera.main;
         }
 
@@ -303,15 +303,15 @@ namespace Rank.Boss
             _cameraFollowService?.SetOverrideTarget(homePosition);
 
             // 플레이어가 확대해둔 상태였다면 십자/세로줄 패턴(맵 전체를 관통하는 판정)의 상당
-            // 부분이 화면 밖에서 벌어져 안 보인다 - 페이즈2 동안만 최광각(UI.CameraZoomSliderUI.
+            // 부분이 화면 밖에서 벌어져 안 보인다 - 페이즈2 동안만 최광각(UI.CameraPinchZoomUI.
             // WideOrthographicSize)으로 강제 전환하고, 끝나면(EndPhaseTwo) 플레이어가 원래
-            // 맞춰뒀던 확대/축소 값으로 되돌린다. 슬라이더 자신의 값(UI 표시)은 건드리지 않는다 -
-            // Camera.main.orthographicSize만 직접 덮어쓰고 복원하므로, 슬라이더를 실제로 만지면
-            // 그 시점 값 기준으로 다시 정상 동기화된다.
-            if (_camera != null && _cameraZoomSlider != null)
+            // 맞춰뒀던 확대/축소 값으로 되돌린다. 저장된 PlayerPrefs 값(핀치 줌이 다음에 읽어들일
+            // 값)은 건드리지 않는다 - Camera.main.orthographicSize만 직접 덮어쓰고 복원하므로,
+            // 플레이어가 실제로 핀치 제스처를 하면 그 시점 값 기준으로 다시 정상 동기화된다.
+            if (_camera != null && _cameraPinchZoom != null)
             {
                 _savedOrthographicSize = _camera.orthographicSize;
-                _camera.orthographicSize = _cameraZoomSlider.WideOrthographicSize;
+                _camera.orthographicSize = _cameraPinchZoom.WideOrthographicSize;
                 _zoomOverridden = true;
             }
 

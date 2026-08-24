@@ -98,7 +98,7 @@ namespace Character
         }
 
         /// <summary>
-        /// 카메라 줌 슬라이더(UI.CameraZoomSliderUI)로 Camera.orthographicSize가 바뀌어도 체력바의
+        /// 카메라 핀치 줌(UI.CameraPinchZoomUI)으로 Camera.orthographicSize가 바뀌어도 체력바의
         /// 화면상 크기가 항상 일정해 보이도록, Combat.DamageNumber와 동일한 방식으로 현재
         /// orthographicSize와 기준 크기의 비율만큼 자기 자신의 localScale을 보정한다. Awake에서
         /// 캐싱한 _baseScale(예: Monster_Elite/_Boss가 몸집 확대를 상쇄하려고 이미 걸어둔

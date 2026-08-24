@@ -93,7 +93,7 @@ namespace Combat
         }
 
         /// <summary>
-        /// 카메라 줌 슬라이더(UI.CameraZoomSliderUI)로 Camera.orthographicSize가 바뀌어도 데미지
+        /// 카메라 핀치 줌(UI.CameraPinchZoomUI)으로 Camera.orthographicSize가 바뀌어도 데미지
         /// 숫자의 화면상 크기가 항상 일정해 보이도록, 현재 orthographicSize와 config가 튜닝된
         /// 기준 크기의 비율만큼 자기 자신의 localScale을 보정한다 - 월드 스페이스 TextMesh라
         /// 아무 보정 없이는 확대(orthographicSize 작아짐)할수록 커 보이고 축소할수록 작아 보인다.

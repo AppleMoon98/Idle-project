@@ -111,7 +111,7 @@ namespace Core
         private Transform playerTransform;
 
         [SerializeField]
-        private UI.CameraZoomSliderUI cameraZoomSlider;
+        private UI.CameraPinchZoomUI cameraPinchZoom;
 
         /// <summary>
         /// Awake에서 등록한 모든 IManager 인스턴스를 등록 순서대로 모아둔다. 각 서비스의 Shutdown()은
@@ -359,7 +359,7 @@ namespace Core
             Services.Register(cameraShakeService);
             _managers.Add(cameraShakeService);
 
-            var cameraFollowService = new CameraFollowService(playerTransform, cameraZoomSlider);
+            var cameraFollowService = new CameraFollowService(playerTransform, cameraPinchZoom);
             cameraFollowService.Initialize();
             Services.Register(cameraFollowService);
             _managers.Add(cameraFollowService);
