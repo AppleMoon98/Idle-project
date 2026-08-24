@@ -14,5 +14,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rank.RankSO
   displayName: "\uC2DC\uACE8 \uC18C\uB144"
   requiredStage: {fileID: 0}
-  maxDeployableSquads: 1
   maxDeploymentCost: 10

@@ -14,7 +14,6 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::Rank.RankSO
   displayName: "\uC2ED\uC778 \uB300\uC7A5"
   requiredStage: {fileID: 11400000, guid: 6e47a2621dba674418d639850492bba5, type: 2}
-  maxDeployableSquads: 2
   maxDeploymentCost: 30
   bossPrefab: {fileID: 3104091886448902630, guid: ae63bae23b562ce43b805a722d0c75aa, type: 3}
   playerStatBonusPercent: 1

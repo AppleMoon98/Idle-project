@@ -17,9 +17,6 @@ namespace Rank
         private StageSO requiredStage;
 
         [SerializeField]
-        private int maxDeployableSquads;
-
-        [SerializeField]
         private int maxDeploymentCost;
 
         [SerializeField]
@@ -42,14 +39,6 @@ namespace Rank
         /// 버튼이 뜰 뿐이고, 실제 승급은 BossPrefab과의 전투에서 이겨야 확정된다.
         /// </summary>
         public StageSO RequiredStage => requiredStage;
-
-        /// <summary>
-        /// 이 랭크에서 완전히 꾸릴 수 있는 부대 수(Soldier.SoldierDeploymentService.SquadCount 이하).
-        /// 예: 1이면 1부대(20슬롯)까지 전부 배치 가능, 2면 1~2부대(40슬롯)까지 가능. 랭크가
-        /// 오를수록 늘어난다. 실제 슬롯 수 환산은 SoldierDeploymentService.GetMaxUnlockedSlotCount가
-        /// 담당한다(이 값 × SlotsPerSquad).
-        /// </summary>
-        public int MaxDeployableSquads => maxDeployableSquads;
 
         /// <summary>
         /// 이 랭크에서 배치 가능한 전체 코스트 예산(Soldier.SoldierDeploymentService.TryDeploy가

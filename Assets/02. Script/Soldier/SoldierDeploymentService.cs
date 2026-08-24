@@ -9,9 +9,11 @@ namespace Soldier
     /// <summary>
     /// 배치 슬롯(SoldierSpawnSlot.SlotIndex)마다 로스터의 어떤 유닛이 나가 있는지 기록한다.
     /// EquippedGearService와 같은 성격 — 배정은 로스터에서 유닛을 "빼지" 않고 슬롯이 InstanceId를
-    /// 가리키게만 한다(유닛은 배치 여부와 무관하게 항상 보유 상태를 유지). 슬롯 잠금 해제 수는
-    /// 현재 랭크(RankSO.MaxDeployableSquads × SlotsPerSquad)를 그대로 따른다 — SoldierSpawner가 이미
-    /// RankService.IsAtLeast()를 직접 참조하는 것과 같은 방향의 의존성이다.
+    /// 가리키게만 한다(유닛은 배치 여부와 무관하게 항상 보유 상태를 유지). 슬롯 자체는 랭크와
+    /// 무관하게 항상 전부(TotalSlotCount) 열려 있다 — 실제 배치 상한은 오직 코스트 예산
+    /// (RankSO.MaxDeploymentCost)뿐이다. 원래는 RankSO.MaxDeployableSquads로 슬롯 수도 함께
+    /// 랭크 게이팅했으나, 병과 최소 코스트가 1이라 어느 랭크에서도 "코스트 예산 ≤ 언락 슬롯 수"가
+    /// 항상 성립해 슬롯 게이팅이 실질적으로 아무것도 막지 못하는 죽은 제약이었다 — 제거했다.
     /// </summary>
     public sealed class SoldierDeploymentService : IManager, IService
     {
@@ -48,6 +50,12 @@ namespace Soldier
 
         public const int SquadCount = 6;
 
+        /// <summary>
+        /// 랭크와 무관하게 항상 열려 있는 전체 슬롯 수(SquadCount × SlotsPerSquad) — TryAssign/
+        /// TryDeploy가 유효한 slotIndex 범위를 판단하는 유일한 기준이다.
+        /// </summary>
+        public const int TotalSlotCount = SquadCount * SlotsPerSquad;
+
         private readonly EventBus _events;
         private readonly SoldierRosterService _roster;
         private readonly RankService _rankService;
@@ -58,16 +66,6 @@ namespace Soldier
             _events = events;
             _roster = roster;
             _rankService = rankService;
-        }
-
-        /// <summary>
-        /// 현재 랭크에서 동시에 배치할 수 있는 슬롯 수 — RankSO.MaxDeployableSquads(완전히 꾸릴 수
-        /// 있는 부대 수) × SlotsPerSquad로 환산한다. 랭크 정보가 없으면(설정 누락) 0.
-        /// </summary>
-        public int GetMaxUnlockedSlotCount()
-        {
-            int squads = _rankService?.CurrentRank != null ? _rankService.CurrentRank.MaxDeployableSquads : 0;
-            return squads * SlotsPerSquad;
         }
 
         /// <summary>
@@ -90,14 +88,14 @@ namespace Soldier
 
         /// <summary>
         /// instanceId 유닛을 slotIndex에 그대로 배정한다(코스트 예산 확인 없이 기계적으로 슬롯만
-        /// 채운다) — 로스터에 없는 유닛이거나, slotIndex가 현재 랭크로 아직 잠금 해제되지 않았으면
-        /// 아무 변화 없이 false. 그 유닛이 이미 다른 슬롯에 배치돼 있었다면 그 슬롯에서는 자동으로
+        /// 채운다) — 로스터에 없는 유닛이거나, slotIndex가 유효 범위(TotalSlotCount) 밖이면 아무
+        /// 변화 없이 false. 그 유닛이 이미 다른 슬롯에 배치돼 있었다면 그 슬롯에서는 자동으로
         /// 해제한다 — 한 병사는 동시에 한 슬롯만 차지할 수 있다. 코스트 예산 확인은 이 메서드를
         /// 호출하는 TryDeploy가 담당한다(단일 책임 분리).
         /// </summary>
         public bool TryAssign(int slotIndex, int instanceId)
         {
-            if (slotIndex >= GetMaxUnlockedSlotCount())
+            if (slotIndex < 0 || slotIndex >= TotalSlotCount)
             {
                 return false;
             }
@@ -158,10 +156,9 @@ namespace Soldier
                 return false;
             }
 
-            int unlockedCount = GetMaxUnlockedSlotCount();
             int freeSlotIndex = -1;
 
-            for (int i = 0; i < unlockedCount; i++)
+            for (int i = 0; i < TotalSlotCount; i++)
             {
                 if (!_slotToInstanceId.ContainsKey(i))
                 {
