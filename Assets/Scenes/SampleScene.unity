@@ -58212,6 +58212,7 @@ GameObject:
   - component: {fileID: 1087615290}
   - component: {fileID: 1087615294}
   - component: {fileID: 1087615295}
+  - component: {fileID: 1087615296}
   m_Layer: 0
   m_Name: PlayerControlModeToggle
   m_TagString: Untagged
@@ -58291,6 +58292,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::UI.PlayerControlModeToggleUI
   toggleButton: {fileID: 1087615293}
   modeLabelText: {fileID: 834248485}
+  themeSwitcher: {fileID: 1087615296}
 --- !u!114 &1087615293
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -58362,6 +58364,24 @@ MonoBehaviour:
   text: {fileID: 834248484}
   pressedBottom: 0
   pressedTop: 16
+--- !u!114 &1087615296
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1087615288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acf113b2b80dd844da3dbca1f1d2c164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ButtonColorThemeSwitcherUI
+  backgroundImage: {fileID: 1087615290}
+  button: {fileID: 1087615293}
+  defaultRegularSprite: {fileID: -2818588917556840465, guid: 196761c5bb3a0d9469e22ab72b155397, type: 3}
+  defaultPressedSprite: {fileID: -128128480842496838, guid: 48e341809331c11479285334e7ea3a5b, type: 3}
+  alertRegularSprite: {fileID: -2339831768886015402, guid: 27fb244eec11e1b4cbb815c17b1665d3, type: 3}
+  alertPressedSprite: {fileID: 6741408277770592616, guid: 68e9b42941daf3c49a85ebd2bb2edf06, type: 3}
 --- !u!1 &1094093433
 GameObject:
   m_ObjectHideFlags: 0
@@ -94631,6 +94651,7 @@ GameObject:
   - component: {fileID: 2073761121}
   - component: {fileID: 2073761120}
   - component: {fileID: 2073761125}
+  - component: {fileID: 2073761126}
   m_Layer: 0
   m_Name: StageModeToggle
   m_TagString: Untagged
@@ -94675,6 +94696,7 @@ MonoBehaviour:
   battleController: {fileID: 1821784527}
   repeatPickerPopup: {fileID: 644427105}
   stageController: {fileID: 1663688275}
+  themeSwitcher: {fileID: 2073761126}
 --- !u!114 &2073761121
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -94784,6 +94806,24 @@ MonoBehaviour:
   text: {fileID: 242144990}
   pressedBottom: 0
   pressedTop: 16
+--- !u!114 &2073761126
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2073761118}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: acf113b2b80dd844da3dbca1f1d2c164, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ButtonColorThemeSwitcherUI
+  backgroundImage: {fileID: 2073761123}
+  button: {fileID: 2073761122}
+  defaultRegularSprite: {fileID: -2818588917556840465, guid: 196761c5bb3a0d9469e22ab72b155397, type: 3}
+  defaultPressedSprite: {fileID: -128128480842496838, guid: 48e341809331c11479285334e7ea3a5b, type: 3}
+  alertRegularSprite: {fileID: -2339831768886015402, guid: 27fb244eec11e1b4cbb815c17b1665d3, type: 3}
+  alertPressedSprite: {fileID: 6741408277770592616, guid: 68e9b42941daf3c49a85ebd2bb2edf06, type: 3}
 --- !u!1 &2075194398
 GameObject:
   m_ObjectHideFlags: 0

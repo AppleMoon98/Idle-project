@@ -20,6 +20,8 @@ namespace UI
     /// 이면 모드 전환 자체를 막고 토스트로 안내한다 - 오버레이 중 LoadStage가 실행돼 스포너/
     /// 트래커 상태가 꼬이는 버그가 실사용 중 발견됐다(StageProgression.JumpTo 등의 _isSuppressed
     /// 체크 누락이 근본 원인이라 거기서도 막혔지만, 여기서 먼저 막아 사용자에게 이유를 알려준다).
+    /// 반복 모드일 때는 themeSwitcher(UI.ButtonColorThemeSwitcherUI)로 버튼 배경을 빨간 테마로
+    /// 바꿔 돌파 모드와 시각적으로 구분한다.
     /// </summary>
     public sealed class StageModeToggleUI : MonoBehaviour
     {
@@ -37,6 +39,9 @@ namespace UI
 
         [SerializeField]
         private StageController stageController;
+
+        [SerializeField]
+        private ButtonColorThemeSwitcherUI themeSwitcher;
 
         private bool _isPromotionBattleActive;
 
@@ -140,17 +145,19 @@ namespace UI
 
         private void Refresh()
         {
-            if (IsPromotionAvailable(out _))
-            {
-                modeLabelText.text = "승급";
-                return;
-            }
-
             StageProgressionMode mode = StageProgressionMode.Breakthrough;
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out StageModeService modeService))
             {
                 mode = modeService.CurrentMode;
+            }
+
+            themeSwitcher?.SetAlert(mode == StageProgressionMode.Repeat);
+
+            if (IsPromotionAvailable(out _))
+            {
+                modeLabelText.text = "승급";
+                return;
             }
 
             modeLabelText.text = mode == StageProgressionMode.Repeat ? "반복" : "돌파";
