@@ -26,6 +26,8 @@ GameObject:
   - component: {fileID: 828614641487622618}
   - component: {fileID: 3926462988679202529}
   - component: {fileID: 1575105188674258159}
+  - component: {fileID: 3909700746039953042}
+  - component: {fileID: 8137910796195957083}
   m_Layer: 9
   m_Name: Monster_Elite
   m_TagString: Untagged
@@ -369,6 +371,33 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.Animation.InfantryAnimationController
   maxAttackHoldSeconds: 0.6
+  pauseMovementDuringAttack: 1
+--- !u!210 &3909700746039953042
+SortingGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_SortAtRoot: 0
+  m_Sort3DAs2D: 0
+--- !u!114 &8137910796195957083
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47eda9fc3d66cfb47917d0c29880bbc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.YSortRenderer
+  precisionMultiplier: 100
 --- !u!1 &3140490879305707709
 GameObject:
   m_ObjectHideFlags: 0

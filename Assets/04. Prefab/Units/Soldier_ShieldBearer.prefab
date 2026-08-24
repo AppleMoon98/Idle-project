@@ -166,6 +166,8 @@ GameObject:
   - component: {fileID: 2766898260066741133}
   - component: {fileID: 2651063537779505645}
   - component: {fileID: 1858723300706993243}
+  - component: {fileID: 3710814878017082032}
+  - component: {fileID: 3135724481139114757}
   m_Layer: 8
   m_Name: Soldier_ShieldBearer
   m_TagString: Untagged
@@ -410,6 +412,7 @@ MonoBehaviour:
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.03
+  rangedKiteMoveSpeed: 0.5
 --- !u!114 &1573488353680083426
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -538,6 +541,32 @@ MonoBehaviour:
     serializedVersion: 2
     m_Bits: 512
   guardDamageReductionPercent: 0.5
+--- !u!210 &3710814878017082032
+SortingGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_SortAtRoot: 0
+  m_Sort3DAs2D: 0
+--- !u!114 &3135724481139114757
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47eda9fc3d66cfb47917d0c29880bbc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.YSortRenderer
+  precisionMultiplier: 100
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0

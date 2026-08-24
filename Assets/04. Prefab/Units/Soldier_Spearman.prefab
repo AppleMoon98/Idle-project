@@ -167,6 +167,8 @@ GameObject:
   - component: {fileID: 459948619533669990}
   - component: {fileID: 72930855935830511}
   - component: {fileID: 3724939134955892950}
+  - component: {fileID: 7743088112438965523}
+  - component: {fileID: 4664315942066007626}
   m_Layer: 8
   m_Name: Soldier_Spearman
   m_TagString: Untagged
@@ -411,6 +413,7 @@ MonoBehaviour:
   kiteStepDistance: 2
   kiteScreenMargin: 0.1
   screenReturnMargin: 0.03
+  rangedKiteMoveSpeed: 0.5
 --- !u!114 &1573488353680083426
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -524,6 +527,8 @@ MonoBehaviour:
     m_Bits: 512
   postAttackLockFraction: 0.5
   enablePostAttackLock: 0
+  enableKiteSpeedOverride: 0
+  kiteMoveSpeed: 0.5
 --- !u!95 &72930855935830511
 Animator:
   serializedVersion: 7
@@ -559,6 +564,32 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.Animation.SpearmanAnimationController
   maxAttackHoldSeconds: 0.6
+--- !u!210 &7743088112438965523
+SortingGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_SortAtRoot: 0
+  m_Sort3DAs2D: 0
+--- !u!114 &4664315942066007626
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9114245855020254752}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47eda9fc3d66cfb47917d0c29880bbc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.YSortRenderer
+  precisionMultiplier: 100
 --- !u!1001 &6030429403479881931
 PrefabInstance:
   m_ObjectHideFlags: 0

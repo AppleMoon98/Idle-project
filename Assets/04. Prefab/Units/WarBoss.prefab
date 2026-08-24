@@ -25,6 +25,8 @@ GameObject:
   - component: {fileID: 8008368952035582425}
   - component: {fileID: 7343061446896339025}
   - component: {fileID: 8703062279107916267}
+  - component: {fileID: 1431470700813377935}
+  - component: {fileID: 1231187454556047624}
   m_Layer: 9
   m_Name: WarBoss
   m_TagString: Untagged
@@ -288,6 +290,7 @@ MonoBehaviour:
   targetLayerMask:
     serializedVersion: 2
     m_Bits: 256
+  attackWindupLeadTime: 0
 --- !u!114 &91045284777858891
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -349,6 +352,36 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Character.CharacterSeparation
   separationStrength: 6
+  ignoreLayerMask:
+    serializedVersion: 2
+    m_Bits: 0
+  ignorePlayer: 0
+--- !u!210 &1431470700813377935
+SortingGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 0
+  m_SortAtRoot: 0
+  m_Sort3DAs2D: 0
+--- !u!114 &1231187454556047624
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 3104091886448902630}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47eda9fc3d66cfb47917d0c29880bbc4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::Character.YSortRenderer
+  precisionMultiplier: 100
 --- !u!1001 &5221313293063939603
 PrefabInstance:
   m_ObjectHideFlags: 0
