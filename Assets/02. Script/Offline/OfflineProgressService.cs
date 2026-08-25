@@ -28,6 +28,27 @@ namespace Offline
     /// 반복해서 안전하게 누적한다. 시뮬레이션으로 산출된 처치 마릿수(totalMonstersKilled, 팝업에
     /// 표시되는 값)는 그대로 두고, 실제 골드/장비 드롭 굴리기에 넣는 마릿수만 rewardMultiplier를
     /// 곱해 줄인다 — 골드와 장비가 항상 같은 비율로 함께 줄어들도록(따로 계수를 두지 않고) 하기 위함.
+    ///
+    /// **2단계 실행(CaptureBudget → ApplyCapturedReward)인 이유:** 경과 시간은 GameBootstrapper.
+    /// Start()의 가장 첫 줄에서 즉시 확정해야 한다 — 그 뒤에 이어지는 세이브 복원 호출들(Enhancement/
+    /// Rank의 RestoreLevel)이 발행하는 이벤트를 SaveService가 구독해 즉시 Save()를 호출하는데, Save()는
+    /// LastActiveUnixTime을 항상 "지금"으로 덮어써서 그 뒤에 읽으면 경과 시간이 0이 되어버린다(실제로
+    /// 발생했던 버그). 반면 전투력 계산은 "세이브 복원이 완료된 시점의 유효 전투력 스냅샷"을 써야
+    /// 정확하므로 — 반드시 모든 성장 시스템의 복원이 끝난 뒤(Start()의 마지막)에 수행해야 한다. 이
+    /// 두 요구가 서로 상충해서(경과 시간=제일 먼저, 전투력=제일 나중) 하나의 메서드로 합칠 수 없다.
+    /// CaptureBudget()이 경과 시간/반복 스테이지만 먼저 확정해두고, ApplyCapturedReward()가 모든
+    /// 복원이 끝난 뒤 그 스냅샷 시점의 실제 전투력으로 나머지(DPS 계산 이후)를 수행한다.
+    ///
+    /// **밸런스 정책 — 이 스냅샷에 포함되는 성장 시스템(전부 세이브에 영구 저장되는 것만):**
+    /// 플레이어 강화(Enhancement, AttackPower/AttackSpeed) · 장비 착용 스탯(EquipmentStatService) ·
+    /// 장비 보유 효과(EquipmentPossessionService) · 랭크 보너스(RankSO.PlayerStatBonusPercent) ·
+    /// 실제로 배치된 병사 각각의 병사 강화(SoldierEnhancement, 전역)와 등급 지분(플레이어 공격력
+    /// 대비 %) · 장착되고 자동 발동 켜진 데미지 스킬(AreaDamage/SingleTargetStrike/Poison/Whirlwind/
+    /// Meteor)의 데미지. **의도적으로 제외:** MaxHealth/CriticalChance/CriticalDamage(이 DPS 근사
+    /// 공식 자체가 안 쓰는 값) · 스킬 버프/디버프/힐(SelfBuff/Debuff/Curse/SoldierBuff/PartyHeal, 세이브에
+    /// 영구 저장되지 않는 일시적 실시간 효과라 재접속 시점엔 애초에 걸려있지 않음). 새 성장 시스템을
+    /// 추가할 때 오프라인 보상에도 반영하려면 이 정책 목록과 ComputeEffectivePlayerAttackStats/
+    /// ComputeTotalSoldierDps/ComputeTotalSkillDps 세 메서드를 함께 갱신해야 한다.
     /// </summary>
     public sealed class OfflineProgressService
     {
@@ -47,6 +68,11 @@ namespace Offline
         private readonly SkillLoadoutService _skillLoadoutService;
         private readonly float _maxOfflineSeconds;
         private readonly float _rewardMultiplier;
+
+        private bool _hasPendingReward;
+        private float _pendingElapsedSeconds;
+        private float _pendingBudget;
+        private StageSO _pendingRepeatStage;
 
         /// <summary>
         /// 플레이어/병사의 실제 강화·장비·랭크·등급 보너스와, 장착된 스킬의 데미지까지 전부
@@ -100,11 +126,16 @@ namespace Offline
         }
 
         /// <summary>
-        /// 저장된 마지막 접속 시각을 기준으로 오프라인 보상을 계산해 적용하고 결과 이벤트를 발행한다.
-        /// 저장 기록이 없거나(최초 실행) 인정 시간이 0 이하이면 아무 것도 하지 않는다.
+        /// 저장된 마지막 접속 시각을 기준으로 오프라인 인정 시간(budget)과 반복할 스테이지를
+        /// 미리 확정해둔다 — GameBootstrapper.Start()의 가장 첫 줄에서, 뒤이은 세이브 복원 호출들이
+        /// LastActiveUnixTime을 덮어쓰기 전에 반드시 호출해야 한다(클래스 doc 참고). 인정 시간이
+        /// 없거나(최초 실행) 0 이하, 또는 반복할 스테이지가 없으면 대기 상태를 비우고 끝낸다 —
+        /// 이 경우 ApplyCapturedReward()는 아무 일도 하지 않는다.
         /// </summary>
-        public void CalculateAndApply()
+        public void CaptureBudget()
         {
+            _hasPendingReward = false;
+
             SaveData save = _saveService.Load();
 
             if (save.LastActiveUnixTime <= 0)
@@ -128,7 +159,33 @@ namespace Offline
                 return;
             }
 
-            (float playerAttackPower, float playerAttackInterval) = ComputeEffectivePlayerAttackStats(save);
+            _pendingElapsedSeconds = elapsedSeconds;
+            _pendingBudget = budget;
+            _pendingRepeatStage = repeatStage;
+            _hasPendingReward = true;
+        }
+
+        /// <summary>
+        /// CaptureBudget()이 확정해둔 경과 시간/반복 스테이지를 바탕으로, "지금 이 순간"(모든
+        /// 세이브 복원이 끝난 뒤)의 유효 전투력 스냅샷으로 실제 보상을 계산해 적용하고 결과
+        /// 이벤트를 발행한다. GameBootstrapper.Start()의 가장 마지막(모든 RestoreLevel 호출 뒤)에
+        /// 호출해야 한다. CaptureBudget()이 대기 상태를 비워뒀으면(인정 시간 없음 등) 아무 일도
+        /// 하지 않는다.
+        /// </summary>
+        public void ApplyCapturedReward()
+        {
+            if (!_hasPendingReward)
+            {
+                return;
+            }
+
+            _hasPendingReward = false;
+
+            float elapsedSeconds = _pendingElapsedSeconds;
+            float budget = _pendingBudget;
+            StageSO repeatStage = _pendingRepeatStage;
+
+            (float playerAttackPower, float playerAttackInterval) = ComputeEffectivePlayerAttackStats();
             float totalDps = (playerAttackInterval > 0f ? playerAttackPower / playerAttackInterval : 0f)
                 + ComputeTotalSoldierDps(playerAttackPower)
                 + ComputeTotalSkillDps(playerAttackPower);
@@ -190,17 +247,22 @@ namespace Offline
 
         /// <summary>
         /// 플레이어의 실제 최종 공격력/공격주기를 계산한다 — 기본 스탯(CharacterStatsSO) +
-        /// 강화(Enhancement, 레벨은 SaveData에서 직접) + 장비 착용 스탯(EquipmentStatService) +
-        /// 장비 보유 효과(EquipmentPossessionService) 순으로 Character.RuntimeStatApplier /
+        /// 강화(Enhancement) + 장비 착용 스탯(EquipmentStatService) + 장비 보유 효과
+        /// (EquipmentPossessionService) + 랭크 보너스 순으로 Character.RuntimeStatApplier/
         /// PossessionStatApplier(둘 다 internal이지만 같은 어셈블리라 접근 가능)를 그대로 재사용해
-        /// 실제 런타임과 동일한 공식으로 누적한다.
+        /// 실제 런타임과 동일한 공식으로 누적한다. ApplyCapturedReward()에서만 호출되므로(모든
+        /// 복원이 끝난 뒤) _playerEnhancement.GetLevel()이 이미 세이브된 레벨을 정확히 반영한
+        /// 상태다 — SaveData를 별도로 다시 읽을 필요가 없다.
         /// </summary>
-        private (float AttackPower, float AttackInterval) ComputeEffectivePlayerAttackStats(SaveData save)
+        private (float AttackPower, float AttackInterval) ComputeEffectivePlayerAttackStats()
         {
             var stats = new RuntimeStats(_playerStats);
 
-            ApplyEnhancementLevel(stats, EnhancementStatType.AttackPower, save.AttackPowerLevel);
-            ApplyEnhancementLevel(stats, EnhancementStatType.AttackSpeed, save.AttackSpeedLevel);
+            if (_playerEnhancement != null)
+            {
+                ApplyEnhancementLevel(stats, EnhancementStatType.AttackPower);
+                ApplyEnhancementLevel(stats, EnhancementStatType.AttackSpeed);
+            }
 
             if (_equipmentStatService != null)
             {
@@ -223,9 +285,11 @@ namespace Offline
             return (stats.AttackPower, stats.AttackInterval);
         }
 
-        private void ApplyEnhancementLevel(RuntimeStats stats, EnhancementStatType statType, int level)
+        private void ApplyEnhancementLevel(RuntimeStats stats, EnhancementStatType statType)
         {
-            if (_playerEnhancement == null || level <= 0)
+            int level = _playerEnhancement.GetLevel(statType);
+
+            if (level <= 0)
             {
                 return;
             }

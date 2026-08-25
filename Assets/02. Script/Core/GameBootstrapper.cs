@@ -389,11 +389,13 @@ namespace Core
             // 다른 오브젝트들의 OnEnable(이벤트 구독 포함)이 모두 끝난 뒤(Start 시점)에 호출해야
             // StatEnhancedEvent/OfflineProgressCalculatedEvent를 구독하는 쪽이 이벤트를 놓치지 않는다.
             //
-            // CalculateAndApply()를 반드시 가장 먼저 호출해야 한다 — 아래 RestoreLevel 호출들이
+            // CaptureBudget()을 반드시 가장 먼저 호출해야 한다 — 아래 RestoreLevel 호출들이
             // 발행하는 StatEnhancedEvent/RankChangedEvent를 SaveService가 구독해 즉시 Save()를
-            // 호출하는데, Save()는 LastActiveUnixTime을 항상 "지금"으로 덮어쓴다. 오프라인 계산이
-            // 그 뒤에 실행되면 이미 덮어써진 시각을 읽어 경과 시간이 0이 되어버린다(실제로 발생했던 버그).
-            _offlineProgressService?.CalculateAndApply();
+            // 호출하는데, Save()는 LastActiveUnixTime을 항상 "지금"으로 덮어쓴다. 경과 시간 확정이
+            // 그 뒤에 실행되면 이미 덮어써진 시각을 읽어 경과 시간이 0이 되어버린다(실제로 발생했던
+            // 버그). 실제 보상 계산(ApplyCapturedReward)은 반대로 이 메서드들이 전부 끝난 뒤(Start()
+            // 맨 마지막)에 호출한다 — "세이브 복원이 완료된 시점의 유효 전투력 스냅샷"을 쓰기 위해서다.
+            _offlineProgressService?.CaptureBudget();
 
             _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel);
             _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel);
@@ -414,6 +416,11 @@ namespace Core
             _rankService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
             _rareGachaTicketDropService?.SeedHighestCleared(_initialSave.HighestClearedChapter, _initialSave.HighestClearedStageNumber);
             _rankService?.RestoreLevel(_initialSave.RankIndex);
+
+            // 위의 모든 RestoreLevel/RecomputeAndPublish가 끝나 세이브 복원이 완전히 마무리된 시점 —
+            // CaptureBudget()이 미리 확정해둔 경과 시간으로, 지금 이 순간의 유효 전투력 스냅샷을
+            // 사용해 실제 오프라인 보상을 계산/적용한다(OfflineProgressService 클래스 doc 참고).
+            _offlineProgressService?.ApplyCapturedReward();
         }
 
         private void OnApplicationPause(bool pauseStatus)
