@@ -1,0 +1,33 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 816fbf5a2f2e6064a8be3b8d3bf9d84f, type: 3}
+  m_Name: MonsterVisualSet_PracticeDummy
+  m_EditorClassIdentifier: Assembly-CSharp::Character.MonsterVisualSetSO
+  sprites:
+  - {fileID: -3164809056393425246, guid: 17e92056fd6b1d740858df3153f74351, type: 3}
+  - {fileID: -5225540622116197949, guid: aa45a998f9be85d4882083e16b9cb4ba, type: 3}
+  - {fileID: 8793915729297761979, guid: 7bdd4350b7b9a8042baccdc7b9db4b8b, type: 3}
+  - {fileID: 2750298860172458669, guid: 787516fe8309a2e478cf3e9434d3abda, type: 3}
+  - {fileID: -2276259661975475453, guid: fe49683c197296841ab94222007d210a, type: 3}
+  - {fileID: 141893073332109768, guid: 7aaaa8a9b6bea0a4ebabfb4784d5e68b, type: 3}
+  - {fileID: 7336298474659753992, guid: 119361e3d7af8894f8fcaed4669fc0a0, type: 3}
+  - {fileID: -247037112251525876, guid: 9291d6af513d3bc4ea8189999594476e, type: 3}
+  - {fileID: -3356593810811537127, guid: 53b30cb97b981354282f14d419708ef4, type: 3}
+  - {fileID: -5099292496197868168, guid: ef1da5fe4d4c51d4fb28064740922b62, type: 3}
+  - {fileID: -2966200626249415253, guid: 4552af8a77a232741b59bfbb7ef4f66f, type: 3}
+  - {fileID: -1540426309290004842, guid: ee9f21e8766f3344d86dda85f6c550d5, type: 3}
+  - {fileID: 8389134475083476877, guid: 03def56e18446cf40b9c0dad9f8a6a1b, type: 3}
+  - {fileID: -6270953770400647376, guid: 816cea2c028c5634a8bb4b0bfd53c6de, type: 3}
+  - {fileID: 4349915267927364619, guid: ca937e276598bb44792e8ba07850549c, type: 3}
+  - {fileID: 7680820834086852892, guid: 67b999a9ee45dd347a574a34b49ae97d, type: 3}
+  - {fileID: 6660783624410144326, guid: 11211cced4170ae409348540c0b0baac, type: 3}
+  - {fileID: 2960402581040015946, guid: 7a46c3825e5c94f43863f9e2f8ac7b21, type: 3}
