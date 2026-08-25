@@ -125,19 +125,27 @@ namespace Dungeon
                 return;
             }
 
-            _isActive = true;
             _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
+
+            if (!TrySpawnZones())
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _isActive = true;
 
             stageController?.PauseForOverlay($"병사 구출 {_stageNumber}층");
             stageController?.ResetCombatantsForRetry();
             stageController?.ResetSkillCooldowns();
             soldierSpawner?.SetSoldiersActive(false);
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
-        /// 구출 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다.
+        /// 구출 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다. 구역 재스폰이
+        /// 실패하면 기존 "구출 실패" 화면 상태를 그대로 유지한다(GitHub 이슈 #20).
         /// </summary>
         public void Retry()
         {
@@ -146,9 +154,15 @@ namespace Dungeon
                 return;
             }
 
+            if (!TrySpawnZones())
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
             stageController?.ResetCombatantsForRetry();
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
@@ -169,13 +183,15 @@ namespace Dungeon
             GameBootstrapper.Events?.Publish(new SoldierRescueDungeonSessionEndedEvent(false));
         }
 
-        private void StartAttempt()
+        /// <summary>
+        /// 구역 스폰이 이미 성공한 뒤(_activeZones가 채워진 뒤) 전투 시작 북키핑만 한다.
+        /// </summary>
+        private void BeginFighting()
         {
             _remainingTime = config.TimeLimitSeconds;
             _isFighting = true;
             _lastPublishedProgress = -1f;
 
-            SpawnZones();
             captureNavigator?.Activate(_activeZones);
             sniperAttackSpawner?.Activate(_stageNumber);
 
@@ -185,11 +201,15 @@ namespace Dungeon
             GameBootstrapper.Events?.Publish(new SoldierRescueDungeonAttemptStartedEvent(_stageNumber, _remainingTime, _activeZones.Count));
         }
 
-        private void SpawnZones()
+        /// <summary>
+        /// 성공적으로 스폰된 구역이 하나라도 있으면 true. PoolManager를 못 구하면 아무것도 안
+        /// 건드리고 false만 반환한다(GitHub 이슈 #20).
+        /// </summary>
+        private bool TrySpawnZones()
         {
             if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
-                return;
+                return false;
             }
 
             pool.EnsurePool(structurePrefab, config.ZoneCount, config.ZoneCount);
@@ -206,6 +226,13 @@ namespace Dungeon
                     _activeZones.Add(structure);
                 }
             }
+
+            return _activeZones.Count > 0;
+        }
+
+        private static void PublishSpawnFailureToast()
+        {
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("전투 대상을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."));
         }
 
         /// <summary>

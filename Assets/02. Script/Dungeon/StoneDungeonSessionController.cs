@@ -81,6 +81,10 @@ namespace Dungeon
         /// UI가 실수로(또는 스테퍼 상한 설정 전에) 아직 클리어하지 못한 단계를 넘겨도 보스 체력과
         /// 강화석 보상이 항상 같은 유효 단계를 기준으로 계산된다.
         /// </summary>
+        /// <summary>
+        /// 보스 스폰을 먼저 시도해 성공했을 때만 상태를 커밋한다(GitHub 이슈 #20) — 실패하면
+        /// PauseForOverlay조차 호출하지 않아 롤백할 상태가 없다.
+        /// </summary>
         public void Enter(int stageNumber)
         {
             if (_isActive || (stageController != null && stageController.IsOverlayActive))
@@ -94,18 +98,28 @@ namespace Dungeon
                 return;
             }
 
-            _isActive = true;
             _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
+
+            if (!TrySpawnBoss(out GameObject bossInstance))
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _isActive = true;
+            _bossInstance = bossInstance;
 
             stageController?.PauseForOverlay($"강화석 던전 {_stageNumber}층");
             stageController?.ResetCombatantsForRetry();
             stageController?.ResetSkillCooldowns();
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
-        /// 토벌 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다.
+        /// 토벌 실패 후 재도전한다. 진행 중이 아니거나 아직 전투 중이면 무시한다. 보스 재스폰이
+        /// 실패하면 기존 "토벌 실패" 화면 상태를 그대로 유지한다(GitHub 이슈 #20) — 추가 롤백 없이
+        /// 다시 재도전/나가기를 시도할 수 있다.
         /// </summary>
         public void Retry()
         {
@@ -114,9 +128,17 @@ namespace Dungeon
                 return;
             }
 
+            if (!TrySpawnBoss(out GameObject bossInstance))
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _bossInstance = bossInstance;
+
             stageController?.ResetCombatantsForRetry();
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
@@ -136,12 +158,13 @@ namespace Dungeon
             GameBootstrapper.Events?.Publish(new StoneDungeonSessionEndedEvent(false));
         }
 
-        private void StartAttempt()
+        /// <summary>
+        /// 보스 스폰이 이미 성공한 뒤(_bossInstance가 세팅된 뒤) 전투 시작 북키핑만 한다.
+        /// </summary>
+        private void BeginFighting()
         {
             _remainingTime = config.TimeLimitSeconds;
             _isFighting = true;
-
-            SpawnBoss();
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Register(this);
@@ -149,22 +172,40 @@ namespace Dungeon
             GameBootstrapper.Events?.Publish(new StoneDungeonAttemptStartedEvent(_stageNumber, _remainingTime, _bossInstance));
         }
 
-        private void SpawnBoss()
+        /// <summary>
+        /// 성공하면 true와 함께 instance를 채운다. PoolManager를 못 구하면 아무것도 안 건드리고
+        /// false만 반환한다(GitHub 이슈 #20).
+        /// </summary>
+        private bool TrySpawnBoss(out GameObject instance)
         {
+            instance = null;
+
             if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
-                return;
+                return false;
             }
 
             pool.EnsurePool(config.BossPrefab, 1, 1);
 
             Vector3 spawnPosition = DungeonSpawnUtility.BossSpawnPosition();
-            _bossInstance = pool.Get(config.BossPrefab, spawnPosition, Quaternion.identity);
+            instance = pool.Get(config.BossPrefab, spawnPosition, Quaternion.identity);
 
-            if (_bossInstance.TryGetComponent(out StageMonsterScaler scaler))
+            if (instance == null)
+            {
+                return false;
+            }
+
+            if (instance.TryGetComponent(out StageMonsterScaler scaler))
             {
                 scaler.ApplyScale(config.CalculateBossStatMultiplier(_stageNumber));
             }
+
+            return true;
+        }
+
+        private static void PublishSpawnFailureToast()
+        {
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("전투 대상을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."));
         }
 
         void ITickable.Tick(float deltaTime)

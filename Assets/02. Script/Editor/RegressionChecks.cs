@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using System.Reflection;
 using Character;
+using Dungeon;
 using Enhancement;
+using Rank;
 using Save;
 using Skill;
 using UI;
@@ -65,6 +67,21 @@ namespace Editor
             // --- 이슈 #7: 저장 데이터 일부 손상 시 안전한 기본값 복구(부트스트랩 크래시 방지) ---
             Check("SaveService_ParseLastActiveUnixTime_MalformedFallsBackToZero", CheckParseLastActiveUnixTimeOrZero);
             Check("SaveService_ParseBlobOrNull_MalformedJsonReturnsNullWithoutThrowing", CheckParseBlobOrNullSurvivesMalformedJson);
+
+            // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
+            // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
+            Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnBossReturnsFalse<RankPromotionBattleController>());
+            Check("StoneDungeonSessionController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnBossReturnsFalse<StoneDungeonSessionController>());
+            Check("SkillDungeonSessionController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnBossReturnsFalse<SkillDungeonSessionController>());
+            Check("BossDungeonSessionController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnBossReturnsFalse<BossDungeonSessionController>());
+            Check("GoldDungeonSessionController_TrySpawnMonsters_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnCollectionReturnsFalse<GoldDungeonSessionController>("TrySpawnMonsters", "_aliveMonsters"));
+            Check("SoldierRescueDungeonSessionController_TrySpawnZones_NoPoolManager_ReturnsFalse",
+                () => AssertTrySpawnCollectionReturnsFalse<SoldierRescueDungeonSessionController>("TrySpawnZones", "_activeZones"));
 
             if (failures.Count == 0)
             {
@@ -275,6 +292,127 @@ namespace Editor
             if (emptyResult != null)
             {
                 throw new Exception("빈 문자열을 넘겼는데 null이 아닌 값을 반환함");
+            }
+        }
+
+        /// <summary>
+        /// action을 실행하는 동안 Core.GameBootstrapper.Services를 null로 바꿔둔다(실행 전/후
+        /// 무관하게 항상 원래 값으로 복원, PoolManager를 구할 수 없는 상황을 재현하기 위함) -
+        /// 이슈 #20의 재현 시나리오("PoolManager 없이 임시 ServiceLocator 구성")를, 새 ServiceLocator를
+        /// 따로 만드는 대신 전역 참조를 잠깐 비우는 방식으로 재현한다. Services는
+        /// { get; private set; } 자동 프로퍼티라 세터를 리플렉션으로 직접 호출한다.
+        /// </summary>
+        private static void WithNullServices(Action action)
+        {
+            PropertyInfo property = typeof(Core.GameBootstrapper).GetProperty(
+                "Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (property == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object original = property.GetValue(null);
+
+            try
+            {
+                property.SetValue(null, null);
+                action();
+            }
+            finally
+            {
+                property.SetValue(null, original);
+            }
+        }
+
+        /// <summary>
+        /// T.TrySpawnBoss(out GameObject)가 PoolManager 없이 호출되면 false를 반환하고 out
+        /// 인자도 null로 남아있는지 확인한다(GitHub 이슈 #20 - 호출부가 이 반환값을 확인하기
+        /// 전까지는 _isActive/_isFighting 등 세션 상태를 커밋하지 않아야 한다).
+        /// </summary>
+        private static void AssertTrySpawnBossReturnsFalse<T>() where T : Component
+        {
+            var go = new GameObject($"RegressionCheck_{typeof(T).Name}");
+            go.SetActive(false); // Awake()가 즉시 실행되지 않게(CheckMinElapsedSecondsDefault와 동일한 이유)
+
+            try
+            {
+                var controller = go.AddComponent<T>();
+
+                MethodInfo method = typeof(T).GetMethod("TrySpawnBoss", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (method == null)
+                {
+                    throw new Exception($"{typeof(T).Name}.TrySpawnBoss 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                WithNullServices(() =>
+                {
+                    object[] args = { null };
+                    bool success = (bool)method.Invoke(controller, args);
+                    var instance = (GameObject)args[0];
+
+                    if (success || instance != null)
+                    {
+                        throw new Exception($"PoolManager 없이도 성공을 반환함(success={success}, instance={(instance != null ? instance.name : "null")})");
+                    }
+                });
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        /// <summary>
+        /// T.{methodName}()(bool 반환, 인자 없음)이 PoolManager 없이 호출되면 false를 반환하고
+        /// collectionFieldName 필드(예: _aliveMonsters/_activeZones)가 비어있는지 확인한다.
+        /// AssertTrySpawnBossReturnsFalse의 "단일 대상 out 인자" 대신 "다중 대상 컬렉션 필드"
+        /// 버전 - Gold 던전(_aliveMonsters)/병사 구출 던전(_activeZones)이 이 모양이다.
+        /// </summary>
+        private static void AssertTrySpawnCollectionReturnsFalse<T>(string methodName, string collectionFieldName) where T : Component
+        {
+            var go = new GameObject($"RegressionCheck_{typeof(T).Name}");
+            go.SetActive(false);
+
+            try
+            {
+                var controller = go.AddComponent<T>();
+
+                MethodInfo method = typeof(T).GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (method == null)
+                {
+                    throw new Exception($"{typeof(T).Name}.{methodName} 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                FieldInfo field = typeof(T).GetField(collectionFieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (field == null)
+                {
+                    throw new Exception($"{typeof(T).Name}.{collectionFieldName} 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                WithNullServices(() =>
+                {
+                    bool success = (bool)method.Invoke(controller, null);
+                    object collection = field.GetValue(controller);
+
+                    // HashSet<T>는 비제네릭 System.Collections.ICollection을 구현하지 않아
+                    // (List<T>와 달리) 직접 캐스팅이 안 된다 - Count 프로퍼티를 리플렉션으로
+                    // 읽어 컬렉션 구체 타입과 무관하게(_aliveMonsters/HashSet, _activeZones/List
+                    // 둘 다) 동일하게 처리한다.
+                    int count = (int)collection.GetType().GetProperty("Count").GetValue(collection);
+
+                    if (success || count > 0)
+                    {
+                        throw new Exception($"PoolManager 없이도 성공을 반환함(success={success}, count={count})");
+                    }
+                });
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
             }
         }
 

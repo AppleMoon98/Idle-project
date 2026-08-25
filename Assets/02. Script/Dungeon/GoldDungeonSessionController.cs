@@ -91,6 +91,14 @@ namespace Dungeon
         /// 아직 클리어하지 못한 단계를 넘겨도 몹 체력과 골드 보상이 항상 같은 유효 단계를 기준으로
         /// 계산된다 — 체력은 진행도에서 멈추는데 보상만 계속 커지는 문제를 여기서 막는다.
         /// </summary>
+        /// <summary>
+        /// 몬스터 스폰을 먼저 시도해 성공했을 때만(_aliveMonsters가 실제로 채워졌을 때만) 상태를
+        /// 커밋한다(GitHub 이슈 #20) — PoolManager를 못 구하는 등으로 스폰 자체가 실패하면
+        /// PauseForOverlay조차 호출되지 않으므로 롤백할 상태가 없다. 이전엔 _isActive를 먼저 켜고
+        /// SpawnMonsters()가 조용히 실패해도 그대로 진행했는데, 이 던전은 제한시간이 있어 결국
+        /// 시간 초과로 빠져나오긴 하지만 그때까지 빈 전투 화면에 갇히고 실패한 시도에도
+        /// PauseForOverlay/ResetCombatantsForRetry 부수효과가 그대로 적용되는 문제가 있었다.
+        /// </summary>
         public void Enter(int stageNumber)
         {
             if (_isActive || (stageController != null && stageController.IsOverlayActive))
@@ -104,13 +112,20 @@ namespace Dungeon
                 return;
             }
 
-            _isActive = true;
             _stageNumber = Mathf.Clamp(stageNumber, 1, MaxStageNumber);
-            _remainingTime = config.TimeLimitSeconds;
 
             _highestClearedIndex = GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out RankService rankService)
                 ? rankService.HighestClearedIndex
                 : -1;
+
+            if (!TrySpawnMonsters())
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _isActive = true;
+            _remainingTime = config.TimeLimitSeconds;
 
             config.CalculateGoldRange(_stageNumber, _highestClearedIndex, MaxStageNumber, out _goldPerKillMin, out _goldPerKillMax);
             _referenceStage = config.GetReferenceStage(_stageNumber, _highestClearedIndex, MaxStageNumber);
@@ -120,8 +135,6 @@ namespace Dungeon
             stageController?.ResetCombatantsForRetry();
             stageController?.ResetSkillCooldowns();
 
-            SpawnMonsters();
-
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             TickerRegistration.Register(this);
 
@@ -129,11 +142,15 @@ namespace Dungeon
             GameBootstrapper.Events?.Publish(new GoldDungeonProgressChangedEvent(_aliveMonsters.Count));
         }
 
-        private void SpawnMonsters()
+        /// <summary>
+        /// 성공적으로 스폰된 몬스터가 하나라도 있으면 true. PoolManager를 못 구하면 아무것도 안
+        /// 건드리고 false만 반환한다.
+        /// </summary>
+        private bool TrySpawnMonsters()
         {
             if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
-                return;
+                return false;
             }
 
             pool.EnsurePool(config.MonsterPrefab, config.MonsterCount, config.MonsterCount);
@@ -150,6 +167,13 @@ namespace Dungeon
 
                 _aliveMonsters.Add(instance);
             }
+
+            return _aliveMonsters.Count > 0;
+        }
+
+        private static void PublishSpawnFailureToast()
+        {
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("전투 대상을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."));
         }
 
         void ITickable.Tick(float deltaTime)

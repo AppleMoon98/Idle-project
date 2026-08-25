@@ -5,6 +5,7 @@ using Dungeon;
 using Managers;
 using Rank.Events;
 using Stage;
+using UI.Events;
 using UnityEngine;
 
 namespace Rank
@@ -38,7 +39,10 @@ namespace Rank
         /// targetRank로의 승급전을 시작한다. targetRank나 그 보스 프리팹이 없으면 무시한다.
         /// 이미 진행 중이거나(자기 자신) 다른 오버레이(던전 등)가 이미 켜져 있으면(stageController.
         /// IsOverlayActive) 무시한다 — Dungeon.GoldDungeonSessionController.Enter와 동일한 이유
-        /// (오버레이 중복 진입 방지).
+        /// (오버레이 중복 진입 방지). 보스 스폰을 먼저 시도해 성공했을 때만 _isActive/_isFighting을
+        /// 켠다(GitHub 이슈 #20) — 이 컨트롤러는 제한시간이 없어(section AY), 스폰 실패 후 상태만
+        /// 먼저 켜면 CharacterDiedEvent가 영원히 안 와서 진짜 무한 대기(영구 소프트락)가 된다.
+        /// PauseForOverlay()도 스폰 성공을 확인한 뒤에만 호출하므로, 실패 시 롤백할 상태 자체가 없다.
         /// </summary>
         public void Enter(RankSO targetRank)
         {
@@ -47,12 +51,20 @@ namespace Rank
                 return;
             }
 
-            _isActive = true;
             _targetRank = targetRank;
+
+            if (!TrySpawnBoss(out GameObject bossInstance))
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _isActive = true;
+            _bossInstance = bossInstance;
 
             stageController?.PauseForOverlay();
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
@@ -69,13 +81,21 @@ namespace Rank
                 return;
             }
 
+            if (!TrySpawnBoss(out GameObject bossInstance))
+            {
+                PublishSpawnFailureToast();
+                return;
+            }
+
+            _bossInstance = bossInstance;
+
             if (playerTransform != null && playerTransform.TryGetComponent(out StagePositionResetter positionResetter))
             {
                 positionResetter.ResetPositions();
                 positionResetter.ResetHealth();
             }
 
-            StartAttempt();
+            BeginFighting();
         }
 
         /// <summary>
@@ -95,27 +115,43 @@ namespace Rank
             GameBootstrapper.Events?.Publish(new RankPromotionSessionEndedEvent(false));
         }
 
-        private void StartAttempt()
+        /// <summary>
+        /// 스폰이 이미 성공적으로 끝난 뒤(_bossInstance가 세팅된 뒤) 실제 전투 시작 북키핑만 한다 -
+        /// 스폰 자체는 TrySpawnBoss로 분리돼 Enter/Retry가 성공을 확인한 다음에만 이 메서드를 부른다.
+        /// </summary>
+        private void BeginFighting()
         {
             _isFighting = true;
-
-            SpawnBoss();
 
             GameBootstrapper.Events?.Subscribe<CharacterDiedEvent>(OnCharacterDied);
             GameBootstrapper.Events?.Publish(new RankPromotionAttemptStartedEvent(_targetRank, _bossInstance));
         }
 
-        private void SpawnBoss()
+        /// <summary>
+        /// _targetRank.BossPrefab을 스폰한다. PoolManager를 못 구하면 false를 반환하고 아무 상태도
+        /// 바꾸지 않는다 - 호출부(Enter/Retry)가 성공을 확인하기 전까지는 _isActive/_isFighting을
+        /// 켜지 않으므로, 실패해도 롤백할 게 없다(GitHub 이슈 #20).
+        /// </summary>
+        private bool TrySpawnBoss(out GameObject instance)
         {
+            instance = null;
+
             if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out PoolManager pool))
             {
-                return;
+                return false;
             }
 
             pool.EnsurePool(_targetRank.BossPrefab, 1, 1);
 
             Vector3 spawnPosition = DungeonSpawnUtility.BossSpawnPosition();
-            _bossInstance = pool.Get(_targetRank.BossPrefab, spawnPosition, Quaternion.identity);
+            instance = pool.Get(_targetRank.BossPrefab, spawnPosition, Quaternion.identity);
+
+            return instance != null;
+        }
+
+        private static void PublishSpawnFailureToast()
+        {
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("전투 대상을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."));
         }
 
         private void OnCharacterDied(CharacterDiedEvent evt)
