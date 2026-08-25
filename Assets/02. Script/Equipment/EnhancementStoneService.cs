@@ -24,7 +24,7 @@ namespace Equipment
         public EnhancementStoneService(EventBus events, int initialStones = 0)
         {
             _events = events;
-            _currentStones = initialStones;
+            _currentStones = initialStones > 0 ? initialStones : 0;
         }
 
         public void Initialize()
@@ -36,20 +36,27 @@ namespace Equipment
         }
 
         /// <summary>
-        /// 강화석을 더하고 변경 이벤트를 발행한다.
+        /// 강화석을 더하고 변경 이벤트를 발행한다. amount가 0 이하면(음수 지급 방지, GitHub 이슈 #8)
+        /// 아무 것도 하지 않는다.
         /// </summary>
         public void AddStones(int amount)
         {
+            if (amount <= 0)
+            {
+                return;
+            }
+
             _currentStones += amount;
             _events.Publish(new EnhancementStoneChangedEvent(_currentStones));
         }
 
         /// <summary>
-        /// 강화석 소비를 시도한다. 잔액이 부족하면 아무 변화 없이 false를 반환한다.
+        /// 강화석 소비를 시도한다. amount가 0 이하이거나(GitHub 이슈 #8 - 음수를 빼면 잔액이
+        /// 늘어나는 버그를 막는다) 잔액이 부족하면 아무 변화 없이 false를 반환한다.
         /// </summary>
         public bool TrySpendStones(int amount)
         {
-            if (amount > _currentStones)
+            if (amount <= 0 || amount > _currentStones)
             {
                 return false;
             }

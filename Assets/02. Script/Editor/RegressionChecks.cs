@@ -4,6 +4,9 @@ using System.Reflection;
 using Character;
 using Dungeon;
 using Enhancement;
+using Equipment;
+using Gacha;
+using Loot;
 using Rank;
 using Save;
 using Skill;
@@ -82,6 +85,15 @@ namespace Editor
                 () => AssertTrySpawnCollectionReturnsFalse<GoldDungeonSessionController>("TrySpawnMonsters", "_aliveMonsters"));
             Check("SoldierRescueDungeonSessionController_TrySpawnZones_NoPoolManager_ReturnsFalse",
                 () => AssertTrySpawnCollectionReturnsFalse<SoldierRescueDungeonSessionController>("TrySpawnZones", "_activeZones"));
+
+            // --- 이슈 #8: 재화 서비스가 음수/0 소비·지급 요청을 거부(TrySpend*(-5)가 잔액을
+            // 늘리는 버그 방지), 저장 복원 시 음수 초기값을 0으로 클램프 ---
+            Check("CurrencyService_RejectsNonPositiveAmounts", CheckCurrencyServiceRejectsNonPositiveAmounts);
+            Check("EnhancementStoneService_RejectsNonPositiveAmounts", CheckEnhancementStoneServiceRejectsNonPositiveAmounts);
+            Check("SoldierTicketService_RejectsNonPositiveAmounts", CheckSoldierTicketServiceRejectsNonPositiveAmounts);
+            Check("SkillScrollService_RejectsNonPositiveAmounts", CheckSkillScrollServiceRejectsNonPositiveAmounts);
+            Check("EquipmentGachaTicketService_RejectsNonPositiveAmounts", CheckEquipmentGachaTicketServiceRejectsNonPositiveAmounts);
+            Check("BossTokenService_RejectsNonPositiveAmounts", CheckBossTokenServiceRejectsNonPositiveAmounts);
 
             if (failures.Count == 0)
             {
@@ -413,6 +425,225 @@ namespace Editor
             finally
             {
                 UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        /// <summary>
+        /// CurrencyService(BigNumber 기반)가 이슈 #8의 재현 절차 그대로 음수/0 요청을 거부하고,
+        /// 음수 초기값을 0으로 클램프하는지 확인한다.
+        /// </summary>
+        private static void CheckCurrencyServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new CurrencyService(events, 10);
+
+            if (service.TrySpendGold(-5))
+            {
+                throw new Exception("TrySpendGold(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentGold != (Core.BigNumber)10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentGold}");
+            }
+
+            if (service.TrySpendGold(Core.BigNumber.Zero))
+            {
+                throw new Exception("TrySpendGold(0)이 성공함");
+            }
+
+            if (service.CanAfford(-5))
+            {
+                throw new Exception("CanAfford(-5)가 true를 반환함");
+            }
+
+            service.AddGold(-3);
+
+            if (service.CurrentGold != (Core.BigNumber)10)
+            {
+                throw new Exception($"AddGold(-3) 이후 잔액이 바뀜: {service.CurrentGold}");
+            }
+
+            var restored = new CurrencyService(events, -100);
+
+            if (restored.CurrentGold != Core.BigNumber.Zero)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentGold}");
+            }
+        }
+
+        private static void CheckEnhancementStoneServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new EnhancementStoneService(events, 10);
+
+            if (service.TrySpendStones(-5))
+            {
+                throw new Exception("TrySpendStones(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentStones != 10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentStones}");
+            }
+
+            if (service.TrySpendStones(0))
+            {
+                throw new Exception("TrySpendStones(0)이 성공함");
+            }
+
+            service.AddStones(-3);
+
+            if (service.CurrentStones != 10)
+            {
+                throw new Exception($"AddStones(-3) 이후 잔액이 바뀜: {service.CurrentStones}");
+            }
+
+            var restored = new EnhancementStoneService(events, -100);
+
+            if (restored.CurrentStones != 0)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentStones}");
+            }
+        }
+
+        private static void CheckSoldierTicketServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new SoldierTicketService(events, 10);
+
+            if (service.TrySpendTickets(-5))
+            {
+                throw new Exception("TrySpendTickets(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentTickets != 10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentTickets}");
+            }
+
+            if (service.TrySpendTickets(0))
+            {
+                throw new Exception("TrySpendTickets(0)이 성공함");
+            }
+
+            service.AddTickets(-3);
+
+            if (service.CurrentTickets != 10)
+            {
+                throw new Exception($"AddTickets(-3) 이후 잔액이 바뀜: {service.CurrentTickets}");
+            }
+
+            var restored = new SoldierTicketService(events, -100);
+
+            if (restored.CurrentTickets != 0)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentTickets}");
+            }
+        }
+
+        private static void CheckSkillScrollServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new SkillScrollService(events, 10);
+
+            if (service.TrySpendScrolls(-5))
+            {
+                throw new Exception("TrySpendScrolls(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentScrolls != 10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentScrolls}");
+            }
+
+            if (service.TrySpendScrolls(0))
+            {
+                throw new Exception("TrySpendScrolls(0)이 성공함");
+            }
+
+            service.AddScrolls(-3);
+
+            if (service.CurrentScrolls != 10)
+            {
+                throw new Exception($"AddScrolls(-3) 이후 잔액이 바뀜: {service.CurrentScrolls}");
+            }
+
+            var restored = new SkillScrollService(events, -100);
+
+            if (restored.CurrentScrolls != 0)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentScrolls}");
+            }
+        }
+
+        private static void CheckEquipmentGachaTicketServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new EquipmentGachaTicketService(events, 10);
+
+            if (service.TrySpendTickets(-5))
+            {
+                throw new Exception("TrySpendTickets(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentTickets != 10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentTickets}");
+            }
+
+            if (service.TrySpendTickets(0))
+            {
+                throw new Exception("TrySpendTickets(0)이 성공함");
+            }
+
+            service.AddTickets(-3);
+
+            if (service.CurrentTickets != 10)
+            {
+                throw new Exception($"AddTickets(-3) 이후 잔액이 바뀜: {service.CurrentTickets}");
+            }
+
+            var restored = new EquipmentGachaTicketService(events, -100);
+
+            if (restored.CurrentTickets != 0)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentTickets}");
+            }
+        }
+
+        private static void CheckBossTokenServiceRejectsNonPositiveAmounts()
+        {
+            var events = new Core.EventBus();
+            var service = new BossTokenService(events, 10);
+
+            if (service.TrySpendTokens(-5))
+            {
+                throw new Exception("TrySpendTokens(-5)가 성공함(재화 증가 버그)");
+            }
+
+            if (service.CurrentTokens != 10)
+            {
+                throw new Exception($"음수 소비 시도 후 잔액이 바뀜: {service.CurrentTokens}");
+            }
+
+            if (service.TrySpendTokens(0))
+            {
+                throw new Exception("TrySpendTokens(0)이 성공함");
+            }
+
+            service.AddTokens(-3);
+
+            if (service.CurrentTokens != 10)
+            {
+                throw new Exception($"AddTokens(-3) 이후 잔액이 바뀜: {service.CurrentTokens}");
+            }
+
+            var restored = new BossTokenService(events, -100);
+
+            if (restored.CurrentTokens != 0)
+            {
+                throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentTokens}");
             }
         }
 

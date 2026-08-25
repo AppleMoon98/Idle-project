@@ -25,7 +25,7 @@ namespace Loot
         public CurrencyService(EventBus events, BigNumber initialGold = default)
         {
             _events = events;
-            _currentGold = initialGold;
+            _currentGold = initialGold >= BigNumber.Zero ? initialGold : BigNumber.Zero;
         }
 
         public void Initialize()
@@ -39,29 +39,39 @@ namespace Loot
         }
 
         /// <summary>
-        /// 골드를 더하고 변경 이벤트를 발행한다.
+        /// 골드를 더하고 변경 이벤트를 발행한다. amount가 0 이하면(음수 지급 방지, GitHub 이슈 #8)
+        /// 아무 것도 하지 않는다 - Character.Health.TakeDamage/Heal이 이미 쓰는 "amount <= 0이면
+        /// 조용히 no-op" 관례와 동일하다.
         /// </summary>
         public void AddGold(BigNumber amount)
         {
+            if (amount <= BigNumber.Zero)
+            {
+                return;
+            }
+
             _currentGold += amount;
             _events.Publish(new GoldChangedEvent(_currentGold));
         }
 
         /// <summary>
         /// amount를 지금 당장 소비할 수 있는 잔액인지(실제로 소비하지는 않음). 뽑기 등에서 시도 전에
-        /// "1회분도 부족한지" 미리 확인할 때 쓴다.
+        /// "1회분도 부족한지" 미리 확인할 때 쓴다. amount가 0 이하면 항상 false - 소비량 자체가
+        /// 성립하지 않는 요청이라, "잔액이 충분해서 감당 가능"이라는 의미로 오해될 수 있는 true를
+        /// 반환하지 않는다.
         /// </summary>
         public bool CanAfford(BigNumber amount)
         {
-            return amount <= _currentGold;
+            return amount > BigNumber.Zero && amount <= _currentGold;
         }
 
         /// <summary>
-        /// 골드 소비를 시도한다. 잔액이 부족하면 아무 변화 없이 false를 반환한다.
+        /// 골드 소비를 시도한다. amount가 0 이하이거나(GitHub 이슈 #8 - 음수를 빼면 잔액이 늘어나는
+        /// 버그를 막는다) 잔액이 부족하면 아무 변화 없이 false를 반환한다.
         /// </summary>
         public bool TrySpendGold(BigNumber amount)
         {
-            if (amount > _currentGold)
+            if (amount <= BigNumber.Zero || amount > _currentGold)
             {
                 return false;
             }
