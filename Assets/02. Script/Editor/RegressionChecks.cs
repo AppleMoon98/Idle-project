@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Reflection;
 using Character;
 using Enhancement;
+using Save;
 using Skill;
 using UI;
 using UnityEditor;
@@ -60,6 +61,10 @@ namespace Editor
             Check("RuntimeStatApplier_AttackSpeed_BaseRelativePercent", CheckRuntimeStatApplierAttackSpeed);
             Check("RuntimeStatApplier_NoDuplicateAcrossSeparateSoldiers", CheckRuntimeStatApplierNoDuplication);
             Check("PossessionStatApplier_AttackPower_PercentOfBase", CheckPossessionStatApplier);
+
+            // --- 이슈 #7: 저장 데이터 일부 손상 시 안전한 기본값 복구(부트스트랩 크래시 방지) ---
+            Check("SaveService_ParseLastActiveUnixTime_MalformedFallsBackToZero", CheckParseLastActiveUnixTimeOrZero);
+            Check("SaveService_ParseBlobOrNull_MalformedJsonReturnsNullWithoutThrowing", CheckParseBlobOrNullSurvivesMalformedJson);
 
             if (failures.Count == 0)
             {
@@ -210,6 +215,67 @@ namespace Editor
             PossessionStatApplier.Apply(stats, baseStats, EnhancementStatType.AttackPower, 0.1f);
 
             AssertApprox(220f, stats.AttackPower, "보유/랭크 보너스는 원본 대비 %");
+        }
+
+        private static void CheckParseLastActiveUnixTimeOrZero()
+        {
+            MethodInfo method = typeof(SaveService).GetMethod(
+                "ParseLastActiveUnixTimeOrZero", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (method == null)
+            {
+                throw new Exception("ParseLastActiveUnixTimeOrZero 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            AssertParsedTimestamp(method, "not-a-number", 0);
+            AssertParsedTimestamp(method, "-100", 0);
+            AssertParsedTimestamp(method, "99999999999999999999", 0); // long 범위 초과(overflow)
+            AssertParsedTimestamp(method, "", 0);
+            AssertParsedTimestamp(method, "1700000000", 1700000000);
+        }
+
+        private static void AssertParsedTimestamp(MethodInfo method, string raw, long expected)
+        {
+            long actual = (long)method.Invoke(null, new object[] { raw });
+
+            if (actual != expected)
+            {
+                throw new Exception($"raw='{raw}' 기대={expected} 실제={actual}");
+            }
+        }
+
+        private static void CheckParseBlobOrNullSurvivesMalformedJson()
+        {
+            Type nestedType = typeof(SaveService).GetNestedType("InventorySaveBlob", BindingFlags.NonPublic);
+
+            if (nestedType == null)
+            {
+                throw new Exception("InventorySaveBlob 중첩 타입을 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            MethodInfo openGeneric = typeof(SaveService).GetMethod(
+                "ParseBlobOrNull", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (openGeneric == null)
+            {
+                throw new Exception("ParseBlobOrNull 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            MethodInfo closedGeneric = openGeneric.MakeGenericMethod(nestedType);
+
+            object malformedResult = closedGeneric.Invoke(null, new object[] { "{ definitely-not-json" });
+
+            if (malformedResult != null)
+            {
+                throw new Exception("깨진 JSON을 넘겼는데 예외 없이 null이 아닌 값을 반환함(예외가 새 나가지 않았는지도 함께 확인된 것)");
+            }
+
+            object emptyResult = closedGeneric.Invoke(null, new object[] { "" });
+
+            if (emptyResult != null)
+            {
+                throw new Exception("빈 문자열을 넘겼는데 null이 아닌 값을 반환함");
+            }
         }
 
         private static void SetPrivateFloat(UnityEngine.Object target, string fieldName, float value)

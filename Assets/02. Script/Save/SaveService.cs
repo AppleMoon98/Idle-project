@@ -311,7 +311,7 @@ namespace Save
             int stageNumber = PlayerPrefs.GetInt(StageNumberKey, 1);
             int highestClearedChapter = PlayerPrefs.GetInt(HighestClearedChapterKey, 0);
             int highestClearedStageNumber = PlayerPrefs.GetInt(HighestClearedStageNumberKey, 0);
-            long lastActiveUnixTime = long.Parse(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
+            long lastActiveUnixTime = ParseLastActiveUnixTimeOrZero(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
             int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
             int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
             int attackSpeedLevel = PlayerPrefs.GetInt(AttackSpeedLevelKey, 0);
@@ -602,10 +602,46 @@ namespace Save
         /// "비어있으면 복원할 게 없고, 아니면 JSON을 역직렬화한다"는 6개 Restore* 메서드가 공유하는
         /// 파싱 절차. JsonUtility.FromJson은 빈 문자열을 넘기면 예외 대신 그냥 null이 아닌 기본
         /// 인스턴스를 반환할 수 있어, 빈 문자열 체크를 JsonUtility 호출보다 먼저 해야 한다.
+        /// PlayerPrefs 값이 외부 요인(수동 편집, 저장 도중 비정상 종료 등)으로 손상돼 JSON 형식이
+        /// 깨진 경우 JsonUtility.FromJson이 예외(ArgumentException 등)를 던지는데, 이걸 그대로
+        /// 두면 GameBootstrapper.Awake() 체인 안에서 호출되는 6개 Restore* 중 하나만 깨져도 부트
+        /// 스트랩 전체가 죽는다(실제 GitHub 이슈로 제보됨) — try/catch로 감싸 "복원할 게 없음"과
+        /// 동일하게 null을 반환한다. 각 Restore*가 독립된 필드(InventoryJson/SkillLevelsJson 등)를
+        /// 각자 파싱하는 구조라, 이 공유 헬퍼 하나만 방어적으로 만들면 한 블롭의 손상이 다른
+        /// 블롭 복원에 전혀 영향을 주지 않는다(추가 격리 로직 불필요).
         /// </summary>
         private static T ParseBlobOrNull<T>(string json) where T : class
         {
-            return string.IsNullOrEmpty(json) ? null : JsonUtility.FromJson<T>(json);
+            if (string.IsNullOrEmpty(json))
+            {
+                return null;
+            }
+
+            try
+            {
+                return JsonUtility.FromJson<T>(json);
+            }
+            catch (Exception e)
+            {
+                Debug.LogWarning($"[SaveService] {typeof(T).Name} 저장 데이터가 손상되어 기본값으로 복원합니다: {e.Message}");
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// LastActiveUnixTime 저장값을 파싱한다. 형식이 깨졌거나(FormatException/OverflowException)
+        /// 음수면 0(= 저장 기록 없음과 동일하게 취급, 오프라인 보상 없이 시작)으로 폴백한다 -
+        /// long.Parse를 직접 쓰면 형식이 깨진 값 하나가 Load() 전체를 예외로 중단시켜 멀쩡한
+        /// 다른 필드까지 못 읽게 되는 문제가 있었다(실제 GitHub 이슈로 제보됨).
+        /// </summary>
+        private static long ParseLastActiveUnixTimeOrZero(string raw)
+        {
+            if (!long.TryParse(raw, out long value) || value < 0)
+            {
+                return 0;
+            }
+
+            return value;
         }
 
         private void OnGoldChanged(GoldChangedEvent evt)
