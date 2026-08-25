@@ -104,10 +104,11 @@ namespace Gacha
             // 호출 자체가 이 배치 안에 없음) - 매 시도(TryPullOne)마다 다시 계산해도 얻는 정확성
             // 이득이 없어 그대로 비용만 300배가 되고 있었다.
             List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(_tiers[tierIndex].Entries);
+            GachaPullStopReason stopReason = GachaPullStopReason.None;
 
             for (int i = 0; i < count; i++)
             {
-                if (!TryPullOne(tierIndex, candidates, out SkillSO result))
+                if (!TryPullOne(tierIndex, candidates, out SkillSO result, out stopReason))
                 {
                     break;
                 }
@@ -120,7 +121,40 @@ namespace Gacha
                 _events.Publish(new SkillPulledEvent(results));
             }
 
+            GachaPullToast.PublishIfIncomplete(_events, results.Count, count, stopReason, "모든 스킬이 최대 레벨입니다.");
+
             return results;
+        }
+
+        /// <summary>
+        /// tierIndex 티어에 지금 당장 레벨업 가능한(만렙이 아닌) 스킬이 하나라도 있는지. UI가
+        /// "전부 만렙이라 뽑아도 소용없는" 상태를 뽑기 버튼을 비활성화하는 식으로 미리 보여줄 때
+        /// 쓴다(GitHub 이슈 #22) - BuildLevelableCandidates와 같은 조건이지만 목록을 만들지 않고
+        /// 첫 후보를 찾는 즉시 반환해 매 프레임/이벤트마다 호출해도 저렴하다.
+        /// </summary>
+        public bool HasAnyLevelableCandidate(int tierIndex)
+        {
+            if (tierIndex < 0 || tierIndex >= _tiers.Length)
+            {
+                return false;
+            }
+
+            SkillGachaPoolEntry[] entries = _tiers[tierIndex].Entries;
+
+            if (entries == null)
+            {
+                return false;
+            }
+
+            foreach (SkillGachaPoolEntry entry in entries)
+            {
+                if (entry.Skill != null && !_skills.IsMaxLevel(entry.Skill))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -134,12 +168,14 @@ namespace Gacha
                 : _scrolls.CurrentScrolls >= table.TicketCostPerPull;
         }
 
-        private bool TryPullOne(int tierIndex, List<SkillGachaPoolEntry> candidates, out SkillSO result)
+        private bool TryPullOne(int tierIndex, List<SkillGachaPoolEntry> candidates, out SkillSO result, out GachaPullStopReason reason)
         {
             result = null;
+            reason = GachaPullStopReason.None;
 
             if (tierIndex < 0 || tierIndex >= _tiers.Length)
             {
+                reason = GachaPullStopReason.NoCandidates;
                 return false;
             }
 
@@ -148,6 +184,7 @@ namespace Gacha
 
             if (picked == null)
             {
+                reason = GachaPullStopReason.NoCandidates;
                 return false;
             }
 
@@ -157,6 +194,7 @@ namespace Gacha
 
             if (!spent)
             {
+                reason = GachaPullStopReason.InsufficientCurrency;
                 return false;
             }
 

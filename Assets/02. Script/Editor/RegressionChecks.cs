@@ -15,6 +15,7 @@ using Save;
 using Skill;
 using Soldier;
 using UI;
+using UI.Events;
 using UnityEditor;
 using UnityEngine;
 
@@ -123,12 +124,37 @@ namespace Editor
             // --- 이슈 #21: 300연 가챠/대량 이벤트로 인한 O(n^2) 성능 저하 3곳 ---
             Check("SkillGachaTableSO_Entries_ReturnsCachedArrayOnRepeatedAccess",
                 CheckSkillGachaTableEntriesCached);
+            Check("SkillGachaTableSO_Entries_DoesNotCacheEmptyResult_RecoversOnceCatalogFilled",
+                CheckSkillGachaTableEntriesDoesNotCacheEmptyResult);
             Check("SkillGachaService_Pull_LevelableCandidatesComputedOncePerBatch",
                 CheckSkillGachaServiceCandidatesBuiltOncePerBatch);
             Check("SaveService_InventoryHandlers_DeferRebuildToTick_NotEagerly",
                 CheckSaveServiceInventoryHandlersDeferRebuildToTick);
             Check("SaveService_OtherSnapshotHandlers_SetDirtyFlagWithoutEagerRebuild",
                 CheckSaveServiceOtherHandlersDeferRebuildToTick);
+
+            // --- 이슈 #22: 300회 요청의 부분 성공/전체 실패가 이유·실행 수 안내 없이 조용히 끝남 ---
+            Check("GachaPullToast_FullSuccess_NoToast", CheckGachaPullToastFullSuccessNoToast);
+            Check("GachaPullToast_ZeroSuccess_InsufficientCurrency_GenericMessage",
+                CheckGachaPullToastZeroSuccessInsufficientCurrency);
+            Check("GachaPullToast_PartialSuccess_InsufficientCurrency_IncludesCounts",
+                CheckGachaPullToastPartialSuccessInsufficientCurrency);
+            Check("GachaPullToast_NoCandidates_ZeroSuccess_UsesProvidedMessage",
+                CheckGachaPullToastNoCandidatesZeroSuccess);
+            Check("GachaAffordabilityCalculator_FixedCost_ExactDivision",
+                CheckGachaAffordabilityCalculatorFixedCost);
+            Check("GachaAffordabilityCalculator_EscalatingCost_SimulatesCumulativeSpend",
+                CheckGachaAffordabilityCalculatorEscalatingCost);
+            Check("GachaAffordabilityCalculator_FixedCost_CapsAtMaxSimulatedPulls",
+                CheckGachaAffordabilityCalculatorFixedCostCapsAtMaxSimulatedPulls);
+            Check("GachaAffordabilityCalculator_EscalatingCost_CapsAtMaxSimulatedPulls",
+                CheckGachaAffordabilityCalculatorEscalatingCostCapsAtMaxSimulatedPulls);
+            Check("SkillGachaService_Pull_InsufficientScrolls_PartialSuccessPublishesCountedToast",
+                CheckSkillGachaServiceInsufficientCurrencyPublishesPartialToast);
+            Check("SkillGachaService_Pull_AllSkillsMaxLevel_ZeroResultsPublishesReasonToast",
+                CheckSkillGachaServiceAllMaxLevelPublishesNoCandidatesToast);
+            Check("SkillGachaService_HasAnyLevelableCandidate_ReflectsPerTierMaxLevelState",
+                CheckSkillGachaServiceHasAnyLevelableCandidate);
 
             if (failures.Count == 0)
             {
@@ -937,6 +963,53 @@ namespace Editor
         }
 
         /// <summary>
+        /// 실사용 중 실제 프로젝트 에셋(SkillGachaTable_Normal.asset)에서 발견된 회귀 - catalog가
+        /// 최초 접근 시점에 비어있으면(에디터 세션 안에서 일시적으로 그런 순간이 생길 수 있음,
+        /// 예: Domain Reload를 건너뛰는 Play Mode 설정) 빈 배열이 캐싱돼버려, 이후 catalog에
+        /// 실제 스킬이 채워져도 Entries가 영원히 빈 채로 남았다(뽑기 후보가 0개로 보임). 빈
+        /// 결과는 캐싱하지 않아야 다음 접근에서 다시 계산해 회복된다.
+        /// </summary>
+        private static void CheckSkillGachaTableEntriesDoesNotCacheEmptyResult()
+        {
+            SkillCatalogSO catalog = null;
+            SkillSO skill = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", System.Array.Empty<SkillSO>());
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+
+                SkillGachaPoolEntry[] whileEmpty = table.Entries;
+
+                if (whileEmpty.Length != 0)
+                {
+                    throw new Exception("빈 카탈로그인데 Entries가 비어있지 않음");
+                }
+
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                SkillGachaPoolEntry[] afterFilled = table.Entries;
+
+                if (afterFilled.Length != 1)
+                {
+                    throw new Exception($"카탈로그가 뒤늦게 채워졌는데도 Entries가 여전히 비어있음(길이={afterFilled.Length}) - 빈 결과가 잘못 캐싱된 회귀");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
+                if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
         /// GitHub 이슈 #21: SkillGachaService.TryPullOne이 후보 목록(List&lt;SkillGachaPoolEntry&gt;)을
         /// 매개변수로 받는 시그니처인지(= Pull() 배치 시작 시점에 한 번만 계산해 넘겨받는 구조인지)를
         /// 구조적으로 확인한다. 순수 동작 결과만으로는 "배치당 1회 계산"과 "시도마다 재계산"을 구별할
@@ -956,7 +1029,7 @@ namespace Editor
 
             ParameterInfo[] parameters = tryPullOne.GetParameters();
 
-            if (parameters.Length != 3 || parameters[1].ParameterType != typeof(List<SkillGachaPoolEntry>))
+            if (parameters.Length < 2 || parameters[1].ParameterType != typeof(List<SkillGachaPoolEntry>))
             {
                 throw new Exception("TryPullOne이 List<SkillGachaPoolEntry> 후보 목록을 매개변수로 받지 않음 - 배치당 1회 계산 구조가 되돌려졌을 수 있음");
             }
@@ -1093,6 +1166,296 @@ namespace Editor
             if (!(bool)GetPrivateFieldOnPlainObject(saveService, dirtyFieldName))
             {
                 throw new Exception($"{handlerName} 호출 후 {dirtyFieldName}이 true가 아님");
+            }
+        }
+
+        private static void CheckGachaPullToastFullSuccessNoToast()
+        {
+            var events = new EventBus();
+            var toasts = new List<string>();
+            events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+            GachaPullToast.PublishIfIncomplete(events, 5, 5, GachaPullStopReason.InsufficientCurrency, "후보 없음");
+
+            if (toasts.Count != 0)
+            {
+                throw new Exception($"요청한 횟수를 전부 성공했는데 토스트가 발행됨: [{string.Join(", ", toasts)}]");
+            }
+        }
+
+        private static void CheckGachaPullToastZeroSuccessInsufficientCurrency()
+        {
+            var events = new EventBus();
+            var toasts = new List<string>();
+            events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+            GachaPullToast.PublishIfIncomplete(events, 0, 300, GachaPullStopReason.InsufficientCurrency, "후보 없음");
+
+            if (toasts.Count != 1 || toasts[0] != "재화가 모자랍니다.")
+            {
+                throw new Exception($"0회 성공 + 재화부족 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 재현 사례 A(주문서 4개로 300회 요청 → 4회만 실행, 296회 미실행 이유
+        /// 안내 없음)를 GachaPullToast 단위로 재현한다.
+        /// </summary>
+        private static void CheckGachaPullToastPartialSuccessInsufficientCurrency()
+        {
+            var events = new EventBus();
+            var toasts = new List<string>();
+            events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+            GachaPullToast.PublishIfIncomplete(events, 4, 300, GachaPullStopReason.InsufficientCurrency, "후보 없음");
+
+            if (toasts.Count != 1 || toasts[0] != "재화가 모자라 4/300회만 뽑았습니다.")
+            {
+                throw new Exception($"부분 성공(4/300) 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 재현 사례 B(주문서 1000개로 300회 요청 → 0건 반환, 아무 설명 없이 종료)를
+        /// GachaPullToast 단위로 재현한다.
+        /// </summary>
+        private static void CheckGachaPullToastNoCandidatesZeroSuccess()
+        {
+            var events = new EventBus();
+            var toasts = new List<string>();
+            events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+            GachaPullToast.PublishIfIncomplete(events, 0, 300, GachaPullStopReason.NoCandidates, "모든 스킬이 최대 레벨입니다.");
+
+            if (toasts.Count != 1 || toasts[0] != "모든 스킬이 최대 레벨입니다.")
+            {
+                throw new Exception($"후보 없음(0/300) 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
+            }
+        }
+
+        private static void CheckGachaAffordabilityCalculatorFixedCost()
+        {
+            int affordable = GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(305, 100);
+
+            if (affordable != 3)
+            {
+                throw new Exception($"305 / 100 = 3이어야 하는데 {affordable}");
+            }
+
+            if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(50, 100) != 0)
+            {
+                throw new Exception("1회분도 안 되는 잔액인데 0이 아님");
+            }
+        }
+
+        private static void CheckGachaAffordabilityCalculatorEscalatingCost()
+        {
+            // 0회차 100골드, 이후 회차마다 +10(0,100,110,120,130,...) - 500골드로는
+            // 100(누적100,1회)+110(210,2회)+120(330,3회)+130(460,4회)+140(600, 잔액 부족, 멈춤)
+            // → 정확히 4회.
+            int affordable = GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                (BigNumber)500, 0, pulls => 100 + pulls * 10);
+
+            if (affordable != 4)
+            {
+                throw new Exception($"누적 비용 시뮬레이션 결과가 4가 아니라 {affordable}");
+            }
+        }
+
+        private static void CheckGachaAffordabilityCalculatorFixedCostCapsAtMaxSimulatedPulls()
+        {
+            // 고정 비용 1짜리를 아주 큰 잔액(1e30)으로 조회하면(고정 비용 나눗셈 빠른 경로) 상한에서 멈춰야 한다.
+            int affordable = GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                new BigNumber(1, 30), 0, _ => 1);
+
+            if (affordable != GachaAffordabilityCalculator.MaxSimulatedPulls)
+            {
+                throw new Exception($"고정 비용 빠른 경로가 상한에서 안 멈춤: {affordable}(기대={GachaAffordabilityCalculator.MaxSimulatedPulls})");
+            }
+        }
+
+        private static void CheckGachaAffordabilityCalculatorEscalatingCostCapsAtMaxSimulatedPulls()
+        {
+            // 회차마다 비용이 달라(1,2,3,...) 고정 비용 빠른 경로를 안 타고 실제로 시뮬레이션
+            // 루프를 돈다 - 누적 비용(1e4회 기준 약 5천만)보다 훨씬 큰 잔액(1e20)이라 상한
+            // (MaxSimulatedPulls)에서 멈춰야 한다.
+            int affordable = GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                new BigNumber(1, 20), 0, pulls => pulls + 1);
+
+            if (affordable != GachaAffordabilityCalculator.MaxSimulatedPulls)
+            {
+                throw new Exception($"회차별 비용 시뮬레이션 루프가 상한에서 안 멈춤: {affordable}(기대={GachaAffordabilityCalculator.MaxSimulatedPulls})");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 재현 사례 A를 SkillGachaService.Pull() 전체 경로로 재현한다 - 주문서
+        /// 4개만 보유한 채 300회를 요청하면 정확히 4회만 성공하고, "재화가 모자라 4/300회만
+        /// 뽑았습니다." 토스트가 함께 발행돼야 한다.
+        /// </summary>
+        private static void CheckSkillGachaServiceInsufficientCurrencyPublishesPartialToast()
+        {
+            SkillCatalogSO catalog = null;
+            SkillSO skill = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                var events = new EventBus();
+                var toasts = new List<string>();
+                events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+                SetPrivateField(table, "ticketCostPerPull", 1);
+                SetPrivateField(table, "currencyType", GachaCurrencyType.Ticket);
+
+                var skillService = new SkillService(events);
+                var scrolls = new SkillScrollService(events, initialScrolls: 4);
+                var currency = new CurrencyService(events);
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { table });
+
+                IReadOnlyList<SkillSO> results = service.Pull(0, 300);
+
+                if (results.Count != 4)
+                {
+                    throw new Exception($"주문서 4개로 300회 요청했는데 성공 횟수가 {results.Count}(기대=4)");
+                }
+
+                if (!toasts.Contains("재화가 모자라 4/300회만 뽑았습니다."))
+                {
+                    throw new Exception($"부분 성공 안내 토스트가 발행되지 않음: [{string.Join(", ", toasts)}]");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
+                if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 재현 사례 B를 SkillGachaService.Pull() 전체 경로로 재현한다 - 유일한
+        /// 스킬이 항상 만렙(maxLevel=0)인 상태에서 주문서가 충분해도 300회 요청이 0건으로 끝나야
+        /// 하고, "모든 스킬이 최대 레벨입니다." 토스트가 함께 발행돼야 한다.
+        /// </summary>
+        private static void CheckSkillGachaServiceAllMaxLevelPublishesNoCandidatesToast()
+        {
+            SkillCatalogSO catalog = null;
+            SkillSO skill = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                var events = new EventBus();
+                var toasts = new List<string>();
+                events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(skill, "maxLevel", 0); // 레벨 0 >= 최대레벨 0 - 항상 만렙 취급
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+                SetPrivateField(table, "ticketCostPerPull", 1);
+                SetPrivateField(table, "currencyType", GachaCurrencyType.Ticket);
+
+                var skillService = new SkillService(events);
+                var scrolls = new SkillScrollService(events, initialScrolls: 1000);
+                var currency = new CurrencyService(events);
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { table });
+
+                if (service.HasAnyLevelableCandidate(0))
+                {
+                    throw new Exception("maxLevel=0인 스킬 하나뿐인데 HasAnyLevelableCandidate가 true를 반환함");
+                }
+
+                IReadOnlyList<SkillSO> results = service.Pull(0, 300);
+
+                if (results.Count != 0)
+                {
+                    throw new Exception($"모든 스킬이 만렙인데 {results.Count}건이 성공함(기대=0)");
+                }
+
+                if (!toasts.Contains("모든 스킬이 최대 레벨입니다."))
+                {
+                    throw new Exception($"만렙 안내 토스트가 발행되지 않음: [{string.Join(", ", toasts)}]");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
+                if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// SkillGachaService.HasAnyLevelableCandidate가 티어별로 독립적으로 판정되는지 확인한다.
+        /// 두 테이블(만렙 스킬만 있는 테이블 / 레벨업 가능한 스킬이 섞인 테이블)을 따로 만드는 이유:
+        /// SkillGachaTableSO.Entries는 최초 접근 시 캐싱되므로(GitHub 이슈 #21), 같은 테이블의
+        /// catalog 내용을 검사 도중 바꿔치기하면 첫 접근 때 캐싱된 옛 목록만 계속 보게 된다.
+        /// </summary>
+        private static void CheckSkillGachaServiceHasAnyLevelableCandidate()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var scrolls = new SkillScrollService(events);
+            var currency = new CurrencyService(events);
+
+            SkillSO maxedSkill = null;
+            SkillSO leveledSkill = null;
+            SkillCatalogSO allMaxedCatalog = null;
+            SkillCatalogSO mixedCatalog = null;
+            SkillGachaTableSO allMaxedTable = null;
+            SkillGachaTableSO mixedTable = null;
+
+            try
+            {
+                maxedSkill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(maxedSkill, "maxLevel", 0);
+                leveledSkill = ScriptableObject.CreateInstance<SkillSO>();
+
+                allMaxedCatalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(allMaxedCatalog, "skills", new[] { maxedSkill });
+                allMaxedTable = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(allMaxedTable, "catalog", allMaxedCatalog);
+                SetPrivateField(allMaxedTable, "weightPerSkill", 1);
+
+                mixedCatalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(mixedCatalog, "skills", new[] { maxedSkill, leveledSkill });
+                mixedTable = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(mixedTable, "catalog", mixedCatalog);
+                SetPrivateField(mixedTable, "weightPerSkill", 1);
+
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { allMaxedTable, mixedTable });
+
+                if (service.HasAnyLevelableCandidate(0))
+                {
+                    throw new Exception("만렙 스킬만 있는 테이블(티어 0)에서 HasAnyLevelableCandidate가 true");
+                }
+
+                if (!service.HasAnyLevelableCandidate(1))
+                {
+                    throw new Exception("레벨업 가능한 스킬이 섞인 테이블(티어 1)에서 HasAnyLevelableCandidate가 false");
+                }
+            }
+            finally
+            {
+                if (allMaxedTable != null) UnityEngine.Object.DestroyImmediate(allMaxedTable);
+                if (mixedTable != null) UnityEngine.Object.DestroyImmediate(mixedTable);
+                if (allMaxedCatalog != null) UnityEngine.Object.DestroyImmediate(allMaxedCatalog);
+                if (mixedCatalog != null) UnityEngine.Object.DestroyImmediate(mixedCatalog);
+                if (maxedSkill != null) UnityEngine.Object.DestroyImmediate(maxedSkill);
+                if (leveledSkill != null) UnityEngine.Object.DestroyImmediate(leveledSkill);
             }
         }
 

@@ -5,6 +5,7 @@ using Gacha.Events;
 using Loot;
 using Loot.Events;
 using Skill;
+using Skill.Events;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,6 +22,12 @@ namespace UI
     /// (SkillPulledPopup, 이제 미사용) 대신 resultReveal이 이 패널 안에서 슬롯으로 하나씩
     /// 보여준다 - 스킬은 등급→색 매핑이 없어(SkillSO.Grade는 분류용 enum일 뿐) 테두리 색은
     /// SkillSO.IconTint(스킬별 수작업 지정 색)를 그대로 쓴다.
+    ///
+    /// 재화 텍스트에 "실행 가능 횟수"를 함께 표시하고(GachaAffordabilityCalculator), 모든 스킬이
+    /// 최대 레벨이라 뽑아도 소용없는 상태면 뽑기 버튼을 비활성화한다 - 요청한 횟수보다 적게
+    /// 실행되고도(0회 포함) 아무 안내 없이 조용히 끝나던 문제(GitHub 이슈 #22)를, 실제 부분
+    /// 성공/실패는 SkillGachaService.Pull()이 토스트로 알리고, 이 패널은 그 전에 미리 상태를
+    /// 보여주는 역할을 나눠 맡는다.
     /// </summary>
     public sealed class SkillGachaTierPanelUI : MonoBehaviour
     {
@@ -63,6 +70,9 @@ namespace UI
 
         private void OnEnable()
         {
+            GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
+            RefreshMaxLevelGating();
+
             if (useGoldCurrency)
             {
                 GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnGoldChanged);
@@ -71,7 +81,7 @@ namespace UI
 
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
                 {
-                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
+                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드{FormatGoldAffordableSuffix(currency.CurrentGold)})");
                 }
 
                 return;
@@ -81,28 +91,62 @@ namespace UI
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SkillScrollService scrolls))
             {
-                SetCurrencyText($"주문서: {scrolls.CurrentScrolls}");
+                SetCurrencyText($"주문서: {scrolls.CurrentScrolls}{FormatScrollAffordableSuffix(scrolls.CurrentScrolls)}");
             }
         }
 
         // 골드 뽑기 비용은 누적 뽑기 횟수에 따라 오를 수 있어(SkillGachaTableSO.CostIncrementTiers),
-        // 화면에 매번 "다음 1회" 비용을 새로 조회해 표시한다. 주문서 탭(useGoldCurrency=false)에는
-        // 표시하지 않는다 - 요청 범위가 "골드 뽑기"였고, 주문서는 1회 뽑기=주문서 1개로 이미 자명하다.
+        // 화면에 매번 "다음 1회" 비용을 새로 조회해 표시한다.
         private int ResolveGoldCostPerPull()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillGachaService gacha))
+            SkillGachaTableSO table = ResolveTable(out SkillGachaService gacha);
+            return table != null ? table.GetGoldCostForPull(gacha.GetGoldPullCount(tierIndex)) : 0;
+        }
+
+        // 골드 잔액으로 지금 몇 회를 연속으로 더 뽑을 수 있는지(GitHub 이슈 #22 - "버튼에 실제
+        // 비용/실행 가능 횟수 표시"). 회차마다 비용이 오를 수 있어(CostIncrementTiers) 실제
+        // 시뮬레이션이 필요하다(GachaAffordabilityCalculator).
+        private string FormatGoldAffordableSuffix(BigNumber goldBalance)
+        {
+            SkillGachaTableSO table = ResolveTable(out SkillGachaService gacha);
+            return table == null
+                ? ""
+                : FormatAffordableCountSuffix(GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                    goldBalance, gacha.GetGoldPullCount(tierIndex), pulls => table.GetGoldCostForPull(pulls)));
+        }
+
+        // 주문서는 회차당 고정 비용이라 나눗셈 한 번으로 충분하다.
+        private string FormatScrollAffordableSuffix(int scrollBalance)
+        {
+            SkillGachaTableSO table = ResolveTable(out _);
+            return table == null
+                ? ""
+                : FormatAffordableCountSuffix(GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(scrollBalance, table.TicketCostPerPull));
+        }
+
+        private static string FormatAffordableCountSuffix(int affordable)
+        {
+            return affordable >= GachaAffordabilityCalculator.MaxSimulatedPulls
+                ? $" / 최대 {affordable}회 이상 가능"
+                : $" / 최대 {affordable}회 가능";
+        }
+
+        private SkillGachaTableSO ResolveTable(out SkillGachaService gacha)
+        {
+            gacha = null;
+
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out gacha))
             {
-                return 0;
+                return null;
             }
 
             SkillGachaTableSO[] tiers = gacha.Tiers;
-            return tierIndex >= 0 && tierIndex < tiers.Length
-                ? tiers[tierIndex].GetGoldCostForPull(gacha.GetGoldPullCount(tierIndex))
-                : 0;
+            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex] : null;
         }
 
         private void OnDisable()
         {
+            GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnGoldChanged);
             GameBootstrapper.Events?.Unsubscribe<SkillScrollChangedEvent>(OnScrollChanged);
         }
@@ -110,12 +154,35 @@ namespace UI
         private void OnGoldChanged(GoldChangedEvent evt)
         {
             _goldCostPerPull = ResolveGoldCostPerPull();
-            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
+            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드{FormatGoldAffordableSuffix(evt.CurrentGold)})");
         }
 
         private void OnScrollChanged(SkillScrollChangedEvent evt)
         {
-            SetCurrencyText($"주문서: {evt.CurrentScrolls}");
+            SetCurrencyText($"주문서: {evt.CurrentScrolls}{FormatScrollAffordableSuffix(evt.CurrentScrolls)}");
+        }
+
+        // 이 티어에 레벨업 가능한(만렙이 아닌) 스킬이 하나도 안 남으면 뽑아도 항상 실패만 하므로
+        // (SkillGachaService.Pull이 매번 "모든 스킬이 최대 레벨입니다." 토스트만 반복해서 띄우게
+        // 됨), 그 상태를 버튼 자체에서 미리 보여준다(GitHub 이슈 #22 - "최대 레벨 상태 일관된 표시").
+        private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
+        {
+            RefreshMaxLevelGating();
+        }
+
+        private void RefreshMaxLevelGating()
+        {
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out SkillGachaService gacha))
+            {
+                return;
+            }
+
+            bool hasAnyLevelable = gacha.HasAnyLevelableCandidate(tierIndex);
+
+            foreach (Button button in pullButtons)
+            {
+                button.interactable = hasAnyLevelable;
+            }
         }
 
         private void OnPullClicked(int count)

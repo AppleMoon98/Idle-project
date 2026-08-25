@@ -44,6 +44,13 @@ namespace Gacha
         /// 둘 다 직렬화된 SO 데이터라 런타임에 바뀌지 않으므로, 접근할 때마다 다시 조립할 이유가
         /// 없다. 300연 뽑기가 시도마다 이 프로퍼티를 읽으면서(SkillGachaService.TryPullOne) 매번
         /// 카탈로그 전체를 순회해 새 배열을 만드는 게 실측 성능 문제의 핵심 원인이었다.
+        /// **빈 결과는 절대 캐싱하지 않는다** - "직렬화된 SO 데이터는 런타임에 안 바뀐다"는 전제가
+        /// 실제로는 에디터 세션 안에서(예: Domain Reload를 건너뛰는 Play Mode 설정 하에서 catalog가
+        /// 일시적으로 비어있던 순간에 이 프로퍼티가 먼저 호출된 경우) 깨질 수 있다는 게 실사용 중
+        /// 확인됐다 - 한 번 빈 배열이 캐싱되면 catalog에 실제 콘텐츠가 채워진 뒤에도 영원히 빈
+        /// 결과만 반환해(뽑기 후보가 0개로 보여) 회복되지 않았다. 빈 결과는 캐싱을 건너뛰어 다음
+        /// 접근 때 다시 시도하게 하면, 이런 일시적 불일치를 자연히 회복한다 - 빈 스캔은 비용이
+        /// 거의 0이라 매번 다시 시도해도 무해하다.
         /// </summary>
         private SkillGachaPoolEntry[] _cachedEntries;
 
@@ -54,7 +61,8 @@ namespace Gacha
 
         /// <summary>
         /// 이 테이블의 확률 항목 목록. catalog에 등록된 스킬 전부로 조립되며, 최초 접근 시에만
-        /// 계산하고 이후로는 캐시를 그대로 반환한다(GitHub 이슈 #21). catalog가 비어있으면 빈 배열.
+        /// 계산하고 이후로는 캐시를 그대로 반환한다(GitHub 이슈 #21). catalog가 비어있거나
+        /// 아직 스킬이 하나도 없으면 빈 배열을 반환하되 캐싱하지 않는다(위 _cachedEntries doc 참고).
         /// </summary>
         public SkillGachaPoolEntry[] Entries
         {
@@ -65,7 +73,7 @@ namespace Gacha
                     return _cachedEntries;
                 }
 
-                if (catalog == null || catalog.Skills == null)
+                if (catalog == null || catalog.Skills == null || catalog.Skills.Length == 0)
                 {
                     return System.Array.Empty<SkillGachaPoolEntry>();
                 }

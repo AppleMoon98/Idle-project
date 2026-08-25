@@ -68,13 +68,38 @@ namespace UI
         // 않는 값이라(EquipmentGachaTableSO 에셋 값 그대로) OnEnable에서 한 번만 계산해 캐싱해둔다.
         private int ResolveGoldCostPerPull()
         {
+            EquipmentGachaTableSO table = ResolveTable();
+            return table != null ? table.GoldCostPerPull : 0;
+        }
+
+        // 골드 잔액으로 지금 몇 회를 연속으로 더 뽑을 수 있는지(GitHub 이슈 #22 - "버튼에 실제
+        // 비용/실행 가능 횟수 표시"). 이 테이블은 회차마다 비용이 오르지 않는 고정값이라
+        // GachaAffordabilityCalculator가 자동으로 나눗셈 한 번짜리 빠른 경로를 탄다.
+        private string FormatGoldAffordableSuffix(BigNumber goldBalance)
+        {
+            EquipmentGachaTableSO table = ResolveTable();
+            return table == null
+                ? ""
+                : FormatAffordableCountSuffix(GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                    goldBalance, 0, _ => table.GoldCostPerPull));
+        }
+
+        private static string FormatAffordableCountSuffix(int affordable)
+        {
+            return affordable >= GachaAffordabilityCalculator.MaxSimulatedPulls
+                ? $" / 최대 {affordable}회 이상 가능"
+                : $" / 최대 {affordable}회 가능";
+        }
+
+        private EquipmentGachaTableSO ResolveTable()
+        {
             if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out EquipmentGachaService gacha))
             {
-                return 0;
+                return null;
             }
 
             EquipmentGachaTableSO[] tiers = gacha.GetTiers(fixedSlot);
-            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex].GoldCostPerPull : 0;
+            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex] : null;
         }
 
         private void OnDisable()
@@ -113,7 +138,7 @@ namespace UI
 
         private void SetGoldText(BigNumber amount)
         {
-            goldText.text = $"Gold: {KoreanNumberFormatter.Format(amount)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)";
+            goldText.text = $"Gold: {KoreanNumberFormatter.Format(amount)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드{FormatGoldAffordableSuffix(amount)})";
         }
     }
 }

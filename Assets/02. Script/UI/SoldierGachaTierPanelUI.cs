@@ -73,7 +73,7 @@ namespace UI
 
                 if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
                 {
-                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
+                    SetCurrencyText($"골드: {KoreanNumberFormatter.Format(currency.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드{FormatGoldAffordableSuffix(currency.CurrentGold)})");
                 }
 
                 return;
@@ -83,26 +83,58 @@ namespace UI
 
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SoldierTicketService tickets))
             {
-                SetCurrencyText($"소환권: {tickets.CurrentTickets}");
+                SetCurrencyText($"소환권: {tickets.CurrentTickets}{FormatTicketAffordableSuffix(tickets.CurrentTickets)}");
             }
         }
 
         // 골드 뽑기 비용은 누적 뽑기 횟수에 따라 오를 수 있어(GachaTableSO.CostIncrementTiers),
         // 화면에 매번 "다음 1회" 비용을 새로 조회해 표시한다(EquipmentGachaTierPanelUI와 동일한
-        // 이유로 시작된 표시지만, 이제는 고정값이 아니라 뽑을 때마다 바뀐다). 소환권 탭
-        // (useGoldCurrency=false)에는 표시하지 않는다 - 요청 범위가 "골드 뽑기"였고, 소환권은
-        // 1회 뽑기=소환권 1개로 이미 자명하다.
+        // 이유로 시작된 표시지만, 이제는 고정값이 아니라 뽑을 때마다 바뀐다).
         private int ResolveGoldCostPerPull()
         {
-            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out GachaService gacha))
+            GachaTableSO table = ResolveTable(out GachaService gacha);
+            return table != null ? table.GetGoldCostForPull(gacha.GetGoldPullCount(tierIndex)) : 0;
+        }
+
+        // 잔액으로 지금 몇 회를 연속으로 더 뽑을 수 있는지(GitHub 이슈 #22 - "버튼에 실제 비용/
+        // 실행 가능 횟수 표시"). 골드는 회차마다 비용이 오를 수 있어(CostIncrementTiers) 실제
+        // 시뮬레이션이 필요하고(GachaAffordabilityCalculator), 소환권은 회차당 고정 비용이라
+        // 나눗셈 한 번으로 충분하다.
+        private string FormatGoldAffordableSuffix(BigNumber goldBalance)
+        {
+            GachaTableSO table = ResolveTable(out GachaService gacha);
+            return table == null
+                ? ""
+                : FormatAffordableCountSuffix(GachaAffordabilityCalculator.CalculateMaxAffordableGoldPulls(
+                    goldBalance, gacha.GetGoldPullCount(tierIndex), pulls => table.GetGoldCostForPull(pulls)));
+        }
+
+        private string FormatTicketAffordableSuffix(int ticketBalance)
+        {
+            GachaTableSO table = ResolveTable(out _);
+            return table == null
+                ? ""
+                : FormatAffordableCountSuffix(GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(ticketBalance, table.TicketCostPerPull));
+        }
+
+        private static string FormatAffordableCountSuffix(int affordable)
+        {
+            return affordable >= GachaAffordabilityCalculator.MaxSimulatedPulls
+                ? $" / 최대 {affordable}회 이상 가능"
+                : $" / 최대 {affordable}회 가능";
+        }
+
+        private GachaTableSO ResolveTable(out GachaService gacha)
+        {
+            gacha = null;
+
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out gacha))
             {
-                return 0;
+                return null;
             }
 
             GachaTableSO[] tiers = gacha.Tiers;
-            return tierIndex >= 0 && tierIndex < tiers.Length
-                ? tiers[tierIndex].GetGoldCostForPull(gacha.GetGoldPullCount(tierIndex))
-                : 0;
+            return tierIndex >= 0 && tierIndex < tiers.Length ? tiers[tierIndex] : null;
         }
 
         private void OnDisable()
@@ -114,12 +146,12 @@ namespace UI
         private void OnGoldChanged(GoldChangedEvent evt)
         {
             _goldCostPerPull = ResolveGoldCostPerPull();
-            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드)");
+            SetCurrencyText($"골드: {KoreanNumberFormatter.Format(evt.CurrentGold)} (1회 {KoreanNumberFormatter.Format(_goldCostPerPull)}골드{FormatGoldAffordableSuffix(evt.CurrentGold)})");
         }
 
         private void OnTicketChanged(SoldierTicketChangedEvent evt)
         {
-            SetCurrencyText($"소환권: {evt.CurrentTickets}");
+            SetCurrencyText($"소환권: {evt.CurrentTickets}{FormatTicketAffordableSuffix(evt.CurrentTickets)}");
         }
 
         private void OnPullClicked(int count)

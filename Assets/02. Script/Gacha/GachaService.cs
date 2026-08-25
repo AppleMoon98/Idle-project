@@ -79,6 +79,8 @@ namespace Gacha
         /// 콘텐츠가 없어 중간에 실패하면 그 시점까지 성공한 결과만 반환한다(부분 성공 허용 —
         /// "300개 뽑기"를 눌렀는데 소환권이 50개분밖에 없으면 50개만 뽑힌다). 1개 이상 성공하면
         /// SoldierPulledEvent를 한 번만 발행한다(1개 뽑기도 원소 1개짜리 목록으로 동일하게 처리).
+        /// 요청한 횟수보다 적게 실행됐다면(0회 포함) GachaPullToast로 몇 회가, 왜 안 됐는지
+        /// 토스트를 함께 띄운다(GitHub 이슈 #22 - 예전엔 조용히 break만 하고 끝났다).
         /// </summary>
         public IReadOnlyList<OwnedSoldier> Pull(int tierIndex, int count)
         {
@@ -97,9 +99,11 @@ namespace Gacha
                 return results;
             }
 
+            GachaPullStopReason stopReason = GachaPullStopReason.None;
+
             for (int i = 0; i < count; i++)
             {
-                if (!TryPullOne(tierIndex, out OwnedSoldier result))
+                if (!TryPullOne(tierIndex, out OwnedSoldier result, out stopReason))
                 {
                     break;
                 }
@@ -111,6 +115,8 @@ namespace Gacha
             {
                 _events.Publish(new SoldierPulledEvent(results));
             }
+
+            GachaPullToast.PublishIfIncomplete(_events, results.Count, count, stopReason, "뽑을 수 있는 병사가 없습니다.");
 
             return results;
         }
@@ -126,12 +132,14 @@ namespace Gacha
                 : _tickets.CurrentTickets >= table.TicketCostPerPull;
         }
 
-        private bool TryPullOne(int tierIndex, out OwnedSoldier result)
+        private bool TryPullOne(int tierIndex, out OwnedSoldier result, out GachaPullStopReason reason)
         {
             result = null;
+            reason = GachaPullStopReason.None;
 
             if (tierIndex < 0 || tierIndex >= _tiers.Length)
             {
+                reason = GachaPullStopReason.NoCandidates;
                 return false;
             }
 
@@ -140,6 +148,7 @@ namespace Gacha
 
             if (picked == null)
             {
+                reason = GachaPullStopReason.NoCandidates;
                 return false;
             }
 
@@ -149,6 +158,7 @@ namespace Gacha
 
             if (!spent)
             {
+                reason = GachaPullStopReason.InsufficientCurrency;
                 return false;
             }
 
