@@ -26,6 +26,14 @@ namespace UI
         private const int PoolDefaultCapacity = 30;
         private const int PoolMaxSize = 300;
 
+        /// <summary>
+        /// 한 Tick에서 몰아서 생성할 수 있는 슬롯 개수 상한. deltaTime이 크게 튀면(랙 스파이크,
+        /// 백그라운드 복귀 등) while 루프가 한 프레임에 최대 300개까지 Instantiate를 몰아칠 수
+        /// 있었다(GitHub 이슈 #10) - 초과분은 다음 Tick으로 자연스럽게 이월된다(_elapsed가
+        /// 그대로 누적된 채 남아있으므로 별도 이월 로직이 필요 없음).
+        /// </summary>
+        private const int MaxSpawnsPerTick = 20;
+
         [SerializeField]
         private Transform content;
 
@@ -66,12 +74,34 @@ namespace UI
             }
         }
 
+        /// <summary>
+        /// 패널이 비활성화될 때(카테고리 전환 등) 스폰해둔 슬롯 전체를 풀로 반납한다(GitHub 이슈
+        /// #10) - 이전엔 Reveal()이 다시 호출될 때만 반납해서, 탭을 그냥 전환하기만 해도 이전
+        /// 슬롯이 "체크아웃된" 상태로 영원히 남아 풀 스택이 채워지지 않았다. 같은 프리팹을 쓰는
+        /// 모든 GachaResultRevealController가 풀 하나를 공유하므로, 여기서 반납해야 다른
+        /// 컨트롤러가 새로 Instantiate하지 않고 재사용할 수 있다.
+        /// </summary>
         private void OnDisable()
         {
             if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out GameTicker ticker))
             {
                 ticker.Unregister(this);
             }
+
+            ReleaseSpawned();
+        }
+
+        private void ReleaseSpawned()
+        {
+            if (_pool != null)
+            {
+                foreach (GameObject spawned in _spawned)
+                {
+                    _pool.Release(spawned);
+                }
+            }
+
+            _spawned.Clear();
         }
 
         /// <summary>
@@ -85,12 +115,7 @@ namespace UI
                 return;
             }
 
-            foreach (GameObject spawned in _spawned)
-            {
-                _pool.Release(spawned);
-            }
-
-            _spawned.Clear();
+            ReleaseSpawned();
 
             _pending = results;
             _nextIndex = 0;
@@ -111,12 +136,14 @@ namespace UI
 
             _elapsed += deltaTime;
             bool spawnedAny = false;
+            int spawnedThisTick = 0;
 
-            while (_elapsed >= _intervalPerSlot && _nextIndex < _pending.Count)
+            while (_elapsed >= _intervalPerSlot && _nextIndex < _pending.Count && spawnedThisTick < MaxSpawnsPerTick)
             {
                 _elapsed -= _intervalPerSlot;
                 SpawnNext();
                 spawnedAny = true;
+                spawnedThisTick++;
             }
 
             if (spawnedAny)

@@ -113,6 +113,11 @@ namespace Editor
                 () => AssertNoDuplicateOrEmptyStableIds<BehaviorProfileCatalogSO, BehaviorProfileSO>(
                     c => c.Profiles, so => so.StableId));
 
+            // --- 이슈 #10: 가챠 결과 슬롯이 패널 비활성화 시 풀로 반납되어, 여러 컨트롤러가
+            // 같은 풀을 공유해도 전체 인스턴스 수가 늘어나지 않고 재사용됨 ---
+            Check("GachaResultRevealController_OnDisable_ReleasesSpawnedSlotsForReuse",
+                CheckGachaResultRevealControllerReleasesOnDisable);
+
             if (failures.Count == 0)
             {
                 Debug.Log($"[RegressionChecks] 전부 통과 ({total}/{total}).");
@@ -749,6 +754,142 @@ namespace Editor
                     }
                 }
             }
+        }
+
+        /// <summary>
+        /// 두 UI.GachaResultRevealController가 같은 슬롯 프리팹 풀을 공유할 때, 하나가
+        /// 비활성화되며 스폰해둔 슬롯을 반납하면 다른 하나가 새로 Instantiate하지 않고 그
+        /// 인스턴스를 재사용하는지 확인한다(GitHub 이슈 #10 - 반납이 없으면 씬 전체 인스턴스
+        /// 수가 컨트롤러 전환마다 계속 늘어난다). 실제 Play Mode에서 300개 규모로 이미 검증했고
+        /// (씬 전체 인스턴스 수가 300으로 고정됨을 확인), 여기서는 같은 로직을 더 작은 규모(5개)로
+        /// Edit Mode에서도 회귀 검사로 남긴다.
+        /// </summary>
+        private static void CheckGachaResultRevealControllerReleasesOnDisable()
+        {
+            const int slotCount = 5;
+
+            string prefabPath = "Assets/04. Prefab/UI/GachaResultSlot.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+            if (prefab == null || !prefab.TryGetComponent(out UI.GachaResultSlotUI slotPrefab))
+            {
+                throw new Exception($"{prefabPath}에서 UI.GachaResultSlotUI 프리팹을 찾지 못함 - 경로/컴포넌트가 바뀌었는지 확인");
+            }
+
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            // 씬에 이미 다른(무관한) GachaResultSlotUI가 떠 있을 수 있으므로(예: Play Mode 중
+            // 실제 가챠 UI가 열려 있는 상태에서 이 검사를 돌리는 경우) 절대 개수 대신 이 검사가
+            // 시작하기 전 대비 증가분(델타)만 확인한다 - 앰비언트 상태와 무관하게 안전하다.
+            // EnsurePool 자체가 defaultCapacity만큼 미리 생성(prewarm)하므로, 반드시 그 전에 측정한다.
+            int baseline = CountSceneSlots();
+            pool.EnsurePool(prefab, slotCount, slotCount);
+
+            GameObject controllerAGo = null;
+            GameObject controllerBGo = null;
+
+            try
+            {
+                var visuals = new UI.GachaResultVisual[slotCount];
+                for (int i = 0; i < slotCount; i++)
+                {
+                    visuals[i] = new UI.GachaResultVisual(null, Color.white);
+                }
+
+                controllerAGo = CreateRevealController(slotPrefab, out UI.GachaResultRevealController controllerA);
+                SetPrivateField(controllerA, "_pool", pool);
+                SpawnAllSlots(controllerA, visuals);
+
+                int deltaAfterA = CountSceneSlots() - baseline;
+
+                if (deltaAfterA != slotCount)
+                {
+                    throw new Exception($"A가 {slotCount}개 스폰한 직후 씬 전체 슬롯 증가분이 {deltaAfterA}(기대={slotCount})");
+                }
+
+                InvokeOnDisable(controllerA);
+
+                controllerBGo = CreateRevealController(slotPrefab, out UI.GachaResultRevealController controllerB);
+                SetPrivateField(controllerB, "_pool", pool);
+                SpawnAllSlots(controllerB, visuals);
+
+                int deltaAfterB = CountSceneSlots() - baseline;
+
+                if (deltaAfterB != slotCount)
+                {
+                    throw new Exception($"A가 반납한 뒤 B가 {slotCount}개를 다시 스폰했는데 씬 전체 슬롯 증가분이 {deltaAfterB}(기대={slotCount}, 반납이 안 돼 새로 Instantiate된 것으로 보임)");
+                }
+
+                InvokeOnDisable(controllerB);
+            }
+            finally
+            {
+                if (controllerAGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(controllerAGo);
+                }
+
+                if (controllerBGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(controllerBGo);
+                }
+
+                // PoolManager.Shutdown()은 UnityEngine.Object.Destroy를 쓰는데, 이는 Play Mode
+                // 전용이라 이 검사가 Edit Mode에서 돌 때 콘솔에 에러를 남긴다(정상 동작 - 실제
+                // 게임에서 Shutdown은 항상 Play Mode 종료 시에만 불린다) - 대신 풀 루트를
+                // DestroyImmediate로 직접 정리한다.
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        private static GameObject CreateRevealController(UI.GachaResultSlotUI slotPrefab, out UI.GachaResultRevealController controller)
+        {
+            var go = new GameObject("RegressionCheck_GachaResultRevealController");
+            go.SetActive(false); // OnEnable이 즉시 실행되지 않게(_pool을 직접 주입할 것이므로 불필요)
+            go.AddComponent<RectTransform>();
+            go.AddComponent<UnityEngine.UI.ScrollRect>();
+            controller = go.AddComponent<UI.GachaResultRevealController>();
+
+            var contentGo = new GameObject("Content");
+            contentGo.transform.SetParent(go.transform);
+
+            SetPrivateField(controller, "content", contentGo.transform);
+            SetPrivateField(controller, "slotPrefab", slotPrefab);
+
+            return go;
+        }
+
+        private static void SpawnAllSlots(UI.GachaResultRevealController controller, UI.GachaResultVisual[] visuals)
+        {
+            SetPrivateField(controller, "_pending", visuals);
+            SetPrivateField(controller, "_nextIndex", 0);
+
+            MethodInfo spawnNext = typeof(UI.GachaResultRevealController).GetMethod("SpawnNext", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            for (int i = 0; i < visuals.Length; i++)
+            {
+                spawnNext.Invoke(controller, null);
+            }
+
+            SetPrivateField(controller, "_nextIndex", visuals.Length);
+        }
+
+        private static void InvokeOnDisable(UI.GachaResultRevealController controller)
+        {
+            MethodInfo onDisable = typeof(UI.GachaResultRevealController).GetMethod("OnDisable", BindingFlags.NonPublic | BindingFlags.Instance);
+            onDisable.Invoke(controller, null);
+        }
+
+        private static int CountSceneSlots()
+        {
+            return UnityEngine.Object.FindObjectsByType<UI.GachaResultSlotUI>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
         }
 
         private static void SetPrivateField(UnityEngine.Object target, string fieldName, object value)
