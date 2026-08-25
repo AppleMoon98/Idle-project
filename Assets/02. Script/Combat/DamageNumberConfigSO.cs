@@ -32,6 +32,15 @@ namespace Combat
         [SerializeField]
         private Color poisonColor = Color.green;
 
+        [SerializeField]
+        private float aggregationWindowSeconds = 0.15f;
+
+        [SerializeField]
+        private int maxActiveOnScreen = 40;
+
+        [SerializeField]
+        private float positionJitterRadius = 0.3f;
+
         /// <summary>
         /// 스폰 위치로부터 위로 이동하는 총 거리.
         /// </summary>
@@ -74,5 +83,26 @@ namespace Combat
         /// 독(지속 피해) 데미지 색상. 치명타 색상보다 우선한다(Combat.DamageNumber.Show 참고).
         /// </summary>
         public Color PoisonColor => poisonColor;
+
+        /// <summary>
+        /// 같은 대상이 이 시간(초) 안에 다시 데미지를 받으면 새 숫자를 스폰하지 않고 기존 숫자에
+        /// 값을 더해 다시 보여준다(Combat.DamageNumberSpawner 참고) — 다수 유닛이 동시에 같은
+        /// 대상을 때릴 때 숫자가 겹쳐 쌓이는 것을 막는다.
+        /// </summary>
+        public float AggregationWindowSeconds => aggregationWindowSeconds;
+
+        /// <summary>
+        /// 화면(정확히는 현재 추적 중인 대상 수) 전체에서 동시에 표시할 수 있는 데미지 숫자의
+        /// 최대 개수. 이미 이 수만큼 표시 중이면 새 대상의 피격은 조용히 숫자 표시를 건너뛴다
+        /// (데미지 계산/적용 자체는 그대로 진행됨 — 순수 표시 상한이다).
+        /// </summary>
+        public int MaxActiveOnScreen => maxActiveOnScreen;
+
+        /// <summary>
+        /// 새로 스폰되는 데미지 숫자의 스폰 위치에 더해지는 무작위 반경(월드 유닛). 같은 지점에
+        /// 몰린 여러 대상의 숫자가 정확히 겹치지 않고 살짝 흩어져 보이게 한다. 기존에 병합 중인
+        /// 숫자(같은 대상, AggregationWindowSeconds 이내 재피격)는 위치를 다시 흔들지 않는다.
+        /// </summary>
+        public float PositionJitterRadius => positionJitterRadius;
     }
 }

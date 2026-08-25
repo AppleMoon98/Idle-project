@@ -17,6 +17,20 @@ namespace Combat
         [SerializeField]
         private DamageNumberConfigSO config;
 
+        /// <summary>
+        /// 이 config 에셋 참조. Combat.DamageNumberSpawner가 (프리팹 하나당 에셋도 하나뿐이므로)
+        /// 별도 GameBootstrapper 필드 없이 프리팹의 이 컴포넌트에서 그대로 읽어 쓴다.
+        /// </summary>
+        public DamageNumberConfigSO Config => config;
+
+        /// <summary>
+        /// 이 숫자가 현재 표시 중인 데미지의 대상. DamageNumberSpawner가 "풀에서 재사용되면서
+        /// 다른 대상 몫으로 바뀌었는지"를 판별하는 데 쓴다(병합 대상 오판 방지) — 같은 인스턴스가
+        /// Release 후 곧바로 다른 대상에게 Get()될 수 있어, 단순히 인스턴스가 활성 상태인지만으로는
+        /// "아직 내 대상 몫인지"를 알 수 없다.
+        /// </summary>
+        public GameObject OwnerTarget { get; private set; }
+
         private TextMesh _textMesh;
         private MeshRenderer _meshRenderer;
         private Camera _camera;
@@ -47,12 +61,16 @@ namespace Combat
         }
 
         /// <summary>
-        /// 지정된 위치에서 데미지 숫자 표시를 시작한다. 풀에서 꺼낸 직후 호출되어야 한다.
-        /// isPoison이 true면 isCritical과 무관하게 독(지속 피해) 색상으로 표시한다 - 평소(흰색/
-        /// 치명타 빨간색)와 다르게 초록색으로 보여서 지속 피해임을 한눈에 구분할 수 있게 한다.
+        /// 지정된 위치에서 데미지 숫자 표시를 시작한다(또는 병합 갱신 시 다시 시작한다). 풀에서
+        /// 꺼낸 직후 호출되어야 한다. isPoison이 true면 isCritical과 무관하게 독(지속 피해)
+        /// 색상으로 표시한다 - 평소(흰색/치명타 빨간색)와 다르게 초록색으로 보여서 지속 피해임을
+        /// 한눈에 구분할 수 있게 한다. owner는 이 숫자가 지금 누구 몫인지 기록해둔다
+        /// (DamageNumberSpawner의 병합 대상 오판 방지, OwnerTarget 참고) — 병합 갱신 시에도 매번
+        /// 넘겨받아 그대로 재기록한다(같아도 무해함).
         /// </summary>
-        public void Show(Vector3 worldPosition, float amount, bool isCritical, bool isPoison = false)
+        public void Show(GameObject owner, Vector3 worldPosition, float amount, bool isCritical, bool isPoison = false)
         {
+            OwnerTarget = owner;
             _startPosition = worldPosition + Vector3.up * config.SpawnHeightOffset;
             transform.position = _startPosition;
             _elapsed = 0f;
