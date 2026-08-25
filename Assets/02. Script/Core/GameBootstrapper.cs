@@ -361,11 +361,7 @@ namespace Core
             Services.Register(cameraFollowService);
             _managers.Add(cameraFollowService);
 
-            _offlineProgressService = new OfflineProgressService(
-                Events,
-                saveService,
-                stageCatalog,
-                stageDifficultyConfig,
+            var offlineCombatPowerCalculator = new OfflineCombatPowerCalculator(
                 playerStats,
                 _enhancementService,
                 _equipmentStatService,
@@ -375,9 +371,16 @@ namespace Core
                 soldierGradeConfig,
                 _rankService,
                 skillService,
-                skillLoadoutService,
-                maxOfflineHours * 3600f,
-                offlineRewardMultiplier);
+                skillLoadoutService);
+
+            var offlineStageSimulator = new OfflineStageSimulator(stageCatalog, stageDifficultyConfig, offlineRewardMultiplier);
+
+            _offlineProgressService = new OfflineProgressService(
+                Events,
+                saveService,
+                offlineCombatPowerCalculator,
+                offlineStageSimulator,
+                maxOfflineHours * 3600f);
 
             _lootDropper = new LootDropper(Events, stageCatalog, stageDifficultyConfig);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
