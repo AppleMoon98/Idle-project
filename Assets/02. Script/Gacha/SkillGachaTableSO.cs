@@ -40,19 +40,31 @@ namespace Gacha
         private CostIncrementTier[] costIncrementTiers = System.Array.Empty<CostIncrementTier>();
 
         /// <summary>
+        /// Entries 최초 접근 시 한 번만 계산해두는 캐시(GitHub 이슈 #21) - catalog/weightPerSkill은
+        /// 둘 다 직렬화된 SO 데이터라 런타임에 바뀌지 않으므로, 접근할 때마다 다시 조립할 이유가
+        /// 없다. 300연 뽑기가 시도마다 이 프로퍼티를 읽으면서(SkillGachaService.TryPullOne) 매번
+        /// 카탈로그 전체를 순회해 새 배열을 만드는 게 실측 성능 문제의 핵심 원인이었다.
+        /// </summary>
+        private SkillGachaPoolEntry[] _cachedEntries;
+
+        /// <summary>
         /// 이 티어의 표시 이름(가챠 팝업 하위 탭 라벨용, 예: "일반 뽑기").
         /// </summary>
         public string DisplayName => displayName;
 
         /// <summary>
-        /// 이 테이블의 확률 항목 목록. catalog에 등록된 스킬 전부를 매번 새로 조립해 반환한다
-        /// (스킬 수가 적어 캐싱 없이 매 호출 재생성해도 비용이 무시할 만하다) - catalog가
-        /// 비어있으면 빈 배열.
+        /// 이 테이블의 확률 항목 목록. catalog에 등록된 스킬 전부로 조립되며, 최초 접근 시에만
+        /// 계산하고 이후로는 캐시를 그대로 반환한다(GitHub 이슈 #21). catalog가 비어있으면 빈 배열.
         /// </summary>
         public SkillGachaPoolEntry[] Entries
         {
             get
             {
+                if (_cachedEntries != null)
+                {
+                    return _cachedEntries;
+                }
+
                 if (catalog == null || catalog.Skills == null)
                 {
                     return System.Array.Empty<SkillGachaPoolEntry>();
@@ -66,7 +78,8 @@ namespace Gacha
                     result[i] = new SkillGachaPoolEntry(skills[i], weightPerSkill);
                 }
 
-                return result;
+                _cachedEntries = result;
+                return _cachedEntries;
             }
         }
 

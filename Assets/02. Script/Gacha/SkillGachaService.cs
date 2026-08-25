@@ -98,9 +98,16 @@ namespace Gacha
                 return results;
             }
 
+            // 후보 목록은 배치 시작 시점에 한 번만 계산한다(GitHub 이슈 #21) - 가챠는 AddCopy(보유
+            // 개수만 증가)만 호출할 뿐 TryLevelUp을 호출하지 않으므로, 한 배치 안에서는 어떤 스킬도
+            // IsMaxLevel 판정이 바뀔 수 없다(레벨이 바뀌어야 만렙 여부가 바뀌는데, 레벨을 바꾸는
+            // 호출 자체가 이 배치 안에 없음) - 매 시도(TryPullOne)마다 다시 계산해도 얻는 정확성
+            // 이득이 없어 그대로 비용만 300배가 되고 있었다.
+            List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(_tiers[tierIndex].Entries);
+
             for (int i = 0; i < count; i++)
             {
-                if (!TryPullOne(tierIndex, out SkillSO result))
+                if (!TryPullOne(tierIndex, candidates, out SkillSO result))
                 {
                     break;
                 }
@@ -127,7 +134,7 @@ namespace Gacha
                 : _scrolls.CurrentScrolls >= table.TicketCostPerPull;
         }
 
-        private bool TryPullOne(int tierIndex, out SkillSO result)
+        private bool TryPullOne(int tierIndex, List<SkillGachaPoolEntry> candidates, out SkillSO result)
         {
             result = null;
 
@@ -137,7 +144,6 @@ namespace Gacha
             }
 
             SkillGachaTableSO table = _tiers[tierIndex];
-            List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(table.Entries);
             SkillSO picked = SkillGachaRoller.RollWeighted(candidates);
 
             if (picked == null)
@@ -165,8 +171,10 @@ namespace Gacha
         }
 
         /// <summary>
-        /// 이미 최대 레벨인 스킬을 후보에서 제외한 목록을 만든다. 매 시도마다 새로 계산해야
-        /// 이번 뽑기로 방금 만렙에 도달한 스킬도 바로 다음 시도에서 제외된다.
+        /// 이미 최대 레벨인 스킬을 후보에서 제외한 목록을 만든다. Pull() 배치 시작 시점에 한 번만
+        /// 계산해 배치 내내 재사용한다(GitHub 이슈 #21) - 가챠는 AddCopy(보유 개수 증가)만
+        /// 호출하고 TryLevelUp(레벨 자체를 올리는 것)은 절대 호출하지 않으므로, 한 배치 안에서
+        /// IsMaxLevel 판정이 바뀔 수 없어 시도마다 다시 계산할 필요가 없다.
         /// </summary>
         private List<SkillGachaPoolEntry> BuildLevelableCandidates(SkillGachaPoolEntry[] entries)
         {

@@ -3,10 +3,12 @@ using System.Collections.Generic;
 using System.Reflection;
 using Behavior;
 using Character;
+using Core;
 using Dungeon;
 using Enhancement;
 using Equipment;
 using Gacha;
+using Inventory;
 using Loot;
 using Rank;
 using Save;
@@ -117,6 +119,16 @@ namespace Editor
             // 같은 풀을 공유해도 전체 인스턴스 수가 늘어나지 않고 재사용됨 ---
             Check("GachaResultRevealController_OnDisable_ReleasesSpawnedSlotsForReuse",
                 CheckGachaResultRevealControllerReleasesOnDisable);
+
+            // --- 이슈 #21: 300연 가챠/대량 이벤트로 인한 O(n^2) 성능 저하 3곳 ---
+            Check("SkillGachaTableSO_Entries_ReturnsCachedArrayOnRepeatedAccess",
+                CheckSkillGachaTableEntriesCached);
+            Check("SkillGachaService_Pull_LevelableCandidatesComputedOncePerBatch",
+                CheckSkillGachaServiceCandidatesBuiltOncePerBatch);
+            Check("SaveService_InventoryHandlers_DeferRebuildToTick_NotEagerly",
+                CheckSaveServiceInventoryHandlersDeferRebuildToTick);
+            Check("SaveService_OtherSnapshotHandlers_SetDirtyFlagWithoutEagerRebuild",
+                CheckSaveServiceOtherHandlersDeferRebuildToTick);
 
             if (failures.Count == 0)
             {
@@ -890,6 +902,244 @@ namespace Editor
         private static int CountSceneSlots()
         {
             return UnityEngine.Object.FindObjectsByType<UI.GachaResultSlotUI>(FindObjectsInactive.Include, FindObjectsSortMode.None).Length;
+        }
+
+        private static void CheckSkillGachaTableEntriesCached()
+        {
+            SkillCatalogSO catalog = null;
+            SkillSO skill = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+
+                SkillGachaPoolEntry[] first = table.Entries;
+                SkillGachaPoolEntry[] second = table.Entries;
+
+                if (!ReferenceEquals(first, second))
+                {
+                    throw new Exception("Entries가 접근할 때마다 새 배열을 만듦 - 캐싱되지 않음(300연 뽑기 시 시도마다 카탈로그 전체를 다시 순회하는 회귀, GitHub 이슈 #21)");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
+                if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21: SkillGachaService.TryPullOne이 후보 목록(List&lt;SkillGachaPoolEntry&gt;)을
+        /// 매개변수로 받는 시그니처인지(= Pull() 배치 시작 시점에 한 번만 계산해 넘겨받는 구조인지)를
+        /// 구조적으로 확인한다. 순수 동작 결과만으로는 "배치당 1회 계산"과 "시도마다 재계산"을 구별할
+        /// 수 없다 - 가챠는 AddCopy만 호출해 레벨이 바뀌지 않으므로(IsMaxLevel 판정 불변) 두 방식의
+        /// 최종 결과가 항상 동일하기 때문이다(SkillGachaService.BuildLevelableCandidates doc 참고).
+        /// 이어서 실제 Pull() 호출도 함께 수행해, 미리 계산된 후보 목록을 넘겨받는 구조로 바뀐 뒤에도
+        /// 정상적으로 뽑기가 동작하는지 확인한다.
+        /// </summary>
+        private static void CheckSkillGachaServiceCandidatesBuiltOncePerBatch()
+        {
+            MethodInfo tryPullOne = typeof(SkillGachaService).GetMethod("TryPullOne", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (tryPullOne == null)
+            {
+                throw new Exception("TryPullOne 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            ParameterInfo[] parameters = tryPullOne.GetParameters();
+
+            if (parameters.Length != 3 || parameters[1].ParameterType != typeof(List<SkillGachaPoolEntry>))
+            {
+                throw new Exception("TryPullOne이 List<SkillGachaPoolEntry> 후보 목록을 매개변수로 받지 않음 - 배치당 1회 계산 구조가 되돌려졌을 수 있음");
+            }
+
+            SkillCatalogSO catalog = null;
+            SkillSO skill = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                var events = new EventBus();
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+                SetPrivateField(table, "ticketCostPerPull", 1);
+                SetPrivateField(table, "currencyType", GachaCurrencyType.Ticket);
+
+                var skillService = new SkillService(events);
+                var scrolls = new SkillScrollService(events, initialScrolls: 100);
+                var currency = new CurrencyService(events);
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { table });
+
+                IReadOnlyList<SkillSO> results = service.Pull(0, 5);
+
+                if (results.Count != 5)
+                {
+                    throw new Exception($"주문서 100개(1회당 1개)로 5회 뽑기를 시도했는데 성공 횟수가 {results.Count}(기대=5)");
+                }
+
+                if (skillService.GetCount(skill) != 5)
+                {
+                    throw new Exception($"5회 성공했는데 보유 개수가 {skillService.GetCount(skill)}(기대=5) - AddCopy 누락 의심");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
+                if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21: OnInventoryChanged/OnEquipmentEquipped 핸들러가 이벤트를 받는 즉시
+        /// RebuildInventorySnapshot()을 동기 호출하지 않고 더티 플래그만 세우는지(회귀 시 아래 null
+        /// 서비스 참조에서 NullReferenceException으로 즉시 드러난다), 그리고 Tick()이 그 플래그를
+        /// 소비해 실제로 한 번 재직렬화한 뒤 플래그를 되돌리는지를 확인한다. _isDirty는 핸들러 호출
+        /// 직후 리플렉션으로 강제로 false를 되돌려, Tick()이 실제 PlayerPrefs.Save()(디스크 flush)를
+        /// 타지 않도록 막는다 - SaveService를 Initialize() 없이(로드된 실제 세이브 값이 아닌 C# 기본값
+        /// 상태로) 직접 구성했으므로, Save()가 그대로 불리면 진짜 유저 세이브 데이터를 기본값으로
+        /// 덮어써버릴 위험이 있다.
+        /// </summary>
+        private static void CheckSaveServiceInventoryHandlersDeferRebuildToTick()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            var equippedGear = new EquippedGearService(events);
+            var saveService = new SaveService(events, inventory, equippedGear, null, null, null, null, null, null, null, null, null);
+
+            const string sentinel = "REGRESSION_CHECK_SENTINEL";
+            SetPrivateFieldOnPlainObject(saveService, "_inventoryJson", sentinel);
+
+            InvokeVoidHandler(saveService, "OnInventoryChanged");
+
+            if (!(bool)GetPrivateFieldOnPlainObject(saveService, "_isInventorySnapshotDirty"))
+            {
+                throw new Exception("OnInventoryChanged 호출 후 _isInventorySnapshotDirty가 true가 아님");
+            }
+
+            if (!(bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+            {
+                throw new Exception("OnInventoryChanged 호출 후 _isDirty가 true가 아님(MarkDirty 누락 의심)");
+            }
+
+            string jsonAfterHandler = (string)GetPrivateFieldOnPlainObject(saveService, "_inventoryJson");
+
+            if (jsonAfterHandler != sentinel)
+            {
+                throw new Exception("OnInventoryChanged 핸들러가 이벤트를 받는 즉시 RebuildInventorySnapshot()을 동기 호출함 - 300연 뽑기 시 시도마다 전체 인벤토리를 재직렬화하는 회귀(GitHub 이슈 #21)");
+            }
+
+            InvokeVoidHandler(saveService, "OnEquipmentEquipped");
+
+            // Tick()이 진짜 PlayerPrefs.Save()(디스크 flush)까지 타지 않도록, 여기서만 강제로
+            // _isDirty를 꺼둔다 - 클래스 doc에 남긴 대로 실제 게임에서는 이 필드가 항상 로드된
+            // 세이브 값으로 시작하지만, 이 검사는 그 초기화(Initialize/Load)를 건너뛰었기 때문이다.
+            SetPrivateFieldOnPlainObject(saveService, "_isDirty", false);
+
+            ((ITickable)saveService).Tick(0f);
+
+            if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isInventorySnapshotDirty"))
+            {
+                throw new Exception("Tick() 이후에도 _isInventorySnapshotDirty가 true로 남아있음 - 플래그가 소비되지 않음");
+            }
+
+            string jsonAfterTick = (string)GetPrivateFieldOnPlainObject(saveService, "_inventoryJson");
+
+            if (jsonAfterTick == sentinel)
+            {
+                throw new Exception("Tick() 호출 후에도 _inventoryJson이 그대로 - RebuildInventorySnapshot()이 실행되지 않음");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21: 병사 로스터(3개 이벤트 소스)/스킬 레벨/스킬 보유 개수 핸들러도 인벤토리와
+        /// 동일하게 즉시 재직렬화하지 않고 더티 플래그만 세우는지 확인한다. 각 Rebuild*Snapshot이
+        /// null 서비스 참조를 요구하므로, 핸들러가 실수로 그 자리에서 직접 호출하면 이 검사 자체가
+        /// NullReferenceException으로 즉시 실패한다 - 별도의 스파이/카운터 없이도 "핸들러가 재직렬화를
+        /// Tick으로 미뤘는지"를 검증할 수 있는 이유.
+        /// </summary>
+        private static void CheckSaveServiceOtherHandlersDeferRebuildToTick()
+        {
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null);
+
+            AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSoldierRosterChanged", "_isSoldierRosterSnapshotDirty");
+            AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSoldierDeploymentChanged", "_isSoldierRosterSnapshotDirty");
+            AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSoldierBehaviorProfileChanged", "_isSoldierRosterSnapshotDirty");
+            AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSkillLeveledUp", "_isSkillLevelsSnapshotDirty");
+            AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSkillCountChanged", "_isSkillCountsSnapshotDirty");
+        }
+
+        private static void AssertHandlerSetsDirtyFlagWithoutRebuilding(SaveService saveService, string handlerName, string dirtyFieldName)
+        {
+            SetPrivateFieldOnPlainObject(saveService, dirtyFieldName, false);
+
+            InvokeVoidHandler(saveService, handlerName);
+
+            if (!(bool)GetPrivateFieldOnPlainObject(saveService, dirtyFieldName))
+            {
+                throw new Exception($"{handlerName} 호출 후 {dirtyFieldName}이 true가 아님");
+            }
+        }
+
+        /// <summary>
+        /// name 매개변수 하나짜리(또는 매개변수 없는) private 인스턴스 메서드를 리플렉션으로 호출한다.
+        /// 매개변수가 있으면 그 타입의 기본값(구조체는 전부 0/null인 zero 값)으로 채운다 - 이 검사가
+        /// 다루는 핸들러들은 전부 evt 매개변수 자체를 쓰지 않고 플래그만 세우므로 기본값으로 충분하다.
+        /// </summary>
+        private static void InvokeVoidHandler(object target, string methodName)
+        {
+            MethodInfo method = target.GetType().GetMethod(methodName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (method == null)
+            {
+                throw new Exception($"{target.GetType().Name}.{methodName} 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            ParameterInfo[] parameters = method.GetParameters();
+            object[] args = parameters.Length == 0
+                ? Array.Empty<object>()
+                : new[] { Activator.CreateInstance(parameters[0].ParameterType) };
+
+            method.Invoke(target, args);
+        }
+
+        private static void SetPrivateFieldOnPlainObject(object target, string fieldName, object value)
+        {
+            FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (field == null)
+            {
+                throw new Exception($"필드 '{fieldName}'을 찾지 못함");
+            }
+
+            field.SetValue(target, value);
+        }
+
+        private static object GetPrivateFieldOnPlainObject(object target, string fieldName)
+        {
+            FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (field == null)
+            {
+                throw new Exception($"필드 '{fieldName}'을 찾지 못함");
+            }
+
+            return field.GetValue(target);
         }
 
         private static void SetPrivateField(UnityEngine.Object target, string fieldName, object value)

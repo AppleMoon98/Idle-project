@@ -177,6 +177,18 @@ namespace Save
         private int _bossTokenCount;
         private bool _isDirty;
 
+        // 아래 4개 플래그는 각자의 스냅샷 JSON 재직렬화(Rebuild*Snapshot, 전체 컬렉션을 훑는 비용)를
+        // Tick()으로 미루기 위한 더티 플래그다(GitHub 이슈 #21) - 300연 뽑기처럼 같은 프레임 안에서
+        // InventoryChangedEvent/SoldierRosterChangedEvent/SkillCountChangedEvent가 수백 번 몰아치는
+        // 상황에서, 이벤트가 올 때마다 즉시 전체를 다시 직렬화하면 총 비용이 O(횟수 × 컬렉션 크기)로
+        // 커진다(실측: 병사 100/300/600개 순차 추가 시 4ms/20ms/82ms로 초선형 증가). MarkDirty()/
+        // Tick()의 기존 PlayerPrefs.Save() 디바운스(section 클래스 doc 참고)와 정확히 같은 방향의
+        // 수정 - 그쪽은 디스크 flush를, 이쪽은 재직렬화 자체를 프레임당 최대 한 번으로 묶는다.
+        private bool _isInventorySnapshotDirty;
+        private bool _isSoldierRosterSnapshotDirty;
+        private bool _isSkillLevelsSnapshotDirty;
+        private bool _isSkillCountsSnapshotDirty;
+
         public SaveService(
             EventBus events,
             InventoryService inventory,
@@ -451,6 +463,30 @@ namespace Save
 
         void ITickable.Tick(float deltaTime)
         {
+            if (_isInventorySnapshotDirty)
+            {
+                RebuildInventorySnapshot();
+                _isInventorySnapshotDirty = false;
+            }
+
+            if (_isSoldierRosterSnapshotDirty)
+            {
+                RebuildSoldierRosterSnapshot();
+                _isSoldierRosterSnapshotDirty = false;
+            }
+
+            if (_isSkillLevelsSnapshotDirty)
+            {
+                RebuildSkillSnapshot();
+                _isSkillLevelsSnapshotDirty = false;
+            }
+
+            if (_isSkillCountsSnapshotDirty)
+            {
+                RebuildSkillCountSnapshot();
+                _isSkillCountsSnapshotDirty = false;
+            }
+
             if (_isDirty)
             {
                 Save();
@@ -750,13 +786,13 @@ namespace Save
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
         {
-            RebuildInventorySnapshot();
+            _isInventorySnapshotDirty = true;
             MarkDirty();
         }
 
         private void OnEquipmentEquipped(EquipmentEquippedEvent evt)
         {
-            RebuildInventorySnapshot();
+            _isInventorySnapshotDirty = true;
             MarkDirty();
         }
 
@@ -798,34 +834,31 @@ namespace Save
 
         private void OnSoldierRosterChanged(SoldierRosterChangedEvent evt)
         {
-            RebuildRosterSnapshotAndSave();
+            _isSoldierRosterSnapshotDirty = true;
+            MarkDirty();
         }
 
         private void OnSoldierDeploymentChanged(SoldierDeploymentChangedEvent evt)
         {
-            RebuildRosterSnapshotAndSave();
+            _isSoldierRosterSnapshotDirty = true;
+            MarkDirty();
         }
 
         private void OnSoldierBehaviorProfileChanged(SoldierBehaviorProfileChangedEvent evt)
         {
-            RebuildRosterSnapshotAndSave();
-        }
-
-        private void RebuildRosterSnapshotAndSave()
-        {
-            RebuildSoldierRosterSnapshot();
+            _isSoldierRosterSnapshotDirty = true;
             MarkDirty();
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
         {
-            RebuildSkillSnapshot();
+            _isSkillLevelsSnapshotDirty = true;
             MarkDirty();
         }
 
         private void OnSkillCountChanged(SkillCountChangedEvent evt)
         {
-            RebuildSkillCountSnapshot();
+            _isSkillCountsSnapshotDirty = true;
             MarkDirty();
         }
 
