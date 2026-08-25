@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
   m_Name: Skill_PowerStrike
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  stableId: 29488310eafa4a9aa36470ec2163d8cf
   displayName: "\uAC15\uD0C0"
   grade: 0
   icon: {fileID: 6592680923324011761, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}

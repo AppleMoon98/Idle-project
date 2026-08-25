@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
   m_Name: Skill_BattleCry
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  stableId: 3dd6585bf913411393aaa92e200f8ef3
   displayName: "\uC804\uD22C\uC758 \uD568\uC131"
   grade: 1
   icon: {fileID: 5777552420452043588, guid: 4ecccb81125b57d4a85cccc40097cff9, type: 3}
@@ -35,3 +36,8 @@ MonoBehaviour:
   shakeCamera: 1
   shakeDuration: 1
   shakeMagnitude: 0.25
+  tickInterval: 1
+  meteorShellCount: 4
+  meteorTelegraphDuration: 1
+  healPercentPerSecondBase: 0.02
+  healPercentPerSecondPerLevel: 0.002

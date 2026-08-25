@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_Melee_Legendary
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
+  stableId: 32890f5a45b540bf992098c5de52a390
   displayName: "\uB808\uC804\uB354\uB9AC \uBCF4\uBCD1"
   prefab: {fileID: 9114245855020254752, guid: 0c3dfd882f0a51940a50014b9e5ab4fd, type: 3}
   icon: {fileID: 21300000, guid: f159a838eb281884fa4901cb768eaa8e, type: 3}

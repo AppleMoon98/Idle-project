@@ -12,6 +12,9 @@ namespace Soldier
     public sealed class SoldierSO : ScriptableObject
     {
         [SerializeField]
+        private string stableId;
+
+        [SerializeField]
         private string displayName;
 
         [SerializeField]
@@ -31,6 +34,12 @@ namespace Soldier
 
         [SerializeField]
         private int cost = 1;
+
+        /// <summary>
+        /// 카탈로그 배열 순서와 무관하게 이 항목을 영구적으로 식별하는 GUID
+        /// (EquipmentSO.StableId와 동일한 이유·동일한 발급 도구, GitHub 이슈 #19).
+        /// </summary>
+        public string StableId => stableId;
 
         /// <summary>
         /// 병사 이름(로스터/가챠 결과 UI 표시용).

@@ -19,13 +19,14 @@ namespace Skill
         public const int SlotCount = 6;
 
         /// <summary>
-        /// 세이브 직렬화용 스냅샷 한 줄. 빈 슬롯은 포함하지 않는다.
+        /// 세이브 직렬화용 스냅샷 한 줄. 빈 슬롯은 포함하지 않는다. 배열 인덱스 대신 StableId를
+        /// 쓰는 이유는 GitHub 이슈 #19.
         /// </summary>
         [Serializable]
         public struct SkillLoadoutSnapshotEntry
         {
             public int SlotIndex;
-            public int CatalogIndex;
+            public string StableId;
         }
 
         private readonly EventBus _events;
@@ -242,14 +243,14 @@ namespace Skill
                     continue;
                 }
 
-                int catalogIndex = catalog.IndexOf(_slots[i]);
+                string stableId = _slots[i].StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
-                result.Add(new SkillLoadoutSnapshotEntry { SlotIndex = i, CatalogIndex = catalogIndex });
+                result.Add(new SkillLoadoutSnapshotEntry { SlotIndex = i, StableId = stableId });
             }
 
             return result.ToArray();
@@ -273,7 +274,7 @@ namespace Skill
                     continue;
                 }
 
-                SkillSO definition = catalog.GetAt(entry.CatalogIndex);
+                SkillSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {

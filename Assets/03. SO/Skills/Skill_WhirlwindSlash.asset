@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
   m_Name: Skill_WhirlwindSlash
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  stableId: 4785b06a5f264fd0a307dd9aed21f69b
   displayName: "\uD68C\uC624\uB9AC\uBCA0\uAE30"
   grade: 0
   icon: {fileID: -3609913459329384379, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}

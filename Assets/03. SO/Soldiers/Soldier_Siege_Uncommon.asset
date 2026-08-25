@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_Siege_Uncommon
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
-  displayName: "언커먼 공성병"
+  stableId: 44e1b3db23d54104a225864e486da623
+  displayName: "\uC5B8\uCEE4\uBA3C \uACF5\uC131\uBCD1"
   prefab: {fileID: 9114245855020254752, guid: 61411941cc768c942a87c4ca50f94b3c, type: 3}
   icon: {fileID: 21300000, guid: c00d5edcaf24dfc458f3c4fa4e06e9de, type: 3}
   grade: {fileID: 11400000, guid: 67637058d05750e4d843c5c5d67d31db, type: 2}
-  cost: 3
   iconScale: 2
   iconIgnoreGradeTint: 1
+  cost: 3

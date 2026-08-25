@@ -17,12 +17,14 @@ namespace Inventory
     {
         /// <summary>
         /// 보유 장비 한 라인을 세이브 데이터로 직렬화하기 위한 형태. EquipmentSO 참조 대신
-        /// EquipmentCatalogSO 상의 인덱스로 "어떤 장비인지"를 기록한다(PlayerPrefs는 에셋 참조를 담을 수 없음).
+        /// EquipmentSO.StableId로 "어떤 장비인지"를 기록한다(PlayerPrefs는 에셋 참조를 담을 수 없음).
+        /// 배열 인덱스 대신 StableId를 쓰는 이유는 GitHub 이슈 #19 참고 - 카탈로그 재정렬/삭제 시
+        /// 인덱스가 밀려 다른 항목을 가리키는 문제를 막는다.
         /// </summary>
         [Serializable]
         public struct OwnedEquipmentSnapshot
         {
-            public int CatalogIndex;
+            public string StableId;
             public int Count;
             public int EnhancementLevel;
         }
@@ -113,16 +115,16 @@ namespace Inventory
 
             foreach (OwnedEquipment owned in _owned.Values)
             {
-                int catalogIndex = catalog.IndexOf(owned.Definition);
+                string stableId = owned.Definition.StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
                 snapshot.Add(new OwnedEquipmentSnapshot
                 {
-                    CatalogIndex = catalogIndex,
+                    StableId = stableId,
                     Count = owned.Count,
                     EnhancementLevel = owned.EnhancementLevel
                 });
@@ -143,7 +145,7 @@ namespace Inventory
 
             foreach (OwnedEquipmentSnapshot entry in snapshot)
             {
-                EquipmentSO definition = catalog.GetAt(entry.CatalogIndex);
+                EquipmentSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {

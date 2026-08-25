@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0acae09afe1da1044a6e00fe05b6afce, type: 3}
   m_Name: "Equipment_\uC2E0\uBC1C_\uC5B8\uCEE4\uBA3C4"
   m_EditorClassIdentifier: Assembly-CSharp::Equipment.EquipmentSO
+  stableId: 24a8a2f4b1234427be5b19c8a3bc98e3
   itemName: "\uC2E0\uBC1C \uC5B8\uCEE4\uBA3C4"
   equipmentType: 4
   grade: {fileID: 11400000, guid: 8636a3c5abc8bcf46a9363c823a5c7c3, type: 2}
+  icon: {fileID: 0}

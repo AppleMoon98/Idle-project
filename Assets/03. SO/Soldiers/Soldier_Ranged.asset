@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_Ranged
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
+  stableId: 3ee6c0bb019546efa1ce884f2efb4f7c
   displayName: "\uCEE4\uBA3C \uAD81\uBCD1"
   prefab: {fileID: 9114245855020254752, guid: 1ed8bb48a0b599a42942d4c08c2aa3b4, type: 3}
   icon: {fileID: 21300000, guid: bf2b3cbe30f683d41b525da9c62d8054, type: 3}

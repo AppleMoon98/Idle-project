@@ -50,5 +50,27 @@ namespace Behavior
 
             return profiles[index];
         }
+
+        /// <summary>
+        /// stableId가 일치하는 프로필을 반환한다. 없거나 stableId가 비어있으면 null
+        /// (GitHub 이슈 #19 - EquipmentCatalogSO.FindByStableId와 동일한 이유).
+        /// </summary>
+        public BehaviorProfileSO FindByStableId(string stableId)
+        {
+            if (profiles == null || string.IsNullOrEmpty(stableId))
+            {
+                return null;
+            }
+
+            foreach (BehaviorProfileSO profile in profiles)
+            {
+                if (profile != null && profile.StableId == stableId)
+                {
+                    return profile;
+                }
+            }
+
+            return null;
+        }
     }
 }

@@ -12,10 +12,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_Knight_SuperRare
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
-  displayName: "슈퍼레어 기사"
+  stableId: fe088cce2378463883d9c35e81e50708
+  displayName: "\uC288\uD37C\uB808\uC5B4 \uAE30\uC0AC"
   prefab: {fileID: 9114245855020254752, guid: a8ba64c54a4689946bd07c45df413c3e, type: 3}
   icon: {fileID: 21300000, guid: 8edcad385487cc94b8972a863eea14c7, type: 3}
   grade: {fileID: 11400000, guid: 496aa1851a5ca564c979dcce23e0dc5d, type: 2}
-  cost: 2
   iconScale: 2
   iconIgnoreGradeTint: 1
+  cost: 2

@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
   m_Name: Skill_BattleHymn
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  stableId: 2de5aab6cc574acabdbcad914c3900b8
   displayName: "\uC804\uD22C\uCC2C\uAC00"
   grade: 2
   icon: {fileID: 7456935766170266316, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}

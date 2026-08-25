@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 42f4dd7fb0b641540b25265b7a6102fe, type: 3}
   m_Name: Skill_Curse
   m_EditorClassIdentifier: Assembly-CSharp::Skill.SkillSO
+  stableId: 37f73542f9ac405088e9c399097cf656
   displayName: "\uC800\uC8FC"
   grade: 0
   icon: {fileID: -5239188096445404863, guid: d7bd85b0cf8496943ae6a6002bbb6339, type: 3}

@@ -15,15 +15,16 @@ namespace Soldier
     {
         /// <summary>
         /// 보유 병사 유닛 하나를 세이브 데이터로 직렬화하기 위한 형태. SoldierSO/BehaviorProfileSO 참조 대신
-        /// 각 카탈로그 상의 인덱스로 "어떤 병사·프로필인지"를 기록한다(PlayerPrefs는 에셋 참조를 담을 수 없음).
-        /// BehaviorProfileIndex가 -1이면 프로필 미배정.
+        /// 각각의 StableId로 "어떤 병사·프로필인지"를 기록한다(PlayerPrefs는 에셋 참조를 담을 수 없음,
+        /// 배열 인덱스 대신 StableId를 쓰는 이유는 GitHub 이슈 #19). BehaviorProfileStableId가
+        /// 비어있으면 프로필 미배정.
         /// </summary>
         [Serializable]
         public struct OwnedSoldierSnapshot
         {
-            public int CatalogIndex;
+            public string StableId;
             public int InstanceId;
-            public int BehaviorProfileIndex;
+            public string BehaviorProfileStableId;
         }
 
         private readonly EventBus _events;
@@ -94,18 +95,18 @@ namespace Soldier
 
             foreach (OwnedSoldier owned in _roster.Values)
             {
-                int catalogIndex = catalog.IndexOf(owned.Definition);
+                string stableId = owned.Definition.StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
                 snapshot.Add(new OwnedSoldierSnapshot
                 {
-                    CatalogIndex = catalogIndex,
+                    StableId = stableId,
                     InstanceId = owned.InstanceId,
-                    BehaviorProfileIndex = behaviorProfileCatalog.IndexOf(owned.BehaviorProfile)
+                    BehaviorProfileStableId = owned.BehaviorProfile != null ? owned.BehaviorProfile.StableId : null
                 });
             }
 
@@ -127,7 +128,7 @@ namespace Soldier
 
             foreach (OwnedSoldierSnapshot entry in snapshot)
             {
-                SoldierSO definition = catalog.GetAt(entry.CatalogIndex);
+                SoldierSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {
@@ -136,7 +137,7 @@ namespace Soldier
 
                 _roster[entry.InstanceId] = new OwnedSoldier(definition, entry.InstanceId)
                 {
-                    BehaviorProfile = behaviorProfileCatalog.GetAt(entry.BehaviorProfileIndex)
+                    BehaviorProfile = behaviorProfileCatalog.FindByStableId(entry.BehaviorProfileStableId)
                 };
             }
         }

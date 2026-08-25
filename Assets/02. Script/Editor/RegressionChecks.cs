@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Reflection;
+using Behavior;
 using Character;
 using Dungeon;
 using Enhancement;
@@ -10,6 +11,7 @@ using Loot;
 using Rank;
 using Save;
 using Skill;
+using Soldier;
 using UI;
 using UnityEditor;
 using UnityEngine;
@@ -94,6 +96,22 @@ namespace Editor
             Check("SkillScrollService_RejectsNonPositiveAmounts", CheckSkillScrollServiceRejectsNonPositiveAmounts);
             Check("EquipmentGachaTicketService_RejectsNonPositiveAmounts", CheckEquipmentGachaTicketServiceRejectsNonPositiveAmounts);
             Check("BossTokenService_RejectsNonPositiveAmounts", CheckBossTokenServiceRejectsNonPositiveAmounts);
+
+            // --- 이슈 #19: 카탈로그가 배열 인덱스 대신 StableId로 항목을 식별(재정렬/삭제에도
+            // 안전) + 실제 프로젝트 콘텐츠에 중복/빈 StableId가 없는지 ---
+            Check("EquipmentCatalog_FindByStableId_RoundTripsAndRejectsUnknown", CheckEquipmentCatalogFindByStableId);
+            Check("EquipmentCatalog_RealContent_NoDuplicateOrEmptyStableIds",
+                () => AssertNoDuplicateOrEmptyStableIds<EquipmentCatalogSO, EquipmentSO>(
+                    c => c.Items, so => so.StableId));
+            Check("SoldierCatalog_RealContent_NoDuplicateOrEmptyStableIds",
+                () => AssertNoDuplicateOrEmptyStableIds<SoldierCatalogSO, SoldierSO>(
+                    c => c.Soldiers, so => so.StableId));
+            Check("SkillCatalog_RealContent_NoDuplicateOrEmptyStableIds",
+                () => AssertNoDuplicateOrEmptyStableIds<SkillCatalogSO, SkillSO>(
+                    c => c.Skills, so => so.StableId));
+            Check("BehaviorProfileCatalog_RealContent_NoDuplicateOrEmptyStableIds",
+                () => AssertNoDuplicateOrEmptyStableIds<BehaviorProfileCatalogSO, BehaviorProfileSO>(
+                    c => c.Profiles, so => so.StableId));
 
             if (failures.Count == 0)
             {
@@ -647,7 +665,93 @@ namespace Editor
             }
         }
 
-        private static void SetPrivateFloat(UnityEngine.Object target, string fieldName, float value)
+        /// <summary>
+        /// EquipmentCatalogSO.FindByStableId가 실제로 StableId 기준으로 정확히 항목을 찾고,
+        /// 빈 문자열/알 수 없는 값은 null을 반환하는지 확인한다. 순수 메모리상 인스턴스로만
+        /// 검증하므로 실제 프로젝트 콘텐츠(에셋)와는 무관하다 - 그건 AssertNoDuplicateOrEmptyStableIds가
+        /// 별도로 확인한다.
+        /// </summary>
+        private static void CheckEquipmentCatalogFindByStableId()
+        {
+            var itemA = ScriptableObject.CreateInstance<EquipmentSO>();
+            SetPrivateString(itemA, "stableId", "guid-a");
+
+            var itemB = ScriptableObject.CreateInstance<EquipmentSO>();
+            SetPrivateString(itemB, "stableId", "guid-b");
+
+            var catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+            SetPrivateField(catalog, "items", new[] { itemA, itemB });
+
+            if (catalog.FindByStableId("guid-b") != itemB)
+            {
+                throw new Exception("일치하는 StableId로 항목을 찾지 못함");
+            }
+
+            if (catalog.FindByStableId("guid-does-not-exist") != null)
+            {
+                throw new Exception("존재하지 않는 StableId가 항목을 반환함");
+            }
+
+            if (catalog.FindByStableId("") != null || catalog.FindByStableId(null) != null)
+            {
+                throw new Exception("빈/null StableId가 항목을 반환함");
+            }
+        }
+
+        /// <summary>
+        /// T 타입 카탈로그 에셋을 프로젝트에서 실제로 찾아(정확히 하나여야 함) 그 안의 모든 항목의
+        /// StableId가 비어있지 않고 서로 중복되지 않는지 확인한다(GitHub 이슈 #19 완료 조건
+        /// "중복/빈/삭제된 ID는 빌드 전 실패 처리"). StableIdBackfill을 실행하지 않았거나, 새
+        /// 항목을 손으로 추가하면서 StableId를 안 채운 경우를 잡아낸다.
+        /// </summary>
+        private static void AssertNoDuplicateOrEmptyStableIds<TCatalog, TItem>(
+            Func<TCatalog, TItem[]> getItems, Func<TItem, string> getStableId)
+            where TCatalog : UnityEngine.Object
+            where TItem : UnityEngine.Object
+        {
+            string[] guids = AssetDatabase.FindAssets($"t:{typeof(TCatalog).Name}");
+
+            if (guids.Length == 0)
+            {
+                throw new Exception($"{typeof(TCatalog).Name} 에셋을 프로젝트에서 찾지 못함");
+            }
+
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var catalog = AssetDatabase.LoadAssetAtPath<TCatalog>(path);
+                TItem[] items = getItems(catalog);
+
+                if (items == null)
+                {
+                    continue;
+                }
+
+                var seen = new HashSet<string>();
+
+                foreach (TItem item in items)
+                {
+                    if (item == null)
+                    {
+                        continue;
+                    }
+
+                    string stableId = getStableId(item);
+
+                    if (string.IsNullOrEmpty(stableId))
+                    {
+                        throw new Exception($"{path}의 '{item.name}' 항목에 StableId가 비어있음 - StableIdBackfill을 다시 실행할 것");
+                    }
+
+                    if (!seen.Add(stableId))
+                    {
+                        throw new Exception($"{path}에 StableId '{stableId}'가 중복됨");
+                    }
+                }
+            }
+        }
+
+        private static void SetPrivateField(UnityEngine.Object target, string fieldName, object value)
         {
             FieldInfo field = target.GetType().GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance);
 
@@ -657,6 +761,16 @@ namespace Editor
             }
 
             field.SetValue(target, value);
+        }
+
+        private static void SetPrivateString(UnityEngine.Object target, string fieldName, string value)
+        {
+            SetPrivateField(target, fieldName, value);
+        }
+
+        private static void SetPrivateFloat(UnityEngine.Object target, string fieldName, float value)
+        {
+            SetPrivateField(target, fieldName, value);
         }
 
         private static void AssertApprox(float expected, float actual, string context)

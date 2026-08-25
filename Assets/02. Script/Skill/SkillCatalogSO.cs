@@ -41,5 +41,27 @@ namespace Skill
 
             return skills[index];
         }
+
+        /// <summary>
+        /// stableId가 일치하는 스킬을 반환한다. 없거나 stableId가 비어있으면 null
+        /// (GitHub 이슈 #19 - EquipmentCatalogSO.FindByStableId와 동일한 이유).
+        /// </summary>
+        public SkillSO FindByStableId(string stableId)
+        {
+            if (skills == null || string.IsNullOrEmpty(stableId))
+            {
+                return null;
+            }
+
+            foreach (SkillSO skill in skills)
+            {
+                if (skill != null && skill.StableId == stableId)
+                {
+                    return skill;
+                }
+            }
+
+            return null;
+        }
     }
 }

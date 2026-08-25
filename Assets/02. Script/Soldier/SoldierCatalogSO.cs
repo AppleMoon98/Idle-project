@@ -50,5 +50,27 @@ namespace Soldier
 
             return soldiers[index];
         }
+
+        /// <summary>
+        /// stableId가 일치하는 병사 원형을 반환한다. 없거나 stableId가 비어있으면 null
+        /// (GitHub 이슈 #19 - EquipmentCatalogSO.FindByStableId와 동일한 이유).
+        /// </summary>
+        public SoldierSO FindByStableId(string stableId)
+        {
+            if (soldiers == null || string.IsNullOrEmpty(stableId))
+            {
+                return null;
+            }
+
+            foreach (SoldierSO soldier in soldiers)
+            {
+                if (soldier != null && soldier.StableId == stableId)
+                {
+                    return soldier;
+                }
+            }
+
+            return null;
+        }
     }
 }

@@ -33,13 +33,14 @@ namespace Skill
         private const int PerLevelRequiredCount = 3;
 
         /// <summary>
-        /// 세이브 직렬화용 스냅샷 한 줄. SkillCatalogSO 인덱스로 SkillSO를 식별한다
-        /// (InventoryService.OwnedEquipmentSnapshot과 동일한 방식).
+        /// 세이브 직렬화용 스냅샷 한 줄. SkillSO.StableId로 SkillSO를 식별한다
+        /// (InventoryService.OwnedEquipmentSnapshot과 동일한 방식, 배열 인덱스 대신 StableId를
+        /// 쓰는 이유는 GitHub 이슈 #19).
         /// </summary>
         [Serializable]
         public struct SkillLevelSnapshot
         {
-            public int CatalogIndex;
+            public string StableId;
             public int Level;
         }
 
@@ -49,7 +50,7 @@ namespace Skill
         [Serializable]
         public struct SkillCountSnapshot
         {
-            public int CatalogIndex;
+            public string StableId;
             public int Count;
         }
 
@@ -213,14 +214,14 @@ namespace Skill
 
             foreach (KeyValuePair<SkillSO, int> entry in _levels)
             {
-                int catalogIndex = catalog.IndexOf(entry.Key);
+                string stableId = entry.Key.StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
-                snapshot.Add(new SkillLevelSnapshot { CatalogIndex = catalogIndex, Level = entry.Value });
+                snapshot.Add(new SkillLevelSnapshot { StableId = stableId, Level = entry.Value });
             }
 
             return snapshot.ToArray();
@@ -235,7 +236,7 @@ namespace Skill
 
             foreach (SkillLevelSnapshot entry in snapshot)
             {
-                SkillSO definition = catalog.GetAt(entry.CatalogIndex);
+                SkillSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {
@@ -256,14 +257,14 @@ namespace Skill
 
             foreach (KeyValuePair<SkillSO, int> entry in _counts)
             {
-                int catalogIndex = catalog.IndexOf(entry.Key);
+                string stableId = entry.Key.StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
-                snapshot.Add(new SkillCountSnapshot { CatalogIndex = catalogIndex, Count = entry.Value });
+                snapshot.Add(new SkillCountSnapshot { StableId = stableId, Count = entry.Value });
             }
 
             return snapshot.ToArray();
@@ -278,7 +279,7 @@ namespace Skill
 
             foreach (SkillCountSnapshot entry in snapshot)
             {
-                SkillSO definition = catalog.GetAt(entry.CatalogIndex);
+                SkillSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {

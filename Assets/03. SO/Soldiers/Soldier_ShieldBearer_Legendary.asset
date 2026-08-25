@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_ShieldBearer_Legendary
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
-  displayName: "레전더리 방패보병"
+  stableId: 9a9e17a73bca439a82602bbee2f532fe
+  displayName: "\uB808\uC804\uB354\uB9AC \uBC29\uD328\uBCF4\uBCD1"
   prefab: {fileID: 9114245855020254752, guid: 2c006e27abce96e4ea32eafb4a17121c, type: 3}
   icon: {fileID: 21300000, guid: 8353611ceda591f4086800cd4d4fec0f, type: 3}
   grade: {fileID: 11400000, guid: 0aab388fbc2780549af9eb6a95d14859, type: 2}

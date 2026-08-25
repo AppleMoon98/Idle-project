@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b38bc55ec93971148bd1dcf1d58b6fc6, type: 3}
   m_Name: BehaviorProfile_Aggressive
   m_EditorClassIdentifier: Assembly-CSharp::Behavior.BehaviorProfileSO
+  stableId: 5c1d7915c6e14a2c8e2c03472ce75c16
   displayName: "\uACF5\uACA9\uD615"
   rules:
   - condition: {fileID: 11400000, guid: 39c1f447ac38c1e4a9ef4baf79c297f6, type: 2}

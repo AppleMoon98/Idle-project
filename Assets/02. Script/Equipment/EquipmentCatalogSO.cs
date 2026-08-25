@@ -73,5 +73,27 @@ namespace Equipment
 
             return items[index];
         }
+
+        /// <summary>
+        /// stableId가 일치하는 장비 원형을 반환한다. 없거나 stableId가 비어있으면 null.
+        /// 세이브 데이터가 배열 인덱스 대신 이 값으로 항목을 식별할 때 쓴다(GitHub 이슈 #19).
+        /// </summary>
+        public EquipmentSO FindByStableId(string stableId)
+        {
+            if (items == null || string.IsNullOrEmpty(stableId))
+            {
+                return null;
+            }
+
+            foreach (EquipmentSO item in items)
+            {
+                if (item != null && item.StableId == stableId)
+                {
+                    return item;
+                }
+            }
+
+            return null;
+        }
     }
 }

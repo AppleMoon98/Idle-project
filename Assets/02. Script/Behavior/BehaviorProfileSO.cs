@@ -11,10 +11,19 @@ namespace Behavior
     public sealed class BehaviorProfileSO : ScriptableObject
     {
         [SerializeField]
+        private string stableId;
+
+        [SerializeField]
         private string displayName;
 
         [SerializeField]
         private BehaviorRuleEntry[] rules;
+
+        /// <summary>
+        /// 카탈로그 배열 순서와 무관하게 이 항목을 영구적으로 식별하는 GUID
+        /// (EquipmentSO.StableId와 동일한 이유·동일한 발급 도구, GitHub 이슈 #19).
+        /// </summary>
+        public string StableId => stableId;
 
         /// <summary>
         /// 프로필 이름(선택 UI 표시용).

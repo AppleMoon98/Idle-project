@@ -12,7 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 504858055dbd4dd49979fe119ba4b43d, type: 3}
   m_Name: Soldier_ShieldBearer_Uncommon
   m_EditorClassIdentifier: Assembly-CSharp::Soldier.SoldierSO
-  displayName: "언커먼 방패보병"
+  stableId: db76ba139b074db0b7021a8365777749
+  displayName: "\uC5B8\uCEE4\uBA3C \uBC29\uD328\uBCF4\uBCD1"
   prefab: {fileID: 9114245855020254752, guid: 2c006e27abce96e4ea32eafb4a17121c, type: 3}
   icon: {fileID: 21300000, guid: 8353611ceda591f4086800cd4d4fec0f, type: 3}
   grade: {fileID: 11400000, guid: 67637058d05750e4d843c5c5d67d31db, type: 2}

@@ -18,13 +18,13 @@ namespace Inventory
     {
         /// <summary>
         /// 슬롯 하나의 장착 상태를 세이브 데이터로 직렬화하기 위한 형태. InventoryService.OwnedEquipmentSnapshot과
-        /// 같은 이유로 EquipmentSO 참조 대신 카탈로그 인덱스를 사용한다.
+        /// 같은 이유로 EquipmentSO 참조 대신 StableId를 사용한다(GitHub 이슈 #19).
         /// </summary>
         [Serializable]
         public struct EquippedSnapshotEntry
         {
             public EquipmentType Slot;
-            public int CatalogIndex;
+            public string StableId;
         }
 
         private readonly EventBus _events;
@@ -69,14 +69,14 @@ namespace Inventory
 
             foreach (KeyValuePair<EquipmentType, OwnedEquipment> pair in _equipped)
             {
-                int catalogIndex = catalog.IndexOf(pair.Value.Definition);
+                string stableId = pair.Value.Definition.StableId;
 
-                if (catalogIndex < 0)
+                if (string.IsNullOrEmpty(stableId))
                 {
                     continue;
                 }
 
-                snapshot.Add(new EquippedSnapshotEntry { Slot = pair.Key, CatalogIndex = catalogIndex });
+                snapshot.Add(new EquippedSnapshotEntry { Slot = pair.Key, StableId = stableId });
             }
 
             return snapshot.ToArray();
@@ -96,7 +96,7 @@ namespace Inventory
 
             foreach (EquippedSnapshotEntry entry in snapshot)
             {
-                EquipmentSO definition = catalog.GetAt(entry.CatalogIndex);
+                EquipmentSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null || !inventory.TryGet(definition, out OwnedEquipment owned))
                 {
