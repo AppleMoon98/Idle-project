@@ -72,7 +72,7 @@ namespace Skill.Effects
             _appliedBonus = SkillBuffStatApplier.ApplyPercent(_statsProvider.Stats, EnhancementStatType.AttackPower, magnitude);
             _remaining = duration;
 
-            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackPower, magnitude, duration));
+            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackPower, magnitude, duration, definition));
 
             // 버프 지속시간 내내 도는 루프 이펙트가 아니라 시전 순간의 1회성 버스트만 재생한다 -
             // 지속시간과 이펙트 수명을 동기화하려면 별도 해제 로직이 필요해져 범위를 넘어선다.

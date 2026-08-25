@@ -54,10 +54,7 @@ namespace Core
         private CharacterStatsSO playerStats;
 
         [SerializeField]
-        private CharacterStatsSO soldierStats;
-
-        [SerializeField]
-        private int soldierCount;
+        private SoldierGradeConfigSO soldierGradeConfig;
 
         [SerializeField]
         private float maxOfflineHours = 24f;
@@ -370,8 +367,15 @@ namespace Core
                 stageCatalog,
                 stageDifficultyConfig,
                 playerStats,
-                soldierStats,
-                soldierCount,
+                _enhancementService,
+                _equipmentStatService,
+                _equipmentPossessionService,
+                soldierEnhancementService,
+                soldierDeploymentService,
+                soldierGradeConfig,
+                _rankService,
+                skillService,
+                skillLoadoutService,
                 maxOfflineHours * 3600f,
                 offlineRewardMultiplier);
 

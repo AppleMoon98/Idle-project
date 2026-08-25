@@ -11,6 +11,9 @@ namespace UI
     /// </summary>
     public sealed class OfflineProgressPopupUI : MonoBehaviour
     {
+        private const float SecondsPerHour = 3600f;
+        private const float SecondsPerMinute = 60f;
+
         [SerializeField]
         private GameObject popupRoot;
 
@@ -19,6 +22,14 @@ namespace UI
 
         [SerializeField]
         private Button confirmButton;
+
+        /// <summary>
+        /// 오프라인 인정 시간이 이 값 미만이면 팝업을 띄우지 않는다. 보상 자체는
+        /// OfflineProgressService.CalculateAndApply()에서 이 팝업과 무관하게 이미 적용되어 있으므로,
+        /// 여기서는 "굳이 알릴 정도는 아닌" 짧은 부재의 알림만 생략한다.
+        /// </summary>
+        [SerializeField]
+        private float minElapsedSecondsToShowPopup = 300f;
 
         private void Awake()
         {
@@ -39,10 +50,13 @@ namespace UI
 
         private void OnOfflineProgressCalculated(OfflineProgressCalculatedEvent evt)
         {
-            float elapsedHours = evt.ElapsedSeconds / 3600f;
+            if (evt.ElapsedSeconds < minElapsedSecondsToShowPopup)
+            {
+                return;
+            }
 
             summaryText.text =
-                $"{elapsedHours:0.#}시간 동안 자리를 비웠습니다.\n" +
+                $"{FormatElapsedDuration(evt.ElapsedSeconds)} 동안 자리를 비웠습니다.\n" +
                 $"골드 {KoreanNumberFormatter.Format(evt.GoldEarned)} 획득\n" +
                 $"장비 {evt.EquipmentEarned.Count}개 획득\n" +
                 $"몬스터 {evt.MonstersKilled}마리 처치\n" +
@@ -54,6 +68,23 @@ namespace UI
         private void Close()
         {
             popupRoot.SetActive(false);
+        }
+
+        /// <summary>
+        /// 1시간 미만이면 "n분 n초", 그 이상이면 기존처럼 "N시간"(소수 첫째 자리까지)으로 표기한다.
+        /// </summary>
+        private static string FormatElapsedDuration(float elapsedSeconds)
+        {
+            if (elapsedSeconds < SecondsPerHour)
+            {
+                int totalSeconds = Mathf.FloorToInt(elapsedSeconds);
+                int minutes = totalSeconds / (int)SecondsPerMinute;
+                int seconds = totalSeconds % (int)SecondsPerMinute;
+                return $"{minutes}분 {seconds}초";
+            }
+
+            float elapsedHours = elapsedSeconds / SecondsPerHour;
+            return $"{elapsedHours:0.#}시간";
         }
     }
 }

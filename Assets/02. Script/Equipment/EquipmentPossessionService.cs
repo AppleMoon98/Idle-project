@@ -60,6 +60,35 @@ namespace Equipment
         /// </summary>
         public void RecomputeAndPublish()
         {
+            Dictionary<EnhancementStatType, float> totals = BuildTotals();
+
+            foreach (EnhancementStatType statType in (EnhancementStatType[])Enum.GetValues(typeof(EnhancementStatType)))
+            {
+                totals.TryGetValue(statType, out float newTotal);
+                _lastPublished.TryGetValue(statType, out float previousTotal);
+
+                if (Mathf.Approximately(newTotal, previousTotal))
+                {
+                    continue;
+                }
+
+                _lastPublished[statType] = newTotal;
+                _events.Publish(new EquipmentPossessionStatsChangedEvent(statType, newTotal));
+            }
+        }
+
+        /// <summary>
+        /// 현재 보유 중인 라인 전체 기준 특정 능력치의 합계 보너스(%)를 즉시 계산해 반환한다.
+        /// RecomputeAndPublish와 달리 이벤트를 발행하지 않는 순수 조회용 — 오프라인 보상 계산처럼
+        /// 이벤트 발행 부작용이 없어야 하는 곳에서 쓴다.
+        /// </summary>
+        public float GetCurrentTotal(EnhancementStatType statType)
+        {
+            return BuildTotals().TryGetValue(statType, out float total) ? total : 0f;
+        }
+
+        private Dictionary<EnhancementStatType, float> BuildTotals()
+        {
             var totals = new Dictionary<EnhancementStatType, float>();
 
             foreach (OwnedEquipment owned in _inventory.Items)
@@ -75,19 +104,7 @@ namespace Equipment
                 }
             }
 
-            foreach (EnhancementStatType statType in (EnhancementStatType[])Enum.GetValues(typeof(EnhancementStatType)))
-            {
-                totals.TryGetValue(statType, out float newTotal);
-                _lastPublished.TryGetValue(statType, out float previousTotal);
-
-                if (Mathf.Approximately(newTotal, previousTotal))
-                {
-                    continue;
-                }
-
-                _lastPublished[statType] = newTotal;
-                _events.Publish(new EquipmentPossessionStatsChangedEvent(statType, newTotal));
-            }
+            return totals;
         }
 
         /// <summary>

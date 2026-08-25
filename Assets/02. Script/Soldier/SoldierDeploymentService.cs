@@ -258,6 +258,21 @@ namespace Soldier
         }
 
         /// <summary>
+        /// 현재 배치된 모든 유닛을 부대/슬롯 구분 없이 평탄화해 반환한다. "지금 실제로 몇 명이,
+        /// 어떤 병종/등급으로 나가 있는지"가 필요한 곳(예: 오프라인 보상 계산)에서 쓴다.
+        /// </summary>
+        public IEnumerable<OwnedSoldier> GetDeployedSoldiers()
+        {
+            foreach (int instanceId in _slotToInstanceId.Values)
+            {
+                if (_roster.TryGet(instanceId, out OwnedSoldier owned) && owned.Definition != null)
+                {
+                    yield return owned;
+                }
+            }
+        }
+
+        /// <summary>
         /// 현재 배정 상태 전체를 세이브용 스냅샷으로 내보낸다.
         /// </summary>
         public DeploymentSnapshotEntry[] ExportSnapshot()

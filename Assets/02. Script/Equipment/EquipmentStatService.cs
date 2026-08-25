@@ -68,6 +68,35 @@ namespace Equipment
         /// </summary>
         public void RecomputeAndPublish()
         {
+            Dictionary<EnhancementStatType, float> totals = BuildTotals();
+
+            foreach (EnhancementStatType statType in (EnhancementStatType[])Enum.GetValues(typeof(EnhancementStatType)))
+            {
+                totals.TryGetValue(statType, out float newTotal);
+                _lastPublished.TryGetValue(statType, out float previousTotal);
+
+                if (Mathf.Approximately(newTotal, previousTotal))
+                {
+                    continue;
+                }
+
+                _lastPublished[statType] = newTotal;
+                _events.Publish(new EquipmentStatsChangedEvent(statType, newTotal));
+            }
+        }
+
+        /// <summary>
+        /// 현재 장착 5슬롯 기준 특정 능력치의 합계 보너스를 즉시 계산해 반환한다. RecomputeAndPublish와
+        /// 달리 이벤트를 발행하지 않는 순수 조회용 — 이벤트 발행의 부작용(SaveService 등 구독자
+        /// 트리거)이 있으면 안 되는 곳(예: 오프라인 보상 계산)에서 쓴다.
+        /// </summary>
+        public float GetCurrentTotal(EnhancementStatType statType)
+        {
+            return BuildTotals().TryGetValue(statType, out float total) ? total : 0f;
+        }
+
+        private Dictionary<EnhancementStatType, float> BuildTotals()
+        {
             var totals = new Dictionary<EnhancementStatType, float>();
 
             foreach (EquipmentType slot in (EquipmentType[])Enum.GetValues(typeof(EquipmentType)))
@@ -90,19 +119,7 @@ namespace Equipment
                 }
             }
 
-            foreach (EnhancementStatType statType in (EnhancementStatType[])Enum.GetValues(typeof(EnhancementStatType)))
-            {
-                totals.TryGetValue(statType, out float newTotal);
-                _lastPublished.TryGetValue(statType, out float previousTotal);
-
-                if (Mathf.Approximately(newTotal, previousTotal))
-                {
-                    continue;
-                }
-
-                _lastPublished[statType] = newTotal;
-                _events.Publish(new EquipmentStatsChangedEvent(statType, newTotal));
-            }
+            return totals;
         }
 
         /// <summary>

@@ -24,11 +24,20 @@ namespace Skill.Events
 
         public float Duration { get; }
 
-        public SkillSelfBuffAppliedEvent(EnhancementStatType statType, float percent, float duration)
+        /// <summary>
+        /// 이 버프를 발행한 스킬. 구독자가 "같은 스킬의 재시전(갱신)"과 "다른 스킬이 같은 스탯을
+        /// 동시에 버프(곱연산 중첩)"를 구분하는 키로 쓴다 — 같은 Source가 다시 들어오면 자기
+        /// 자신의 이전 적용분만 되돌리고 새로 적용하고(무한 중첩 방지), 다른 Source면 서로의
+        /// 델타를 건드리지 않아 현재 값(이미 다른 스킬 버프가 반영된 값) 기준으로 곱연산처럼 쌓인다.
+        /// </summary>
+        public SkillSO Source { get; }
+
+        public SkillSelfBuffAppliedEvent(EnhancementStatType statType, float percent, float duration, SkillSO source)
         {
             StatType = statType;
             Percent = percent;
             Duration = duration;
+            Source = source;
         }
     }
 }

@@ -73,7 +73,7 @@ namespace Skill.Effects
             _healPercentPerSecond = healPercentPerSecond;
             _remaining = duration;
 
-            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackPower, magnitude, duration));
+            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackPower, magnitude, duration, definition));
             GameBootstrapper.Events?.Publish(new SkillPartyHealAppliedEvent(healPercentPerSecond, duration));
 
             Vector3 spawnPosition = origin.position + Vector3.up * definition.VfxHeightOffset;

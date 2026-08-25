@@ -2,11 +2,16 @@ using System;
 using System.Collections.Generic;
 using Character;
 using Core;
+using Enhancement;
 using Equipment;
 using Loot;
 using Loot.Events;
 using Offline.Events;
+using Rank;
 using Save;
+using Skill;
+using Soldier;
+using SoldierEnhancement;
 using Stage;
 using Stage.Events;
 using UnityEngine;
@@ -31,19 +36,48 @@ namespace Offline
         private readonly StageCatalogSO _catalog;
         private readonly StageDifficultyConfigSO _difficultyConfig;
         private readonly CharacterStatsSO _playerStats;
-        private readonly CharacterStatsSO _soldierStats;
-        private readonly int _soldierCount;
+        private readonly EnhancementService _playerEnhancement;
+        private readonly EquipmentStatService _equipmentStatService;
+        private readonly EquipmentPossessionService _equipmentPossessionService;
+        private readonly SoldierEnhancementService _soldierEnhancement;
+        private readonly SoldierDeploymentService _soldierDeployment;
+        private readonly SoldierGradeConfigSO _soldierGradeConfig;
+        private readonly RankService _rankService;
+        private readonly SkillService _skillService;
+        private readonly SkillLoadoutService _skillLoadoutService;
         private readonly float _maxOfflineSeconds;
         private readonly float _rewardMultiplier;
 
+        /// <summary>
+        /// 플레이어/병사의 실제 강화·장비·랭크·등급 보너스와, 장착된 스킬의 데미지까지 전부
+        /// 반영한 최종 DPS로 오프라인 처치 속도를 계산한다 — 기존에는 인스펙터에 고정된
+        /// CharacterStatsSO 원본값과 고정 병사 수만 썼기 때문에, 아무리 강화하고 장비를 맞추고
+        /// 병사를 배치해도 오프라인 보상 속도가 전혀 늘지 않는 문제가 있었다. 계산 시점
+        /// (GameBootstrapper.Start()의 가장 첫 줄)에는 아직 EnhancementService.RestoreLevel/
+        /// RankService.RestoreLevel이 실행되기 전이라(LastActiveUnixTime 버그 회피를 위해 반드시
+        /// 이 순서를 지켜야 함, CalculateAndApply 상단 주석 참고) 실제 라이브 RuntimeStats를
+        /// 그대로 읽을 수 없다 — 대신 SaveData의 원본 레벨/보유 상태에서 같은 공식(Character.
+        /// RuntimeStatApplier/PossessionStatApplier, UI.SoldierDetailPopupUI와 동일한 패턴)을 직접
+        /// 재현해 계산한다. 랭크는 RankService.SeedRank가 이미 Awake에서(RestoreLevel보다 먼저)
+        /// 이벤트 없이 조용히 세팅해두므로 RankService.CurrentRank를 그대로 읽어도 안전하다.
+        /// 스킬 레벨/장착 상태(SkillService/SkillLoadoutService)도 전부 Awake에서 이미 복원이
+        /// 끝나 있어 마찬가지로 그대로 읽는다.
+        /// </summary>
         public OfflineProgressService(
             EventBus events,
             SaveService saveService,
             StageCatalogSO catalog,
             StageDifficultyConfigSO difficultyConfig,
             CharacterStatsSO playerStats,
-            CharacterStatsSO soldierStats,
-            int soldierCount,
+            EnhancementService playerEnhancement,
+            EquipmentStatService equipmentStatService,
+            EquipmentPossessionService equipmentPossessionService,
+            SoldierEnhancementService soldierEnhancement,
+            SoldierDeploymentService soldierDeployment,
+            SoldierGradeConfigSO soldierGradeConfig,
+            RankService rankService,
+            SkillService skillService,
+            SkillLoadoutService skillLoadoutService,
             float maxOfflineSeconds,
             float rewardMultiplier)
         {
@@ -52,8 +86,15 @@ namespace Offline
             _catalog = catalog;
             _difficultyConfig = difficultyConfig;
             _playerStats = playerStats;
-            _soldierStats = soldierStats;
-            _soldierCount = soldierCount;
+            _playerEnhancement = playerEnhancement;
+            _equipmentStatService = equipmentStatService;
+            _equipmentPossessionService = equipmentPossessionService;
+            _soldierEnhancement = soldierEnhancement;
+            _soldierDeployment = soldierDeployment;
+            _soldierGradeConfig = soldierGradeConfig;
+            _rankService = rankService;
+            _skillService = skillService;
+            _skillLoadoutService = skillLoadoutService;
             _maxOfflineSeconds = maxOfflineSeconds;
             _rewardMultiplier = rewardMultiplier;
         }
@@ -87,8 +128,10 @@ namespace Offline
                 return;
             }
 
-            float totalDps = _playerStats.AttackPower / _playerStats.AttackInterval
-                + _soldierCount * (_soldierStats.AttackPower / _soldierStats.AttackInterval);
+            (float playerAttackPower, float playerAttackInterval) = ComputeEffectivePlayerAttackStats(save);
+            float totalDps = (playerAttackInterval > 0f ? playerAttackPower / playerAttackInterval : 0f)
+                + ComputeTotalSoldierDps(playerAttackPower)
+                + ComputeTotalSkillDps(playerAttackPower);
 
             float healthMultiplier = _difficultyConfig != null ? _difficultyConfig.GetMultiplier(_catalog.IndexOf(repeatStage)) : 1f;
 
@@ -143,6 +186,174 @@ namespace Offline
                 timesCleared,
                 repeatStage.Chapter,
                 repeatStage.StageNumber));
+        }
+
+        /// <summary>
+        /// 플레이어의 실제 최종 공격력/공격주기를 계산한다 — 기본 스탯(CharacterStatsSO) +
+        /// 강화(Enhancement, 레벨은 SaveData에서 직접) + 장비 착용 스탯(EquipmentStatService) +
+        /// 장비 보유 효과(EquipmentPossessionService) 순으로 Character.RuntimeStatApplier /
+        /// PossessionStatApplier(둘 다 internal이지만 같은 어셈블리라 접근 가능)를 그대로 재사용해
+        /// 실제 런타임과 동일한 공식으로 누적한다.
+        /// </summary>
+        private (float AttackPower, float AttackInterval) ComputeEffectivePlayerAttackStats(SaveData save)
+        {
+            var stats = new RuntimeStats(_playerStats);
+
+            ApplyEnhancementLevel(stats, EnhancementStatType.AttackPower, save.AttackPowerLevel);
+            ApplyEnhancementLevel(stats, EnhancementStatType.AttackSpeed, save.AttackSpeedLevel);
+
+            if (_equipmentStatService != null)
+            {
+                RuntimeStatApplier.Apply(stats, _playerStats, EnhancementStatType.AttackPower, _equipmentStatService.GetCurrentTotal(EnhancementStatType.AttackPower));
+                RuntimeStatApplier.Apply(stats, _playerStats, EnhancementStatType.AttackSpeed, _equipmentStatService.GetCurrentTotal(EnhancementStatType.AttackSpeed));
+            }
+
+            if (_equipmentPossessionService != null)
+            {
+                PossessionStatApplier.Apply(stats, _playerStats, EnhancementStatType.AttackPower, _equipmentPossessionService.GetCurrentTotal(EnhancementStatType.AttackPower));
+                PossessionStatApplier.Apply(stats, _playerStats, EnhancementStatType.AttackSpeed, _equipmentPossessionService.GetCurrentTotal(EnhancementStatType.AttackSpeed));
+            }
+
+            // 랭크 보너스(Character.RankStatReceiver와 동일한 공식) — 기본 스탯 대비 % 가산.
+            if (_rankService?.CurrentRank != null)
+            {
+                PossessionStatApplier.Apply(stats, _playerStats, EnhancementStatType.AttackPower, _rankService.CurrentRank.PlayerStatBonusPercent);
+            }
+
+            return (stats.AttackPower, stats.AttackInterval);
+        }
+
+        private void ApplyEnhancementLevel(RuntimeStats stats, EnhancementStatType statType, int level)
+        {
+            if (_playerEnhancement == null || level <= 0)
+            {
+                return;
+            }
+
+            float cumulativeDelta = _playerEnhancement.GetValuePerLevel(statType) * level;
+            RuntimeStatApplier.Apply(stats, _playerStats, statType, cumulativeDelta);
+        }
+
+        /// <summary>
+        /// 현재 실제로 배치된 병사 전원의 DPS 합. 병사마다 자기 자신의 SoldierSO.Prefab 기본
+        /// 스탯에서 시작해 병사 강화(전역 누적)와 등급 지분(플레이어 공격력 대비 %)을 얹는다 —
+        /// UI.SoldierDetailPopupUI.ComputeStats와 동일한 공식. 배치된 병사가 없으면 0.
+        /// </summary>
+        private float ComputeTotalSoldierDps(float playerAttackPowerReference)
+        {
+            if (_soldierDeployment == null)
+            {
+                return 0f;
+            }
+
+            float totalDps = 0f;
+
+            foreach (OwnedSoldier owned in _soldierDeployment.GetDeployedSoldiers())
+            {
+                CharacterStatsProvider prefabStats = owned.Definition.Prefab != null
+                    ? owned.Definition.Prefab.GetComponent<CharacterStatsProvider>()
+                    : null;
+
+                if (prefabStats == null || prefabStats.BaseStats == null)
+                {
+                    continue;
+                }
+
+                CharacterStatsSO baseStats = prefabStats.BaseStats;
+                var stats = new RuntimeStats(baseStats);
+
+                if (_soldierEnhancement != null)
+                {
+                    foreach (EnhancementStatType statType in _soldierEnhancement.StatTypes)
+                    {
+                        float cumulativeDelta = _soldierEnhancement.GetValuePerLevel(statType) * _soldierEnhancement.GetLevel(statType);
+                        RuntimeStatApplier.Apply(stats, baseStats, statType, cumulativeDelta);
+                    }
+                }
+
+                if (owned.Definition.Grade != null && _soldierGradeConfig != null)
+                {
+                    stats.AttackPower += playerAttackPowerReference * _soldierGradeConfig.GetPercent(owned.Definition.Grade);
+                }
+
+                if (stats.AttackInterval > 0f)
+                {
+                    totalDps += stats.AttackPower / stats.AttackInterval;
+                }
+            }
+
+            return totalDps;
+        }
+
+        /// <summary>
+        /// 현재 장착(자동 발동 켜짐)된 6개 스킬 슬롯 중 실제로 피해를 주는 종류(AreaDamage/
+        /// SingleTargetStrike/Poison/Whirlwind/Meteor)의 평균 DPS 합. 버프/디버프/힐 계열(SelfBuff/
+        /// Debuff/Curse/SoldierBuff/PartyHeal)은 직접 피해를 주지 않아 제외한다. 각 효과의 한 방
+        /// 데미지는 Skill.Effects의 실제 공식과 동일하게 (플레이어 공격력 + magnitude)이고, 그
+        /// 값을 평균 발동 주기로 나눠 DPS로 환산한다 — AoE로 여러 대상을 동시에 때리는 것(AreaDamage/
+        /// Whirlwind/Meteor)은 기존 시뮬레이션 자체가 "평균 몬스터 1체" 기준 스칼라 DPS만 다루므로
+        /// (Combat.Attacker 기반 플레이어/병사 DPS도 마찬가지로 단일 대상 기준), 여기서도 다중
+        /// 타격을 배수로 반영하지 않는 동일한 근사를 따른다 — Meteor만 예외로, 포탄 자체의 개수
+        /// (MeteorShellCount)만큼은 명시적으로 곱한다(포탄 하나하나가 각자 다른 위치에 떨어지는
+        /// 별개의 타격이라 "한 번의 캐스트가 여러 번 때린다"는 의미가 AreaDamage/Whirlwind의
+        /// "한 번 때릴 때 반경 안 전체가 맞는다"는 것과는 다르기 때문).
+        /// </summary>
+        private float ComputeTotalSkillDps(float playerAttackPowerReference)
+        {
+            if (_skillLoadoutService == null || _skillService == null)
+            {
+                return 0f;
+            }
+
+            float totalDps = 0f;
+
+            for (int slotIndex = 0; slotIndex < SkillLoadoutService.SlotCount; slotIndex++)
+            {
+                if (!_skillLoadoutService.IsEnabled(slotIndex))
+                {
+                    continue;
+                }
+
+                SkillSO definition = _skillLoadoutService.GetEquipped(slotIndex);
+
+                if (definition == null)
+                {
+                    continue;
+                }
+
+                int level = _skillService.GetLevel(definition);
+
+                if (level <= 0)
+                {
+                    continue;
+                }
+
+                float hitDamage = playerAttackPowerReference + definition.GetMagnitude(level);
+                float cooldown = Mathf.Max(0.01f, definition.Cooldown);
+
+                switch (definition.EffectType)
+                {
+                    case SkillEffectType.AreaDamage:
+                    case SkillEffectType.SingleTargetStrike:
+                        totalDps += hitDamage / cooldown;
+                        break;
+
+                    case SkillEffectType.Poison:
+                    case SkillEffectType.Whirlwind:
+                    {
+                        float tickInterval = Mathf.Max(0.1f, definition.TickInterval);
+                        float duration = definition.GetBuffDuration(level);
+                        totalDps += hitDamage * duration / (tickInterval * cooldown);
+                        break;
+                    }
+
+                    case SkillEffectType.Meteor:
+                        totalDps += definition.MeteorShellCount * hitDamage / cooldown;
+                        break;
+                }
+            }
+
+            return totalDps;
         }
 
         /// <summary>

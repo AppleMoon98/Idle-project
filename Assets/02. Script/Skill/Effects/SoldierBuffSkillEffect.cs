@@ -40,8 +40,8 @@ namespace Skill.Effects
                 : 0;
             float duration = definition.GetBuffDuration(level);
 
-            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.MoveSpeed, magnitude, duration));
-            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackSpeed, magnitude, duration));
+            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.MoveSpeed, magnitude, duration, definition));
+            GameBootstrapper.Events?.Publish(new SkillSelfBuffAppliedEvent(EnhancementStatType.AttackSpeed, magnitude, duration, definition));
 
             Vector3 spawnPosition = origin.position + Vector3.up * definition.VfxHeightOffset;
             Transform followTarget = definition.VfxFollowCaster ? origin : null;
