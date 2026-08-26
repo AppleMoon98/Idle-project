@@ -4,6 +4,7 @@ using System.Reflection;
 using Behavior;
 using Character;
 using Character.Events;
+using Combat;
 using Core;
 using Core.Pooling;
 using Dungeon;
@@ -263,6 +264,16 @@ namespace Editor
                 CheckSkillGachaServiceEmptyCatalogPublishesDataErrorToast);
             Check("SkillGachaService_HasAnyLevelableCandidate_ReflectsPerTierMaxLevelState",
                 CheckSkillGachaServiceHasAnyLevelableCandidate);
+
+            // --- 이슈 #23: CharacterSeparation/NearestHealthScan이 틱마다 Physics2D.OverlapXAll로
+            // 배열을 새로 할당하고(캐릭터 34개 프리팹, 헬퍼 호출부 16곳), FindNearest 계열은
+            // 캡처 람다까지 추가로 할당하던 지속적인 GC 압력을 NonAlloc 전환으로 해소 ---
+            Check("NearestHealthScan_FindNearest_CorrectAndZeroAllocAfterWarmup",
+                CheckNearestHealthScanFindNearestCorrectAndZeroAlloc);
+            Check("NearestHealthScan_BufferGrowth_PreservesCorrectness",
+                CheckNearestHealthScanBufferGrowthPreservesCorrectness);
+            Check("CharacterSeparation_PushesApartAndZeroAllocAfterWarmup",
+                CheckCharacterSeparationPushesApartAndZeroAlloc);
 
             // --- 이슈 #12: HUD/팝업이 세로(1080x1920) 전제로만 설계돼 있는데 PlayerSettings가
             // 가로 자동회전까지 허용해 실기기 회전 시 레이아웃이 겹치던 문제 ---
@@ -2237,6 +2248,207 @@ namespace Editor
                 if (mixedCatalog != null) UnityEngine.Object.DestroyImmediate(mixedCatalog);
                 if (maxedSkill != null) UnityEngine.Object.DestroyImmediate(maxedSkill);
                 if (leveledSkill != null) UnityEngine.Object.DestroyImmediate(leveledSkill);
+            }
+        }
+
+        /// <summary>
+        /// 후보 GameObject(CircleCollider2D + Health)를 origin 기준 오프셋 위치에 만든다. Health.
+        /// IsDead는 Awake() 없이도(Edit Mode에서는 자동 호출 안 됨, section GY의 함정) C# 기본값
+        /// false라 이 검사들에는 별도 Awake 리플렉션 호출이 필요 없다 - TakeDamage/Revive를 쓰는
+        /// 검사와 다른 지점.
+        /// </summary>
+        private static GameObject CreateHealthCandidate(string name, Vector3 position)
+        {
+            var go = new GameObject(name);
+            go.transform.position = position;
+            go.AddComponent<CircleCollider2D>().radius = 0.3f;
+            go.AddComponent<Health>();
+            return go;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #23 - NearestHealthScan.FindNearest가 (a) 실제로 가장 가까운 후보를 정확히
+        /// 찾고, (b) 워밍업 이후 반복 호출에서 GC 할당이 0바이트임을 함께 확인한다. 실제 씬 콘텐츠와
+        /// 절대 겹치지 않도록 원점에서 멀리 떨어진 좌표(100000,100000)를 기준으로 후보를 배치한다.
+        /// Physics2D 쿼리는 Edit Mode에서도 동작하지만 마지막 SyncTransforms 이후의 상태만 반영하므로
+        /// (section BO의 함정), 위치를 잡은 뒤 반드시 SyncTransforms를 호출한다.
+        /// </summary>
+        private static void CheckNearestHealthScanFindNearestCorrectAndZeroAlloc()
+        {
+            Vector3 origin = new Vector3(100000f, 100000f, 0f);
+            var candidates = new List<GameObject>();
+
+            try
+            {
+                // 0.5, 1.5, 2.5, ..., 4.5 만큼 떨어진 5개 후보 - 가장 가까운 건 인덱스 0(거리 0.5).
+                for (int i = 0; i < 5; i++)
+                {
+                    candidates.Add(CreateHealthCandidate($"RegressionCheck_NHS_Candidate_{i}", origin + new Vector3(0.5f + i, 0f, 0f)));
+                }
+
+                Physics2D.SyncTransforms();
+
+                Health nearest = NearestHealthScan.FindNearest(origin, 10f, ~0);
+
+                if (nearest == null || nearest.gameObject != candidates[0])
+                {
+                    throw new Exception($"가장 가까운 후보(거리 0.5)를 못 찾음 - 결과: {(nearest == null ? "null" : nearest.gameObject.name)}");
+                }
+
+                // 범위를 벗어난 후보는 걸리지 않아야 한다 - Physics2D.OverlapCircle은 쿼리 반경뿐
+                // 아니라 대상 콜라이더 자신의 반경(0.3)까지 합쳐서 겹침을 판정하므로, 최근접
+                // 거리(0.5)에서 콜라이더 반경(0.3)을 뺀 값(0.2)보다 확실히 작은 쿼리 반경을 써야
+                // 실제로 안 걸린다.
+                Health outOfRange = NearestHealthScan.FindNearest(origin, 0.1f, ~0);
+
+                if (outOfRange != null)
+                {
+                    throw new Exception("범위(0.1, 콜라이더 반경 0.3 포함해도 최근접 0.5보다 확실히 작음) 밖의 후보가 걸림");
+                }
+
+                // 워밍업(버퍼를 이 시나리오에 필요한 크기로 확장) 후 반복 호출은 0바이트여야 한다.
+                NearestHealthScan.FindNearest(origin, 10f, ~0);
+
+                long before = GC.GetAllocatedBytesForCurrentThread();
+
+                for (int i = 0; i < 1000; i++)
+                {
+                    NearestHealthScan.FindNearest(origin, 10f, ~0);
+                }
+
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+                if (allocated != 0)
+                {
+                    throw new Exception($"워밍업 후 1000회 호출에서 {allocated}바이트 할당됨(기대=0)");
+                }
+            }
+            finally
+            {
+                foreach (GameObject go in candidates)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #23 - NearestHealthScan의 공유 버퍼가 가득 찼을 때(이 검사는 시작 크기 32를
+        /// 넘는 40개 후보를 배치) 결과가 잘리지 않고 전부 확장·재시도를 거쳐 정확한 최근접을
+        /// 찾는지 확인한다. 다른 검사가 이미 버퍼를 키워놨을 수 있어(static 공유) BufferGrowthCount
+        /// 절대값이 아니라 "이 검사 도중 변화가 있었는지"만 비교한다.
+        /// </summary>
+        private static void CheckNearestHealthScanBufferGrowthPreservesCorrectness()
+        {
+            Vector3 origin = new Vector3(200000f, 200000f, 0f);
+            var candidates = new List<GameObject>();
+
+            try
+            {
+                const int candidateCount = 40;
+
+                for (int i = 0; i < candidateCount; i++)
+                {
+                    // 가장 먼 것부터 배치하고 마지막(인덱스 candidateCount-1)을 가장 가깝게 둬서,
+                    // 버퍼 뒤쪽에 몰린 결과도 놓치지 않는지 확인한다.
+                    float distance = candidateCount - i;
+                    candidates.Add(CreateHealthCandidate($"RegressionCheck_NHS_Growth_{i}", origin + new Vector3(distance, 0f, 0f)));
+                }
+
+                Physics2D.SyncTransforms();
+
+                int growthBefore = NearestHealthScan.BufferGrowthCount;
+                Health nearest = NearestHealthScan.FindNearest(origin, candidateCount + 10f, ~0);
+                int growthAfter = NearestHealthScan.BufferGrowthCount;
+
+                if (nearest == null || nearest.gameObject != candidates[candidateCount - 1])
+                {
+                    throw new Exception($"40개 후보 중 가장 가까운 것(거리 1)을 못 찾음 - 버퍼 확장 도중 결과 유실 의심. 결과: {(nearest == null ? "null" : nearest.gameObject.name)}");
+                }
+
+                if (growthAfter < growthBefore)
+                {
+                    throw new Exception("BufferGrowthCount가 감소함(있을 수 없는 상태)");
+                }
+            }
+            finally
+            {
+                foreach (GameObject go in candidates)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #23 - CharacterSeparation이 (a) 겹친 두 캐릭터를 실제로 서로 밀어내고,
+        /// (b) 워밍업 이후 반복 틱에서 GC 할당이 0바이트임을 함께 확인한다. Awake()/OnEnable()은
+        /// Edit Mode에서 자동 호출되지 않고(ExecuteAlways 없음) OnEnable()이 TickerRegistration을
+        /// 통해 GameTicker 등록까지 시도하므로, 그 경로를 아예 타지 않고 _collider/_bodyRadius를
+        /// 리플렉션으로 직접 채운 뒤 ITickable.Tick()만 직접 호출한다.
+        /// </summary>
+        private static void CheckCharacterSeparationPushesApartAndZeroAlloc()
+        {
+            Vector3 basePosition = new Vector3(300000f, 300000f, 0f);
+            GameObject goA = null;
+            GameObject goB = null;
+
+            try
+            {
+                goA = new GameObject("RegressionCheck_Separation_A");
+                goA.transform.position = basePosition;
+                var colliderA = goA.AddComponent<CircleCollider2D>();
+                colliderA.radius = 0.5f;
+                var separationA = goA.AddComponent<CharacterSeparation>();
+
+                goB = new GameObject("RegressionCheck_Separation_B");
+                // 반지름 합(1.0)보다 가깝게 겹쳐서 배치 - 밀어내야 하는 상태.
+                goB.transform.position = basePosition + new Vector3(0.4f, 0f, 0f);
+                var colliderB = goB.AddComponent<CircleCollider2D>();
+                colliderB.radius = 0.5f;
+                var separationB = goB.AddComponent<CharacterSeparation>();
+
+                SetPrivateField(separationA, "_collider", colliderA);
+                SetPrivateField(separationA, "_bodyRadius", 0.5f);
+                SetPrivateField(separationB, "_collider", colliderB);
+                SetPrivateField(separationB, "_bodyRadius", 0.5f);
+
+                Physics2D.SyncTransforms();
+
+                float distanceBefore = Vector3.Distance(goA.transform.position, goB.transform.position);
+
+                ((ITickable)separationA).Tick(0.1f);
+                ((ITickable)separationB).Tick(0.1f);
+                Physics2D.SyncTransforms();
+
+                float distanceAfter = Vector3.Distance(goA.transform.position, goB.transform.position);
+
+                if (distanceAfter <= distanceBefore)
+                {
+                    throw new Exception($"겹친 두 캐릭터가 서로 안 밀려남 - 틱 전 거리 {distanceBefore:F3}, 틱 후 거리 {distanceAfter:F3}");
+                }
+
+                // 워밍업 후 반복 틱은 0바이트여야 한다.
+                ((ITickable)separationA).Tick(0.1f);
+
+                long before = GC.GetAllocatedBytesForCurrentThread();
+
+                for (int i = 0; i < 1000; i++)
+                {
+                    ((ITickable)separationA).Tick(0.1f);
+                }
+
+                long allocated = GC.GetAllocatedBytesForCurrentThread() - before;
+
+                if (allocated != 0)
+                {
+                    throw new Exception($"워밍업 후 1000회 Tick에서 {allocated}바이트 할당됨(기대=0)");
+                }
+            }
+            finally
+            {
+                if (goA != null) UnityEngine.Object.DestroyImmediate(goA);
+                if (goB != null) UnityEngine.Object.DestroyImmediate(goB);
             }
         }
 

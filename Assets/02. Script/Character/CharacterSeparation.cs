@@ -1,3 +1,4 @@
+using System;
 using Core;
 using UnityEngine;
 
@@ -33,6 +34,19 @@ namespace Character
         private CircleCollider2D _collider;
         private float _bodyRadius;
 
+        // 34개 캐릭터 프리팹 전체가 매 틱 이 컴포넌트를 하나씩 갖고 도는데, 기존 코드는 틱마다
+        // Physics2D.OverlapCircleAll로 새 배열을 할당하고 있었다(GitHub 이슈 #23 - 지속적인 GC
+        // 압력의 핵심 원인). GameTicker.Update()가 모든 ITickable.Tick()을 한 스레드에서 순차
+        // 호출하므로(재진입 없음), 인스턴스마다 배열을 따로 두지 않고 static 버퍼 하나를 전부가
+        // 공유해도 안전하다 - 이렇게 하면 34개 인스턴스가 아니라 게임 전체에서 배열 하나만 존재한다.
+        private static Collider2D[] _overlapBuffer = new Collider2D[16];
+
+        /// <summary>
+        /// _overlapBuffer가 지금까지 실제로 확장된 횟수(진단용, GitHub 이슈 #23) - 정상 밀집도에서는
+        /// 0(또는 세션 초반 한두 번)에서 멈춰야 한다. 계속 늘어난다면 시작 크기(16)를 키우는 게 낫다.
+        /// </summary>
+        public static int BufferGrowthCount { get; private set; }
+
         /// <summary>
         /// 넉백 등 외부 시스템이 순간적으로 밀어내는 양을 계산할 때 같은 기준(콜라이더 반지름)을
         /// 쓸 수 있도록 공개한다.
@@ -60,11 +74,23 @@ namespace Character
             Vector2 position = transform.position;
             Vector2 push = Vector2.zero;
 
-            Collider2D[] overlaps = Physics2D.OverlapCircleAll(position, _bodyRadius * 2f);
+            // 레이어 마스크를 안 넘기던 기존 OverlapCircleAll(position, radius) 2-인자 오버로드와
+            // 동일하게(GitHub 이슈 #23), useLayerMask는 기본값 false로 둬 전 레이어를 그대로
+            // 스캔한다. useTriggers는 프로젝트 전역 설정(Physics2D.queriesHitTriggers)을 그대로
+            // 따라야 레거시 All 계열 오버로드와 정확히 같은 결과를 낸다.
+            var filter = new ContactFilter2D { useTriggers = Physics2D.queriesHitTriggers };
+            int count = Physics2D.OverlapCircle(position, _bodyRadius * 2f, filter, _overlapBuffer);
 
-            for (int i = 0; i < overlaps.Length; i++)
+            while (count == _overlapBuffer.Length)
             {
-                Collider2D other = overlaps[i];
+                Array.Resize(ref _overlapBuffer, _overlapBuffer.Length * 2);
+                BufferGrowthCount++;
+                count = Physics2D.OverlapCircle(position, _bodyRadius * 2f, filter, _overlapBuffer);
+            }
+
+            for (int i = 0; i < count; i++)
+            {
+                Collider2D other = _overlapBuffer[i];
 
                 if (other == null || other.gameObject == gameObject || !other.TryGetComponent(out CharacterSeparation otherSeparation))
                 {
@@ -91,7 +117,7 @@ namespace Character
                     continue;
                 }
 
-                Vector2 direction = distance > 0.0001f ? delta / distance : Random.insideUnitCircle.normalized;
+                Vector2 direction = distance > 0.0001f ? delta / distance : UnityEngine.Random.insideUnitCircle.normalized;
                 push += direction * (minDistance - distance);
             }
 
