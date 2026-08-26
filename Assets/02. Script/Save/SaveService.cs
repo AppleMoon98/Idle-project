@@ -632,7 +632,15 @@ namespace Save
                 return;
             }
 
-            _skillLoadout.RestoreSnapshot(blob.Slots, _skillCatalog);
+            // GitHub 이슈 #32 - SkillLoadoutService.RestoreSnapshot이 이제 폐기 건수를 구조화된
+            // 결과로 돌려주므로, 뭔가 버려졌을 때만(정상 세이브는 거의 항상 0건) 콘솔에 경고를
+            // 남긴다 - 이슈 #7/#26/#31이 이미 쓰는 "[SaveService] ..." 로그 관례를 그대로 재사용한다.
+            SkillLoadoutService.RestoreResult loadoutResult = _skillLoadout.RestoreSnapshot(blob.Slots, _skillCatalog);
+
+            if (loadoutResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 스킬 장착 슬롯 복원 중 {loadoutResult.TotalDiscarded}건을 버림(범위 밖 슬롯={loadoutResult.DiscardedOutOfRangeSlot}, 카탈로그 없음={loadoutResult.DiscardedMissingCatalogEntry}, 미습득={loadoutResult.DiscardedUnlearnedSkill}, 중복 장착={loadoutResult.DiscardedDuplicateDefinition}) - 복원={loadoutResult.RestoredCount}건.");
+            }
         }
 
         /// <summary>
@@ -648,7 +656,12 @@ namespace Save
                 return;
             }
 
-            _skillLoadout.RestoreDisabledSlots(blob.DisabledSlots);
+            SkillLoadoutService.DisabledSlotsRestoreResult enabledResult = _skillLoadout.RestoreDisabledSlots(blob.DisabledSlots);
+
+            if (enabledResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 스킬 자동 발동 상태 복원 중 {enabledResult.DiscardedOutOfRangeSlot}건을 버림(범위 밖 슬롯) - 복원={enabledResult.RestoredCount}건.");
+            }
         }
 
         /// <summary>

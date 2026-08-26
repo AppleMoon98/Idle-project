@@ -257,20 +257,73 @@ namespace Skill
         }
 
         /// <summary>
-        /// 저장된 스냅샷으로 장착 상태를 복원한다. 시딩이라 이벤트를 발행하지 않는다
-        /// (InventoryService.RestoreSnapshot과 동일한 이유).
+        /// SkillLoadoutService.RestoreSnapshot의 폐기 건수를 구조화된 결과로 돌려준다
+        /// (Soldier.SoldierRosterService.RestoreResult/Inventory.InventoryService.RestoreResult와
+        /// 동일한 형태, GitHub 이슈 #26/#31/#32).
         /// </summary>
-        public void RestoreSnapshot(SkillLoadoutSnapshotEntry[] snapshot, SkillCatalogSO catalog)
+        public readonly struct RestoreResult
         {
-            if (snapshot == null)
+            public readonly int RestoredCount;
+            public readonly int DiscardedOutOfRangeSlot;
+            public readonly int DiscardedMissingCatalogEntry;
+            public readonly int DiscardedUnlearnedSkill;
+            public readonly int DiscardedDuplicateDefinition;
+
+            public RestoreResult(int restoredCount, int discardedOutOfRangeSlot, int discardedMissingCatalogEntry, int discardedUnlearnedSkill, int discardedDuplicateDefinition)
             {
-                return;
+                RestoredCount = restoredCount;
+                DiscardedOutOfRangeSlot = discardedOutOfRangeSlot;
+                DiscardedMissingCatalogEntry = discardedMissingCatalogEntry;
+                DiscardedUnlearnedSkill = discardedUnlearnedSkill;
+                DiscardedDuplicateDefinition = discardedDuplicateDefinition;
             }
 
-            foreach (SkillLoadoutSnapshotEntry entry in snapshot)
+            public int TotalDiscarded => DiscardedOutOfRangeSlot + DiscardedMissingCatalogEntry + DiscardedUnlearnedSkill + DiscardedDuplicateDefinition;
+
+            public bool HasDiscardedEntries => TotalDiscarded > 0;
+        }
+
+        /// <summary>
+        /// 저장된 스냅샷으로 장착 상태를 복원한다. 시딩이라 이벤트를 발행하지 않는다
+        /// (InventoryService.RestoreSnapshot과 동일한 이유).
+        ///
+        /// GitHub 이슈 #32 - TryEquip이 강제하는 불변조건(레벨 1 이상, 슬롯당 서로 다른 스킬)을
+        /// 복원 경로에서는 전혀 검증하지 않아, 손상된/수동 편집된 저장 데이터가 미습득 스킬이나
+        /// 같은 스킬의 중복 장착을 그대로 런타임 상태로 만들 수 있었다(이슈의 실제 재현: 레벨 0인
+        /// 스킬을 슬롯 0/1에 동시에 넣으면 TryEquipUnlearned=False인데도 restoredSlot0/1이 둘 다
+        /// True). 매 호출마다 먼저 _slots를 전부 비워(연속 복원 시 이전 저장의 잔류 장착이 남지
+        /// 않도록) SlotIndex 오름차순으로 정렬해 처리한다 - 정렬해야 "첫 항목 우선" 중복 정책이
+        /// 저장 배열의 원래 순서와 무관하게 항상 낮은 슬롯 인덱스를 우선하는 결정적인 결과를 낸다.
+        /// 항목마다 슬롯 범위, 카탈로그 존재, 레벨 1 이상, 이미 이번 복원에서 다른 슬롯에 배정된
+        /// 스킬인지(FindEquippedSlot으로 조회 - 이미 커밋된 _slots를 그대로 재사용)를 순서대로
+        /// 검사해 하나라도 어긋나면 그 항목만 통째로 버리고 나머지 유효 항목은 계속 복원한다.
+        /// </summary>
+        public RestoreResult RestoreSnapshot(SkillLoadoutSnapshotEntry[] snapshot, SkillCatalogSO catalog)
+        {
+            for (int i = 0; i < SlotCount; i++)
+            {
+                _slots[i] = null;
+            }
+
+            if (snapshot == null)
+            {
+                return new RestoreResult(0, 0, 0, 0, 0);
+            }
+
+            var ordered = new List<SkillLoadoutSnapshotEntry>(snapshot);
+            ordered.Sort((a, b) => a.SlotIndex.CompareTo(b.SlotIndex));
+
+            int restoredCount = 0;
+            int discardedOutOfRange = 0;
+            int discardedMissingCatalog = 0;
+            int discardedUnlearned = 0;
+            int discardedDuplicate = 0;
+
+            foreach (SkillLoadoutSnapshotEntry entry in ordered)
             {
                 if (!IsValidSlot(entry.SlotIndex))
                 {
+                    discardedOutOfRange++;
                     continue;
                 }
 
@@ -278,11 +331,27 @@ namespace Skill
 
                 if (definition == null)
                 {
+                    discardedMissingCatalog++;
+                    continue;
+                }
+
+                if (_skillService.GetLevel(definition) < 1)
+                {
+                    discardedUnlearned++;
+                    continue;
+                }
+
+                if (FindEquippedSlot(definition) >= 0)
+                {
+                    discardedDuplicate++;
                     continue;
                 }
 
                 _slots[entry.SlotIndex] = definition;
+                restoredCount++;
             }
+
+            return new RestoreResult(restoredCount, discardedOutOfRange, discardedMissingCatalog, discardedUnlearned, discardedDuplicate);
         }
 
         /// <summary>
@@ -304,22 +373,57 @@ namespace Skill
         }
 
         /// <summary>
-        /// 저장된 꺼진 슬롯 목록으로 켜짐/꺼짐 상태를 복원한다. 시딩이라 이벤트를 발행하지 않는다.
+        /// RestoreDisabledSlots의 폐기 건수를 구조화된 결과로 돌려준다(GitHub 이슈 #32).
         /// </summary>
-        public void RestoreDisabledSlots(int[] disabledSlotIndices)
+        public readonly struct DisabledSlotsRestoreResult
         {
+            public readonly int RestoredCount;
+            public readonly int DiscardedOutOfRangeSlot;
+
+            public DisabledSlotsRestoreResult(int restoredCount, int discardedOutOfRangeSlot)
+            {
+                RestoredCount = restoredCount;
+                DiscardedOutOfRangeSlot = discardedOutOfRangeSlot;
+            }
+
+            public bool HasDiscardedEntries => DiscardedOutOfRangeSlot > 0;
+        }
+
+        /// <summary>
+        /// 저장된 꺼진 슬롯 목록으로 켜짐/꺼짐 상태를 복원한다. 시딩이라 이벤트를 발행하지 않는다.
+        ///
+        /// GitHub 이슈 #32 - 매 호출마다 먼저 전체 슬롯을 기본값(켜짐)으로 되돌린 뒤 저장된
+        /// 꺼진 슬롯만 다시 끈다 - RestoreSnapshot과 같은 이유로, 연속 복원 시 이전 저장의
+        /// "꺼짐" 상태가 새 저장에 없는데도 잔류하는 것을 막는다.
+        /// </summary>
+        public DisabledSlotsRestoreResult RestoreDisabledSlots(int[] disabledSlotIndices)
+        {
+            for (int i = 0; i < SlotCount; i++)
+            {
+                _enabled[i] = true;
+            }
+
             if (disabledSlotIndices == null)
             {
-                return;
+                return new DisabledSlotsRestoreResult(0, 0);
             }
+
+            int restoredCount = 0;
+            int discardedOutOfRange = 0;
 
             foreach (int slotIndex in disabledSlotIndices)
             {
-                if (IsValidSlot(slotIndex))
+                if (!IsValidSlot(slotIndex))
                 {
-                    _enabled[slotIndex] = false;
+                    discardedOutOfRange++;
+                    continue;
                 }
+
+                _enabled[slotIndex] = false;
+                restoredCount++;
             }
+
+            return new DisabledSlotsRestoreResult(restoredCount, discardedOutOfRange);
         }
     }
 }

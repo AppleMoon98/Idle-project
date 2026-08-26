@@ -308,6 +308,22 @@ namespace Editor
             Check("EquipmentEnhancementService_TryEnhance_NegativeDuplicatesRequiredConfig_DoesNotInflateCount",
                 CheckEquipmentEnhancementServiceMisconfiguredNegativeCostDoesNotInflate);
 
+            // --- 이슈 #32: SkillLoadoutService.RestoreSnapshot이 TryEquip과 달리 레벨 1
+            // 이상/중복 장착 금지를 검증하지 않아 손상된 저장 데이터가 미습득·중복 장착을
+            // 그대로 런타임 상태로 만들던 문제 ---
+            Check("SkillLoadoutService_RestoreSnapshot_RejectsUnlearnedSkill_NoRestoredEquip",
+                CheckSkillLoadoutServiceRestoreSnapshotRejectsUnlearnedSkill);
+            Check("SkillLoadoutService_RestoreSnapshot_DuplicateLearnedSkillAcrossSlots_LowestSlotWins",
+                CheckSkillLoadoutServiceRestoreSnapshotDuplicateFirstSlotWins);
+            Check("SkillLoadoutService_RestoreSnapshot_ClearsExistingSlotsOnRepeatedCalls",
+                CheckSkillLoadoutServiceRestoreSnapshotClearsOnRepeatedCalls);
+            Check("SkillLoadoutService_RestoreDisabledSlots_ResetsToAllEnabledOnRepeatedCalls",
+                CheckSkillLoadoutServiceRestoreDisabledSlotsResetsOnRepeatedCalls);
+            Check("SkillLoadoutService_RestoreSnapshot_MixedValidAndInvalidEntries_ValidOnesStillRestored",
+                CheckSkillLoadoutServiceRestoreSnapshotMixedEntries);
+            Check("SkillLoadoutService_RestoreSnapshot_RoundTrip_TryEquipAndExportRemainConsistent",
+                CheckSkillLoadoutServiceRestoreSnapshotRoundTripInvariants);
+
             // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
             // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
             // (추적 딕셔너리 불변조건) ---
@@ -3332,6 +3348,400 @@ namespace Editor
                 if (config != null)
                 {
                     UnityEngine.Object.DestroyImmediate(config);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 재현 절차 그대로 - 레벨 0(미습득)인 실제 스킬을 슬롯 0/1에 동시에
+        /// 넣은 스냅샷을 복원한다. 수정 전에는 두 슬롯 모두 채워졌다(이슈의 실제 로그
+        /// "TryEquipUnlearned=False"인데 "restoredSlot0=True, restoredSlot1=True"). 수정 후에는
+        /// RestoreResult.DiscardedUnlearnedSkill=2, RestoredCount=0이어야 하고 두 슬롯 모두 비어야
+        /// 한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreSnapshotRejectsUnlearnedSkill()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            SkillSO skill = null;
+            SkillCatalogSO catalog = null;
+
+            try
+            {
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(skill, "stableId", "issue32-unlearned");
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                // 레벨을 전혀 부여하지 않았으므로 GetLevel(skill) == 0(미습득) 그대로다.
+                if (loadout.TryEquip(0, skill))
+                {
+                    throw new Exception("정상 TryEquip이 미습득 스킬을 장착시킴(테스트 전제 자체가 깨짐)");
+                }
+
+                var snapshot = new[]
+                {
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 0, StableId = "issue32-unlearned" },
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 1, StableId = "issue32-unlearned" },
+                };
+
+                SkillLoadoutService.RestoreResult result = loadout.RestoreSnapshot(snapshot, catalog);
+
+                if (result.RestoredCount != 0)
+                {
+                    throw new Exception($"미습득 스킬 복원 성공 건수가 {result.RestoredCount}(기대=0, GitHub 이슈 #32 재현)");
+                }
+
+                if (result.DiscardedUnlearnedSkill != 2)
+                {
+                    throw new Exception($"미습득으로 폐기된 건수가 {result.DiscardedUnlearnedSkill}(기대=2)");
+                }
+
+                if (loadout.GetEquipped(0) != null || loadout.GetEquipped(1) != null)
+                {
+                    throw new Exception("미습득 스킬 복원 시도 후에도 슬롯 0/1 중 하나 이상이 채워짐");
+                }
+            }
+            finally
+            {
+                if (skill != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(skill);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 완료 조건 - "한 스킬은 최대 한 슬롯에만 결정적으로 복원됨". 이미
+        /// 습득(레벨 1)한 스킬 하나를 슬롯 3과 슬롯 0에 동시에 넣되, 배열 자체는 일부러 슬롯
+        /// 역순(3, 0)으로 저장해둔다 - RestoreSnapshot이 SlotIndex 오름차순으로 정렬한 뒤
+        /// 처리해야 저장 순서와 무관하게 항상 "더 낮은 슬롯 인덱스가 우선"하는 결정적 결과가
+        /// 나온다는 것을 함께 검증한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreSnapshotDuplicateFirstSlotWins()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            SkillSO skill = null;
+            SkillCatalogSO catalog = null;
+
+            try
+            {
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(skill, "stableId", "issue32-dup");
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                skillService.RestoreSnapshot(
+                    new[] { new SkillService.SkillLevelSnapshot { StableId = "issue32-dup", Level = 1 } },
+                    catalog);
+
+                var snapshot = new[]
+                {
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 3, StableId = "issue32-dup" },
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 0, StableId = "issue32-dup" },
+                };
+
+                SkillLoadoutService.RestoreResult result = loadout.RestoreSnapshot(snapshot, catalog);
+
+                if (result.RestoredCount != 1)
+                {
+                    throw new Exception($"복원 성공 건수가 {result.RestoredCount}(기대=1)");
+                }
+
+                if (result.DiscardedDuplicateDefinition != 1)
+                {
+                    throw new Exception($"중복으로 폐기된 건수가 {result.DiscardedDuplicateDefinition}(기대=1)");
+                }
+
+                if (loadout.GetEquipped(0) != skill)
+                {
+                    throw new Exception("낮은 슬롯 인덱스(0)가 아니라 다른 슬롯이 우선됨(결정적 정책 위반)");
+                }
+
+                if (loadout.GetEquipped(3) != null)
+                {
+                    throw new Exception("더 높은 슬롯 인덱스(3)에도 같은 스킬이 남아있음(중복 장착)");
+                }
+            }
+            finally
+            {
+                if (skill != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(skill);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 완료 조건 - "연속 복원 전에 기존 슬롯과 enabled 상태가 기본값으로
+        /// 초기화됨"(슬롯 절반). 첫 복원으로 슬롯 0을 채운 뒤, 두 번째 복원을 빈 스냅샷으로
+        /// 호출하면 슬롯 0이 이전 저장의 잔류값 없이 반드시 비어야 한다 - 계정 전환/데이터
+        /// 초기화 후 재시딩 시나리오를 그대로 재현한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreSnapshotClearsOnRepeatedCalls()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            SkillSO skill = null;
+            SkillCatalogSO catalog = null;
+
+            try
+            {
+                skill = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(skill, "stableId", "issue32-stale");
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { skill });
+
+                skillService.RestoreSnapshot(
+                    new[] { new SkillService.SkillLevelSnapshot { StableId = "issue32-stale", Level = 1 } },
+                    catalog);
+
+                loadout.RestoreSnapshot(
+                    new[] { new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 0, StableId = "issue32-stale" } },
+                    catalog);
+
+                if (loadout.GetEquipped(0) != skill)
+                {
+                    throw new Exception("첫 복원 직후 슬롯 0이 채워지지 않음(테스트 전제 자체가 깨짐)");
+                }
+
+                // 두 번째(다른) 저장을 복원 - 이번엔 아무 슬롯도 채우지 않는 빈 스냅샷.
+                loadout.RestoreSnapshot(Array.Empty<SkillLoadoutService.SkillLoadoutSnapshotEntry>(), catalog);
+
+                if (loadout.GetEquipped(0) != null)
+                {
+                    throw new Exception("두 번째(빈) 복원 이후에도 슬롯 0에 이전 저장의 스킬이 잔류함");
+                }
+            }
+            finally
+            {
+                if (skill != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(skill);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 완료 조건 - "연속 복원 전에 기존 슬롯과 enabled 상태가 기본값으로
+        /// 초기화됨"(나머지 절반, enabled). 첫 복원으로 슬롯 2를 꺼둔 뒤, 두 번째 복원을 빈
+        /// 배열로 호출하면 슬롯 2가 기본값(켜짐)으로 되돌아가야 한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreDisabledSlotsResetsOnRepeatedCalls()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            loadout.RestoreDisabledSlots(new[] { 2 });
+
+            if (loadout.IsEnabled(2))
+            {
+                throw new Exception("첫 복원 직후 슬롯 2가 여전히 켜짐(테스트 전제 자체가 깨짐)");
+            }
+
+            loadout.RestoreDisabledSlots(Array.Empty<int>());
+
+            if (!loadout.IsEnabled(2))
+            {
+                throw new Exception("두 번째(빈) 복원 이후에도 슬롯 2가 꺼진 채로 남음(이전 저장의 잔류 상태)");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 완료 조건 - "잘못된 슬롯 인덱스·빈/알 수 없는 ID·중복·미습득 항목을
+        /// 각각 검증함" + "유효 항목은 손상 항목과 함께 있어도 정상 복원됨". 범위 밖 슬롯, 카탈로그에
+        /// 없는 StableId, 미습득 스킬, 이미 앞에서 배정된 스킬과의 중복, 완전히 유효한 항목을 한
+        /// 스냅샷에 섞어 넣고 RestoreResult의 사유별 카운트와 실제 복원 결과를 확인한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreSnapshotMixedEntries()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            SkillSO learnedA = null;
+            SkillSO unlearnedB = null;
+            SkillCatalogSO catalog = null;
+
+            try
+            {
+                learnedA = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(learnedA, "stableId", "issue32-mixed-learned");
+
+                unlearnedB = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(unlearnedB, "stableId", "issue32-mixed-unlearned");
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { learnedA, unlearnedB });
+
+                skillService.RestoreSnapshot(
+                    new[] { new SkillService.SkillLevelSnapshot { StableId = "issue32-mixed-learned", Level = 1 } },
+                    catalog);
+                // unlearnedB는 의도적으로 레벨을 부여하지 않는다(0강 그대로).
+
+                var snapshot = new[]
+                {
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 99, StableId = "issue32-mixed-learned" }, // 범위 밖
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 1, StableId = "issue32-does-not-exist" }, // 카탈로그 없음
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 2, StableId = "issue32-mixed-unlearned" }, // 미습득
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 4, StableId = "issue32-mixed-learned" }, // 유효(먼저 슬롯 0을 차지한 뒤엔 중복)
+                    new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 0, StableId = "issue32-mixed-learned" }, // 유효(가장 낮은 슬롯)
+                };
+
+                SkillLoadoutService.RestoreResult result = loadout.RestoreSnapshot(snapshot, catalog);
+
+                if (result.RestoredCount != 1)
+                {
+                    throw new Exception($"복원 성공 건수가 {result.RestoredCount}(기대=1)");
+                }
+
+                if (result.DiscardedOutOfRangeSlot != 1)
+                {
+                    throw new Exception($"범위 밖 슬롯으로 폐기된 건수가 {result.DiscardedOutOfRangeSlot}(기대=1)");
+                }
+
+                if (result.DiscardedMissingCatalogEntry != 1)
+                {
+                    throw new Exception($"카탈로그 없음으로 폐기된 건수가 {result.DiscardedMissingCatalogEntry}(기대=1)");
+                }
+
+                if (result.DiscardedUnlearnedSkill != 1)
+                {
+                    throw new Exception($"미습득으로 폐기된 건수가 {result.DiscardedUnlearnedSkill}(기대=1)");
+                }
+
+                if (result.DiscardedDuplicateDefinition != 1)
+                {
+                    throw new Exception($"중복으로 폐기된 건수가 {result.DiscardedDuplicateDefinition}(기대=1)");
+                }
+
+                if (loadout.GetEquipped(0) != learnedA)
+                {
+                    throw new Exception("가장 낮은 슬롯(0)에 유효 항목이 복원되지 않음");
+                }
+
+                if (loadout.GetEquipped(4) != null)
+                {
+                    throw new Exception("더 높은 슬롯(4)에 중복 항목이 남아있음");
+                }
+            }
+            finally
+            {
+                if (learnedA != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(learnedA);
+                }
+
+                if (unlearnedB != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(unlearnedB);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #32 완료 조건 - "복원 후 TryEquip, 자동 시전, 저장 재내보내기의 불변조건이
+        /// 유지됨". 유효한 복원(슬롯 0에 스킬 A) 직후: (1) 다른 슬롯에 다른 학습된 스킬 B를
+        /// TryEquip하면 정상적으로 장착되고 A는 그대로 남아있는지(복원된 상태가 정상 API를
+        /// 방해하지 않음), (2) ExportSnapshot이 복원 직후 상태를 정확히 그대로(딱 1건, 슬롯 0,
+        /// 스킬 A) 재직렬화하는지 확인한다.
+        /// </summary>
+        private static void CheckSkillLoadoutServiceRestoreSnapshotRoundTripInvariants()
+        {
+            var events = new EventBus();
+            var skillService = new SkillService(events);
+            var loadout = new SkillLoadoutService(events, skillService);
+
+            SkillSO skillA = null;
+            SkillSO skillB = null;
+            SkillCatalogSO catalog = null;
+
+            try
+            {
+                skillA = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(skillA, "stableId", "issue32-roundtrip-a");
+
+                skillB = ScriptableObject.CreateInstance<SkillSO>();
+                SetPrivateString(skillB, "stableId", "issue32-roundtrip-b");
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { skillA, skillB });
+
+                skillService.RestoreSnapshot(
+                    new[]
+                    {
+                        new SkillService.SkillLevelSnapshot { StableId = "issue32-roundtrip-a", Level = 1 },
+                        new SkillService.SkillLevelSnapshot { StableId = "issue32-roundtrip-b", Level = 1 },
+                    },
+                    catalog);
+
+                loadout.RestoreSnapshot(
+                    new[] { new SkillLoadoutService.SkillLoadoutSnapshotEntry { SlotIndex = 0, StableId = "issue32-roundtrip-a" } },
+                    catalog);
+
+                if (!loadout.TryEquip(1, skillB))
+                {
+                    throw new Exception("복원된 상태 위에서 정상 TryEquip이 실패함");
+                }
+
+                if (loadout.GetEquipped(0) != skillA || loadout.GetEquipped(1) != skillB)
+                {
+                    throw new Exception("복원 이후 정상 TryEquip을 거쳤는데 슬롯 상태가 기대와 다름");
+                }
+
+                SkillLoadoutService.SkillLoadoutSnapshotEntry[] exported = loadout.ExportSnapshot(catalog);
+
+                if (exported.Length != 2)
+                {
+                    throw new Exception($"복원+정상 장착 이후 ExportSnapshot 항목 수가 {exported.Length}(기대=2)");
+                }
+            }
+            finally
+            {
+                if (skillA != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(skillA);
+                }
+
+                if (skillB != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(skillB);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
                 }
             }
         }
