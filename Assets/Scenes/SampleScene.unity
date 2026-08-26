@@ -204,6 +204,7 @@ MonoBehaviour:
   damageNumberPrefab: {fileID: 1841499651595476301, guid: 5981ddfe0e1efcd46b4bba17efde8de9, type: 3}
   playerTransform: {fileID: 762544236}
   cameraPinchZoom: {fileID: 330585548}
+  stageController: {fileID: 1663688275}
 --- !u!114 &8717673
 MonoBehaviour:
   m_ObjectHideFlags: 0

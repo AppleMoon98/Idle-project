@@ -13,6 +13,7 @@ using Equipment;
 using Gacha;
 using Inventory;
 using Loot;
+using Loot.Events;
 using Offline;
 using Rank;
 using Save;
@@ -355,6 +356,14 @@ namespace Editor
                 CheckSaveServiceFlushActuallyPersistsSafely);
             Check("GameBootstrapper_OnApplicationPauseAndQuit_RouteThroughFlushPendingChanges",
                 CheckGameBootstrapperLifecycleUsesFlushPendingChanges);
+
+
+            // --- 이슈 #29: 던전(강화석/스킬/보스/병사 구출) 오버레이 몬스터가 던전 진입 전
+            // 일반 스테이지의 골드·장비 드롭까지 중복 지급하던 문제 ---
+            Check("LootDropper_OnCharacterDied_SkipsNormalDropsWhileOverlayActive",
+                CheckLootDropperSkipsNormalDropsDuringOverlay);
+            Check("LootDropper_OnCharacterDied_ResumesNormalDropsAfterOverlayEnds",
+                CheckLootDropperResumesNormalDropsAfterOverlay);
 
             total = localTotal;
             failures = localFailures;
@@ -4069,6 +4078,193 @@ namespace Editor
                 }
 
                 saveService.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// 100% 확률 골드(minGold=maxGold=100)/100% 확률 장비 드롭을 가진 합성 일반 스테이지를
+        /// 만들고, StageChangedEvent를 발행해 LootDropper의 _currentStage로 추적시킨다
+        /// (GitHub 이슈 #29 검사 전용 헬퍼) - 이슈의 실제 재현 절차와 동일하게 "던전 진입 전
+        /// 마지막 일반 스테이지"를 확률 0/1이 아닌 결정론적 값으로 구성해, 우연한 난수 결과에
+        /// 기대지 않고 매번 같은 결과를 확인할 수 있게 한다.
+        /// </summary>
+        private static StageSO CreateGuaranteedDropStage(EventBus events, out EquipmentSO equipment)
+        {
+            equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+
+            var dropEntry = new EquipmentDropEntry();
+            SetPrivateFieldOnPlainObject(dropEntry, "equipment", equipment);
+            SetPrivateFieldOnPlainObject(dropEntry, "dropChance", 1f);
+
+            var stage = ScriptableObject.CreateInstance<StageSO>();
+            SetPrivateFieldOnPlainObject(stage, "chapter", 6);
+            SetPrivateFieldOnPlainObject(stage, "stageNumber", 1);
+            SetPrivateFieldOnPlainObject(stage, "equipmentDrops", new[] { dropEntry });
+
+            events.Publish(new StageChangedEvent(6, 1, true));
+
+            return stage;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #29 재현 절차 - 던전 진입 전 마지막 일반 스테이지(100% 골드+장비 드롭)를
+        /// 추적해둔 상태에서, StageController.IsOverlayActive가 true인 동안 "던전 보스"
+        /// (MonsterLootProvider 보유)가 100번 죽어도 일반 GoldEarnedEvent/ItemDroppedEvent가
+        /// 전혀 발행되지 않는지 확인한다(수정 전에는 100번 모두 골드가 추가 발행됐다 - 이슈의
+        /// 실제 로그와 동일한 시나리오).
+        /// </summary>
+        private static void CheckLootDropperSkipsNormalDropsDuringOverlay()
+        {
+            var events = new EventBus();
+            StageCatalogSO catalog = ScriptableObject.CreateInstance<StageCatalogSO>();
+            StageSO stage = CreateGuaranteedDropStage(events, out EquipmentSO equipment);
+            SetPrivateFieldOnPlainObject(catalog, "stages", new[] { stage });
+
+            GameObject stageControllerGo = null;
+            GameObject dungeonBossGo = null;
+            MonsterLootSO monsterLoot = null;
+
+            int goldEvents = 0;
+            int equipmentEvents = 0;
+            Action<GoldEarnedEvent> onGold = _ => goldEvents++;
+            Action<ItemDroppedEvent> onItem = _ => equipmentEvents++;
+
+            LootDropper dropper = null;
+
+            try
+            {
+                // LootDropper의 생성자가 events.Subscribe<StageChangedEvent>를 걸기 전에 이미
+                // 발행된 CreateGuaranteedDropStage의 StageChangedEvent는 못 받으므로, catalog를
+                // 만든 뒤 LootDropper를 생성하고 나서 다시 한 번 발행해 _currentStage를 확정한다.
+                stageControllerGo = new GameObject("RegressionCheck_LootDropper_StageController");
+                stageControllerGo.SetActive(false);
+                StageController stageController = stageControllerGo.AddComponent<StageController>();
+
+                FieldInfo isOverlayActiveBackingField = typeof(StageController).GetField(
+                    "<IsOverlayActive>k__BackingField", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (isOverlayActiveBackingField == null)
+                {
+                    throw new Exception("StageController.IsOverlayActive의 백킹 필드를 찾지 못함 - 자동 프로퍼티 구현이 바뀌었는지 확인");
+                }
+
+                isOverlayActiveBackingField.SetValue(stageController, true);
+
+                dropper = new LootDropper(events, catalog, null, stageController);
+                events.Publish(new StageChangedEvent(6, 1, true));
+
+                events.Subscribe(onGold);
+                events.Subscribe(onItem);
+
+                monsterLoot = ScriptableObject.CreateInstance<MonsterLootSO>();
+                SetPrivateFieldOnPlainObject(monsterLoot, "minGold", 100);
+                SetPrivateFieldOnPlainObject(monsterLoot, "maxGold", 100);
+                SetPrivateFieldOnPlainObject(monsterLoot, "dropChance", 1f);
+
+                dungeonBossGo = new GameObject("RegressionCheck_LootDropper_DungeonBoss");
+                MonsterLootProvider provider = dungeonBossGo.AddComponent<MonsterLootProvider>();
+                SetPrivateField(provider, "loot", monsterLoot);
+
+                for (int i = 0; i < 100; i++)
+                {
+                    events.Publish(new CharacterDiedEvent(dungeonBossGo));
+                }
+
+                if (goldEvents != 0)
+                {
+                    throw new Exception($"IsOverlayActive=true인데도 던전 보스 사망 100회가 GoldEarnedEvent를 {goldEvents}회 발행함(기대=0, GitHub 이슈 #29 재현)");
+                }
+
+                if (equipmentEvents != 0)
+                {
+                    throw new Exception($"IsOverlayActive=true인데도 던전 보스 사망 100회가 ItemDroppedEvent를 {equipmentEvents}회 발행함(기대=0)");
+                }
+            }
+            finally
+            {
+                events.Unsubscribe(onGold);
+                events.Unsubscribe(onItem);
+                dropper?.Dispose();
+
+                if (dungeonBossGo != null) UnityEngine.Object.DestroyImmediate(dungeonBossGo);
+                if (stageControllerGo != null) UnityEngine.Object.DestroyImmediate(stageControllerGo);
+                if (monsterLoot != null) UnityEngine.Object.DestroyImmediate(monsterLoot);
+                if (equipment != null) UnityEngine.Object.DestroyImmediate(equipment);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #29 완료 조건 - "던전 종료 후 일반 스테이지 몬스터 드롭은 정상 복구됨".
+        /// IsOverlayActive가 false인 평범한 상황에서는 MonsterLootProvider를 가진 몬스터가 죽으면
+        /// 여전히 정상적으로 골드/장비 이벤트가 발행되는지 확인한다 - 이번 수정이 정상 드롭 자체를
+        /// 망가뜨리지 않았는지 확인하는 회귀 방지 검사.
+        /// </summary>
+        private static void CheckLootDropperResumesNormalDropsAfterOverlay()
+        {
+            var events = new EventBus();
+            StageCatalogSO catalog = ScriptableObject.CreateInstance<StageCatalogSO>();
+            StageSO stage = CreateGuaranteedDropStage(events, out EquipmentSO equipment);
+            SetPrivateFieldOnPlainObject(catalog, "stages", new[] { stage });
+
+            GameObject stageControllerGo = null;
+            GameObject monsterGo = null;
+            MonsterLootSO monsterLoot = null;
+
+            int goldEvents = 0;
+            int equipmentEvents = 0;
+            Action<GoldEarnedEvent> onGold = _ => goldEvents++;
+            Action<ItemDroppedEvent> onItem = _ => equipmentEvents++;
+
+            LootDropper dropper = null;
+
+            try
+            {
+                stageControllerGo = new GameObject("RegressionCheck_LootDropper_StageController_Normal");
+                stageControllerGo.SetActive(false);
+                StageController stageController = stageControllerGo.AddComponent<StageController>();
+                // IsOverlayActive는 자동 프로퍼티 기본값(false) 그대로 - 평범한 실전투 상황.
+
+                dropper = new LootDropper(events, catalog, null, stageController);
+                events.Publish(new StageChangedEvent(6, 1, true));
+
+                events.Subscribe(onGold);
+                events.Subscribe(onItem);
+
+                monsterLoot = ScriptableObject.CreateInstance<MonsterLootSO>();
+                SetPrivateFieldOnPlainObject(monsterLoot, "minGold", 100);
+                SetPrivateFieldOnPlainObject(monsterLoot, "maxGold", 100);
+                SetPrivateFieldOnPlainObject(monsterLoot, "dropChance", 1f);
+
+                monsterGo = new GameObject("RegressionCheck_LootDropper_NormalMonster");
+                MonsterLootProvider provider = monsterGo.AddComponent<MonsterLootProvider>();
+                SetPrivateField(provider, "loot", monsterLoot);
+
+                events.Publish(new CharacterDiedEvent(monsterGo));
+
+                if (goldEvents != 1)
+                {
+                    throw new Exception($"IsOverlayActive=false인 평범한 처치인데 GoldEarnedEvent가 {goldEvents}회 발행됨(기대=1) - 정상 드롭 자체가 망가짐");
+                }
+
+                if (equipmentEvents != 1)
+                {
+                    throw new Exception($"IsOverlayActive=false인 평범한 처치인데 ItemDroppedEvent가 {equipmentEvents}회 발행됨(기대=1, 100% 확률 드롭 테이블) - 정상 드롭 자체가 망가짐");
+                }
+            }
+            finally
+            {
+                events.Unsubscribe(onGold);
+                events.Unsubscribe(onItem);
+                dropper?.Dispose();
+
+                if (monsterGo != null) UnityEngine.Object.DestroyImmediate(monsterGo);
+                if (stageControllerGo != null) UnityEngine.Object.DestroyImmediate(stageControllerGo);
+                if (monsterLoot != null) UnityEngine.Object.DestroyImmediate(monsterLoot);
+                if (equipment != null) UnityEngine.Object.DestroyImmediate(equipment);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
             }
         }
 

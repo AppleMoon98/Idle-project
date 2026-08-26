@@ -111,6 +111,11 @@ namespace Core
         [SerializeField]
         private UI.CameraPinchZoomUI cameraPinchZoom;
 
+        // GitHub 이슈 #29 - LootDropper가 던전/승급전 오버레이 중에는 일반 스테이지 드롭을
+        // 건너뛰기 위해 StageController.IsOverlayActive를 참조해야 한다.
+        [SerializeField]
+        private StageController stageController;
+
         /// <summary>
         /// Awake에서 등록한 모든 IManager 인스턴스를 등록 순서대로 모아둔다. 각 서비스의 Shutdown()은
         /// 자기 자신의 이벤트 구독 해제/내부 상태 초기화만 하고 다른 서비스를 참조하지 않으므로
@@ -388,7 +393,7 @@ namespace Core
                 offlineStageSimulator,
                 maxOfflineHours * 3600f);
 
-            _lootDropper = new LootDropper(Events, stageCatalog, stageDifficultyConfig);
+            _lootDropper = new LootDropper(Events, stageCatalog, stageDifficultyConfig, stageController);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
             _rareGachaTicketDropService = new RareGachaTicketDropService(Events, stageCatalog, equipmentGachaTicketService, soldierTicketService, skillScrollService);
         }
