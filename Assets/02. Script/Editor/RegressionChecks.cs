@@ -171,6 +171,11 @@ namespace Editor
             Check("SoldierRescueDungeonSessionController_TrySpawnZones_NoPoolManager_ReturnsFalse",
                 () => AssertTrySpawnCollectionReturnsFalse<SoldierRescueDungeonSessionController>("TrySpawnZones", "_activeZones"));
 
+            // --- 이슈 #20 추가 코멘트(2026-08-26): PracticeStageController가 같은 안티패턴을
+            // 재발시킴(section GK 이후 신규 기능) ---
+            Check("PracticeStageController_TryEnter_NoPoolManager_ReturnsFalse",
+                CheckPracticeStageControllerTryEnterNoPoolManagerReturnsFalse);
+
             // --- 이슈 #8: 재화 서비스가 음수/0 소비·지급 요청을 거부(TrySpend*(-5)가 잔액을
             // 늘리는 버그 방지), 저장 복원 시 음수 초기값을 0으로 클램프 ---
             Check("CurrencyService_RejectsNonPositiveAmounts", CheckCurrencyServiceRejectsNonPositiveAmounts);
@@ -657,6 +662,64 @@ namespace Editor
             finally
             {
                 UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #20의 2026-08-26 추가 코멘트 - PracticeStageController(section GK에서 이슈
+        /// #20 수정 이후 새로 추가된 기능)가 다른 6개 오버레이 컨트롤러와 같은 "스폰 성공 확인 전에
+        /// 상태부터 커밋" 안티패턴을 재발시켰던 것을 확인한다. TrySpawnDummy()가 PoolManager 없이
+        /// 실패하면 TryEnter() 전체가 false를 반환하고 IsActive/_dummyInstance 둘 다 그대로여야
+        /// 한다. stageController.IsOverlayActive는 AddComponent 직후(Awake 미실행) C# bool 기본값인
+        /// false라 별도 초기화 없이도 TryEnter()의 앞쪽 가드를 통과해 TrySpawnDummy()까지 도달한다.
+        /// </summary>
+        private static void CheckPracticeStageControllerTryEnterNoPoolManagerReturnsFalse()
+        {
+            var go = new GameObject("RegressionCheck_PracticeStageController");
+            go.SetActive(false);
+
+            var stageControllerGo = new GameObject("RegressionCheck_PracticeStageController_StageController");
+            stageControllerGo.SetActive(false);
+
+            var dummyPrefab = new GameObject("RegressionCheck_PracticeStageController_DummyPrefab");
+            dummyPrefab.SetActive(false);
+
+            try
+            {
+                var stageController = stageControllerGo.AddComponent<Stage.StageController>();
+                var controller = go.AddComponent<Stage.PracticeStageController>();
+                SetPrivateField(controller, "stageController", stageController);
+                SetPrivateField(controller, "dummyPrefab", dummyPrefab);
+
+                WithNullServices(() =>
+                {
+                    bool success = controller.TryEnter();
+
+                    if (success)
+                    {
+                        throw new Exception("PoolManager 없이도 TryEnter()가 true를 반환함");
+                    }
+                });
+
+                if (controller.IsActive)
+                {
+                    throw new Exception("TryEnter() 실패 후에도 IsActive가 true로 남음");
+                }
+
+                FieldInfo dummyInstanceField = typeof(Stage.PracticeStageController).GetField(
+                    "_dummyInstance", BindingFlags.NonPublic | BindingFlags.Instance);
+                object dummyInstance = dummyInstanceField?.GetValue(controller);
+
+                if (dummyInstance != null)
+                {
+                    throw new Exception("TryEnter() 실패 후에도 _dummyInstance가 채워져 있음");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
+                UnityEngine.Object.DestroyImmediate(stageControllerGo);
+                UnityEngine.Object.DestroyImmediate(dummyPrefab);
             }
         }
 

@@ -2,6 +2,7 @@ using Character;
 using Core;
 using Dungeon;
 using Managers;
+using UI.Events;
 using UnityEngine;
 
 namespace Stage
@@ -34,7 +35,11 @@ namespace Stage
         /// <summary>
         /// 연습 스테이지에 진입한다. 이미 진행 중이거나 다른 오버레이(던전 등)가 이미 켜져 있으면
         /// (stageController.IsOverlayActive) 아무 일도 하지 않고 false를 반환한다 - 호출부(UI)가
-        /// 이 경우 던전 중 사용 불가 안내를 띄운다.
+        /// 이 경우 던전 중 사용 불가 안내를 띄운다. 허수아비 스폰을 먼저 시도해 성공했을 때만
+        /// IsActive/PauseForOverlay를 커밋한다(GitHub 이슈 #20 - Gold/Stone 던전, 랭크 승급전 등
+        /// 다른 오버레이 컨트롤러들이 이미 쓰는 "준비→생성→커밋" 순서와 동일). PoolManager 미등록
+        /// 등으로 스폰이 실패하면 상태를 전혀 안 바꾸고 토스트만 안내한다 - 롤백할 상태 자체가
+        /// 없으므로 별도 정리가 필요 없다.
         /// </summary>
         public bool TryEnter()
         {
@@ -43,10 +48,14 @@ namespace Stage
                 return false;
             }
 
-            IsActive = true;
+            if (!TrySpawnDummy())
+            {
+                PublishSpawnFailureToast();
+                return false;
+            }
 
+            IsActive = true;
             stageController.PauseForOverlay("연습 스테이지");
-            SpawnDummy();
 
             return true;
         }
@@ -67,11 +76,16 @@ namespace Stage
             stageController?.ResumeAfterOverlay();
         }
 
-        private void SpawnDummy()
+        /// <summary>
+        /// 허수아비 프리팹을 스폰한다. PoolManager를 못 구하면 false를 반환하고 아무 상태도
+        /// 바꾸지 않는다 - 호출부(TryEnter)가 성공을 확인하기 전까지는 IsActive를 켜지 않으므로,
+        /// 실패해도 롤백할 게 없다(GitHub 이슈 #20).
+        /// </summary>
+        private bool TrySpawnDummy()
         {
             if (!DungeonSpawnUtility.TryGetPool(out PoolManager pool))
             {
-                return;
+                return false;
             }
 
             pool.EnsurePool(dummyPrefab, 1, 1);
@@ -79,10 +93,22 @@ namespace Stage
             Vector3 spawnPosition = DungeonSpawnUtility.BossSpawnPosition();
             _dummyInstance = pool.Get(dummyPrefab, spawnPosition, Quaternion.identity);
 
+            if (_dummyInstance == null)
+            {
+                return false;
+            }
+
             if (_dummyInstance.TryGetComponent(out MonsterVisualRandomizer visualRandomizer))
             {
                 visualRandomizer.ApplyVisualSet(dummyVisualSet);
             }
+
+            return true;
+        }
+
+        private static void PublishSpawnFailureToast()
+        {
+            GameBootstrapper.Events?.Publish(new ToastMessageRequestedEvent("전투 대상을 생성하지 못했습니다. 잠시 후 다시 시도해주세요."));
         }
 
         private void ReleaseDummy()
