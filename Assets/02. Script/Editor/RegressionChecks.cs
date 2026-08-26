@@ -165,6 +165,17 @@ namespace Editor
             // 가로 자동회전까지 허용해 실기기 회전 시 레이아웃이 겹치던 문제 ---
             Check("PlayerSettings_Orientation_LockedToPortraitOnly", CheckPlayerSettingsOrientationLockedToPortrait);
 
+            // --- 이슈 #30: 이중 반납 시 같은 인스턴스가 유휴 스택에 두 번 들어가 서로 다른 두
+            // 호출자가 동일한 활성 GameObject를 대여받던 문제 (풀 대여/유휴 불변조건) ---
+            Check("ObjectPool_DoubleRelease_RejectedAndKeepsInactiveCountCorrect",
+                CheckObjectPoolDoubleReleaseInvariant);
+
+            // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
+            // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
+            // (추적 딕셔너리 불변조건) ---
+            Check("SquadMovementSyncService_ReRegisterToDifferentSquad_RemovesFromPreviousSquad",
+                CheckSquadMovementSyncServiceReRegistrationInvariant);
+
             if (failures.Count == 0)
             {
                 Debug.Log($"[RegressionChecks] 전부 통과 ({total}/{total}).");
@@ -1734,6 +1745,139 @@ namespace Editor
             if (UnityEditor.PlayerSettings.allowedAutorotateToLandscapeRight)
             {
                 throw new Exception("allowedAutorotateToLandscapeRight가 켜져 있음");
+            }
+        }
+
+        /// <summary>
+        /// Core.Pooling.ObjectPool&lt;T&gt;.Release가 이중 반납을 거부해, 같은 인스턴스가 유휴
+        /// 스택에 두 번 들어가는 것(그 결과 서로 다른 두 Get() 호출자가 같은 활성 객체를 받는 것)과
+        /// Managers.PoolManager가 그 실패를 IPoolable.OnDespawned 중복 호출 없이 그대로 전파하는지
+        /// 확인한다 - "사망 이벤트 처리와 세션 정리 경로가 같은 프레임에 동일 몬스터를 반납"하는
+        /// 식으로 실제 발생할 수 있는 이중 반납 시나리오다. 독립된 PoolManager/임시 GameObject로
+        /// 검증해 실제 씬 상태와 무관하다(임시 "프리팹"은 에셋일 필요 없이 평범한 GameObject 참조면
+        /// 충분 - PoolManager는 이를 딕셔너리 키이자 Instantiate 원본으로만 쓴다).
+        /// </summary>
+        private static void CheckObjectPoolDoubleReleaseInvariant()
+        {
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+
+            try
+            {
+                prefab = new GameObject("RegressionCheck_PoolInvariant_Prefab");
+                prefab.SetActive(false);
+                pool.EnsurePool(prefab, 1, 4);
+
+                GameObject instanceA = pool.Get(prefab, Vector3.zero, Quaternion.identity);
+
+                bool firstRelease = pool.Release(instanceA);
+                bool secondRelease = pool.Release(instanceA); // 이중 반납
+
+                if (!firstRelease)
+                {
+                    throw new Exception("정상적인 첫 반납이 실패로 보고됨");
+                }
+
+                if (secondRelease)
+                {
+                    throw new Exception("이중 반납이 거부되지 않고 성공으로 보고됨");
+                }
+
+                GameObject reGetA = pool.Get(prefab, Vector3.one, Quaternion.identity);
+                GameObject reGetB = pool.Get(prefab, new Vector3(2f, 2f, 2f), Quaternion.identity);
+
+                if (ReferenceEquals(reGetA, reGetB))
+                {
+                    throw new Exception("연속 두 Get()이 같은 활성 인스턴스를 반환함(이중 반납으로 유휴 스택에 중복 삽입된 결과로 보임)");
+                }
+            }
+            finally
+            {
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 같은 인스턴스를 서로 다른 부대(SquadIndexOf 결과가 다른 슬롯 인덱스)로 재등록하면,
+        /// 이전 부대의 멤버 목록에서 실제로 제거되는지 확인한다 - 재등록 전에 이전 목록을 정리하지
+        /// 않으면 한 GameObject가 두 부대에 동시에 소속된 것처럼 집계돼(_members는 새 Member로
+        /// 덮어써지지만 이전 Member 객체가 이전 부대 리스트에 그대로 남음), RecomputeSquad가
+        /// 이전 부대의 이동속도/교전 집계에 유령 멤버를 영구히 포함시킨다. 배치 변경/재소환으로
+        /// 같은 풀 인스턴스가 다른 부대 슬롯에 재등록되는 실제 시나리오(전투 지속 중 배치 UI를
+        /// 빠르게 조작하는 경우 등)를 그대로 재현한다. Soldier.SoldierDeploymentService.
+        /// SlotsPerSquad를 그대로 써서 서로 다른 부대에 속하는 두 슬롯 인덱스를 고른다.
+        /// </summary>
+        private static void CheckSquadMovementSyncServiceReRegistrationInvariant()
+        {
+            var events = new EventBus();
+            var service = new SquadMovementSyncService(events);
+            service.Initialize();
+
+            GameObject instance = null;
+            CharacterStatsSO baseStats = null;
+
+            try
+            {
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "moveSpeed", 2f);
+
+                instance = new GameObject("RegressionCheck_SquadMember");
+                var provider = instance.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(provider, "baseStats", baseStats);
+
+                const int firstSquadSlot = 0;
+                const int secondSquadSlot = SoldierDeploymentService.SlotsPerSquad;
+
+                service.Register(instance, firstSquadSlot, false);
+
+                if (service.GetSquadMembers(0).Count != 1)
+                {
+                    throw new Exception($"최초 등록 직후 부대 0의 인원이 {service.GetSquadMembers(0).Count}(기대=1)");
+                }
+
+                service.Register(instance, secondSquadSlot, false); // 다른 부대로 재등록
+
+                if (service.GetSquadMembers(0).Count != 0)
+                {
+                    throw new Exception($"재등록 후에도 이전 부대 0에 유령 멤버가 남음(인원={service.GetSquadMembers(0).Count}, 기대=0)");
+                }
+
+                if (service.GetSquadMembers(1).Count != 1)
+                {
+                    throw new Exception($"재등록 후 새 부대 1의 인원이 {service.GetSquadMembers(1).Count}(기대=1)");
+                }
+
+                if (!service.TryGetSlotIndex(instance, out int slotIndex) || slotIndex != secondSquadSlot)
+                {
+                    throw new Exception("재등록 후 슬롯 인덱스가 새 값으로 갱신되지 않음");
+                }
+            }
+            finally
+            {
+                if (instance != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(instance);
+                }
+
+                if (baseStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(baseStats);
+                }
+
+                service.Shutdown();
             }
         }
 

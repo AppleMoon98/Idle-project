@@ -71,12 +71,34 @@ namespace Soldier
         /// 스폰(최초 배치/재소환)된 병사를 등록한다. SoldierSpawnUtility.TrySpawnAssigned가 등급
         /// 스케일까지 끝낸 직후 호출한다. isExempt는 기마병 여부(호출부가 BearCharge
         /// 컴포넌트 존재로 판단).
+        ///
+        /// 같은 인스턴스가 이미 등록돼 있으면(배치 변경/재스폰으로 같은 풀 인스턴스가 다른 부대
+        /// 슬롯에 재등록되는 경우) 새로 등록하기 전에 이전 부대 목록에서 먼저 제거한다 - 그렇지
+        /// 않으면 _members[instance]는 새 Member로 덮어써지지만 이전 Member 객체는 여전히
+        /// _squadMembers[이전 부대]에 남아있어, 한 GameObject가 두 부대에 동시에 소속된 것처럼
+        /// 집계된다(실제로 이 상태였음 - RecomputeSquad가 이전 부대의 이동속도/교전 집계에 유령
+        /// 멤버를 영구히 포함시키는 문제로 이어짐, 그 멤버가 죽기 전까지는 절대 해소되지 않았다).
         /// </summary>
         public void Register(GameObject instance, int slotIndex, bool isExempt)
         {
             if (instance == null || !instance.TryGetComponent(out CharacterStatsProvider statsProvider))
             {
                 return;
+            }
+
+            if (_members.TryGetValue(instance, out Member existing))
+            {
+                int previousSquadIndex = SquadIndexOf(existing.SlotIndex);
+
+                if (_squadMembers.TryGetValue(previousSquadIndex, out List<Member> previousList))
+                {
+                    previousList.Remove(existing);
+                }
+
+                if (previousSquadIndex != SquadIndexOf(slotIndex))
+                {
+                    RecomputeSquad(previousSquadIndex);
+                }
             }
 
             var member = new Member

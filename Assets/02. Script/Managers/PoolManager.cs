@@ -89,17 +89,33 @@ namespace Managers
 
         /// <summary>
         /// 인스턴스를 원본 풀로 반납한다. PooledInstance 태그로 출처 풀을 자동 판별한다.
+        /// 이미 반납된 인스턴스를 다시 반납하면(사망 이벤트 처리와 세션 정리 경로가 같은 프레임에
+        /// 동일 몬스터를 반납하는 경우 등) ObjectPool&lt;T&gt;.Release가 이를 거부하므로, 여기서도
+        /// 경고만 남기고 IPoolable.OnDespawned는 호출하지 않는다(상태 전환당 정확히 한 번만 호출
+        /// 되도록 보장) - 반환값은 실제로 반납이 이뤄졌는지를 나타낸다.
         /// </summary>
-        public void Release(GameObject instance)
+        public bool Release(GameObject instance)
         {
+            if (instance == null)
+            {
+                Debug.LogWarning("[PoolManager] null 인스턴스를 반납하려 함 - 무시.");
+                return false;
+            }
+
             if (!instance.TryGetComponent(out PooledInstance tag) ||
                 !_pools.TryGetValue(tag.SourcePrefab, out ObjectPool<GameObject> pool))
             {
                 throw new InvalidOperationException($"'{instance.name}' was not spawned by this PoolManager.");
             }
 
+            if (!pool.Release(instance))
+            {
+                Debug.LogWarning($"[PoolManager] '{instance.name}'은 이미 반납된 인스턴스임 - 이중 반납 무시.");
+                return false;
+            }
+
             NotifyDespawned(instance);
-            pool.Release(instance);
+            return true;
         }
 
         private GameObject CreateInstance(GameObject prefab)
