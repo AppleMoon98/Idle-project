@@ -3,7 +3,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using Behavior;
 using Character;
+using Character.Events;
 using Core;
+using Core.Pooling;
 using Dungeon;
 using Enhancement;
 using Equipment;
@@ -14,6 +16,8 @@ using Rank;
 using Save;
 using Skill;
 using Soldier;
+using Stage;
+using Stage.Events;
 using UI;
 using UI.Events;
 using UnityEditor;
@@ -175,6 +179,12 @@ namespace Editor
             // (추적 딕셔너리 불변조건) ---
             Check("SquadMovementSyncService_ReRegisterToDifferentSquad_RemovesFromPreviousSquad",
                 CheckSquadMovementSyncServiceReRegistrationInvariant);
+
+            // --- 이슈 #30/#40과 별개로: 모달 전환(던전 팝업 열기/닫기, StageProgressTracker.
+            // SetActiveAll)이 밀집 전투 도중 끼어들어도 풀 대여/유휴 불변조건과 추적 딕셔너리가
+            // 함께 유지되는지 확인 (section FF에서 SetActiveAll 자체가 실제로 버그였던 지점) ---
+            Check("DenseCombatWithModalTransition_PoolAndTrackerInvariantsHold",
+                CheckDenseCombatWithModalTransitionInvariants);
 
             if (failures.Count == 0)
             {
@@ -1879,6 +1889,218 @@ namespace Editor
 
                 service.Shutdown();
             }
+        }
+
+        /// <summary>
+        /// 모달 전환(던전 팝업 등)이 밀집 전투 도중 끼어들어도 풀 대여/유휴 상태와
+        /// StageProgressTracker의 추적 딕셔너리가 어긋나지 않는지 확인한다. 이슈 #30(풀 이중
+        /// 반납)/#40(부대 추적 중복 소속)과 별개로, StageProgressTracker.SetActiveAll 자체는
+        /// section FF에서 실제로 버그(오버레이 재개 시 몬스터 HP/위치가 복원되지 않음)가 났던
+        /// 지점이라 별도 검증이 필요하다. 유닛 수는 10개로 제한한다 - 이 검사는 결정론적
+        /// 시뮬레이션이라(실시간 30초를 기다리지 않음) 20개 이상/30초라는 규모 자체가 다른 코드
+        /// 경로를 추가로 발동시키지 않는다(SetActiveAll은 Dictionary 크기와 무관하게 동일하게
+        /// 순회하고, ObjectPool의 HashSet 기반 대여 추적도 N에 따라 다르게 동작하지 않는다) -
+        /// 사망/생존/피격/이동한 상태가 섞인 채로 모달이 한 번 열렸다 닫히는 조합 자체가 핵심이다.
+        /// Health.TakeDamage/Die는 GameBootstrapper.Events(전역 정적 버스)로만 발행하므로,
+        /// StageProgressTracker가 구독하는 이 검사만의 로컬 EventBus에는 CharacterDiedEvent를
+        /// 직접 발행해줘야 한다(Health 자체의 IsDead/Current 갱신은 TakeDamage 호출만으로도
+        /// 정상 동작하므로 이는 검증 자체를 왜곡하지 않는다).
+        /// </summary>
+        private static void CheckDenseCombatWithModalTransitionInvariants()
+        {
+            const int totalUnits = 10;
+            const int firstWaveKills = 4;
+
+            var events = new EventBus();
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+            StageSO stage = null;
+            CharacterStatsSO baseStats = null;
+            StageProgressTracker tracker = null;
+            var spawned = new List<GameObject>();
+            var spawnPositions = new List<Vector3>();
+            int stageClearedCount = 0;
+            Action<StageClearedEvent> onStageCleared = _ => stageClearedCount++;
+
+            try
+            {
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "maxHealth", 100f);
+
+                prefab = new GameObject("RegressionCheck_DenseCombat_Prefab");
+                prefab.SetActive(false);
+                CharacterStatsProvider provider = prefab.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(provider, "baseStats", baseStats);
+                prefab.AddComponent<Health>();
+
+                var entry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "monsterPrefab", prefab);
+                SetPrivateFieldOnPlainObject(entry, "count", totalUnits);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", new[] { entry });
+
+                pool.EnsurePool(prefab, totalUnits, totalUnits + 5);
+
+                events.Subscribe(onStageCleared);
+                tracker = new StageProgressTracker(stage, events);
+
+                FieldInfo poolsField = typeof(Managers.PoolManager).GetField("_pools", BindingFlags.NonPublic | BindingFlags.Instance);
+                var pools = (Dictionary<GameObject, ObjectPool<GameObject>>)poolsField.GetValue(pool);
+                ObjectPool<GameObject> objectPool = pools[prefab];
+
+                // Health에는 [ExecuteAlways]가 없어 Edit Mode(이 메뉴 실행 자체가 Edit Mode)에서는
+                // SetActive(true)가 Awake()를 자동으로 유발하지 않는다 - Play Mode라면 PoolManager.
+                // Get()의 SetActive(true) → NotifySpawned() → Health.OnSpawned()(Revive() 호출)
+                // 순서가 문제없이 통과하지만, Edit Mode에서는 Awake가 아예 안 불려 _statsProvider가
+                // null인 채로 Revive()가 곧장 NRE를 던진다(실제로 겪음 - pool.Get() 내부에서 발생해
+                // Get()이 반환된 뒤에 Awake를 대신 호출해주는 것만으로는 이미 늦다). pool.Get()을
+                // 처음 호출하기 전에, EnsurePool이 prewarm해둔 인스턴스(아직 비활성, ObjectPool의
+                // 내부 스택에 대기 중) 전원에 Awake()를 미리 리플렉션으로 실행해둔다.
+                MethodInfo healthAwake = typeof(Health).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo poolStackField = typeof(ObjectPool<GameObject>).GetField("_pool", BindingFlags.NonPublic | BindingFlags.Instance);
+                var prewarmedStack = (Stack<GameObject>)poolStackField.GetValue(objectPool);
+
+                foreach (GameObject prewarmed in prewarmedStack)
+                {
+                    healthAwake.Invoke(prewarmed.GetComponent<Health>(), null);
+                }
+
+                for (int i = 0; i < totalUnits; i++)
+                {
+                    var position = new Vector3(i, 0f, 0f);
+                    GameObject instance = pool.Get(prefab, position, Quaternion.identity);
+                    spawned.Add(instance);
+                    spawnPositions.Add(position);
+                    tracker.RegisterSpawned(instance, position);
+                }
+
+                if (objectPool.CountActive != totalUnits)
+                {
+                    throw new Exception($"스폰 직후 대여 개수가 {objectPool.CountActive}(기대={totalUnits})");
+                }
+
+                // 1파: 4마리 처치
+                for (int i = 0; i < firstWaveKills; i++)
+                {
+                    KillUnit(spawned[i], events, pool);
+                }
+
+                if (objectPool.CountActive != totalUnits - firstWaveKills)
+                {
+                    throw new Exception($"1파 처치 후 대여 개수가 {objectPool.CountActive}(기대={totalUnits - firstWaveKills})");
+                }
+
+                // 생존자 중 하나는 서브리썰 피격(죽지 않음), 다른 하나는 위치를 임의로 옮겨둔다 -
+                // 모달 전환 복귀 시 각각 체력/위치가 복원되는지 확인하기 위함(section FF)
+                GameObject damagedSurvivor = spawned[totalUnits - 1];
+                damagedSurvivor.GetComponent<Health>().TakeDamage(60f);
+
+                GameObject movedSurvivor = spawned[firstWaveKills];
+                movedSurvivor.transform.position = new Vector3(999f, 999f, 999f);
+
+                // 모달 전환 1회차: 던전 팝업 열림 (생존자 전원 비활성화, 죽음/보상 없음)
+                tracker.SetActiveAll(false);
+
+                for (int i = firstWaveKills; i < totalUnits; i++)
+                {
+                    if (spawned[i].activeSelf)
+                    {
+                        throw new Exception($"모달 전환(닫힘) 후에도 생존자 인덱스 {i}가 활성 상태로 남음");
+                    }
+                }
+
+                // 모달 전환 2회차: 던전 팝업 닫힘 (위치/체력 복원 후 재활성화)
+                tracker.SetActiveAll(true);
+
+                for (int i = firstWaveKills; i < totalUnits; i++)
+                {
+                    if (!spawned[i].activeSelf)
+                    {
+                        throw new Exception($"모달 전환(복귀) 후에도 생존자 인덱스 {i}가 비활성 상태로 남음");
+                    }
+                }
+
+                if (movedSurvivor.transform.position != spawnPositions[firstWaveKills])
+                {
+                    throw new Exception("모달 전환 복귀 후 위치가 스폰 당시 좌표로 복원되지 않음");
+                }
+
+                Health damagedHealth = damagedSurvivor.GetComponent<Health>();
+                AssertApprox(damagedHealth.MaxHealth, damagedHealth.Current, "모달 전환 복귀 후 서브리썰 피격 생존자의 체력");
+
+                // 모달 전환을 거친 뒤에도 이중 반납 불변조건이 여전히 유효한지 재확인
+                // (1파에서 이미 반납된 인스턴스를 다시 반납 시도)
+                if (pool.Release(spawned[0]))
+                {
+                    throw new Exception("모달 전환 이후에도 이중 반납이 거부되지 않음");
+                }
+
+                // 2파: 남은 생존자 전원 처치 → 스테이지 클리어
+                for (int i = firstWaveKills; i < totalUnits; i++)
+                {
+                    KillUnit(spawned[i], events, pool);
+                }
+
+                if (stageClearedCount != 1)
+                {
+                    throw new Exception($"StageClearedEvent 발행 횟수가 {stageClearedCount}(기대=1)");
+                }
+
+                if (objectPool.CountActive != 0)
+                {
+                    throw new Exception($"전멸 후 대여 개수가 {objectPool.CountActive}(기대=0)");
+                }
+
+                if (objectPool.CountInactive != totalUnits)
+                {
+                    throw new Exception($"전멸 후 유휴 개수가 {objectPool.CountInactive}(기대={totalUnits})");
+                }
+            }
+            finally
+            {
+                events.Unsubscribe(onStageCleared);
+                tracker?.Dispose();
+
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                if (stage != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(stage);
+                }
+
+                if (baseStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(baseStats);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// CheckDenseCombatWithModalTransitionInvariants 전용 헬퍼 - 실전투에서 처치 하나가
+        /// 거치는 세 단계(체력 소진 → 사망 이벤트 발행 → 풀 반납)를 그대로 재현한다. 실제
+        /// 게임에서는 Character.PoolReleaseOnDeath가 GameBootstrapper.Events(전역 버스)의
+        /// CharacterDiedEvent를 구독해 반납을 대신하지만, 이 검사는 격리된 로컬 EventBus를
+        /// 쓰므로 그 역할을 직접 수행한다.
+        /// </summary>
+        private static void KillUnit(GameObject instance, EventBus events, Managers.PoolManager pool)
+        {
+            instance.GetComponent<Health>().TakeDamage(9999f);
+            events.Publish(new CharacterDiedEvent(instance));
+            pool.Release(instance);
         }
 
         /// <summary>
