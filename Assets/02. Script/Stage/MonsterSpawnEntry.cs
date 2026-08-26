@@ -16,6 +16,13 @@ namespace Stage
         [SerializeField]
         private int count;
 
+        // GitHub 이슈 #27 - MonsterSpawner.TickEntries/SpawnImmediateEntries 둘 다 이 값을 전혀
+        // 읽지 않는다(spawnWithTactics 여부와 무관하게 웨이브 전체가 항상 한 틱에 즉시 스폰된다).
+        // "일반 웨이브는 시간차, spawnWithTactics는 즉시"라던 예전 설계가 바뀐 뒤에도 이 필드와
+        // SpawnInterval 프로퍼티의 문서만 갱신되지 않고 남아있었다 - 기존 스테이지 데이터 호환을
+        // 위해 필드 자체는 남겨두되(이미 저장된 320개 스테이지 에셋을 건드리지 않기 위함), 값은
+        // 순수하게 무시되는 죽은 데이터다.
+        [Tooltip("사용되지 않음(GitHub 이슈 #27) - MonsterSpawner가 이 웨이브 전체를 항상 한 틱에 즉시 스폰하므로 이 값은 아무 효과가 없다. 기존 스테이지 데이터 호환을 위해서만 필드가 남아있다.")]
         [SerializeField]
         private float spawnInterval;
 
@@ -36,7 +43,10 @@ namespace Stage
         public int Count => count;
 
         /// <summary>
-        /// 몬스터 한 마리씩 스폰되는 간격(초). spawnWithTactics가 켜져 있으면 무시된다(전부 즉시 스폰).
+        /// 사용되지 않는 죽은 필드(GitHub 이슈 #27) - MonsterSpawner는 spawnWithTactics 값과 무관하게
+        /// 이 웨이브의 Count 전부를 항상 한 틱에 즉시 스폰하며, 이 값을 전혀 읽지 않는다. 기존
+        /// 스테이지 데이터(SO 에셋) 호환을 위해 필드만 남겨뒀다 - 새 콘텐츠에서 값을 채워도 아무
+        /// 효과가 없다.
         /// </summary>
         public float SpawnInterval => spawnInterval;
 

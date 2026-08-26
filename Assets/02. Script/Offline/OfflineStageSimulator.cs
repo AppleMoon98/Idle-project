@@ -80,19 +80,24 @@ namespace Offline
         /// 시뮬레이션으로 산출된 처치 마릿수(TotalMonstersKilled, 팝업에 표시되는 값)는 그대로 두고,
         /// 실제 골드/장비 드롭 굴리기에 넣는 마릿수만 rewardMultiplier를 곱해 줄인다 — 골드와
         /// 장비가 항상 같은 비율로 함께 줄어들도록(따로 계수를 두지 않고) 하기 위함.
+        ///
+        /// GitHub 이슈 #27 - Stage.MonsterSpawner는 spawnWithTactics 여부와 무관하게 웨이브 전체를
+        /// 항상 한 틱에 즉시 스폰한다(MonsterSpawnEntry.SpawnInterval은 죽은 필드). 예전엔 여기서
+        /// entry.Count * entry.SpawnInterval의 합을 "총 스폰 소요시간"으로 삼아 처치 속도의
+        /// 별도 병목(killRateBySpawn)으로 취급했는데, 그게 실전 동작과 어긋난 시간 모델이었다 -
+        /// 스폰이 순간적이면 스폰 자체가 처치 속도를 제한할 이유가 없으므로, 병목은 오직 DPS
+        /// 대비 몬스터 체력(killRateByDamage)뿐이다.
         /// </summary>
         public Result Simulate(StageSO repeatStage, float totalDps, float budget)
         {
             float healthMultiplier = _difficultyConfig != null ? _difficultyConfig.GetMultiplier(_catalog.IndexOf(repeatStage)) : 1f;
 
-            if (!TryBuildStageInfo(repeatStage, healthMultiplier, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth))
+            if (!TryBuildStageInfo(repeatStage, healthMultiplier, out int totalMonsterCount, out float averageMonsterHealth))
             {
                 return Result.Failed;
             }
 
-            float killRateByDamage = totalDps / averageMonsterHealth;
-            float killRateBySpawn = totalMonsterCount / totalSpawnDuration;
-            float effectiveKillRate = Mathf.Min(killRateByDamage, killRateBySpawn);
+            float effectiveKillRate = totalDps / averageMonsterHealth;
 
             if (effectiveKillRate <= 0f)
             {
@@ -116,14 +121,16 @@ namespace Offline
         }
 
         /// <summary>
-        /// 스테이지의 총 몬스터 수/총 스폰 소요시간/가중 평균 체력을 계산한다. healthMultiplier는
+        /// 스테이지의 총 몬스터 수/가중 평균 체력을 계산한다. healthMultiplier는
         /// StageDifficultyConfigSO가 실전투에서 StageMonsterScaler로 적용하는 것과 동일한 스테이지별
-        /// 배율이다. 몬스터가 하나도 없으면 false.
+        /// 배율이다. 몬스터가 하나도 없으면 false. GitHub 이슈 #27 - 총 스폰 소요시간은 더 이상
+        /// 계산하지 않는다(MonsterSpawner가 항상 즉시 스폰하므로 실전에 대응하는 값 자체가 없다) -
+        /// 예전엔 이 값이 0이면(SpawnInterval을 전부 0으로 채운 스테이지) 몬스터가 있어도
+        /// 시뮬레이션 자체가 통째로 실패했는데, 이제 그 조건 자체가 없어져 재현되지 않는다.
         /// </summary>
-        private static bool TryBuildStageInfo(StageSO stage, float healthMultiplier, out int totalMonsterCount, out float totalSpawnDuration, out float averageMonsterHealth)
+        private static bool TryBuildStageInfo(StageSO stage, float healthMultiplier, out int totalMonsterCount, out float averageMonsterHealth)
         {
             totalMonsterCount = 0;
-            totalSpawnDuration = 0f;
             float weightedHealth = 0f;
 
             foreach (MonsterSpawnEntry entry in stage.SpawnEntries)
@@ -134,13 +141,12 @@ namespace Offline
                 }
 
                 totalMonsterCount += entry.Count;
-                totalSpawnDuration += entry.Count * entry.SpawnInterval;
                 weightedHealth += entry.Count * statsProvider.Stats.MaxHealth * healthMultiplier;
             }
 
             averageMonsterHealth = totalMonsterCount > 0 ? weightedHealth / totalMonsterCount : 0f;
 
-            return totalMonsterCount > 0 && totalSpawnDuration > 0f;
+            return totalMonsterCount > 0;
         }
 
         /// <summary>

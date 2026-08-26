@@ -13,6 +13,7 @@ using Equipment;
 using Gacha;
 using Inventory;
 using Loot;
+using Offline;
 using Rank;
 using Save;
 using Skill;
@@ -332,6 +333,18 @@ namespace Editor
                 CheckSquadTacticServiceRestoreSkipsInvalidEntry);
             Check("SquadRaidCoordinator_OnTacticChanged_OutOfRangeIndex_DoesNotThrow",
                 CheckSquadRaidCoordinatorOnTacticChangedOutOfRangeIndex);
+
+
+            // --- 이슈 #27: 일반 웨이브 SpawnInterval을 실전은 무시하고(즉시 스폰) 오프라인
+            // 시뮬레이터는 병목으로 계산하던 시간 모델 불일치 ---
+            Check("MonsterSpawner_TickEntries_IgnoresSpawnIntervalAndSpawnsAllInOneTick",
+                CheckMonsterSpawnerIgnoresSpawnIntervalRealCombat);
+            Check("OfflineStageSimulator_Simulate_ResultIndependentOfSpawnInterval",
+                CheckOfflineStageSimulatorResultIndependentOfSpawnInterval);
+            Check("OfflineStageSimulator_Simulate_AllZeroSpawnInterval_DoesNotFail",
+                CheckOfflineStageSimulatorAllZeroSpawnIntervalSucceeds);
+            Check("OfflineStageSimulator_Simulate_MixedSpawnWithTacticsAndVaryingIntervals_Consistent",
+                CheckOfflineStageSimulatorMixedSpawnWithTacticsConsistent);
 
             total = localTotal;
             failures = localFailures;
@@ -3574,6 +3587,265 @@ namespace Editor
             finally
             {
                 UnityEngine.Object.DestroyImmediate(go);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #27 재현 절차 - Count=3, SpawnInterval=999초인 일반 웨이브 하나를
+        /// MonsterSpawner.Tick(0.001초)로 한 번만 틱해도 3마리 전부가 즉시 스폰되고 스포너가
+        /// 완료 상태가 되는지 확인한다(실전이 SpawnInterval을 무시하고 즉시 스폰한다는 확정된
+        /// 정책을 그대로 잠그는 회귀 방지 검사).
+        /// </summary>
+        private static void CheckMonsterSpawnerIgnoresSpawnIntervalRealCombat()
+        {
+            var events = new EventBus();
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+            StageSO stage = null;
+            CharacterStatsSO baseStats = null;
+            StageProgressTracker tracker = null;
+            GameObject playerTargetGo = null;
+            MonsterSpawner spawner = null;
+
+            try
+            {
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "maxHealth", 100f);
+
+                prefab = new GameObject("RegressionCheck_SpawnInterval_Prefab");
+                prefab.SetActive(false);
+                CharacterStatsProvider provider = prefab.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(provider, "baseStats", baseStats);
+                prefab.AddComponent<Health>();
+
+                var entry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "monsterPrefab", prefab);
+                SetPrivateFieldOnPlainObject(entry, "count", 3);
+                SetPrivateFieldOnPlainObject(entry, "spawnInterval", 999f);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", new[] { entry });
+
+                pool.EnsurePool(prefab, 3, 3);
+
+                FieldInfo poolsField = typeof(Managers.PoolManager).GetField("_pools", BindingFlags.NonPublic | BindingFlags.Instance);
+                var pools = (Dictionary<GameObject, ObjectPool<GameObject>>)poolsField.GetValue(pool);
+                ObjectPool<GameObject> objectPool = pools[prefab];
+
+                // Edit Mode에서는 Health.Awake가 AddComponent 시점에만 실행되므로(section GY),
+                // EnsurePool이 prewarm해둔 인스턴스에 미리 Awake를 리플렉션으로 실행해둔다.
+                MethodInfo healthAwake = typeof(Health).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo poolStackField = typeof(ObjectPool<GameObject>).GetField("_pool", BindingFlags.NonPublic | BindingFlags.Instance);
+                var prewarmedStack = (Stack<GameObject>)poolStackField.GetValue(objectPool);
+
+                foreach (GameObject prewarmed in prewarmedStack)
+                {
+                    healthAwake.Invoke(prewarmed.GetComponent<Health>(), null);
+                }
+
+                tracker = new StageProgressTracker(stage, events);
+                playerTargetGo = new GameObject("RegressionCheck_SpawnInterval_PlayerTarget");
+
+                spawner = new MonsterSpawner(stage, pool, playerTargetGo.transform, tracker, null, 1f);
+                spawner.Tick(0.001f);
+
+                if (objectPool.CountActive != 3)
+                {
+                    throw new Exception($"0.001초 뒤 대여된 인스턴스 수={objectPool.CountActive}(기대=3) - SpawnInterval=999가 실전에 영향을 준 것으로 보임");
+                }
+
+                if (!spawner.IsFinished)
+                {
+                    throw new Exception("한 틱 뒤 스포너가 완료 상태가 아님(SpawnInterval을 실제로 지키려 한 것으로 보임)");
+                }
+            }
+            finally
+            {
+                spawner?.Dispose();
+                tracker?.Dispose();
+
+                if (playerTargetGo != null) UnityEngine.Object.DestroyImmediate(playerTargetGo);
+                if (prefab != null) UnityEngine.Object.DestroyImmediate(prefab);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+                if (baseStats != null) UnityEngine.Object.DestroyImmediate(baseStats);
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        private static StageSO CreateOfflineTestStage(float[] spawnIntervals, bool[] spawnWithTactics, out GameObject prefab, out CharacterStatsSO baseStats)
+        {
+            baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+            SetPrivateFloat(baseStats, "maxHealth", 100f);
+
+            prefab = new GameObject("RegressionCheck_OfflineSim_Prefab");
+            prefab.SetActive(false);
+            CharacterStatsProvider provider = prefab.AddComponent<CharacterStatsProvider>();
+            SetPrivateField(provider, "baseStats", baseStats);
+
+            var entries = new MonsterSpawnEntry[spawnIntervals.Length];
+
+            for (int i = 0; i < spawnIntervals.Length; i++)
+            {
+                var entry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "monsterPrefab", prefab);
+                SetPrivateFieldOnPlainObject(entry, "count", 10);
+                SetPrivateFieldOnPlainObject(entry, "spawnInterval", spawnIntervals[i]);
+                SetPrivateFieldOnPlainObject(entry, "spawnWithTactics", spawnWithTactics != null && spawnWithTactics[i]);
+                entries[i] = entry;
+            }
+
+            StageSO stage = ScriptableObject.CreateInstance<StageSO>();
+            SetPrivateField(stage, "spawnEntries", entries);
+
+            return stage;
+        }
+
+        /// <summary>
+        /// SpawnInterval 값만 다른(0 vs 999999) 동일한 스테이지를 같은 DPS/예산으로 시뮬레이션하면
+        /// 완전히 동일한 TotalMonstersKilled/TimesCleared가 나오는지 확인한다(GitHub 이슈 #27 -
+        /// "실전과 오프라인이 동일한 유효 스폰 시간 규칙을 공유함" 및 간격 0/매우 큰 값 경계).
+        /// 골드/장비는 LootRoller의 RNG가 섞여 정확히 같음을 보장할 수 없어(그리고 이 합성
+        /// 프리팹엔 MonsterLootProvider 자체가 없어 항상 0이지만) 비교 대상에서 제외한다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorResultIndependentOfSpawnInterval()
+        {
+            var simulator = new OfflineStageSimulator(null, null, 1f);
+            StageSO stageZero = null;
+            StageSO stageHuge = null;
+            GameObject prefabZero = null;
+            GameObject prefabHuge = null;
+            CharacterStatsSO baseStatsZero = null;
+            CharacterStatsSO baseStatsHuge = null;
+
+            try
+            {
+                stageZero = CreateOfflineTestStage(new[] { 0f, 0f }, null, out prefabZero, out baseStatsZero);
+                stageHuge = CreateOfflineTestStage(new[] { 999999f, 0.0001f }, null, out prefabHuge, out baseStatsHuge);
+
+                OfflineStageSimulator.Result resultZero = simulator.Simulate(stageZero, totalDps: 50f, budget: 3600f);
+                OfflineStageSimulator.Result resultHuge = simulator.Simulate(stageHuge, totalDps: 50f, budget: 3600f);
+
+                if (!resultZero.Success || !resultHuge.Success)
+                {
+                    throw new Exception($"두 시뮬레이션 모두 성공해야 함 - zero.Success={resultZero.Success}, huge.Success={resultHuge.Success}");
+                }
+
+                if (resultZero.TotalMonstersKilled != resultHuge.TotalMonstersKilled)
+                {
+                    throw new Exception($"TotalMonstersKilled가 SpawnInterval에 따라 달라짐 - zero={resultZero.TotalMonstersKilled}, huge={resultHuge.TotalMonstersKilled}(기대: 동일)");
+                }
+
+                if (resultZero.TimesCleared != resultHuge.TimesCleared)
+                {
+                    throw new Exception($"TimesCleared가 SpawnInterval에 따라 달라짐 - zero={resultZero.TimesCleared}, huge={resultHuge.TimesCleared}(기대: 동일)");
+                }
+            }
+            finally
+            {
+                if (prefabZero != null) UnityEngine.Object.DestroyImmediate(prefabZero);
+                if (prefabHuge != null) UnityEngine.Object.DestroyImmediate(prefabHuge);
+                if (stageZero != null) UnityEngine.Object.DestroyImmediate(stageZero);
+                if (stageHuge != null) UnityEngine.Object.DestroyImmediate(stageHuge);
+                if (baseStatsZero != null) UnityEngine.Object.DestroyImmediate(baseStatsZero);
+                if (baseStatsHuge != null) UnityEngine.Object.DestroyImmediate(baseStatsHuge);
+            }
+        }
+
+        /// <summary>
+        /// 모든 엔트리의 SpawnInterval이 0인 스테이지도 시뮬레이션이 실패하지 않는지 확인한다
+        /// (GitHub 이슈 #27 - 수정 전에는 totalSpawnDuration이 0이 되어 TryBuildStageInfo가
+        /// 몬스터가 있어도 무조건 false를 반환, 시뮬레이션 자체가 통째로 실패했다).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorAllZeroSpawnIntervalSucceeds()
+        {
+            var simulator = new OfflineStageSimulator(null, null, 1f);
+            StageSO stage = null;
+            GameObject prefab = null;
+            CharacterStatsSO baseStats = null;
+
+            try
+            {
+                stage = CreateOfflineTestStage(new[] { 0f, 0f, 0f }, null, out prefab, out baseStats);
+
+                OfflineStageSimulator.Result result = simulator.Simulate(stage, totalDps: 50f, budget: 60f);
+
+                if (!result.Success)
+                {
+                    throw new Exception("SpawnInterval이 전부 0인 스테이지에서 시뮬레이션이 실패함(수정 전 버그 재현)");
+                }
+
+                if (result.TotalMonstersKilled <= 0)
+                {
+                    throw new Exception($"TotalMonstersKilled={result.TotalMonstersKilled}(기대: 0 초과)");
+                }
+            }
+            finally
+            {
+                if (prefab != null) UnityEngine.Object.DestroyImmediate(prefab);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+                if (baseStats != null) UnityEngine.Object.DestroyImmediate(baseStats);
+            }
+        }
+
+        /// <summary>
+        /// SpawnWithTactics=true/false가 섞이고 SpawnInterval도 제각각인 배열이, 전부 SpawnInterval=0
+        /// (SpawnWithTactics도 전부 false)인 기준 스테이지와 정확히 같은 결과를 내는지 확인한다
+        /// (GitHub 이슈 #27 - "SpawnWithTactics=true/false 혼합 배열에서도 순서와 시간이 일치함").
+        /// 실전은 두 플래그 조합 모두 웨이브를 즉시 스폰하므로, 오프라인 결과도 이 조합에 전혀
+        /// 영향받지 않아야 한다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorMixedSpawnWithTacticsConsistent()
+        {
+            var simulator = new OfflineStageSimulator(null, null, 1f);
+            StageSO mixedStage = null;
+            StageSO baselineStage = null;
+            GameObject prefabMixed = null;
+            GameObject prefabBaseline = null;
+            CharacterStatsSO baseStatsMixed = null;
+            CharacterStatsSO baseStatsBaseline = null;
+
+            try
+            {
+                mixedStage = CreateOfflineTestStage(
+                    new[] { 0.001f, 500f, 0f, 999999f },
+                    new[] { true, false, true, false },
+                    out prefabMixed, out baseStatsMixed);
+
+                baselineStage = CreateOfflineTestStage(
+                    new[] { 0f, 0f, 0f, 0f },
+                    new[] { false, false, false, false },
+                    out prefabBaseline, out baseStatsBaseline);
+
+                OfflineStageSimulator.Result mixedResult = simulator.Simulate(mixedStage, totalDps: 80f, budget: 7200f);
+                OfflineStageSimulator.Result baselineResult = simulator.Simulate(baselineStage, totalDps: 80f, budget: 7200f);
+
+                if (!mixedResult.Success || !baselineResult.Success)
+                {
+                    throw new Exception($"두 시뮬레이션 모두 성공해야 함 - mixed.Success={mixedResult.Success}, baseline.Success={baselineResult.Success}");
+                }
+
+                if (mixedResult.TotalMonstersKilled != baselineResult.TotalMonstersKilled || mixedResult.TimesCleared != baselineResult.TimesCleared)
+                {
+                    throw new Exception($"SpawnWithTactics/SpawnInterval 혼합 배열 결과가 기준과 다름 - mixed(killed={mixedResult.TotalMonstersKilled}, cleared={mixedResult.TimesCleared}) vs baseline(killed={baselineResult.TotalMonstersKilled}, cleared={baselineResult.TimesCleared})");
+                }
+            }
+            finally
+            {
+                if (prefabMixed != null) UnityEngine.Object.DestroyImmediate(prefabMixed);
+                if (prefabBaseline != null) UnityEngine.Object.DestroyImmediate(prefabBaseline);
+                if (mixedStage != null) UnityEngine.Object.DestroyImmediate(mixedStage);
+                if (baselineStage != null) UnityEngine.Object.DestroyImmediate(baselineStage);
+                if (baseStatsMixed != null) UnityEngine.Object.DestroyImmediate(baseStatsMixed);
+                if (baseStatsBaseline != null) UnityEngine.Object.DestroyImmediate(baseStatsBaseline);
             }
         }
 
