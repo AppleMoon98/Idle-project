@@ -161,6 +161,10 @@ namespace Editor
             Check("SkillGachaService_HasAnyLevelableCandidate_ReflectsPerTierMaxLevelState",
                 CheckSkillGachaServiceHasAnyLevelableCandidate);
 
+            // --- 이슈 #12: HUD/팝업이 세로(1080x1920) 전제로만 설계돼 있는데 PlayerSettings가
+            // 가로 자동회전까지 허용해 실기기 회전 시 레이아웃이 겹치던 문제 ---
+            Check("PlayerSettings_Orientation_LockedToPortraitOnly", CheckPlayerSettingsOrientationLockedToPortrait);
+
             if (failures.Count == 0)
             {
                 Debug.Log($"[RegressionChecks] 전부 통과 ({total}/{total}).");
@@ -1692,6 +1696,44 @@ namespace Editor
                 if (mixedCatalog != null) UnityEngine.Object.DestroyImmediate(mixedCatalog);
                 if (maxedSkill != null) UnityEngine.Object.DestroyImmediate(maxedSkill);
                 if (leveledSkill != null) UnityEngine.Object.DestroyImmediate(leveledSkill);
+            }
+        }
+
+        /// <summary>
+        /// PlayerSettings의 화면 방향이 세로 고정(Portrait)이고, 레거시 autorotate 플래그들도
+        /// 가로 방향은 전부 꺼져 있는지 확인한다(GitHub 이슈 #12 - HUD/팝업이 전부 1080x1920
+        /// 세로 기준으로만 설계돼 있는데 PlayerSettings는 AutoRotation으로 가로 회전까지 허용해
+        /// 실기기에서 회전하면 레이아웃이 겹쳤다). defaultInterfaceOrientation이 AutoRotation이
+        /// 아닌 한 allowedAutorotateTo* 플래그들은 런타임에 무시되지만, 설정 파일만 보고 오해하지
+        /// 않도록(요청한 "PlayerSettings와 일치" 완료 조건) 전부 명시적으로 꺼져 있는지까지
+        /// 확인한다. 순수 정적 설정값 확인이라 UI 레이캐스트 계열 검사(이슈 #11)와 달리 Edit/Play
+        /// 모드 어느 쪽에서 돌려도 안정적이다.
+        /// </summary>
+        private static void CheckPlayerSettingsOrientationLockedToPortrait()
+        {
+            if (UnityEditor.PlayerSettings.defaultInterfaceOrientation != UnityEditor.UIOrientation.Portrait)
+            {
+                throw new Exception($"defaultInterfaceOrientation이 Portrait가 아님: {UnityEditor.PlayerSettings.defaultInterfaceOrientation}");
+            }
+
+            if (!UnityEditor.PlayerSettings.allowedAutorotateToPortrait)
+            {
+                throw new Exception("allowedAutorotateToPortrait가 꺼져 있음 - 세로 자체를 못 씀");
+            }
+
+            if (UnityEditor.PlayerSettings.allowedAutorotateToPortraitUpsideDown)
+            {
+                throw new Exception("allowedAutorotateToPortraitUpsideDown이 켜져 있음");
+            }
+
+            if (UnityEditor.PlayerSettings.allowedAutorotateToLandscapeLeft)
+            {
+                throw new Exception("allowedAutorotateToLandscapeLeft가 켜져 있음");
+            }
+
+            if (UnityEditor.PlayerSettings.allowedAutorotateToLandscapeRight)
+            {
+                throw new Exception("allowedAutorotateToLandscapeRight가 켜져 있음");
             }
         }
 
