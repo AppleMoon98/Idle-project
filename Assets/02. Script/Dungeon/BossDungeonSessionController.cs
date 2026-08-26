@@ -49,6 +49,13 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// 실제로 전투가 진행 중인지(실패 화면 대기 중이 아닌지) 여부(GitHub 이슈 #25 -
+        /// UI.BackInputRouter가 뒤로가기 시 "실패 대기 상태에서만 나가기" 정책을 판단하는 데 쓴다).
+        /// SoldierRescueDungeonSessionController.IsFighting과 동일한 이유·동일한 계산.
+        /// </summary>
+        public bool IsFighting => _isFighting;
+
+        /// <summary>
         /// 지금 선택 가능한 보스가 하나라도 있는지 — UI.BossDungeonRowUI가 DungeonPopup의 입장
         /// 버튼 잠금 해제 여부를 여기 하나로 판정한다(별도로 "병사 랭크 이상"을 하드코딩하지 않음 —
         /// 실제로 승급전 보스를 가진 랭크에 도달했는지만 본다).

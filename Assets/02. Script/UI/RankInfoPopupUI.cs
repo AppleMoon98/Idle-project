@@ -9,7 +9,7 @@ namespace UI
     /// 랭크 텍스트(RankDisplayUI)를 누르면 뜨는 정보 팝업 - 현재 랭크의 플레이어 스탯 보너스와
     /// 다음 랭크/요구 스테이지를 보여준다. 순수 조회용이라 어떤 상태도 바꾸지 않는다.
     /// </summary>
-    public sealed class RankInfoPopupUI : MonoBehaviour
+    public sealed class RankInfoPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -23,8 +23,15 @@ namespace UI
         [SerializeField]
         private Button closeButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -33,11 +40,13 @@ namespace UI
         {
             Refresh();
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void Refresh()
@@ -65,6 +74,12 @@ namespace UI
             {
                 nextRankText.text = $"다음 랭크 : {next.DisplayName} ({next.RequiredStage.Chapter}-{next.RequiredStage.StageNumber} 클리어 필요)";
             }
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

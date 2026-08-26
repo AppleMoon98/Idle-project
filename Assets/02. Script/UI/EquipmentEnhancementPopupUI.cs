@@ -17,7 +17,7 @@ namespace UI
     /// InventoryService.AddEnhancementLevel을 호출), 이 팝업은 그 이벤트를 구독해 새로고침만 하면 되고
     /// 버튼 클릭 핸들러가 직접 화면을 갱신할 필요는 없다.
     /// </summary>
-    public sealed class EquipmentEnhancementPopupUI : MonoBehaviour
+    public sealed class EquipmentEnhancementPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -56,8 +56,15 @@ namespace UI
         private bool _isOpen;
         private readonly List<EquipmentStatPreviewRowUI> _spawnedRows = new();
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
             enhanceButton.onClick.AddListener(OnEnhanceClicked);
@@ -81,6 +88,7 @@ namespace UI
             _target = target;
             _isOpen = true;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
@@ -91,6 +99,7 @@ namespace UI
         {
             _isOpen = false;
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
@@ -180,6 +189,12 @@ namespace UI
 
             enhanceButton.interactable = !isMax;
             enhanceButtonLabel.text = isMax ? "MAX" : "강화하기";
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

@@ -19,7 +19,7 @@ namespace UI
     /// (테두리 있는) 슬롯이 있으면 그 슬롯에 바로 장착하고, 선택된 슬롯이 없으면 SkillSlotBarUI에
     /// "대기 중인 스킬"로 넘겨 사용자가 다음에 탭하는 슬롯에 장착되도록 한다(OnEquipClicked 참고).
     /// </summary>
-    public sealed class SkillDetailPopupUI : MonoBehaviour
+    public sealed class SkillDetailPopupUI : MonoBehaviour, IDismissible
     {
         private const string InsufficientColorHex = "#ff6b6b";
 
@@ -68,8 +68,15 @@ namespace UI
         private SkillSO _definition;
         private bool _isOpen;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
             levelUpButton.onClick.AddListener(OnLevelUpClicked);
@@ -104,6 +111,7 @@ namespace UI
             _definition = definition;
             _isOpen = true;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
@@ -115,6 +123,7 @@ namespace UI
         {
             _isOpen = false;
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void OnSkillLeveledUp(SkillLeveledUpEvent evt)
@@ -386,6 +395,12 @@ namespace UI
         {
             string line = $"{label} {needed} / 보유 {KoreanNumberFormatter.Format(owned)}";
             return owned < needed ? $"<color={InsufficientColorHex}>{line}</color>" : line;
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

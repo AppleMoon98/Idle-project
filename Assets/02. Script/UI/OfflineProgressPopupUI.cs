@@ -9,7 +9,7 @@ namespace UI
     /// OfflineProgressCalculatedEvent를 구독해 오프라인 보상 결과를 요약 팝업으로 보여준다.
     /// 확인 버튼을 누르면 닫힌다.
     /// </summary>
-    public sealed class OfflineProgressPopupUI : MonoBehaviour
+    public sealed class OfflineProgressPopupUI : MonoBehaviour, IDismissible
     {
         private const float SecondsPerHour = 3600f;
         private const float SecondsPerMinute = 60f;
@@ -31,8 +31,15 @@ namespace UI
         [SerializeField]
         private float minElapsedSecondsToShowPopup = 300f;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -63,11 +70,13 @@ namespace UI
                 $"현재 스테이지: {evt.FinalChapter}-{evt.FinalStageNumber}";
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         /// <summary>
@@ -85,6 +94,12 @@ namespace UI
 
             float elapsedHours = elapsedSeconds / SecondsPerHour;
             return $"{elapsedHours:0.#}시간";
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

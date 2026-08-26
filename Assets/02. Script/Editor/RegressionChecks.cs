@@ -296,6 +296,19 @@ namespace Editor
             Check("DenseCombatWithModalTransition_PoolAndTrackerInvariantsHold",
                 CheckDenseCombatWithModalTransitionInvariants);
 
+            // --- 이슈 #25: Android 시스템 뒤로가기가 팝업 스택을 닫거나 이전 화면으로 이동하지
+            // 않던 문제 - IDismissible 스택(LIFO)/오버레이 이탈 정책/실제 팝업 배선 스위프 ---
+            Check("BackNavigationService_TryDismissTop_DismissesMostRecentlyRegisteredFirst",
+                CheckBackNavigationServiceLifoOrder);
+            Check("BackNavigationService_Register_DuplicateRegistrationIsIdempotent",
+                CheckBackNavigationServiceDuplicateRegistration);
+            Check("BackNavigationService_TryDismissTop_PrunesDestroyedUnityObjectEntry",
+                CheckBackNavigationServicePrunesDestroyedEntry);
+            Check("BackInputRouter_TryExitWaitingDungeon_ThreeBranches",
+                CheckBackInputRouterTryExitWaitingDungeon);
+            Check("PopupClasses_AllImplementIDismissible_StructuralSweep",
+                CheckPopupClassesImplementIDismissible);
+
             total = localTotal;
             failures = localFailures;
         }
@@ -2901,6 +2914,191 @@ namespace Editor
         private static void SetPrivateFloat(UnityEngine.Object target, string fieldName, float value)
         {
             SetPrivateField(target, fieldName, value);
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #25 - 최근에 등록한 항목부터 닫히는 LIFO 순서를 확인한다(중첩 팝업에서
+        /// Back 한 번이 최상위 팝업 하나만 닫아야 한다는 완료 조건과 직결).
+        /// </summary>
+        private static void CheckBackNavigationServiceLifoOrder()
+        {
+            var service = new BackNavigationService();
+            var first = new TestDismissible();
+            var second = new TestDismissible();
+
+            service.Register(first);
+            service.Register(second);
+
+            if (!service.TryDismissTop())
+            {
+                throw new Exception("스택에 항목이 있는데도 TryDismissTop이 false를 반환함");
+            }
+
+            if (!second.WasDismissed || first.WasDismissed)
+            {
+                throw new Exception($"최근 등록(second)이 먼저 닫혀야 함 - second={second.WasDismissed}, first={first.WasDismissed}");
+            }
+
+            if (!service.TryDismissTop())
+            {
+                throw new Exception("두 번째 TryDismissTop이 false를 반환함 - first가 아직 스택에 남아있어야 함");
+            }
+
+            if (!first.WasDismissed)
+            {
+                throw new Exception("first가 두 번째 Back에서 닫혀야 함");
+            }
+
+            if (service.TryDismissTop())
+            {
+                throw new Exception("스택이 빈 뒤에도 TryDismissTop이 true를 반환함");
+            }
+        }
+
+        /// <summary>
+        /// 같은 인스턴스를 실수로 두 번 Register해도 스택에 중복으로 쌓이지 않아, 단 한 번의
+        /// TryDismissTop으로 완전히 비워지는지 확인한다(GitHub 이슈 #25).
+        /// </summary>
+        private static void CheckBackNavigationServiceDuplicateRegistration()
+        {
+            var service = new BackNavigationService();
+            var dismissible = new TestDismissible();
+
+            service.Register(dismissible);
+            service.Register(dismissible);
+
+            if (!service.TryDismissTop())
+            {
+                throw new Exception("등록된 항목이 있는데도 TryDismissTop이 false를 반환함");
+            }
+
+            if (service.TryDismissTop())
+            {
+                throw new Exception("중복 등록으로 인해 같은 인스턴스가 스택에 두 번 남아있음");
+            }
+        }
+
+        /// <summary>
+        /// Close() 호출 없이 GameObject가 통째로 파괴된 IDismissible 항목(가짜 null)이 스택
+        /// 최상단에 있어도 TryDismissTop이 예외 없이 건너뛰고, 그 아래 살아있는 항목을 대신
+        /// 닫는지 확인한다(GitHub 이슈 #25 - "비활성·파괴된 팝업 참조가 스택에 남지 않음").
+        /// UI.SimplePopupUI를 실제 MonoBehaviour 기반 IDismissible로 재사용한다 - Awake가
+        /// 실행되지 않도록 비활성 상태에서 AddComponent한다(AssertTrySpawnBossReturnsFalse와
+        /// 동일한 이유).
+        /// </summary>
+        private static void CheckBackNavigationServicePrunesDestroyedEntry()
+        {
+            var service = new BackNavigationService();
+            var liveBelow = new TestDismissible();
+
+            var go = new GameObject("RegressionCheck_BackNav_DestroyedPopup");
+            go.SetActive(false);
+            var popup = go.AddComponent<SimplePopupUI>();
+
+            service.Register(liveBelow);
+            service.Register(popup);
+
+            UnityEngine.Object.DestroyImmediate(go);
+
+            if (!service.TryDismissTop())
+            {
+                throw new Exception("파괴된 최상단 항목을 건너뛰고 그 아래 살아있는 항목을 닫아야 하는데 false를 반환함");
+            }
+
+            if (!liveBelow.WasDismissed)
+            {
+                throw new Exception("파괴된 항목 아래의 살아있는 항목이 대신 닫혀야 함");
+            }
+        }
+
+        /// <summary>
+        /// BackInputRouter.TryExitWaitingDungeon(private static)의 세 분기를 직접 검증한다
+        /// (GitHub 이슈 #25) - isActive=false면 해당 없음(false, 액션 미호출), isActive&&isFighting이면
+        /// 아직 자발적 이탈 기능이 없어 조용히 소비만(true, 액션 미호출), isActive&&!isFighting(실패
+        /// 대기 상태)이면 실제로 나가기 액션을 호출(true, 액션 호출).
+        /// </summary>
+        private static void CheckBackInputRouterTryExitWaitingDungeon()
+        {
+            MethodInfo method = typeof(BackInputRouter).GetMethod(
+                "TryExitWaitingDungeon", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (method == null)
+            {
+                throw new Exception("BackInputRouter.TryExitWaitingDungeon 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            int callCount = 0;
+            Action exitAction = () => callCount++;
+
+            bool notActiveResult = (bool)method.Invoke(null, new object[] { false, false, exitAction });
+            if (notActiveResult || callCount != 0)
+            {
+                throw new Exception($"isActive=false인데 결과={notActiveResult}, 호출횟수={callCount}(기대: false/0)");
+            }
+
+            bool fightingResult = (bool)method.Invoke(null, new object[] { true, true, exitAction });
+            if (!fightingResult || callCount != 0)
+            {
+                throw new Exception($"전투 중인데 결과={fightingResult}, 호출횟수={callCount}(기대: true/0 - 소비만 하고 이탈 액션은 호출 안 함)");
+            }
+
+            bool waitingResult = (bool)method.Invoke(null, new object[] { true, false, exitAction });
+            if (!waitingResult || callCount != 1)
+            {
+                throw new Exception($"실패 대기 상태인데 결과={waitingResult}, 호출횟수={callCount}(기대: true/1 - 나가기 액션을 실제로 호출)");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #25 대응으로 IDismissible을 구현하도록 일괄 수정한 26개 팝업 클래스(부대
+        /// 여닫기 셸 SimplePopupUI 포함, "실패" 5종은 컨트롤러 레벨 정책으로 처리해 의도적으로
+        /// 제외)가 실제로 전부 인터페이스를 구현하는지 리플렉션으로 스윕한다 - 대규모 기계적 편집
+        /// 중 파일 하나를 빠뜨리는 실수를 잡기 위함.
+        /// </summary>
+        private static void CheckPopupClassesImplementIDismissible()
+        {
+            string[] expectedDismissibleClassNames =
+            {
+                "BossDungeonClearPopupUI", "BossDungeonSelectPopupUI", "ConfirmationPopupUI",
+                "EquipmentDetailPopupUI", "EquipmentEnhancementPopupUI", "EquipmentPulledPopupUI",
+                "EquipmentSlotPopupUI", "GachaPopupUI", "GoldDungeonClearPopupUI",
+                "NotificationSettingsPopupUI", "OfflineProgressPopupUI", "RankInfoPopupUI",
+                "RankUpPopupUI", "ResetDataConfirmPopupUI", "SimplePopupUI", "SkillDetailPopupUI",
+                "SkillDungeonClearPopupUI", "SkillPulledPopupUI", "SoldierBehaviorProfilePopupUI",
+                "SoldierDeploymentPopupUI", "SoldierDetailPopupUI", "SoldierPulledPopupUI",
+                "SoldierRescueDungeonClearPopupUI", "SquadTacticOptionPopupUI",
+                "StageRepeatPickerPopupUI", "StoneDungeonClearPopupUI",
+            };
+
+            foreach (string className in expectedDismissibleClassNames)
+            {
+                Type type = Type.GetType($"UI.{className}, Assembly-CSharp");
+
+                if (type == null)
+                {
+                    throw new Exception($"타입 'UI.{className}'을 찾지 못함 - 클래스 이름이 바뀌었는지 확인");
+                }
+
+                if (!typeof(IDismissible).IsAssignableFrom(type))
+                {
+                    throw new Exception($"'{className}'이 IDismissible을 구현하지 않음");
+                }
+            }
+        }
+
+        /// <summary>
+        /// UnityEngine.Object가 아닌 순수 C# IDismissible 테스트 더블 - BackNavigationService의
+        /// LIFO/중복등록 로직만 격리해서 확인할 때 쓴다.
+        /// </summary>
+        private sealed class TestDismissible : IDismissible
+        {
+            public bool WasDismissed { get; private set; }
+
+            public bool TryDismiss()
+            {
+                WasDismissed = true;
+                return true;
+            }
         }
 
         private static void AssertApprox(float expected, float actual, string context)

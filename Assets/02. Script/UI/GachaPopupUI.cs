@@ -1,3 +1,4 @@
+using Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -10,7 +11,7 @@ namespace UI
     /// 4개 버튼과 달리 이 팝업은 하단 탭 바 자체까지 덮어야 해서 BottomMenuUI의 패널 배열에
     /// 들어가지 않고, 여는 버튼을 직접 구독한다.
     /// </summary>
-    public sealed class GachaPopupUI : MonoBehaviour
+    public sealed class GachaPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -21,8 +22,15 @@ namespace UI
         [SerializeField]
         private Button closeButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             openButton.onClick.AddListener(Open);
             closeButton.onClick.AddListener(Close);
@@ -31,11 +39,19 @@ namespace UI
         private void Open()
         {
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

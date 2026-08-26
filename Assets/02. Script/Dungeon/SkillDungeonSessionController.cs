@@ -40,6 +40,13 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// 실제로 전투가 진행 중인지(실패 화면 대기 중이 아닌지) 여부(GitHub 이슈 #25 -
+        /// UI.BackInputRouter가 뒤로가기 시 "실패 대기 상태에서만 나가기" 정책을 판단하는 데 쓴다).
+        /// SoldierRescueDungeonSessionController.IsFighting과 동일한 이유·동일한 계산.
+        /// </summary>
+        public bool IsFighting => _isFighting;
+
+        /// <summary>
         /// 스킬 던전을 시작한다. stageNumber는 보스 강함/보상 계산에 쓰인다. 이미 진행 중이거나
         /// (자기 자신) 다른 오버레이가 이미 켜져 있으면(stageController.IsOverlayActive) 무시하고
         /// 토스트로 안내한다 — GoldDungeonSessionController.Enter와 동일한 이유(던전 중복 진입 방지).

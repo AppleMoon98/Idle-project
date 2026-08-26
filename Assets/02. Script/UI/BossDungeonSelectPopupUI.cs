@@ -1,3 +1,4 @@
+using Core;
 using System.Collections.Generic;
 using Dungeon;
 using Rank;
@@ -17,7 +18,7 @@ namespace UI
     /// 것과 동일한 관례. 이게 빠져 있던 것이 "보스 토벌 입장 후 던전 목록 팝업이 뒤에 계속 떠
     /// 있는" 버그의 원인이었다.
     /// </summary>
-    public sealed class BossDungeonSelectPopupUI : MonoBehaviour
+    public sealed class BossDungeonSelectPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -44,8 +45,15 @@ namespace UI
 
         private RankSO _selectedRank;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
             enterButton.onClick.AddListener(OnEnterClicked);
@@ -55,12 +63,14 @@ namespace UI
         {
             _selectedRank = null;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void Refresh()
@@ -112,6 +122,12 @@ namespace UI
             }
 
             session.Enter(rankToEnter);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

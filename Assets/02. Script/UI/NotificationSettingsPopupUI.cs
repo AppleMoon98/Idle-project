@@ -1,3 +1,4 @@
+using Core;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ namespace UI
     /// 라벨+체크박스 한 줄이며, 체크 상태는 "이 알림을 표시한다"는 뜻이므로 ConfirmationPopupUI의
     /// "다시 보지 않기" 플래그와는 값이 반전된다(체크됨 = 플래그 0).
     /// </summary>
-    public sealed class NotificationSettingsPopupUI : MonoBehaviour
+    public sealed class NotificationSettingsPopupUI : MonoBehaviour, IDismissible
     {
         [Serializable]
         private struct Row
@@ -31,8 +32,15 @@ namespace UI
         [SerializeField]
         private Row[] rows;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             openButton.onClick.AddListener(Open);
             closeButton.onClick.AddListener(Close);
@@ -52,11 +60,13 @@ namespace UI
             }
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private static bool IsShowEnabled(string actionKey)
@@ -67,6 +77,12 @@ namespace UI
         private static void SetShow(string actionKey, bool show)
         {
             PlayerPrefs.SetInt(ConfirmationPopupUI.DontShowKeyPrefix + actionKey, show ? 0 : 1);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

@@ -9,7 +9,7 @@ namespace UI
     /// BossDungeonClearedEvent를 구독해 보스 던전 클리어 결과(처치한 보스/소요시간/획득 증표)를
     /// 팝업으로 보여준다. UI.StoneDungeonClearPopupUI와 동일한 형태.
     /// </summary>
-    public sealed class BossDungeonClearPopupUI : MonoBehaviour
+    public sealed class BossDungeonClearPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -20,8 +20,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -49,11 +56,19 @@ namespace UI
                 $"획득 증표: {evt.TotalTokensEarned:N0}";
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

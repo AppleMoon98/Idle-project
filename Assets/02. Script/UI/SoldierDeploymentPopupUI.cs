@@ -1,3 +1,4 @@
+using Core;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -11,7 +12,7 @@ namespace UI
     /// DeploymentContainer의 OnEnable/OnDisable이 그대로 함께 트리거되어 기존 새로고침/구독
     /// 로직이 별도 코드 없이 그대로 작동한다.
     /// </summary>
-    public sealed class SoldierDeploymentPopupUI : MonoBehaviour
+    public sealed class SoldierDeploymentPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -19,8 +20,15 @@ namespace UI
         [SerializeField]
         private Button closeButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -28,6 +36,7 @@ namespace UI
         public void Open()
         {
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         /// <summary>
@@ -36,6 +45,13 @@ namespace UI
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

@@ -12,7 +12,7 @@ namespace UI
     /// EquipmentPulledEvent를 구독해 무기 가챠 결과를 알림 팝업으로 보여준다.
     /// SoldierPulledPopupUI와 동일한 패턴 — 다다뽑기 결과는 종류별 개수로 묶어 요약한다.
     /// </summary>
-    public sealed class EquipmentPulledPopupUI : MonoBehaviour
+    public sealed class EquipmentPulledPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -23,8 +23,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -60,11 +67,19 @@ namespace UI
 
             messageText.text = sb.ToString();
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

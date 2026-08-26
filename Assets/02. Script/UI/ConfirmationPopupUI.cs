@@ -1,3 +1,4 @@
+using Core;
 using System;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,7 +11,7 @@ namespace UI
     /// 클라이언트 선호도라 서비스/이벤트 왕복 없이 직접 읽고 쓰는 CameraShakeToggleUI/
     /// SoundVolumeSliderUI와 같은 관례를 따른다.
     /// </summary>
-    public sealed class ConfirmationPopupUI : MonoBehaviour
+    public sealed class ConfirmationPopupUI : MonoBehaviour, IDismissible
     {
         /// <summary>
         /// "다시 보지 않기" PlayerPrefs 키의 접두사. NotificationSettingsPopupUI가 팝업을 다시
@@ -38,8 +39,15 @@ namespace UI
         private Action _pendingConfirm;
         private string _pendingDontShowKey;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             confirmButton.onClick.AddListener(OnConfirmClicked);
             cancelButton.onClick.AddListener(Close);
@@ -65,6 +73,7 @@ namespace UI
             messageText.text = message;
             dontShowAgainToggle.isOn = false;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void OnConfirmClicked()
@@ -82,8 +91,15 @@ namespace UI
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
             _pendingConfirm = null;
             _pendingDontShowKey = null;
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

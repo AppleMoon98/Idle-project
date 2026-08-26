@@ -10,7 +10,7 @@ namespace UI
     /// 팝업으로 보여준다. 확인 버튼을 누르면 닫힌다. OfflineProgressPopupUI와 같은 "이벤트 구독 →
     /// 요약 텍스트 채우고 열기 → 확인 버튼으로 닫기" 형태.
     /// </summary>
-    public sealed class GoldDungeonClearPopupUI : MonoBehaviour
+    public sealed class GoldDungeonClearPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -21,8 +21,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -50,11 +57,19 @@ namespace UI
                 $"획득 골드: {evt.TotalGoldEarned:N0}";
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

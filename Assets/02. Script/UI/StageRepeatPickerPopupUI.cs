@@ -16,7 +16,7 @@ namespace UI
     /// 그대로 남는다. SquadTacticOptionPopupUI(section DS)와 동일한 "버튼 → 세로 스크롤 목록 팝업"
     /// 셸/재사용 행(SoldierPickerRowUI) 패턴을 그대로 따른다.
     /// </summary>
-    public sealed class StageRepeatPickerPopupUI : MonoBehaviour
+    public sealed class StageRepeatPickerPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -38,8 +38,15 @@ namespace UI
 
         private readonly List<SoldierPickerRowUI> _spawnedRows = new();
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -86,6 +93,7 @@ namespace UI
             }
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void OnPicked(StageSO stage)
@@ -102,6 +110,13 @@ namespace UI
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

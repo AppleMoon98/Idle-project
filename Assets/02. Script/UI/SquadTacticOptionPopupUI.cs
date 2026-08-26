@@ -16,7 +16,7 @@ namespace UI
     /// 바뀌면서 부대 인덱스 없이 선택한 전술을 SquadTacticService.SetTacticForAll로 전체 부대에
     /// 동일 적용한다.
     /// </summary>
-    public sealed class SquadTacticOptionPopupUI : MonoBehaviour
+    public sealed class SquadTacticOptionPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -32,8 +32,15 @@ namespace UI
 
         private readonly List<SoldierPickerRowUI> _spawnedRows = new();
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -61,6 +68,7 @@ namespace UI
             }
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void OnPicked(SquadTacticType tactic)
@@ -76,6 +84,13 @@ namespace UI
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

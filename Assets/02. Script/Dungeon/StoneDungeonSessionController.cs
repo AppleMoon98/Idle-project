@@ -44,6 +44,13 @@ namespace Dungeon
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// 실제로 전투가 진행 중인지(실패 화면 대기 중이 아닌지) 여부(GitHub 이슈 #25 -
+        /// UI.BackInputRouter가 뒤로가기 시 "실패 대기 상태에서만 나가기" 정책을 판단하는 데 쓴다).
+        /// SoldierRescueDungeonSessionController.IsFighting과 동일한 이유·동일한 계산.
+        /// </summary>
+        public bool IsFighting => _isFighting;
+
+        /// <summary>
         /// UI(StoneDungeonEntryUI)가 스테퍼의 최대 선택 가능 단계를 읽어가기 위한 접근자.
         /// GoldDungeonSessionController.MaxStageNumber와 동일한 이유·동일한 계산: "카탈로그에 존재하는
         /// 콘텐츠 양"이 아니라 "플레이어가 실제로 클리어한 챕터"를 기준으로 삼아, 아직 클리어하지 못한

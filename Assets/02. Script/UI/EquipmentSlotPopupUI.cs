@@ -16,7 +16,7 @@ namespace UI
     /// 묶여 "xN"으로 표시되고(EquipmentPanelUI와 동일한 OwnedEquipment 스택 방식), 행을
     /// 누르면 장착, 각 행의 합성/강화 버튼으로 바로 성장시킬 수 있다.
     /// </summary>
-    public sealed class EquipmentSlotPopupUI : MonoBehaviour, ITickable
+    public sealed class EquipmentSlotPopupUI : MonoBehaviour, ITickable, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -79,8 +79,15 @@ namespace UI
 
         private readonly List<EquipmentRowUI> _spawnedRows = new();
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             _sortDescending = PlayerPrefs.GetInt(SortDescendingPrefsKey, 0) != 0;
             sortButton.onClick.AddListener(ToggleSort);
@@ -133,6 +140,7 @@ namespace UI
             _openSlot = slot;
             _isOpen = true;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
@@ -147,6 +155,7 @@ namespace UI
         {
             _isOpen = false;
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
             detailPopup?.Close();
             enhancementPopup?.Close();
             equippedSlotBar?.SetActive(false);
@@ -309,6 +318,12 @@ namespace UI
 
                 _spawnedRows.Add(row);
             }
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

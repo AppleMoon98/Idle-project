@@ -11,7 +11,7 @@ namespace UI
     /// 특정 병사 유닛(InstanceId)에 배정할 행동 프로필을 고르는 팝업. 카탈로그의 프로필 목록에
     /// "해제(교전 기본값)" 옵션을 맨 앞에 추가해 보여준다. 행을 고르면 배정하고 닫힌다.
     /// </summary>
-    public sealed class SoldierBehaviorProfilePopupUI : MonoBehaviour
+    public sealed class SoldierBehaviorProfilePopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -31,8 +31,15 @@ namespace UI
         private int _openInstanceId;
         private readonly List<SoldierBehaviorProfileRowUI> _spawnedRows = new();
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -44,12 +51,14 @@ namespace UI
         {
             _openInstanceId = instanceId;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void Refresh()
@@ -92,6 +101,12 @@ namespace UI
             }
 
             Close();
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

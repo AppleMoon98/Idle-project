@@ -10,7 +10,7 @@ namespace UI
     /// 팝업으로 보여준다. GoldDungeonClearPopupUI와 동일한 형태 — 다만 SkillDungeonConfigSO에는
     /// 챕터 기준 스테이지 개념이 없어(section BI) "기준 스테이지" 대신 "단계"만 표시한다.
     /// </summary>
-    public sealed class SkillDungeonClearPopupUI : MonoBehaviour
+    public sealed class SkillDungeonClearPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -21,8 +21,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -50,11 +57,19 @@ namespace UI
                 $"획득 주문서: {evt.TotalScrollsEarned:N0}";
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

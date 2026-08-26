@@ -17,6 +17,7 @@ using Skill;
 using Soldier;
 using SoldierEnhancement;
 using Stage;
+using UI;
 using UnityEngine;
 
 namespace Core
@@ -360,6 +361,11 @@ namespace Core
             cameraFollowService.Initialize();
             Services.Register(cameraFollowService);
             _managers.Add(cameraFollowService);
+
+            var backNavigationService = new BackNavigationService();
+            backNavigationService.Initialize();
+            Services.Register(backNavigationService);
+            _managers.Add(backNavigationService);
 
             var offlineCombatPowerCalculator = new OfflineCombatPowerCalculator(
                 playerStats,

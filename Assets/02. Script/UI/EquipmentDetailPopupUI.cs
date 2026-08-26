@@ -15,7 +15,7 @@ namespace UI
     /// 보여주는 상세 팝업. EquipmentSlotPopupUI 위에 뜨는 자식 팝업이라, 부모 팝업이 닫힐 때
     /// 같이 닫혀야 한다(EquippedSlotBarUI가 EquipmentSlotPopupUI.Close()를 관리하는 것과 같은 패턴).
     /// </summary>
-    public sealed class EquipmentDetailPopupUI : MonoBehaviour
+    public sealed class EquipmentDetailPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -33,8 +33,15 @@ namespace UI
         private OwnedEquipment _currentlyEquipped;
         private bool _isOpen;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -64,6 +71,7 @@ namespace UI
             _currentlyEquipped = currentlyEquipped;
             _isOpen = true;
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
             Refresh();
         }
 
@@ -74,6 +82,7 @@ namespace UI
         {
             _isOpen = false;
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
         }
 
         private void OnInventoryChanged(InventoryChangedEvent evt)
@@ -163,6 +172,12 @@ namespace UI
             }
 
             return diff > 0f ? $"(▲+{diff:0.##})" : $"(▼{diff:0.##})";
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

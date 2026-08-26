@@ -34,7 +34,7 @@ namespace UI
     /// 독립적으로 재계산하는 것과 같은 관례, section DK). 미리보기 인스턴스는 순수 시각 전용이라
     /// SoldierGradeScaler/SoldierStatReceiver를 아예 비활성화해둔다 - 스탯 계산과 무관하다.
     /// </summary>
-    public sealed class SoldierDetailPopupUI : MonoBehaviour
+    public sealed class SoldierDetailPopupUI : MonoBehaviour, IDismissible
     {
         private static readonly EnhancementStatType[] DisplayStatOrder =
         {
@@ -66,8 +66,15 @@ namespace UI
 
         private GameObject _previewInstance;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
             closeButton.onClick.AddListener(Close);
         }
@@ -84,11 +91,13 @@ namespace UI
             SpawnPreview(definition.Prefab);
 
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         public void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
             DestroyPreview();
         }
 
@@ -239,6 +248,12 @@ namespace UI
                 EnhancementStatType.CriticalDamage => $"{stats.CriticalDamageMultiplier * 100f:0.#}%",
                 _ => ""
             };
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

@@ -10,7 +10,7 @@ namespace UI
     /// 앱 시작 시 세이브 복원으로 발행되는 이벤트(IsRestore == true)는 무시해, 매번 켤 때마다
     /// "승급했습니다" 알림이 뜨는 걸 막는다. 확인 버튼을 누르면 닫힌다.
     /// </summary>
-    public sealed class RankUpPopupUI : MonoBehaviour
+    public sealed class RankUpPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -21,8 +21,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -47,11 +54,19 @@ namespace UI
 
             messageText.text = $"랭크 승급!\n{evt.NewRank.DisplayName}";
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }

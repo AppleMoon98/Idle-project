@@ -36,6 +36,13 @@ namespace Rank
         public bool IsActive => _isActive;
 
         /// <summary>
+        /// 실제로 전투가 진행 중인지(실패 화면 대기 중이 아닌지) 여부(GitHub 이슈 #25 -
+        /// UI.BackInputRouter가 뒤로가기 시 "실패 대기 상태에서만 나가기" 정책을 판단하는 데 쓴다).
+        /// SoldierRescueDungeonSessionController.IsFighting과 동일한 이유·동일한 계산.
+        /// </summary>
+        public bool IsFighting => _isFighting;
+
+        /// <summary>
         /// targetRank로의 승급전을 시작한다. targetRank나 그 보스 프리팹이 없으면 무시한다.
         /// 이미 진행 중이거나(자기 자신) 다른 오버레이(던전 등)가 이미 켜져 있으면(stageController.
         /// IsOverlayActive) 무시한다 — Dungeon.GoldDungeonSessionController.Enter와 동일한 이유

@@ -12,7 +12,7 @@ namespace UI
     /// SoldierPulledEvent를 구독해 가챠 뽑기 결과를 알림 팝업으로 보여준다. RankUpPopupUI와 동일한 패턴.
     /// 다다뽑기(10/30개 등)도 같은 이벤트로 오므로, 종류별 개수를 묶어 요약해서 보여준다.
     /// </summary>
-    public sealed class SoldierPulledPopupUI : MonoBehaviour
+    public sealed class SoldierPulledPopupUI : MonoBehaviour, IDismissible
     {
         [SerializeField]
         private GameObject popupRoot;
@@ -23,8 +23,15 @@ namespace UI
         [SerializeField]
         private Button confirmButton;
 
+        private BackNavigationService _backNavigationService;
+
         private void Awake()
         {
+            if (GameBootstrapper.Services != null)
+            {
+                GameBootstrapper.Services.TryGet(out _backNavigationService);
+            }
+
             popupRoot.SetActive(false);
         }
 
@@ -61,11 +68,19 @@ namespace UI
 
             messageText.text = sb.ToString();
             popupRoot.SetActive(true);
+            _backNavigationService?.Register(this);
         }
 
         private void Close()
         {
             popupRoot.SetActive(false);
+            _backNavigationService?.Unregister(this);
+        }
+
+        bool IDismissible.TryDismiss()
+        {
+            Close();
+            return true;
         }
     }
 }
