@@ -309,6 +309,30 @@ namespace Editor
             Check("PopupClasses_AllImplementIDismissible_StructuralSweep",
                 CheckPopupClassesImplementIDismissible);
 
+
+            // --- 이슈 #26: 병사 로스터/배치/부대 전술 복원이 ID·슬롯 불변조건을 검증하지 않아
+            // 덮어쓰기(nextInstanceId 충돌)·유령 슬롯·중복 배치·범위 밖 전술 인덱스가 발생하던 문제 ---
+            Check("SoldierRosterService_RestoreSnapshot_NormalizesNextInstanceIdAboveCollisions",
+                CheckSoldierRosterRestoreNormalizesNextInstanceId);
+            Check("SoldierRosterService_RestoreSnapshot_RejectsNegativeAndDuplicateInstanceIds",
+                CheckSoldierRosterRestoreRejectsNegativeAndDuplicateIds);
+            Check("SoldierRosterService_RestoreSnapshot_ClearsPreviousEntriesOnReRestore",
+                CheckSoldierRosterRestoreClearsOnReRestore);
+            Check("SoldierRosterService_RestoreSnapshot_NextInstanceIdSaturatesOnOverflow",
+                CheckSoldierRosterRestoreSaturatesOnOverflow);
+            Check("SoldierDeploymentService_RestoreSnapshot_DiscardsGhostAndOutOfRangeSlots",
+                CheckSoldierDeploymentRestoreDiscardsGhostAndOutOfRangeSlots);
+            Check("SoldierDeploymentService_RestoreSnapshot_KeepsOnlyLowestSlotForDuplicateInstanceId",
+                CheckSoldierDeploymentRestoreDedupesInstanceId);
+            Check("SoldierDeploymentService_RestoreSnapshot_ClearsPreviousEntriesOnReRestore",
+                CheckSoldierDeploymentRestoreClearsOnReRestore);
+            Check("SquadTacticService_SetTactic_RejectsOutOfRangeIndexAndUndefinedEnum",
+                CheckSquadTacticServiceSetTacticRejectsInvalid);
+            Check("SquadTacticService_RestoreSnapshot_SkipsInvalidEntryWithoutAbortingRest",
+                CheckSquadTacticServiceRestoreSkipsInvalidEntry);
+            Check("SquadRaidCoordinator_OnTacticChanged_OutOfRangeIndex_DoesNotThrow",
+                CheckSquadRaidCoordinatorOnTacticChangedOutOfRangeIndex);
+
             total = localTotal;
             failures = localFailures;
         }
@@ -3098,6 +3122,458 @@ namespace Editor
             {
                 WasDismissed = true;
                 return true;
+            }
+        }
+
+        private static SoldierSO CreateSoldierDefinition(string stableId, int cost = 1)
+        {
+            var definition = ScriptableObject.CreateInstance<SoldierSO>();
+            SetPrivateField(definition, "stableId", stableId);
+            SetPrivateField(definition, "cost", cost);
+            return definition;
+        }
+
+        private static SoldierCatalogSO CreateSoldierCatalog(SoldierSO[] soldiers)
+        {
+            var catalog = ScriptableObject.CreateInstance<SoldierCatalogSO>();
+            SetPrivateField(catalog, "soldiers", soldiers);
+            return catalog;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #26 재현 절차 A - nextInstanceId 충돌. InstanceId 0인 병사 한 명과
+        /// nextInstanceId=0을 RestoreSnapshot에 전달한 뒤 AddSoldier로 새 병사를 추가하면,
+        /// 수정 전에는 새 병사가 같은 ID 0을 재발급받아 기존 항목을 덮어썼다(로스터 수가 1로
+        /// 유지). 수정 후에는 nextInstanceId가 max(저장값, 복원된 최대 InstanceId+1)로 보정돼
+        /// 새 병사가 ID 1을 받고 로스터 수가 2가 된다.
+        /// </summary>
+        private static void CheckSoldierRosterRestoreNormalizesNextInstanceId()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                catalog = CreateSoldierCatalog(new[] { definitionA, definitionB });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 0, BehaviorProfileStableId = null },
+                };
+
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                OwnedSoldier added = roster.AddSoldier(definitionB);
+
+                if (added.InstanceId == 0)
+                {
+                    throw new Exception("새 병사가 기존 InstanceId 0과 충돌함(nextInstanceId가 보정되지 않음)");
+                }
+
+                if (roster.Roster.Count != 2)
+                {
+                    throw new Exception($"로스터 수가 {roster.Roster.Count}(기대=2) - 덮어쓰기로 하나를 잃음");
+                }
+
+                if (!roster.TryGet(0, out OwnedSoldier original) || original.Definition != definitionA)
+                {
+                    throw new Exception("InstanceId 0이 가리키는 정의가 원래 병사(definitionA)가 아님");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// 음수 InstanceId와 중복 InstanceId(먼저 나온 항목 우선) 둘 다 폐기되고, RestoreResult의
+        /// 폐기 건수에 정확히 반영되는지 확인한다(GitHub 이슈 #26).
+        /// </summary>
+        private static void CheckSoldierRosterRestoreRejectsNegativeAndDuplicateIds()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definition = CreateSoldierDefinition("stable-a");
+                catalog = CreateSoldierCatalog(new[] { definition });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = -1, BehaviorProfileStableId = null },
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 5, BehaviorProfileStableId = null },
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 5, BehaviorProfileStableId = null },
+                };
+
+                SoldierRosterService.RestoreResult result = roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                if (result.RestoredCount != 1 || result.DiscardedNegativeInstanceId != 1 || result.DiscardedDuplicateInstanceId != 1)
+                {
+                    throw new Exception($"복원={result.RestoredCount}(기대=1), 음수폐기={result.DiscardedNegativeInstanceId}(기대=1), 중복폐기={result.DiscardedDuplicateInstanceId}(기대=1)");
+                }
+
+                if (roster.Roster.Count != 1)
+                {
+                    throw new Exception($"최종 로스터 수가 {roster.Roster.Count}(기대=1)");
+                }
+            }
+            finally
+            {
+                if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// 같은 서비스 인스턴스에 RestoreSnapshot을 두 번 호출하면(재로그인/재로드 시나리오),
+        /// 첫 번째 호출로 들어온 항목이 두 번째 호출 이후에도 잔존하지 않아야 한다(GitHub 이슈 #26).
+        /// </summary>
+        private static void CheckSoldierRosterRestoreClearsOnReRestore()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                catalog = CreateSoldierCatalog(new[] { definitionA, definitionB });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                roster.RestoreSnapshot(
+                    new[] { new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 0, BehaviorProfileStableId = null } },
+                    catalog, behaviorCatalog, nextInstanceId: 1);
+
+                roster.RestoreSnapshot(
+                    new[] { new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-b", InstanceId = 10, BehaviorProfileStableId = null } },
+                    catalog, behaviorCatalog, nextInstanceId: 11);
+
+                if (roster.Roster.Count != 1)
+                {
+                    throw new Exception($"두 번째 복원 후 로스터 수가 {roster.Roster.Count}(기대=1) - 첫 번째 복원분(InstanceId 0)이 잔존함");
+                }
+
+                if (roster.TryGet(0, out _))
+                {
+                    throw new Exception("첫 번째 복원의 InstanceId 0이 두 번째 복원 후에도 남아있음");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// 복원된 최대 InstanceId가 int.MaxValue에 가까워도 nextInstanceId 계산(long 중간 연산)이
+        /// 오버플로 없이 int.MaxValue로 saturate하는지 확인한다(GitHub 이슈 #26 - "오버플로 처리").
+        /// </summary>
+        private static void CheckSoldierRosterRestoreSaturatesOnOverflow()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definition = CreateSoldierDefinition("stable-a");
+                catalog = CreateSoldierCatalog(new[] { definition });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = int.MaxValue, BehaviorProfileStableId = null },
+                };
+
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                int nextInstanceIdField = (int)GetPrivateFieldOnPlainObject(roster, "_nextInstanceId");
+
+                if (nextInstanceIdField != int.MaxValue)
+                {
+                    throw new Exception($"_nextInstanceId={nextInstanceIdField}(기대=int.MaxValue, saturate 실패)");
+                }
+            }
+            finally
+            {
+                if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #26 재현 절차 B - 존재하지 않는 병사(InstanceId 999999)로 채워진 슬롯이
+        /// RestoreSnapshot 시점에 폐기되어, TryAssign으로 실제 유효한 병사를 그 슬롯에 배치할 수
+        /// 있는지 확인한다. 수정 전에는 유령 슬롯이 Dictionary를 그대로 점유해 TryAssign조차 "이미
+        /// 배정됨"으로 남아있는 게 아니라 그 슬롯 자체가 다른 유효한 배정으로 덮어써질 수는 있었지만
+        /// (TryAssign은 슬롯 인덱스만 보고 덮어씀), 문제의 핵심은 TryDeploy의 빈 슬롯 탐색이
+        /// ContainsKey만 확인해 유령 슬롯도 "찬 것"으로 셌다는 것 - 여기서는 그 탐색 로직과 동일한
+        /// 방식으로 슬롯이 실제로 비어있는지(_slotToInstanceId에 없는지) 직접 확인한다.
+        /// </summary>
+        private static void CheckSoldierDeploymentRestoreDiscardsGhostAndOutOfRangeSlots()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            var deployment = new SoldierDeploymentService(events, roster, null);
+            SoldierSO definition = null;
+
+            try
+            {
+                definition = CreateSoldierDefinition("stable-a");
+                OwnedSoldier owned = roster.AddSoldier(definition);
+
+                var snapshot = new SoldierDeploymentService.DeploymentSnapshotEntry[SoldierDeploymentService.TotalSlotCount + 2];
+
+                for (int i = 0; i < SoldierDeploymentService.TotalSlotCount; i++)
+                {
+                    snapshot[i] = new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = i, InstanceId = 999999 };
+                }
+
+                snapshot[SoldierDeploymentService.TotalSlotCount] = new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = -1, InstanceId = owned.InstanceId };
+                snapshot[SoldierDeploymentService.TotalSlotCount + 1] = new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = SoldierDeploymentService.TotalSlotCount, InstanceId = owned.InstanceId };
+
+                SoldierDeploymentService.RestoreResult result = deployment.RestoreSnapshot(snapshot);
+
+                if (result.RestoredCount != 0)
+                {
+                    throw new Exception($"복원된 슬롯 수가 {result.RestoredCount}(기대=0) - 전부 유령/범위 밖이어야 함");
+                }
+
+                if (result.DiscardedMissingRosterEntry != SoldierDeploymentService.TotalSlotCount)
+                {
+                    throw new Exception($"유령 슬롯 폐기 건수={result.DiscardedMissingRosterEntry}(기대={SoldierDeploymentService.TotalSlotCount})");
+                }
+
+                if (result.DiscardedOutOfRangeSlot != 2)
+                {
+                    throw new Exception($"범위 밖 슬롯 폐기 건수={result.DiscardedOutOfRangeSlot}(기대=2)");
+                }
+
+                if (deployment.GetDeployedSoldiers().GetEnumerator().MoveNext())
+                {
+                    throw new Exception("복원 직후 GetDeployedSoldiers가 비어있지 않음");
+                }
+
+                if (!deployment.TryAssign(0, owned.InstanceId))
+                {
+                    throw new Exception("유령 슬롯이 제거된 뒤에도 슬롯 0에 유효한 병사를 배치하지 못함");
+                }
+            }
+            finally
+            {
+                if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                deployment.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #26 재현 절차 C - 같은 InstanceId가 여러 슬롯을 가리키면 SlotIndex가 가장
+        /// 낮은 슬롯 하나만 유지되고, 나머지는 중복으로 폐기되는지 확인한다(GetDeployedSoldiers/
+        /// GetTotalDeployedCost가 중복 집계하지 않아야 함).
+        /// </summary>
+        private static void CheckSoldierDeploymentRestoreDedupesInstanceId()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            var deployment = new SoldierDeploymentService(events, roster, null);
+            SoldierSO definition = null;
+
+            try
+            {
+                definition = CreateSoldierDefinition("stable-a", cost: 3);
+                OwnedSoldier owned = roster.AddSoldier(definition);
+
+                var snapshot = new[]
+                {
+                    new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = 1, InstanceId = owned.InstanceId },
+                    new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = 0, InstanceId = owned.InstanceId },
+                };
+
+                SoldierDeploymentService.RestoreResult result = deployment.RestoreSnapshot(snapshot);
+
+                if (result.RestoredCount != 1 || result.DiscardedDuplicateInstanceId != 1)
+                {
+                    throw new Exception($"복원={result.RestoredCount}(기대=1), 중복폐기={result.DiscardedDuplicateInstanceId}(기대=1)");
+                }
+
+                if (!deployment.TryGetSlotOf(owned.InstanceId, out int slotIndex) || slotIndex != 0)
+                {
+                    throw new Exception($"유지된 슬롯이 {slotIndex}(기대=0, 더 낮은 슬롯이 우선해야 함)");
+                }
+
+                int deployedCount = 0;
+                foreach (OwnedSoldier _ in deployment.GetDeployedSoldiers())
+                {
+                    deployedCount++;
+                }
+
+                if (deployedCount != 1)
+                {
+                    throw new Exception($"GetDeployedSoldiers 열거 수={deployedCount}(기대=1, 중복 집계됨)");
+                }
+
+                if (deployment.GetTotalDeployedCost() != 3)
+                {
+                    throw new Exception($"GetTotalDeployedCost={deployment.GetTotalDeployedCost()}(기대=3, 중복 집계됨)");
+                }
+            }
+            finally
+            {
+                if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                deployment.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// SoldierDeploymentService도 재복원 시 이전 배정이 잔존하지 않는지 확인한다(GitHub 이슈 #26).
+        /// </summary>
+        private static void CheckSoldierDeploymentRestoreClearsOnReRestore()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            var deployment = new SoldierDeploymentService(events, roster, null);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                OwnedSoldier ownedA = roster.AddSoldier(definitionA);
+                OwnedSoldier ownedB = roster.AddSoldier(definitionB);
+
+                deployment.RestoreSnapshot(new[] { new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = 0, InstanceId = ownedA.InstanceId } });
+                deployment.RestoreSnapshot(new[] { new SoldierDeploymentService.DeploymentSnapshotEntry { SlotIndex = 1, InstanceId = ownedB.InstanceId } });
+
+                if (deployment.TryGetSlotOf(ownedA.InstanceId, out _))
+                {
+                    throw new Exception("첫 번째 복원의 배정(ownedA→슬롯0)이 두 번째 복원 후에도 남아있음");
+                }
+
+                if (!deployment.TryGetSlotOf(ownedB.InstanceId, out int slotIndex) || slotIndex != 1)
+                {
+                    throw new Exception("두 번째 복원의 배정(ownedB→슬롯1)이 반영되지 않음");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
+                deployment.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// SquadTacticService.SetTactic(공개 진입점)이 범위 밖 squadIndex(-1, SquadCount)와
+        /// 정의되지 않은 enum 값(99) 둘 다 저장도 이벤트 발행도 하지 않는지 확인한다(GitHub 이슈
+        /// #26 코멘트 - "공개 SetTactic()도 잘못된 인덱스/enum 값을 저장하거나 이벤트로 발행하지 않음").
+        /// </summary>
+        private static void CheckSquadTacticServiceSetTacticRejectsInvalid()
+        {
+            var events = new EventBus();
+            var service = new SquadTacticService(events);
+
+            int publishCount = 0;
+            events.Subscribe<SquadTacticChangedEvent>(_ => publishCount++);
+
+            service.SetTactic(-1, SquadTacticType.LeftRightRaid);
+            service.SetTactic(SoldierDeploymentService.SquadCount, SquadTacticType.LeftRightRaid);
+            service.SetTactic(0, (SquadTacticType)99);
+
+            if (publishCount != 0)
+            {
+                throw new Exception($"잘못된 SetTactic 호출 {publishCount}건이 이벤트를 발행함(기대=0)");
+            }
+
+            if (service.GetTactic(-1) != SquadTacticType.None || service.GetTactic(0) != SquadTacticType.None)
+            {
+                throw new Exception("잘못된 값이 실제로 저장됨");
+            }
+        }
+
+        /// <summary>
+        /// RestoreSnapshot에서 손상된 항목(범위 밖 SquadIndex) 하나가 있어도 나머지 유효한 항목은
+        /// 그대로 복원되는지 확인한다(GitHub 이슈 #26 코멘트).
+        /// </summary>
+        private static void CheckSquadTacticServiceRestoreSkipsInvalidEntry()
+        {
+            var events = new EventBus();
+            var service = new SquadTacticService(events);
+
+            var snapshot = new[]
+            {
+                new SquadTacticService.SquadTacticSnapshotEntry { SquadIndex = -1, Tactic = SquadTacticType.LeftRightRaid },
+                new SquadTacticService.SquadTacticSnapshotEntry { SquadIndex = 2, Tactic = SquadTacticType.ShieldWall },
+            };
+
+            SquadTacticService.RestoreResult result = service.RestoreSnapshot(snapshot);
+
+            if (result.RestoredCount != 1 || result.DiscardedInvalidEntry != 1)
+            {
+                throw new Exception($"복원={result.RestoredCount}(기대=1), 폐기={result.DiscardedInvalidEntry}(기대=1)");
+            }
+
+            if (service.GetTactic(2) != SquadTacticType.ShieldWall)
+            {
+                throw new Exception("유효한 항목(부대 2 → ShieldWall)이 복원되지 않음");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #26 코멘트 재현 - SquadRaidCoordinator.OnTacticChanged가 범위 밖
+        /// SquadIndex(-1)를 가진 이벤트를 받아도 IndexOutOfRangeException 없이 조용히 무시하는지
+        /// 확인한다. Awake가 실행되지 않도록 비활성 상태에서 AddComponent한다(section GY와 동일한
+        /// 이유).
+        /// </summary>
+        private static void CheckSquadRaidCoordinatorOnTacticChangedOutOfRangeIndex()
+        {
+            var go = new GameObject("RegressionCheck_SquadRaidCoordinator");
+            go.SetActive(false);
+
+            try
+            {
+                var coordinator = go.AddComponent<SquadRaidCoordinator>();
+
+                MethodInfo method = typeof(SquadRaidCoordinator).GetMethod("OnTacticChanged", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (method == null)
+                {
+                    throw new Exception("SquadRaidCoordinator.OnTacticChanged 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                var evt = new SquadTacticChangedEvent(-1, SquadTacticType.None);
+                method.Invoke(coordinator, new object[] { evt });
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(go);
             }
         }
 

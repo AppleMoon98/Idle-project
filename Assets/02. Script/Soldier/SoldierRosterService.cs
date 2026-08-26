@@ -149,23 +149,74 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 세이브 스냅샷으로 로스터를 복원한다. 게임플레이 획득이 아니므로 SoldierRosterChangedEvent는 발행하지 않는다.
+        /// RestoreSnapshot이 정규화하며 발견한 문제를 요약한 진단 결과(GitHub 이슈 #26). 예외를
+        /// 던지는 대신 조용히 정규화하되, 몇 건이 왜 버려졌는지 호출부(SaveService)가 로그로
+        /// 남길 수 있도록 구조화된 형태로 반환한다.
         /// </summary>
-        public void RestoreSnapshot(OwnedSoldierSnapshot[] snapshot, SoldierCatalogSO catalog, BehaviorProfileCatalogSO behaviorProfileCatalog, int nextInstanceId)
+        public readonly struct RestoreResult
         {
-            _nextInstanceId = nextInstanceId;
+            public readonly int RestoredCount;
+            public readonly int DiscardedMissingCatalogEntry;
+            public readonly int DiscardedNegativeInstanceId;
+            public readonly int DiscardedDuplicateInstanceId;
+
+            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNegativeInstanceId, int discardedDuplicateInstanceId)
+            {
+                RestoredCount = restoredCount;
+                DiscardedMissingCatalogEntry = discardedMissingCatalogEntry;
+                DiscardedNegativeInstanceId = discardedNegativeInstanceId;
+                DiscardedDuplicateInstanceId = discardedDuplicateInstanceId;
+            }
+
+            public int TotalDiscarded => DiscardedMissingCatalogEntry + DiscardedNegativeInstanceId + DiscardedDuplicateInstanceId;
+
+            public bool HasDiscardedEntries => TotalDiscarded > 0;
+        }
+
+        /// <summary>
+        /// 세이브 스냅샷으로 로스터를 복원한다. 게임플레이 획득이 아니므로 SoldierRosterChangedEvent는 발행하지 않는다.
+        /// GitHub 이슈 #26 - 기존 로스터를 먼저 비워 재복원 시 잔존 항목이 남지 않게 하고, 음수/중복
+        /// InstanceId와 카탈로그에 없는 StableId를 걸러 버린다(먼저 쓴 항목이 우선 - 같은 InstanceId가
+        /// 두 번째로 나오면 폐기). nextInstanceId는 저장된 값과 "실제로 복원된 항목들의 최대
+        /// InstanceId + 1" 중 더 큰 쪽으로 보정한다 - 저장된 nextInstanceId가 손상돼 기존 ID 이하로
+        /// 내려가 있어도, 다음 AddSoldier가 기존 병사를 덮어쓰는 일이 없다. long으로 계산해 InstanceId가
+        /// int.MaxValue에 가까워도 오버플로 없이 안전하게 int.MaxValue로 saturate한다.
+        /// </summary>
+        public RestoreResult RestoreSnapshot(OwnedSoldierSnapshot[] snapshot, SoldierCatalogSO catalog, BehaviorProfileCatalogSO behaviorProfileCatalog, int nextInstanceId)
+        {
+            _roster.Clear();
+
+            long normalizedNext = Math.Max(nextInstanceId, 0);
 
             if (snapshot == null)
             {
-                return;
+                _nextInstanceId = (int)normalizedNext;
+                return new RestoreResult(0, 0, 0, 0);
             }
+
+            int discardedMissingCatalog = 0;
+            int discardedNegative = 0;
+            int discardedDuplicate = 0;
 
             foreach (OwnedSoldierSnapshot entry in snapshot)
             {
+                if (entry.InstanceId < 0)
+                {
+                    discardedNegative++;
+                    continue;
+                }
+
+                if (_roster.ContainsKey(entry.InstanceId))
+                {
+                    discardedDuplicate++;
+                    continue;
+                }
+
                 SoldierSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {
+                    discardedMissingCatalog++;
                     continue;
                 }
 
@@ -173,7 +224,13 @@ namespace Soldier
                 {
                     BehaviorProfile = behaviorProfileCatalog.FindByStableId(entry.BehaviorProfileStableId)
                 };
+
+                normalizedNext = Math.Max(normalizedNext, (long)entry.InstanceId + 1);
             }
+
+            _nextInstanceId = normalizedNext > int.MaxValue ? int.MaxValue : (int)normalizedNext;
+
+            return new RestoreResult(_roster.Count, discardedMissingCatalog, discardedNegative, discardedDuplicate);
         }
     }
 }

@@ -162,6 +162,14 @@ namespace Soldier
         /// </summary>
         private void OnTacticChanged(SquadTacticChangedEvent evt)
         {
+            // GitHub 이슈 #26 - SquadTacticService.SetTactic이 이제 범위 밖 SquadIndex를 발행하지
+            // 않지만, 이 컴포넌트도 이벤트 경계에서 한 번 더 방어한다(_isPending을 바로 인덱싱하면
+            // 범위 밖 값에서 IndexOutOfRangeException이 났던 게 실제로 재현된 버그였다).
+            if (evt.SquadIndex < 0 || evt.SquadIndex >= SoldierDeploymentService.SquadCount)
+            {
+                return;
+            }
+
             if (!_isPending[evt.SquadIndex] || IsRaidTactic(evt.Tactic))
             {
                 return;

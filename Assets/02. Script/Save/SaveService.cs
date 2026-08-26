@@ -524,8 +524,24 @@ namespace Save
                 return;
             }
 
-            _soldierRoster.RestoreSnapshot(blob.Roster, _soldierCatalog, _behaviorProfileCatalog, blob.NextInstanceId);
-            _soldierDeployment.RestoreSnapshot(blob.Deployment);
+            // GitHub 이슈 #26 - 두 RestoreSnapshot이 이제 폐기 건수를 구조화된 결과로 돌려주므로,
+            // 뭔가 버려졌을 때만(정상 세이브는 거의 항상 0건) 콘솔에 경고를 남긴다 - 이슈 #7이 이미
+            // 쓰는 "[SaveService] ..." 로그 관례를 그대로 재사용한다. 배치 복원은 로스터 복원 직후
+            // 반드시 이어서 호출해야 한다(SoldierDeploymentService.RestoreSnapshot이 방금 복원된
+            // 로스터를 조회해 유령 InstanceId를 걸러낸다).
+            SoldierRosterService.RestoreResult rosterResult = _soldierRoster.RestoreSnapshot(blob.Roster, _soldierCatalog, _behaviorProfileCatalog, blob.NextInstanceId);
+
+            if (rosterResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 병사 로스터 복원 중 {rosterResult.TotalDiscarded}건을 버림(카탈로그 없음={rosterResult.DiscardedMissingCatalogEntry}, 음수 ID={rosterResult.DiscardedNegativeInstanceId}, 중복 ID={rosterResult.DiscardedDuplicateInstanceId}) - 복원={rosterResult.RestoredCount}건.");
+            }
+
+            SoldierDeploymentService.RestoreResult deploymentResult = _soldierDeployment.RestoreSnapshot(blob.Deployment);
+
+            if (deploymentResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 병사 배치 슬롯 복원 중 {deploymentResult.TotalDiscarded}건을 버림(범위 밖 슬롯={deploymentResult.DiscardedOutOfRangeSlot}, 로스터에 없음={deploymentResult.DiscardedMissingRosterEntry}, 중복 배치={deploymentResult.DiscardedDuplicateInstanceId}) - 복원={deploymentResult.RestoredCount}건.");
+            }
         }
 
         /// <summary>
@@ -605,7 +621,13 @@ namespace Save
                 return;
             }
 
-            _squadTactic.RestoreSnapshot(blob.Entries);
+            // GitHub 이슈 #26 - 로스터/배치와 같은 이유의 진단 로그.
+            SquadTacticService.RestoreResult tacticResult = _squadTactic.RestoreSnapshot(blob.Entries);
+
+            if (tacticResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 부대 전술 복원 중 {tacticResult.DiscardedInvalidEntry}건을 버림(범위 밖 SquadIndex 또는 정의되지 않은 Tactic 값) - 복원={tacticResult.RestoredCount}건.");
+            }
         }
 
         /// <summary>

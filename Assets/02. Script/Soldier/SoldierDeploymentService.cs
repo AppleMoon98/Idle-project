@@ -288,20 +288,81 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 세이브 스냅샷으로 배정 상태를 복원한다. 로스터 복원 이후에 호출해야 한다(TryGetAssigned가
-        /// 로스터를 조회하므로, 로스터에 없는 InstanceId는 자연히 무시된다 — 별도 검증 불필요).
+        /// RestoreSnapshot이 정규화하며 발견한 문제를 요약한 진단 결과(GitHub 이슈 #26).
+        /// SoldierRosterService.RestoreResult와 같은 모양 - 어떤 이유로 몇 건이 버려졌는지
+        /// SaveService가 로그로 남길 수 있다.
         /// </summary>
-        public void RestoreSnapshot(DeploymentSnapshotEntry[] snapshot)
+        public readonly struct RestoreResult
         {
-            if (snapshot == null)
+            public readonly int RestoredCount;
+            public readonly int DiscardedOutOfRangeSlot;
+            public readonly int DiscardedMissingRosterEntry;
+            public readonly int DiscardedDuplicateInstanceId;
+
+            public RestoreResult(int restoredCount, int discardedOutOfRangeSlot, int discardedMissingRosterEntry, int discardedDuplicateInstanceId)
             {
-                return;
+                RestoredCount = restoredCount;
+                DiscardedOutOfRangeSlot = discardedOutOfRangeSlot;
+                DiscardedMissingRosterEntry = discardedMissingRosterEntry;
+                DiscardedDuplicateInstanceId = discardedDuplicateInstanceId;
             }
 
-            foreach (DeploymentSnapshotEntry entry in snapshot)
+            public int TotalDiscarded => DiscardedOutOfRangeSlot + DiscardedMissingRosterEntry + DiscardedDuplicateInstanceId;
+
+            public bool HasDiscardedEntries => TotalDiscarded > 0;
+        }
+
+        /// <summary>
+        /// 세이브 스냅샷으로 배정 상태를 복원한다. 로스터 복원 이후에 호출해야 한다(로스터에 없는
+        /// InstanceId를 이 메서드 자신이 걸러낸다). GitHub 이슈 #26 - 기존 배정을 먼저 비워 재복원
+        /// 시 잔존 항목이 남지 않게 하고, 범위 밖 SlotIndex(TotalSlotCount 밖)와 로스터에 없는
+        /// InstanceId(유령 슬롯 - 예전엔 Dictionary에 그대로 쌓여 TryDeploy의 "이 슬롯이 비었는가"
+        /// 판정을 ContainsKey만으로 하다 보니 실제로는 없는 병사가 슬롯을 영구히 점유했다)를 폐기한다.
+        /// 같은 InstanceId가 여러 슬롯에 있으면 SlotIndex가 가장 낮은 슬롯 하나만 유지한다(명시적
+        /// 우선순위 - 스냅샷 배열 자체의 저장 순서와 무관하게 항상 같은 결과가 나오도록 SlotIndex
+        /// 오름차순으로 정렬해 처리한다).
+        /// </summary>
+        public RestoreResult RestoreSnapshot(DeploymentSnapshotEntry[] snapshot)
+        {
+            _slotToInstanceId.Clear();
+
+            if (snapshot == null)
             {
+                return new RestoreResult(0, 0, 0, 0);
+            }
+
+            int discardedOutOfRange = 0;
+            int discardedMissingRoster = 0;
+            int discardedDuplicate = 0;
+            var claimedInstanceIds = new HashSet<int>();
+
+            var ordered = new List<DeploymentSnapshotEntry>(snapshot);
+            ordered.Sort((a, b) => a.SlotIndex.CompareTo(b.SlotIndex));
+
+            foreach (DeploymentSnapshotEntry entry in ordered)
+            {
+                if (entry.SlotIndex < 0 || entry.SlotIndex >= TotalSlotCount)
+                {
+                    discardedOutOfRange++;
+                    continue;
+                }
+
+                if (!_roster.TryGet(entry.InstanceId, out _))
+                {
+                    discardedMissingRoster++;
+                    continue;
+                }
+
+                if (!claimedInstanceIds.Add(entry.InstanceId))
+                {
+                    discardedDuplicate++;
+                    continue;
+                }
+
                 _slotToInstanceId[entry.SlotIndex] = entry.InstanceId;
             }
+
+            return new RestoreResult(_slotToInstanceId.Count, discardedOutOfRange, discardedMissingRoster, discardedDuplicate);
         }
     }
 }

@@ -56,9 +56,19 @@ namespace Soldier
 
         /// <summary>
         /// squadIndex의 전술을 바꾼다. 실제로 값이 바뀔 때만 SquadTacticChangedEvent를 발행한다.
+        /// GitHub 이슈 #26 - squadIndex가 범위(0 ~ SquadCount-1) 밖이거나 tactic이 정의되지 않은
+        /// enum 값이면 아무 것도 저장하지 않고 이벤트도 발행하지 않는다(조용히 무시) - 이 유일한
+        /// 공개 진입점에서 막아두면, 어떤 호출부(UI/세이브 복원)가 잘못된 값을 넘겨도
+        /// SquadTacticChangedEvent 소비자(SquadRaidCoordinator 등)가 범위 밖 인덱스를 절대
+        /// 받지 않는다.
         /// </summary>
         public void SetTactic(int squadIndex, SquadTacticType tactic)
         {
+            if (!IsValid(squadIndex, tactic))
+            {
+                return;
+            }
+
             if (GetTactic(squadIndex) == tactic)
             {
                 return;
@@ -66,6 +76,13 @@ namespace Soldier
 
             _tactics[squadIndex] = tactic;
             _events?.Publish(new SquadTacticChangedEvent(squadIndex, tactic));
+        }
+
+        private static bool IsValid(int squadIndex, SquadTacticType tactic)
+        {
+            return squadIndex >= 0
+                && squadIndex < SoldierDeploymentService.SquadCount
+                && Enum.IsDefined(typeof(SquadTacticType), tactic);
         }
 
         /// <summary>
@@ -100,20 +117,53 @@ namespace Soldier
         }
 
         /// <summary>
-        /// 세이브 스냅샷으로 부대별 전술을 복원한다. 이벤트를 발행하지 않는다(시딩이지 게임플레이
-        /// 변화가 아니다 - InventoryService.RestoreSnapshot과 같은 관례).
+        /// RestoreSnapshot이 발견한 문제를 요약한 진단 결과(GitHub 이슈 #26) - 다른 두 병사 도메인
+        /// 서비스(SoldierRosterService/SoldierDeploymentService)의 RestoreResult와 같은 모양.
         /// </summary>
-        public void RestoreSnapshot(SquadTacticSnapshotEntry[] snapshot)
+        public readonly struct RestoreResult
         {
+            public readonly int RestoredCount;
+            public readonly int DiscardedInvalidEntry;
+
+            public RestoreResult(int restoredCount, int discardedInvalidEntry)
+            {
+                RestoredCount = restoredCount;
+                DiscardedInvalidEntry = discardedInvalidEntry;
+            }
+
+            public bool HasDiscardedEntries => DiscardedInvalidEntry > 0;
+        }
+
+        /// <summary>
+        /// 세이브 스냅샷으로 부대별 전술을 복원한다. 이벤트를 발행하지 않는다(시딩이지 게임플레이
+        /// 변화가 아니다 - InventoryService.RestoreSnapshot과 같은 관례). GitHub 이슈 #26 - 기존
+        /// 배정을 먼저 비워 재복원 시 잔존 항목이 남지 않게 하고, SquadIndex 범위(0 ~ SquadCount-1
+        /// 밖) 또는 정의되지 않은 Tactic enum 값을 가진 항목 하나가 손상돼 있어도 그 항목만 버리고
+        /// 나머지 유효한 항목은 그대로 복원한다(하나가 깨졌다고 전체를 포기하지 않음).
+        /// </summary>
+        public RestoreResult RestoreSnapshot(SquadTacticSnapshotEntry[] snapshot)
+        {
+            _tactics.Clear();
+
             if (snapshot == null)
             {
-                return;
+                return new RestoreResult(0, 0);
             }
+
+            int discarded = 0;
 
             foreach (SquadTacticSnapshotEntry entry in snapshot)
             {
+                if (!IsValid(entry.SquadIndex, entry.Tactic))
+                {
+                    discarded++;
+                    continue;
+                }
+
                 _tactics[entry.SquadIndex] = entry.Tactic;
             }
+
+            return new RestoreResult(_tactics.Count, discarded);
         }
     }
 }
