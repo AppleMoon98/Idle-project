@@ -72,6 +72,34 @@ namespace UI
                 _pool = pool;
                 _pool.EnsurePool(slotPrefab.gameObject, PoolDefaultCapacity, PoolMaxSize);
             }
+
+            RestoreAlreadyRevealedSlots();
+        }
+
+        /// <summary>
+        /// 패널이 다시 활성화될 때(탭 왕복 등), OnDisable에서 반납했던 슬롯 중 이미 리빌이
+        /// "결정된"(인덱스가 _nextIndex 미만인) 항목들을 애니메이션 없이 즉시 다시 스폰한다
+        /// (GitHub 이슈 #10 완료 조건 3번 - 팝업 닫기·재열기·탭 왕복 후 상태 일관성). 이게 없으면
+        /// 리빌 도중 탭을 벗어났다 돌아왔을 때 이미 보여줬던 앞쪽 슬롯들은 다시는 나타나지 않고
+        /// 남은 뒤쪽 슬롯만 보이거나(예: 10개 중 3개를 보여준 뒤 벗어났다 돌아오면 나머지 7개만
+        /// 나타남), 리빌이 이미 완전히 끝난 뒤 탭을 벗어났다 돌아온 경우엔 화면이 텅 빈 채로
+        /// 남는다(_pending/_nextIndex는 "다 끝났다"고 말하는데 실제 슬롯은 전부 반납돼 있으므로) -
+        /// 둘 다 내부 상태(_pending/_nextIndex)와 실제 화면(content의 자식)이 어긋나는 같은 종류의
+        /// 문제라 이 메서드 하나로 함께 해결된다. 실제로 Unity Editor에서 재현·검증했다.
+        /// </summary>
+        private void RestoreAlreadyRevealedSlots()
+        {
+            if (_pool == null || _pending == null || _nextIndex <= 0)
+            {
+                return;
+            }
+
+            for (int i = 0; i < _nextIndex; i++)
+            {
+                SpawnAt(i);
+            }
+
+            ScrollToBottom();
         }
 
         /// <summary>
@@ -159,11 +187,22 @@ namespace UI
 
         private void SpawnNext()
         {
+            SpawnAt(_nextIndex);
+            _nextIndex++;
+        }
+
+        /// <summary>
+        /// index번째 결과 슬롯을 스폰해 content에 붙인다. SpawnNext(애니메이션 진행 중 다음 한 칸)와
+        /// RestoreAlreadyRevealedSlots(재활성화 시 이미 결정된 구간 전체를 즉시 복원) 둘 다 이
+        /// 하나의 스폰 로직을 공유한다 - _nextIndex를 건드리는 책임은 호출자에게 남겨(RestoreAlready
+        /// RevealedSlots는 이미 결정된 인덱스를 다시 그릴 뿐 진행 상태 자체를 바꾸면 안 되므로).
+        /// </summary>
+        private void SpawnAt(int index)
+        {
             GameObject instance = _pool.Get(slotPrefab.gameObject, content.position, Quaternion.identity);
             instance.transform.SetParent(content, false);
-            instance.GetComponent<GachaResultSlotUI>().Initialize(_pending[_nextIndex]);
+            instance.GetComponent<GachaResultSlotUI>().Initialize(_pending[index]);
             _spawned.Add(instance);
-            _nextIndex++;
         }
 
         /// <summary>

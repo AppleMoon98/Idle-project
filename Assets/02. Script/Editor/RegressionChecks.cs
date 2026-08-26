@@ -123,6 +123,8 @@ namespace Editor
             // 같은 풀을 공유해도 전체 인스턴스 수가 늘어나지 않고 재사용됨 ---
             Check("GachaResultRevealController_OnDisable_ReleasesSpawnedSlotsForReuse",
                 CheckGachaResultRevealControllerReleasesOnDisable);
+            Check("GachaResultRevealController_OnEnable_RestoresAlreadyRevealedSlotsInstantly",
+                CheckGachaResultRevealControllerRestoresOnReenable);
 
             // --- 이슈 #21: 300연 가챠/대량 이벤트로 인한 O(n^2) 성능 저하 3곳 ---
             Check("SkillGachaTableSO_Entries_ReturnsCachedArrayOnRepeatedAccess",
@@ -986,19 +988,154 @@ namespace Editor
             }
         }
 
+        /// <summary>
+        /// 리빌 도중(또는 완전히 끝난 뒤) 탭을 벗어났다 돌아오면, OnDisable이 반납했던 슬롯 중
+        /// 이미 결정된(_nextIndex 미만) 것들이 OnEnable에서 즉시 다시 스폰되는지 확인한다
+        /// (GitHub 이슈 #10 완료 조건 3번 - Unity Editor에서 실제 재현해 찾은 버그: 이 복원
+        /// 로직이 없으면 리빌 도중 이탈 후 복귀 시 이미 보여준 앞쪽 슬롯이 다시는 안 나타나고,
+        /// 완전히 끝난 뒤 이탈 후 복귀하면 화면이 통째로 비게 됐다). 5개 중 2개만 리빌된 "도중"
+        /// 상태로 이탈->복귀 후 나머지를 마저 리빌하고, 그 완료 상태로 다시 이탈->복귀하는 것까지
+        /// 전부 한 흐름으로 검증한다.
+        /// </summary>
+        private static void CheckGachaResultRevealControllerRestoresOnReenable()
+        {
+            const int slotCount = 5;
+            const int revealedBeforeLeaving = 2;
+
+            string prefabPath = "Assets/04. Prefab/UI/GachaResultSlot.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+            if (prefab == null || !prefab.TryGetComponent(out UI.GachaResultSlotUI slotPrefab))
+            {
+                throw new Exception($"{prefabPath}에서 UI.GachaResultSlotUI 프리팹을 찾지 못함 - 경로/컴포넌트가 바뀌었는지 확인");
+            }
+
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+            pool.EnsurePool(prefab, slotCount, slotCount);
+
+            GameObject controllerGo = null;
+
+            try
+            {
+                var visuals = new UI.GachaResultVisual[slotCount];
+                for (int i = 0; i < slotCount; i++)
+                {
+                    visuals[i] = new UI.GachaResultVisual(null, Color.white);
+                }
+
+                controllerGo = CreateRevealController(slotPrefab, out UI.GachaResultRevealController controller);
+                SetPrivateField(controller, "_pool", pool);
+                SetPrivateField(controller, "_pending", visuals);
+                SetPrivateField(controller, "_nextIndex", 0);
+
+                MethodInfo spawnNext = typeof(UI.GachaResultRevealController).GetMethod("SpawnNext", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                // 실제 OnEnable()이 아니라 RestoreAlreadyRevealedSlots()를 직접 호출한다 - OnEnable은
+                // GameBootstrapper.Services를 통한 GameTicker 등록도 함께 하는데, 이 검사가 순수
+                // Edit Mode 환경(GameBootstrapper가 존재하지 않음)에서 검증하려는 것은 오직 "복원"
+                // 로직 하나뿐이라 그 부분만 직접 호출해 무관한 전역 상태 결합을 피한다.
+                MethodInfo restore = typeof(UI.GachaResultRevealController).GetMethod("RestoreAlreadyRevealedSlots", BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo contentField = typeof(UI.GachaResultRevealController).GetField("content", BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo nextIndexField = typeof(UI.GachaResultRevealController).GetField("_nextIndex", BindingFlags.NonPublic | BindingFlags.Instance);
+                var content = (Transform)contentField.GetValue(controller);
+
+                for (int i = 0; i < revealedBeforeLeaving; i++)
+                {
+                    spawnNext.Invoke(controller, null);
+                }
+
+                if (content.childCount != revealedBeforeLeaving)
+                {
+                    throw new Exception($"이탈 전 스폰된 슬롯 수가 {content.childCount}(기대={revealedBeforeLeaving})");
+                }
+
+                InvokeOnDisable(controller);
+
+                if (content.childCount != 0)
+                {
+                    throw new Exception($"OnDisable 이후 슬롯이 반납되지 않음: {content.childCount}");
+                }
+
+                restore.Invoke(controller, null);
+
+                if (content.childCount != revealedBeforeLeaving)
+                {
+                    throw new Exception($"재활성화 후 즉시 복원된 슬롯 수가 {content.childCount}(기대={revealedBeforeLeaving}) - 이미 보여준 슬롯이 재열기 시 사라짐");
+                }
+
+                int nextIndexAfterRestore = (int)nextIndexField.GetValue(controller);
+
+                if (nextIndexAfterRestore != revealedBeforeLeaving)
+                {
+                    throw new Exception($"복원 과정에서 진행 인덱스가 바뀜: {nextIndexAfterRestore}(기대={revealedBeforeLeaving})");
+                }
+
+                for (int i = revealedBeforeLeaving; i < slotCount; i++)
+                {
+                    spawnNext.Invoke(controller, null);
+                }
+
+                if (content.childCount != slotCount)
+                {
+                    throw new Exception($"나머지 리빌 완료 후 슬롯 수가 {content.childCount}(기대={slotCount})");
+                }
+
+                InvokeOnDisable(controller);
+                restore.Invoke(controller, null);
+
+                if (content.childCount != slotCount)
+                {
+                    throw new Exception($"완전히 끝난 리빌을 재열기했는데 슬롯 수가 {content.childCount}(기대={slotCount}) - 화면이 비는 회귀");
+                }
+
+                InvokeOnDisable(controller);
+            }
+            finally
+            {
+                if (controllerGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(controllerGo);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
         private static GameObject CreateRevealController(UI.GachaResultSlotUI slotPrefab, out UI.GachaResultRevealController controller)
         {
             var go = new GameObject("RegressionCheck_GachaResultRevealController");
             go.SetActive(false); // OnEnable이 즉시 실행되지 않게(_pool을 직접 주입할 것이므로 불필요)
             go.AddComponent<RectTransform>();
-            go.AddComponent<UnityEngine.UI.ScrollRect>();
+            var scrollRect = go.AddComponent<UnityEngine.UI.ScrollRect>();
             controller = go.AddComponent<UI.GachaResultRevealController>();
 
-            var contentGo = new GameObject("Content");
+            var contentGo = new GameObject("Content", typeof(RectTransform));
             contentGo.transform.SetParent(go.transform);
+
+            // ScrollRect.SetNormalizedPosition(내부적으로 ScrollToBottom이 호출)이 자기 자신의
+            // content(스크롤 대상 RectTransform, 우리 컨트롤러의 private "content" 필드와는 별개)가
+            // null이면 널 체크 없이 그대로 NRE를 던진다 - GitHub 이슈 #10 회귀 검사(재활성화 시
+            // 즉시 복원, ScrollToBottom 경로를 처음으로 실제 호출) 작성 중 실제로 겪은 함정.
+            scrollRect.content = contentGo.GetComponent<RectTransform>();
 
             SetPrivateField(controller, "content", contentGo.transform);
             SetPrivateField(controller, "slotPrefab", slotPrefab);
+
+            // GameObject를 비활성 상태로 만든 채 컴포넌트를 추가하므로(OnEnable이 곧장 실행되지
+            // 않도록) Unity가 Awake()를 아직 호출하지 않았다 - 실제 씬이라면 Awake()가 이미 끝난
+            // 뒤 비활성화됐을 시점이라 _scrollRect가 채워져 있지만, 이 합성 오브젝트는 처음부터
+            // 비활성이라 _scrollRect가 계속 null로 남는다. RestoreAlreadyRevealedSlots 등이 이
+            // 필드를 쓰는 경로(ScrollToBottom)를 검증하려면 실제 라이프사이클처럼 Awake()를 한 번
+            // 대신 실행해줘야 한다(GitHub 이슈 #10 회귀 검사 작성 중 실제로 겪은 함정).
+            MethodInfo awake = typeof(UI.GachaResultRevealController).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+            awake.Invoke(controller, null);
 
             return go;
         }
