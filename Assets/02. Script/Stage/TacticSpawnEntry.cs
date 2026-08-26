@@ -71,6 +71,15 @@ namespace Stage
         public int TotalUnitCount => totalUnitCount;
 
         /// <summary>
+        /// 실제로 스폰되는 쌍의 수(TotalUnitCount / 2, 정수 나눗셈 - 홀수 총량은 1 적게 나옴).
+        /// Stage.MonsterSpawner.TickTactics/Stage.StageProgressTracker.CalculateTotal/
+        /// Offline.OfflineStageSimulator가 전부 이 프로퍼티 하나를 공유한다(GitHub 이슈 #33) -
+        /// 세 곳이 각자 같은 공식을 따로 계산하면 나중에 하나만 고쳐지고 나머지가 어긋나는
+        /// 드리프트 위험이 있어, 계산 자체를 엔트리 자신에게 옮겨 단일 진실 공급원으로 만들었다.
+        /// </summary>
+        public int PairCount => Mathf.Max(totalUnitCount / 2, 0);
+
+        /// <summary>
         /// 쌍(리더+추종자) 하나가 스폰된 뒤 다음 쌍이 스폰되기까지의 간격(초). 0(기본값)이면
         /// 기존과 동일하게 모든 쌍이 한 틱에 동시 스폰된다 - 41마리가 한꺼번에 교전 가능해지는
         /// 상황(예: N-40 방패벽)을 완화하고 싶을 때만 0보다 크게 설정한다.

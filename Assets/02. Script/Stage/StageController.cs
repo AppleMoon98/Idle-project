@@ -135,7 +135,7 @@ namespace Stage
             {
                 foreach (TacticSpawnEntry tacticEntry in stage.TacticEntries)
                 {
-                    int pairCount = tacticEntry.TotalUnitCount / 2;
+                    int pairCount = tacticEntry.PairCount;
                     pool.EnsurePool(tacticEntry.LeaderPrefab, pairCount, pairCount);
                     pool.EnsurePool(tacticEntry.FollowerPrefab, pairCount, pairCount);
 

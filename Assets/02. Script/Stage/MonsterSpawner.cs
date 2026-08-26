@@ -182,7 +182,7 @@ namespace Stage
                 }
             }
 
-            int totalPairs = Mathf.Max(entry.TotalUnitCount / 2, 0);
+            int totalPairs = entry.PairCount;
             _tacticPairElapsed += deltaTime;
 
             while (_tacticPairIndex < totalPairs && _tacticPairElapsed >= entry.PairSpawnInterval)

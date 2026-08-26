@@ -324,6 +324,30 @@ namespace Editor
             Check("SkillLoadoutService_RestoreSnapshot_RoundTrip_TryEquipAndExportRemainConsistent",
                 CheckSkillLoadoutServiceRestoreSnapshotRoundTripInvariants);
 
+            // --- 이슈 #33: OfflineStageSimulator가 StageSO.TacticEntries(전술 대형)를 통째로
+            // 누락해 N-40처럼 전술 웨이브가 있는 스테이지의 실전/오프라인 총 대상 수·체력·
+            // 보상이 크게 어긋나던 문제 ---
+            Check("TacticSpawnEntry_PairCount_TruncatesOddTotalsConsistently",
+                CheckTacticSpawnEntryPairCountTruncation);
+            Check("OfflineStageSimulator_RealStage1_40_TotalMatchesStageProgressTrackerFormula",
+                CheckOfflineStageSimulatorRealStage1_40TotalMatchesRuntimeFormula);
+            Check("OfflineStageSimulator_TacticEntry_LeaderFollowerAlternateHealth_WeightedByChance",
+                CheckOfflineStageSimulatorTacticHealthWeightedByChance);
+            Check("OfflineStageSimulator_ShieldGuardLeader_EffectiveHealthIncludesShieldMultiplier",
+                CheckOfflineStageSimulatorShieldGuardInflatesEffectiveHealth);
+            Check("OfflineStageSimulator_AlternateFollowerPrefabNull_IgnoresChanceEntirely",
+                CheckOfflineStageSimulatorNullAlternatePrefabIgnoresChance);
+            Check("OfflineStageSimulator_NullLeaderPrefab_SkipsGroupWithoutThrowing",
+                CheckOfflineStageSimulatorNullLeaderPrefabSkipsGroup);
+            Check("OfflineStageSimulator_TacticSpawnDelay_SumsPairIntervalsPlusLastEntryImmediateDelay",
+                CheckOfflineStageSimulatorTacticSpawnDelayFormula);
+            Check("OfflineStageSimulator_TacticOnlyStage_SimulateSucceedsWithExactPopulationMath",
+                CheckOfflineStageSimulatorTacticOnlyStagePopulation);
+            Check("OfflineStageSimulator_MixedNormalAndTactic_LootYieldReflectsFullPopulation",
+                CheckOfflineStageSimulatorMixedStageLootIncludesTactics);
+            Check("OfflineStageSimulator_NoTacticEntries_NullVsEmptyArray_BehavesIdentically",
+                CheckOfflineStageSimulatorNoTacticsNullVsEmptyBehaveIdentically);
+
             // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
             // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
             // (추적 딕셔너리 불변조건) ---
@@ -3743,6 +3767,633 @@ namespace Editor
                 {
                     UnityEngine.Object.DestroyImmediate(catalog);
                 }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "홀수 TotalUnitCount... 경계를 검증함". TacticSpawnEntry.
+        /// PairCount(Stage.MonsterSpawner.TickTactics/Stage.StageProgressTracker.CalculateTotal/
+        /// Offline.OfflineStageSimulator가 공유하는 단일 진실 공급원)가 홀수·0·음수 TotalUnitCount를
+        /// 정확히 정수 나눗셈+0 하한으로 처리하는지 확인한다.
+        /// </summary>
+        private static void CheckTacticSpawnEntryPairCountTruncation()
+        {
+            AssertPairCount(36, 18);
+            AssertPairCount(5, 2);
+            AssertPairCount(1, 0);
+            AssertPairCount(0, 0);
+            AssertPairCount(-3, 0);
+        }
+
+        private static void AssertPairCount(int totalUnitCount, int expectedPairCount)
+        {
+            var entry = new TacticSpawnEntry();
+            SetPrivateFieldOnPlainObject(entry, "totalUnitCount", totalUnitCount);
+
+            if (entry.PairCount != expectedPairCount)
+            {
+                throw new Exception($"TotalUnitCount={totalUnitCount}일 때 PairCount가 {entry.PairCount}(기대={expectedPairCount})");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 재현 절차 그대로 - 실제 Stage_1_40.asset(1-40, 이슈가 직접 대조한 그
+        /// 스테이지)을 프로젝트에서 로드해, 실전 클리어 판정 공식(Stage.StageProgressTracker.
+        /// CalculateTotal, private static)과 수정된 OfflineStageSimulator의 유효 스폰 구성 총합을
+        /// 각각 리플렉션으로 계산해 비교한다. 이슈의 실측값(normal=5, tactics=36,
+        /// runtimeClearTotal=41, 수정 전 offlineTotal=5)대로 41로 정확히 일치해야 한다 - 수정
+        /// 전이었다면 오프라인 쪽이 5(일반 웨이브만)로 나와 이 검사가 실패했을 것이다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorRealStage1_40TotalMatchesRuntimeFormula()
+        {
+            StageSO stage = LoadRealStageAsset("Stage_1_40");
+
+            if (stage == null)
+            {
+                throw new Exception("Stage_1_40.asset을 프로젝트에서 찾지 못함(경로/이름이 바뀌었는지 확인)");
+            }
+
+            MethodInfo calculateTotal = typeof(StageProgressTracker).GetMethod("CalculateTotal", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (calculateTotal == null)
+            {
+                throw new Exception("StageProgressTracker.CalculateTotal을 찾지 못함(리팩터링으로 이름/시그니처가 바뀌었는지 확인)");
+            }
+
+            int runtimeTotal = (int)calculateTotal.Invoke(null, new object[] { stage });
+
+            MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+            object groups = buildGroups.Invoke(null, new object[] { stage });
+
+            int offlineTotal = SumEffectiveSpawnGroupCounts(groups);
+
+            if (runtimeTotal != 41)
+            {
+                throw new Exception($"Stage_1_40의 실전 클리어 판정 총량이 {runtimeTotal}(기대=41, 이슈 실측값과 다름 - 콘텐츠가 바뀌었는지 확인)");
+            }
+
+            if (offlineTotal != 41)
+            {
+                throw new Exception($"Stage_1_40의 오프라인 유효 스폰 구성 총량이 {offlineTotal}(기대=41, GitHub 이슈 #33 재현 - 전술 대형 36명이 누락됐을 가능성)");
+            }
+
+            if (runtimeTotal != offlineTotal)
+            {
+                throw new Exception($"실전 총량({runtimeTotal})과 오프라인 총량({offlineTotal})이 어긋남");
+            }
+        }
+
+        /// <summary>
+        /// EffectiveSpawnGroup(private readonly struct)의 List에서 Count 필드 합을 반올림해
+        /// 정수로 돌려준다 - 리플렉션 전용 검사 헬퍼.
+        /// </summary>
+        private static int SumEffectiveSpawnGroupCounts(object groupList)
+        {
+            var list = (System.Collections.IEnumerable)groupList;
+            Type groupType = null;
+            float total = 0f;
+
+            foreach (object group in list)
+            {
+                groupType ??= group.GetType();
+                total += (float)groupType.GetField("Count").GetValue(group);
+            }
+
+            return Mathf.RoundToInt(total);
+        }
+
+        private static float GetEffectiveSpawnGroupHealth(object groupList, int index)
+        {
+            var list = new List<object>();
+
+            foreach (object group in (System.Collections.IEnumerable)groupList)
+            {
+                list.Add(group);
+            }
+
+            Type groupType = list[index].GetType();
+            return (float)groupType.GetField("Health").GetValue(list[index]);
+        }
+
+        private static float GetEffectiveSpawnGroupCount(object groupList, int index)
+        {
+            var list = new List<object>();
+
+            foreach (object group in (System.Collections.IEnumerable)groupList)
+            {
+                list.Add(group);
+            }
+
+            Type groupType = list[index].GetType();
+            return (float)groupType.GetField("Count").GetValue(list[index]);
+        }
+
+        private static int CountEffectiveSpawnGroups(object groupList)
+        {
+            int count = 0;
+
+            foreach (object _ in (System.Collections.IEnumerable)groupList)
+            {
+                count++;
+            }
+
+            return count;
+        }
+
+        /// <summary>
+        /// 프로젝트에 실제로 존재하는 StageSO 에셋을 이름으로 찾아 로드한다(정확히 하나여야 함).
+        /// GitHub 이슈 #33의 Stage_1_40 대조 검사 전용 헬퍼.
+        /// </summary>
+        private static StageSO LoadRealStageAsset(string assetName)
+        {
+            string[] guids = AssetDatabase.FindAssets($"{assetName} t:StageSO");
+
+            foreach (string guid in guids)
+            {
+                string path = AssetDatabase.GUIDToAssetPath(guid);
+                var stage = AssetDatabase.LoadAssetAtPath<StageSO>(path);
+
+                if (stage != null && stage.name == assetName)
+                {
+                    return stage;
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "전술 리더·추종자·대체 추종자의 체력 기대값이 정책대로
+        /// 반영됨". 리더 HP=100/추종자 HP=50/대체 추종자 HP=200, AlternateFollowerChance=0.25인
+        /// 합성 전술 엔트리(pairCount=3)를 만들어, BuildEffectiveSpawnGroups가 리더 그룹(Count=3,
+        /// Health=100), 추종자 그룹(Count=3×0.75=2.25, Health=50), 대체 추종자 그룹(Count=3×0.25=
+        /// 0.75, Health=200) 정확히 3개를 만드는지 확인한다 - 실제 RNG 없이 결정적 기대값으로
+        /// 쪼개는 정책 그대로.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorTacticHealthWeightedByChance()
+        {
+            GameObject leaderPrefab = null;
+            GameObject followerPrefab = null;
+            GameObject alternatePrefab = null;
+            CharacterStatsSO leaderStats = null;
+            CharacterStatsSO followerStats = null;
+            CharacterStatsSO alternateStats = null;
+
+            try
+            {
+                leaderPrefab = CreateOfflineTacticPrefab("Leader", 100f, out leaderStats);
+                followerPrefab = CreateOfflineTacticPrefab("Follower", 50f, out followerStats);
+                alternatePrefab = CreateOfflineTacticPrefab("Alternate", 200f, out alternateStats);
+
+                var entry = new TacticSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "leaderPrefab", leaderPrefab);
+                SetPrivateFieldOnPlainObject(entry, "followerPrefab", followerPrefab);
+                SetPrivateFieldOnPlainObject(entry, "alternateFollowerPrefab", alternatePrefab);
+                SetPrivateFieldOnPlainObject(entry, "alternateFollowerChance", 0.25f);
+                SetPrivateFieldOnPlainObject(entry, "totalUnitCount", 6); // pairCount = 3
+
+                StageSO stage = ScriptableObject.CreateInstance<StageSO>();
+
+                try
+                {
+                    SetPrivateField(stage, "spawnEntries", Array.Empty<MonsterSpawnEntry>());
+                    SetPrivateField(stage, "tacticEntries", new[] { entry });
+
+                    MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+                    object groups = buildGroups.Invoke(null, new object[] { stage });
+
+                    if (CountEffectiveSpawnGroups(groups) != 3)
+                    {
+                        throw new Exception($"그룹 수가 {CountEffectiveSpawnGroups(groups)}(기대=3: 리더/추종자/대체 추종자)");
+                    }
+
+                    AssertApprox(100f, GetEffectiveSpawnGroupHealth(groups, 0), "리더 그룹 체력");
+                    AssertApprox(3f, GetEffectiveSpawnGroupCount(groups, 0), "리더 그룹 마릿수");
+
+                    AssertApprox(50f, GetEffectiveSpawnGroupHealth(groups, 1), "추종자 그룹 체력");
+                    AssertApprox(2.25f, GetEffectiveSpawnGroupCount(groups, 1), "추종자 그룹 마릿수(3 × 0.75)");
+
+                    AssertApprox(200f, GetEffectiveSpawnGroupHealth(groups, 2), "대체 추종자 그룹 체력");
+                    AssertApprox(0.75f, GetEffectiveSpawnGroupCount(groups, 2), "대체 추종자 그룹 마릿수(3 × 0.25)");
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(stage);
+                }
+            }
+            finally
+            {
+                if (leaderPrefab != null) UnityEngine.Object.DestroyImmediate(leaderPrefab);
+                if (followerPrefab != null) UnityEngine.Object.DestroyImmediate(followerPrefab);
+                if (alternatePrefab != null) UnityEngine.Object.DestroyImmediate(alternatePrefab);
+                if (leaderStats != null) UnityEngine.Object.DestroyImmediate(leaderStats);
+                if (followerStats != null) UnityEngine.Object.DestroyImmediate(followerStats);
+                if (alternateStats != null) UnityEngine.Object.DestroyImmediate(alternateStats);
+            }
+        }
+
+        /// <summary>
+        /// 합성 몬스터 프리팹(CharacterStatsProvider만 부착, 비활성 GameObject) 하나를 만든다 -
+        /// GitHub 이슈 #33 검사 전용 헬퍼.
+        /// </summary>
+        private static GameObject CreateOfflineTacticPrefab(string name, float maxHealth, out CharacterStatsSO stats)
+        {
+            stats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+            SetPrivateFloat(stats, "maxHealth", maxHealth);
+
+            var prefab = new GameObject($"RegressionCheck_OfflineTactic_{name}");
+            prefab.SetActive(false);
+            CharacterStatsProvider provider = prefab.AddComponent<CharacterStatsProvider>();
+            SetPrivateField(provider, "baseStats", stats);
+
+            return prefab;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 - 사용자가 명시적으로 선택한 정책("방패 체력 포함, MaxHealth×2.5")을
+        /// 검증한다. ShieldGuard(shieldHealthMultiplier=1.5)가 붙은 리더 프리팹(MaxHealth=100)의
+        /// 유효 체력이 100×(1+1.5)=250이어야 한다 - 방패를 무시했다면 100으로 계산돼 방패병을
+        /// 실제보다 훨씬 약하게(오프라인 보상 과대 산정) 취급했을 것이다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorShieldGuardInflatesEffectiveHealth()
+        {
+            GameObject prefab = null;
+            CharacterStatsSO stats = null;
+
+            try
+            {
+                prefab = CreateOfflineTacticPrefab("ShieldedLeader", 100f, out stats);
+                ShieldGuard shieldGuard = prefab.AddComponent<ShieldGuard>();
+                SetPrivateField(shieldGuard, "shieldHealthMultiplier", 1.5f);
+
+                MethodInfo tryGetHealth = typeof(OfflineStageSimulator).GetMethod("TryGetEffectiveHealth", BindingFlags.NonPublic | BindingFlags.Static);
+                var args = new object[] { prefab, null };
+                bool success = (bool)tryGetHealth.Invoke(null, args);
+                float health = (float)args[1];
+
+                if (!success)
+                {
+                    throw new Exception("ShieldGuard가 붙은 프리팹에서 TryGetEffectiveHealth가 실패로 보고됨");
+                }
+
+                AssertApprox(250f, health, "ShieldGuard 리더의 유효 체력(MaxHealth×2.5)");
+            }
+            finally
+            {
+                if (prefab != null) UnityEngine.Object.DestroyImmediate(prefab);
+                if (stats != null) UnityEngine.Object.DestroyImmediate(stats);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "대체 프리팹 확률 경계". AlternateFollowerPrefab이 null이면
+        /// MonsterSpawner.SpawnFormationPair의 null 우선 검사(entry.AlternateFollowerPrefab != null
+        /// && Random.value &lt; ...)와 동일하게, AlternateFollowerChance가 0.9처럼 커도 전량
+        /// FollowerPrefab으로만 가야 한다(대체 그룹 자체가 생기면 안 됨).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorNullAlternatePrefabIgnoresChance()
+        {
+            GameObject leaderPrefab = null;
+            GameObject followerPrefab = null;
+            CharacterStatsSO leaderStats = null;
+            CharacterStatsSO followerStats = null;
+            StageSO stage = null;
+
+            try
+            {
+                leaderPrefab = CreateOfflineTacticPrefab("Leader2", 100f, out leaderStats);
+                followerPrefab = CreateOfflineTacticPrefab("Follower2", 50f, out followerStats);
+
+                var entry = new TacticSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "leaderPrefab", leaderPrefab);
+                SetPrivateFieldOnPlainObject(entry, "followerPrefab", followerPrefab);
+                SetPrivateFieldOnPlainObject(entry, "alternateFollowerPrefab", null);
+                SetPrivateFieldOnPlainObject(entry, "alternateFollowerChance", 0.9f); // 무의미해야 함
+                SetPrivateFieldOnPlainObject(entry, "totalUnitCount", 4);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", Array.Empty<MonsterSpawnEntry>());
+                SetPrivateField(stage, "tacticEntries", new[] { entry });
+
+                MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+                object groups = buildGroups.Invoke(null, new object[] { stage });
+
+                if (CountEffectiveSpawnGroups(groups) != 2)
+                {
+                    throw new Exception($"그룹 수가 {CountEffectiveSpawnGroups(groups)}(기대=2: 리더+추종자, 대체 그룹은 생기면 안 됨)");
+                }
+
+                AssertApprox(2f, GetEffectiveSpawnGroupCount(groups, 1), "AlternateFollowerPrefab=null일 때 추종자 그룹 마릿수(전량, 2)");
+            }
+            finally
+            {
+                if (leaderPrefab != null) UnityEngine.Object.DestroyImmediate(leaderPrefab);
+                if (followerPrefab != null) UnityEngine.Object.DestroyImmediate(followerPrefab);
+                if (leaderStats != null) UnityEngine.Object.DestroyImmediate(leaderStats);
+                if (followerStats != null) UnityEngine.Object.DestroyImmediate(followerStats);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "null 프리팹... 경계를 검증함". LeaderPrefab이 null인
+        /// 손상된 전술 엔트리도 예외 없이 처리되고(콘텐츠 오류를 조용히 건너뜀, 일반 엔트리의
+        /// 기존 방어 관례와 동일), 유효한 FollowerPrefab 쪽 그룹은 정상적으로 만들어지는지
+        /// 확인한다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorNullLeaderPrefabSkipsGroup()
+        {
+            GameObject followerPrefab = null;
+            CharacterStatsSO followerStats = null;
+            StageSO stage = null;
+
+            try
+            {
+                followerPrefab = CreateOfflineTacticPrefab("Follower3", 50f, out followerStats);
+
+                var entry = new TacticSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "leaderPrefab", null);
+                SetPrivateFieldOnPlainObject(entry, "followerPrefab", followerPrefab);
+                SetPrivateFieldOnPlainObject(entry, "totalUnitCount", 4);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", Array.Empty<MonsterSpawnEntry>());
+                SetPrivateField(stage, "tacticEntries", new[] { entry });
+
+                MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+                object groups = buildGroups.Invoke(null, new object[] { stage }); // 예외 없이 통과해야 함
+
+                if (CountEffectiveSpawnGroups(groups) != 1)
+                {
+                    throw new Exception($"그룹 수가 {CountEffectiveSpawnGroups(groups)}(기대=1: 추종자만, 리더는 null이라 제외)");
+                }
+
+                AssertApprox(2f, GetEffectiveSpawnGroupCount(groups, 0), "리더 없이도 추종자 그룹은 정상 생성됨");
+            }
+            finally
+            {
+                if (followerPrefab != null) UnityEngine.Object.DestroyImmediate(followerPrefab);
+                if (followerStats != null) UnityEngine.Object.DestroyImmediate(followerStats);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "페어 간격과 즉시 웨이브 지연이 유효 스폰 시간에 반영됨".
+        /// 전술 엔트리 2개(각각 pairCount=3/2, pairSpawnInterval=0.5/1.0)를 만들고 마지막 엔트리의
+        /// immediateEntryDelay=2를 설정 - 기대값은 (3×0.5 + 2×1.0) + 2 = (1.5+2) + 2 = 5.5.
+        /// 첫 번째 엔트리의 immediateEntryDelay는 합산에서 제외돼야 한다(마지막 엔트리에서만
+        /// 의미 있음, MonsterSpawner.FinishTacticEntry와 동일).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorTacticSpawnDelayFormula()
+        {
+            var entryA = new TacticSpawnEntry();
+            SetPrivateFieldOnPlainObject(entryA, "totalUnitCount", 6); // pairCount = 3
+            SetPrivateFieldOnPlainObject(entryA, "pairSpawnInterval", 0.5f);
+            SetPrivateFieldOnPlainObject(entryA, "immediateEntryDelay", 999f); // 무시돼야 함(마지막 아님)
+
+            var entryB = new TacticSpawnEntry();
+            SetPrivateFieldOnPlainObject(entryB, "totalUnitCount", 4); // pairCount = 2
+            SetPrivateFieldOnPlainObject(entryB, "pairSpawnInterval", 1.0f);
+            SetPrivateFieldOnPlainObject(entryB, "immediateEntryDelay", 2f);
+
+            StageSO stage = ScriptableObject.CreateInstance<StageSO>();
+
+            try
+            {
+                SetPrivateField(stage, "spawnEntries", Array.Empty<MonsterSpawnEntry>());
+                SetPrivateField(stage, "tacticEntries", new[] { entryA, entryB });
+
+                MethodInfo calculateDelay = typeof(OfflineStageSimulator).GetMethod("CalculateTacticSpawnDelay", BindingFlags.NonPublic | BindingFlags.Static);
+                float delay = (float)calculateDelay.Invoke(null, new object[] { stage });
+
+                AssertApprox(5.5f, delay, "전술 스폰 지연 합계((3×0.5 + 2×1.0) + 마지막 엔트리의 immediateEntryDelay=2)");
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(stage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "전술만 있음" 경계 + Simulate()의 population 산술이
+        /// 정확한지. 일반 웨이브 없이 전술 엔트리(pairCount=5, 리더/추종자 HP 둘 다 100 -
+        /// 가중평균 없이 순수 population 산술만 검증하기 위해 동일 체력으로 통일)만으로 구성된
+        /// 스테이지를 totalDps=100, budget=100초로 시뮬레이션한다. population=10, 평균체력=100
+        /// → effectiveKillRate=1/초, timeToClear=10초(전술 스폰 지연 0이므로), timesCleared=10,
+        /// totalMonstersKilled=100(나머지 없이 딱 떨어짐).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorTacticOnlyStagePopulation()
+        {
+            GameObject leaderPrefab = null;
+            GameObject followerPrefab = null;
+            CharacterStatsSO leaderStats = null;
+            CharacterStatsSO followerStats = null;
+            StageSO stage = null;
+
+            try
+            {
+                leaderPrefab = CreateOfflineTacticPrefab("PopLeader", 100f, out leaderStats);
+                followerPrefab = CreateOfflineTacticPrefab("PopFollower", 100f, out followerStats);
+
+                var entry = new TacticSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "leaderPrefab", leaderPrefab);
+                SetPrivateFieldOnPlainObject(entry, "followerPrefab", followerPrefab);
+                SetPrivateFieldOnPlainObject(entry, "totalUnitCount", 10); // pairCount = 5 → 총 10마리
+                SetPrivateFieldOnPlainObject(entry, "pairSpawnInterval", 0f);
+                SetPrivateFieldOnPlainObject(entry, "immediateEntryDelay", 0f);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", Array.Empty<MonsterSpawnEntry>());
+                SetPrivateField(stage, "tacticEntries", new[] { entry });
+
+                var simulator = new OfflineStageSimulator(null, null, 1f);
+                OfflineStageSimulator.Result result = simulator.Simulate(stage, totalDps: 100f, budget: 100f);
+
+                if (!result.Success)
+                {
+                    throw new Exception("전술 엔트리만 있는 스테이지인데 시뮬레이션이 실패로 보고됨(GitHub 이슈 #33 재현 - 전술만 있으면 population=0으로 계산됐을 가능성)");
+                }
+
+                if (result.TotalMonstersKilled != 100)
+                {
+                    throw new Exception($"TotalMonstersKilled가 {result.TotalMonstersKilled}(기대=100 = population 10 × timesCleared 10)");
+                }
+
+                if (result.TimesCleared != 10)
+                {
+                    throw new Exception($"TimesCleared가 {result.TimesCleared}(기대=10)");
+                }
+            }
+            finally
+            {
+                if (leaderPrefab != null) UnityEngine.Object.DestroyImmediate(leaderPrefab);
+                if (followerPrefab != null) UnityEngine.Object.DestroyImmediate(followerPrefab);
+                if (leaderStats != null) UnityEngine.Object.DestroyImmediate(leaderStats);
+                if (followerStats != null) UnityEngine.Object.DestroyImmediate(followerStats);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "전술 유닛 보상 포함/제외 정책이 실전과 일치함" +
+        /// "일반+전술 혼합" 경계. 일반 몬스터는 dropChance=0(절대 골드를 안 줌)으로, 전술
+        /// 리더/추종자는 dropChance=1(항상 100골드)로 구성한다 - 이렇게 두 소스를 완전히
+        /// 분리해두면 TotalGold가 0이냐 아니냐만으로 "전술 유닛의 사망이 실제로 골드 보상에
+        /// 기여했는가"를 모호함 없이 판별할 수 있다. (처치 수(TotalMonstersKilled)로 두 시나리오를
+        /// 비교하는 방식은 시도해봤으나, 이 시뮬레이터의 정상상태 근사에서는 population 크기와
+        /// 무관하게 killRate×budget에 총 처치 수가 수렴해(population과 timeToClear가 같은 비율로
+        /// 늘어나 서로 상쇄됨) 우연히 두 시나리오가 같은 값에 도달할 수 있어 신뢰할 수 없는
+        /// 비교였다 - 실제로 처음 이 방식으로 작성했을 때 정확히 그 우연의 일치로 실패했다.)
+        /// </summary>
+        private static void CheckOfflineStageSimulatorMixedStageLootIncludesTactics()
+        {
+            GameObject normalPrefab = null;
+            GameObject leaderPrefab = null;
+            GameObject followerPrefab = null;
+            CharacterStatsSO normalStats = null;
+            CharacterStatsSO leaderStats = null;
+            CharacterStatsSO followerStats = null;
+            MonsterLootSO normalLoot = null;
+            MonsterLootSO leaderLoot = null;
+            MonsterLootSO followerLoot = null;
+            StageSO normalOnlyStage = null;
+            StageSO mixedStage = null;
+
+            try
+            {
+                normalPrefab = CreateOfflineTacticPrefab("MixedNormal", 100f, out normalStats);
+                normalLoot = CreateGuaranteedGoldLoot(100, dropChance: 0f); // 절대 드롭하지 않음
+                normalPrefab.AddComponent<MonsterLootProvider>();
+                SetPrivateField(normalPrefab.GetComponent<MonsterLootProvider>(), "loot", normalLoot);
+
+                var normalEntry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(normalEntry, "monsterPrefab", normalPrefab);
+                SetPrivateFieldOnPlainObject(normalEntry, "count", 5);
+
+                normalOnlyStage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(normalOnlyStage, "spawnEntries", new[] { normalEntry });
+                SetPrivateField(normalOnlyStage, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+
+                leaderPrefab = CreateOfflineTacticPrefab("MixedLeader", 100f, out leaderStats);
+                leaderLoot = CreateGuaranteedGoldLoot(100, dropChance: 1f);
+                leaderPrefab.AddComponent<MonsterLootProvider>();
+                SetPrivateField(leaderPrefab.GetComponent<MonsterLootProvider>(), "loot", leaderLoot);
+
+                followerPrefab = CreateOfflineTacticPrefab("MixedFollower", 100f, out followerStats);
+                followerLoot = CreateGuaranteedGoldLoot(100, dropChance: 1f);
+                followerPrefab.AddComponent<MonsterLootProvider>();
+                SetPrivateField(followerPrefab.GetComponent<MonsterLootProvider>(), "loot", followerLoot);
+
+                var tacticEntry = new TacticSpawnEntry();
+                SetPrivateFieldOnPlainObject(tacticEntry, "leaderPrefab", leaderPrefab);
+                SetPrivateFieldOnPlainObject(tacticEntry, "followerPrefab", followerPrefab);
+                SetPrivateFieldOnPlainObject(tacticEntry, "totalUnitCount", 10); // pairCount = 5 → 10마리 추가
+
+                mixedStage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(mixedStage, "spawnEntries", new[] { normalEntry });
+                SetPrivateField(mixedStage, "tacticEntries", new[] { tacticEntry });
+
+                var simulator = new OfflineStageSimulator(null, null, 1f);
+                OfflineStageSimulator.Result normalOnlyResult = simulator.Simulate(normalOnlyStage, totalDps: 1000f, budget: 1000f);
+                OfflineStageSimulator.Result mixedResult = simulator.Simulate(mixedStage, totalDps: 1000f, budget: 1000f);
+
+                if (!normalOnlyResult.Success || !mixedResult.Success)
+                {
+                    throw new Exception($"시뮬레이션 실패(normalOnly={normalOnlyResult.Success}, mixed={mixedResult.Success})");
+                }
+
+                if (normalOnlyResult.TotalGold != BigNumber.Zero)
+                {
+                    throw new Exception($"일반 몬스터의 dropChance=0인데도 골드가 {normalOnlyResult.TotalGold} 나옴(테스트 전제 자체가 깨짐)");
+                }
+
+                if (mixedResult.TotalGold == BigNumber.Zero)
+                {
+                    throw new Exception("전술 웨이브(dropChance=1인 리더/추종자 포함)를 추가했는데도 골드가 0으로 나옴 - 전술 유닛이 보상 계산에서 제외되고 있을 가능성(GitHub 이슈 #33 완료 조건: 전술 유닛 보상 포함 정책)");
+                }
+            }
+            finally
+            {
+                if (normalPrefab != null) UnityEngine.Object.DestroyImmediate(normalPrefab);
+                if (leaderPrefab != null) UnityEngine.Object.DestroyImmediate(leaderPrefab);
+                if (followerPrefab != null) UnityEngine.Object.DestroyImmediate(followerPrefab);
+                if (normalStats != null) UnityEngine.Object.DestroyImmediate(normalStats);
+                if (leaderStats != null) UnityEngine.Object.DestroyImmediate(leaderStats);
+                if (followerStats != null) UnityEngine.Object.DestroyImmediate(followerStats);
+                if (normalLoot != null) UnityEngine.Object.DestroyImmediate(normalLoot);
+                if (leaderLoot != null) UnityEngine.Object.DestroyImmediate(leaderLoot);
+                if (followerLoot != null) UnityEngine.Object.DestroyImmediate(followerLoot);
+                if (normalOnlyStage != null) UnityEngine.Object.DestroyImmediate(normalOnlyStage);
+                if (mixedStage != null) UnityEngine.Object.DestroyImmediate(mixedStage);
+            }
+        }
+
+        /// <summary>
+        /// dropChance 확률로 minGold=maxGold=amount를 굴리는 MonsterLootSO를 만든다(GitHub 이슈
+        /// #33 검사 전용 헬퍼).
+        /// </summary>
+        private static MonsterLootSO CreateGuaranteedGoldLoot(int amount, float dropChance = 1f)
+        {
+            var loot = ScriptableObject.CreateInstance<MonsterLootSO>();
+            SetPrivateFieldOnPlainObject(loot, "minGold", amount);
+            SetPrivateFieldOnPlainObject(loot, "maxGold", amount);
+            SetPrivateFieldOnPlainObject(loot, "dropChance", dropChance);
+            return loot;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #33 완료 조건 - "전술 없음" 경계. TacticEntries가 null인 스테이지와 빈
+        /// 배열([])인 스테이지가 완전히 동일한 Simulate 결과를 내는지 확인한다 - 수정 전부터
+        /// 있던 일반 웨이브 전용 경로가 이번 리팩터링으로 조금이라도 달라지지 않았는지 확인하는
+        /// 회귀 방지 검사(GitHub 이슈 #27이 이미 검증한 "일반 웨이브 결과는 SpawnInterval과
+        /// 무관함"과는 별개로, 이번엔 TacticEntries null/empty 자체를 대조한다).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorNoTacticsNullVsEmptyBehaveIdentically()
+        {
+            GameObject prefab = null;
+            CharacterStatsSO stats = null;
+            MonsterLootSO loot = null;
+            StageSO stageNullTactics = null;
+            StageSO stageEmptyTactics = null;
+
+            try
+            {
+                prefab = CreateOfflineTacticPrefab("NoTactics", 100f, out stats);
+                loot = CreateGuaranteedGoldLoot(50);
+                prefab.AddComponent<MonsterLootProvider>();
+                SetPrivateField(prefab.GetComponent<MonsterLootProvider>(), "loot", loot);
+
+                var normalEntry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(normalEntry, "monsterPrefab", prefab);
+                SetPrivateFieldOnPlainObject(normalEntry, "count", 7);
+
+                stageNullTactics = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stageNullTactics, "spawnEntries", new[] { normalEntry });
+                // tacticEntries는 건드리지 않아 기본값(null) 그대로.
+
+                stageEmptyTactics = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stageEmptyTactics, "spawnEntries", new[] { normalEntry });
+                SetPrivateField(stageEmptyTactics, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+
+                var simulator = new OfflineStageSimulator(null, null, 1f);
+                OfflineStageSimulator.Result nullResult = simulator.Simulate(stageNullTactics, totalDps: 50f, budget: 500f);
+                OfflineStageSimulator.Result emptyResult = simulator.Simulate(stageEmptyTactics, totalDps: 50f, budget: 500f);
+
+                if (nullResult.Success != emptyResult.Success
+                    || nullResult.TotalMonstersKilled != emptyResult.TotalMonstersKilled
+                    || nullResult.TimesCleared != emptyResult.TimesCleared)
+                {
+                    throw new Exception($"TacticEntries=null과 빈 배열의 결과가 다름(null: success={nullResult.Success},killed={nullResult.TotalMonstersKilled},cleared={nullResult.TimesCleared} / empty: success={emptyResult.Success},killed={emptyResult.TotalMonstersKilled},cleared={emptyResult.TimesCleared})");
+                }
+            }
+            finally
+            {
+                if (prefab != null) UnityEngine.Object.DestroyImmediate(prefab);
+                if (stats != null) UnityEngine.Object.DestroyImmediate(stats);
+                if (loot != null) UnityEngine.Object.DestroyImmediate(loot);
+                if (stageNullTactics != null) UnityEngine.Object.DestroyImmediate(stageNullTactics);
+                if (stageEmptyTactics != null) UnityEngine.Object.DestroyImmediate(stageEmptyTactics);
             }
         }
 

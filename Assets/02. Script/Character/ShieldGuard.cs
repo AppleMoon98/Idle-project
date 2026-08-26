@@ -55,6 +55,13 @@ namespace Character
         /// </summary>
         public float MaxShieldHealth => StatsProvider.Stats.MaxHealth * shieldHealthMultiplier;
 
+        /// <summary>
+        /// 방패 배율 자체(직렬화된 원본 값). Offline.OfflineStageSimulator가 살아있는 인스턴스 없이
+        /// 프리팹의 CharacterStatsProvider.BaseStats.MaxHealth만으로 "이 유닛을 죽이려면 실질적으로
+        /// 얼마의 체력을 깎아야 하는가"(몸 체력 + 방패 체력)를 미리 계산할 때 쓴다(GitHub 이슈 #33).
+        /// </summary>
+        public float ShieldHealthMultiplier => shieldHealthMultiplier;
+
         private void Awake()
         {
             ResetShield();

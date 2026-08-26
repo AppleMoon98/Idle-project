@@ -41,7 +41,7 @@ namespace Stage
             {
                 foreach (TacticSpawnEntry entry in stage.TacticEntries)
                 {
-                    int pairCount = Mathf.Max(entry.TotalUnitCount / 2, 0);
+                    int pairCount = entry.PairCount;
 
                     if (TryGetLoot(entry.LeaderPrefab, out MonsterLootSO leaderLoot))
                     {
