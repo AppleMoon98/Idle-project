@@ -13,9 +13,11 @@ namespace Enhancement
     public sealed class CostIncrementTier
     {
         [SerializeField]
+        [Min(0)]
         private int levelThreshold;
 
         [SerializeField]
+        [Min(0)]
         private int increment;
 
         /// <summary>

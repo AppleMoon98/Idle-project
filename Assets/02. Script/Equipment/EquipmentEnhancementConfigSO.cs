@@ -10,18 +10,22 @@ namespace Equipment
     public sealed class EquipmentEnhancementConfigSO : ScriptableObject
     {
         [SerializeField]
+        [Min(0)]
         private int duplicatesRequiredPerLevel;
 
         [SerializeField]
+        [Min(0)]
         private int stoneCostBase;
 
         [SerializeField]
+        [Min(0)]
         private int stoneCostIncreasePerLevel;
 
         [SerializeField]
         private float statBonusPerLevel;
 
         [SerializeField]
+        [Min(0)]
         private int maxLevel;
 
         /// <summary>

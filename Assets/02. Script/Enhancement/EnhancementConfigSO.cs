@@ -13,15 +13,18 @@ namespace Enhancement
         private EnhancementStatType statType;
 
         [SerializeField]
+        [Min(0)]
         private int baseCost;
 
         [SerializeField]
+        [Min(0f)]
         private float costMultiplier = 1.5f;
 
         [SerializeField]
         private float valuePerLevel;
 
         [SerializeField]
+        [Min(0)]
         private int maxLevel;
 
         [SerializeField]

@@ -101,6 +101,7 @@ namespace Editor
             Check("SkillScrollService_RejectsNonPositiveAmounts", CheckSkillScrollServiceRejectsNonPositiveAmounts);
             Check("EquipmentGachaTicketService_RejectsNonPositiveAmounts", CheckEquipmentGachaTicketServiceRejectsNonPositiveAmounts);
             Check("BossTokenService_RejectsNonPositiveAmounts", CheckBossTokenServiceRejectsNonPositiveAmounts);
+            Check("ContentCostValidation_ProjectAssets_NoNegativeCosts", CheckContentCostValidationProjectAssets);
 
             // --- 이슈 #19: 카탈로그가 배열 인덱스 대신 StableId로 항목을 식별(재정렬/삭제에도
             // 안전) + 실제 프로젝트 콘텐츠에 중복/빈 StableId가 없는지 ---
@@ -780,6 +781,29 @@ namespace Editor
             if (restored.CurrentTokens != 0)
             {
                 throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentTokens}");
+            }
+        }
+
+        /// <summary>
+        /// 이슈 #8 완료 조건 "잘못된 SO 비용이 발견되면 콘텐츠 검증 단계에서 구체적인 오류를
+        /// 제공함"을 실제 프로젝트 자산 전체를 대상으로 검증한다. Editor.ContentCostValidation과
+        /// 같은 Assembly-CSharp-Editor 어셈블리 안이라 리플렉션 없이 직접 호출한다. 여기서는
+        /// "현재 콘텐츠에 음수 비용이 없다"만 확인 - "실제로 음수를 넣으면 구체적인 오류가
+        /// 나온다"는 동작 자체는 이 도구를 만들 때 Unity Editor에서 직접 자산을 임시로 손상시켜
+        /// 검증했다(디스크에는 저장하지 않음).
+        /// </summary>
+        private static void CheckContentCostValidationProjectAssets()
+        {
+            List<string> errors = Editor.ContentCostValidation.ValidateAll(out int assetsChecked);
+
+            if (assetsChecked == 0)
+            {
+                throw new Exception("비용 SO 자산을 하나도 못 찾음 - 프로젝트 경로/타입 이름이 바뀌었는지 확인");
+            }
+
+            if (errors.Count > 0)
+            {
+                throw new Exception($"{assetsChecked}개 자산 중 {errors.Count}건의 비용 오류: {string.Join(" | ", errors)}");
             }
         }
 

@@ -16,6 +16,7 @@ namespace Gacha
         private EquipmentGachaPoolEntry[] entries;
 
         [SerializeField]
+        [Min(0)]
         private int goldCostPerPull;
 
         /// <summary>

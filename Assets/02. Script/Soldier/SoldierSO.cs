@@ -33,6 +33,7 @@ namespace Soldier
         private bool iconIgnoreGradeTint = false;
 
         [SerializeField]
+        [Min(0)]
         private int cost = 1;
 
         /// <summary>

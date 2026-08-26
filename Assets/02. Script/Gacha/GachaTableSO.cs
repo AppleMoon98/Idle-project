@@ -16,12 +16,14 @@ namespace Gacha
         private GachaPoolEntry[] entries;
 
         [SerializeField]
+        [Min(0)]
         private int ticketCostPerPull;
 
         [SerializeField]
         private GachaCurrencyType currencyType = GachaCurrencyType.Ticket;
 
         [SerializeField]
+        [Min(0)]
         private int goldCostPerPull;
 
         /// <summary>

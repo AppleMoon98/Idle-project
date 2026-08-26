@@ -33,15 +33,19 @@ namespace Skill
         private int maxLevel = 20;
 
         [SerializeField]
+        [Min(0)]
         private int goldCostBase = 100;
 
         [SerializeField]
+        [Min(0)]
         private int goldCostIncreasePerLevel = 50;
 
         [SerializeField]
+        [Min(0)]
         private int stoneCostBase = 5;
 
         [SerializeField]
+        [Min(0)]
         private int stoneCostIncreasePerLevel = 2;
 
         [SerializeField]
