@@ -295,24 +295,40 @@ namespace Offline
         /// 하나의 테이블 - 실전 Loot.LootDropper.OnCharacterDied도 몬스터 종류와 무관하게 동일한
         /// stage.EquipmentDrops를 굴린다)로 실제 처치와 동일한 확률로 굴려 누적한다. 전술 유닛도
         /// MonsterLootProvider를 가지므로(방패병/창병/궁병 프리팹 확인됨) 골드도 정상적으로
-        /// 포함된다(GitHub 이슈 #33 - "전술 유닛 보상 포함/제외 정책이 실전과 일치함"). totalCount는
-        /// groups의 Count 합(항상 totalMonsterCount와 일치)을 그대로 다시 계산하지 않고
-        /// totalMonsterCount(int)를 그대로 분모로 쓴다 - TryBuildStageInfo가 이미 이걸로
-        /// averageMonsterHealth를 계산했으므로 동일한 분모를 계속 재사용해야 두 계산이
-        /// 어긋나지 않는다.
+        /// 포함된다(GitHub 이슈 #33 - "전술 유닛 보상 포함/제외 정책이 실전과 일치함").
+        ///
+        /// GitHub 이슈 #34 - 예전엔 그룹마다 killsForEntry를 각자 독립적으로 Mathf.RoundToInt해서,
+        /// 반올림 오차가 그룹 수만큼 누적돼 총합이 monstersKilled와 어긋났다(이슈 실측: Stage 1-10,
+        /// 4개 엔트리 기준 처치 1마리 → 판정 0회, 20마리 → 판정 21회). AllocateByLargestRemainder가
+        /// 최대 나머지법(Hamilton's method)으로 전체 groups(로트 유무 무관)에 monstersKilled를
+        /// 정확히 배분해 - 반환 배열의 합은 항상 정확히 monstersKilled와 같다 - 개별 그룹의 배분
+        /// 오차가 서로 상쇄되지 않고 쌓이는 문제 자체를 없앤다.
+        ///
+        /// 보상 불가(MonsterLootProvider 없음/Loot 없음) 그룹의 정책: 이 그룹도 최대 나머지법의
+        /// 공정한 배분에는 동일하게 참여하지만(자기 몫만큼 population 비율을 정확히 가져감,
+        /// 다른 그룹의 배분을 왜곡하지 않음), 배분된 몫은 굴리기 직전에 그냥 버려진다(0회 굴림) -
+        /// "이 그룹의 처치는 조용히 사라지는 게 아니라, 애초에 보상 대상이 아니라는 정책이 명시적으로
+        /// 적용된 것"이다(이슈 제안: "보상 불가 프리팹이 있다면 분모/누락 정책을 명시"). 그 결과
+        /// 실제로 실행되는 굴림 총 횟수는 monstersKilled에서 보상 불가 그룹들의 몫만큼 뺀 값이며,
+        /// 이는 기존부터 있던 정책(로트 없는 그룹은 굴리지 않음)을 그대로 유지한 것뿐이다 - 이번
+        /// 수정이 바꾼 것은 오직 "보상 가능한 그룹들 사이의 배분이 반올림 오차 없이 정확한가"이다.
         /// </summary>
         private static void RollLoot(StageSO stage, List<EffectiveSpawnGroup> groups, int totalMonsterCount, int monstersKilled, float goldMultiplier, ref BigNumber totalGold, List<EquipmentSO> equipmentEarned)
         {
-            foreach (EffectiveSpawnGroup group in groups)
+            int[] killsPerGroup = AllocateByLargestRemainder(groups, totalMonsterCount, monstersKilled);
+
+            for (int i = 0; i < groups.Count; i++)
             {
+                EffectiveSpawnGroup group = groups[i];
+
                 if (group.LootPrefab == null || !group.LootPrefab.TryGetComponent(out MonsterLootProvider provider) || provider.Loot == null)
                 {
                     continue;
                 }
 
-                int killsForEntry = Mathf.RoundToInt(group.Count / totalMonsterCount * monstersKilled);
+                int killsForEntry = killsPerGroup[i];
 
-                for (int i = 0; i < killsForEntry; i++)
+                for (int k = 0; k < killsForEntry; k++)
                 {
                     int? gold = LootRoller.RollGold(provider.Loot, goldMultiplier);
 
@@ -324,6 +340,66 @@ namespace Offline
                     equipmentEarned.AddRange(LootRoller.RollEquipment(stage.EquipmentDrops));
                 }
             }
+        }
+
+        /// <summary>
+        /// 최대 나머지법(Largest Remainder Method / Hamilton's method, GitHub 이슈 #34) - groups의
+        /// Count 비율대로 total을 정수로 나누되, 각 그룹에 먼저 floor(share)만큼 배분한 뒤 남는
+        /// 나머지(total - sum of floors)를 소수부(나머지)가 큰 그룹부터 1개씩 추가 배분한다.
+        /// 반환된 배열의 합은 항상 정확히 total과 같다(수학적으로 보장됨 - sum(exactShare) = total,
+        /// sum(floor) &lt;= sum(exactShare), 나머지 합은 항상 0 이상 groups.Count 미만인 정수).
+        /// 나머지가 동률이면 원래 groups 배열 순서(인덱스 오름차순)를 그대로 유지한다 - 정렬 자체가
+        /// 결정적이어야 "엔트리 순서/분할만 바꿔도 기대 보상이 비정상적으로 변하지 않음"(완료 조건)이
+        /// 재현 가능하게 성립한다. total &lt;= 0이거나 groups가 비어있으면 전부 0인 배열을 돌려준다.
+        /// </summary>
+        private static int[] AllocateByLargestRemainder(List<EffectiveSpawnGroup> groups, float totalCount, int total)
+        {
+            int n = groups.Count;
+            var allocations = new int[n];
+
+            if (n == 0 || totalCount <= 0f || total <= 0)
+            {
+                return allocations;
+            }
+
+            var remainders = new float[n];
+            int allocatedSum = 0;
+
+            for (int i = 0; i < n; i++)
+            {
+                float exactShare = groups[i].Count / totalCount * total;
+                int floorShare = Mathf.FloorToInt(exactShare);
+                allocations[i] = floorShare;
+                remainders[i] = exactShare - floorShare;
+                allocatedSum += floorShare;
+            }
+
+            int remaining = total - allocatedSum;
+
+            if (remaining <= 0)
+            {
+                return allocations;
+            }
+
+            var order = new int[n];
+
+            for (int i = 0; i < n; i++)
+            {
+                order[i] = i;
+            }
+
+            System.Array.Sort(order, (a, b) =>
+            {
+                int cmp = remainders[b].CompareTo(remainders[a]); // 나머지 내림차순
+                return cmp != 0 ? cmp : a.CompareTo(b); // 동률이면 원래 인덱스 순서
+            });
+
+            for (int i = 0; i < remaining; i++)
+            {
+                allocations[order[i]]++;
+            }
+
+            return allocations;
         }
     }
 }

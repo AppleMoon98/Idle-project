@@ -348,6 +348,21 @@ namespace Editor
             Check("OfflineStageSimulator_NoTacticEntries_NullVsEmptyArray_BehavesIdentically",
                 CheckOfflineStageSimulatorNoTacticsNullVsEmptyBehaveIdentically);
 
+            // --- 이슈 #34: OfflineStageSimulator.RollLoot이 엔트리별로 killsForEntry를 각자
+            // 독립적으로 반올림해 총합이 rewardedKills와 어긋나던 문제 ---
+            Check("AllocateByLargestRemainder_SumAlwaysEqualsTotal_Stage1_10RealEntryCounts",
+                CheckAllocateByLargestRemainderSumMatchesIssueRepro);
+            Check("AllocateByLargestRemainder_SingleGroup_AllocatesEntireTotalExactly",
+                CheckAllocateByLargestRemainderSingleGroup);
+            Check("AllocateByLargestRemainder_ExtremeRatio_SmallShareLosesToLargerRemainder",
+                CheckAllocateByLargestRemainderExtremeRatio);
+            Check("AllocateByLargestRemainder_ZeroCountGroup_NeverReceivesAllocation",
+                CheckAllocateByLargestRemainderZeroCountGroup);
+            Check("OfflineStageSimulator_RollLoot_NoLootGroupExcludedButOthersSumExactly",
+                CheckOfflineStageSimulatorRollLootExcludesNoLootGroupButPreservesOthersSum);
+            Check("OfflineStageSimulator_RollLoot_SplittingEntrySamePrefab_TotalDifferenceBounded",
+                CheckOfflineStageSimulatorRollLootSplitEntryBoundedDifference);
+
             // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
             // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
             // (추적 딕셔너리 불변조건) ---
@@ -4394,6 +4409,392 @@ namespace Editor
                 if (loot != null) UnityEngine.Object.DestroyImmediate(loot);
                 if (stageNullTactics != null) UnityEngine.Object.DestroyImmediate(stageNullTactics);
                 if (stageEmptyTactics != null) UnityEngine.Object.DestroyImmediate(stageEmptyTactics);
+            }
+        }
+
+        /// <summary>
+        /// 정해진 count 배열대로 서로 다른 프리팹(공유 baseStats, MaxHealth=100)을 만들어
+        /// MonsterSpawnEntry로 감싼 StageSO를 하나 구성하고, OfflineStageSimulator.
+        /// BuildEffectiveSpawnGroups(private static)를 리플렉션으로 호출해 그 결과(object,
+        /// 실제로는 List&lt;EffectiveSpawnGroup&gt;)를 돌려준다 - GitHub 이슈 #34 검사 전용 헬퍼.
+        /// EffectiveSpawnGroup 자체가 private nested struct라 이 스테이지를 거쳐 간접적으로만
+        /// 만들 수 있다. 생성된 UnityEngine.Object들은 toDestroy에 추가되므로 호출자가 정리한다.
+        /// </summary>
+        private static object BuildOfflineGroupsForCounts(int[] counts, List<UnityEngine.Object> toDestroy)
+        {
+            var entries = new MonsterSpawnEntry[counts.Length];
+
+            for (int i = 0; i < counts.Length; i++)
+            {
+                GameObject prefab = CreateOfflineTacticPrefab($"AllocTest{i}", 100f, out CharacterStatsSO stats);
+                toDestroy.Add(prefab);
+                toDestroy.Add(stats);
+
+                var entry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entry, "monsterPrefab", prefab);
+                SetPrivateFieldOnPlainObject(entry, "count", counts[i]);
+                entries[i] = entry;
+            }
+
+            StageSO stage = ScriptableObject.CreateInstance<StageSO>();
+            toDestroy.Add(stage);
+            SetPrivateField(stage, "spawnEntries", entries);
+            SetPrivateField(stage, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+
+            MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+            return buildGroups.Invoke(null, new object[] { stage });
+        }
+
+        /// <summary>
+        /// OfflineStageSimulator.AllocateByLargestRemainder(private static)를 리플렉션으로 호출한다
+        /// (GitHub 이슈 #34 검사 전용 헬퍼).
+        /// </summary>
+        private static int[] InvokeAllocateByLargestRemainder(object groups, float totalCount, int total)
+        {
+            MethodInfo method = typeof(OfflineStageSimulator).GetMethod("AllocateByLargestRemainder", BindingFlags.NonPublic | BindingFlags.Static);
+            return (int[])method.Invoke(null, new object[] { groups, totalCount, total });
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 재현 절차 그대로 - 실제 Stage 1-10의 엔트리 마릿수 구성([15,7,8,1],
+        /// 총 31마리)으로 groups를 만들고, 처치 수 0~65(이슈가 실측한 구체적 불일치 지점 1,5,9,
+        /// 11,13,15,16,18,20을 전부 포함하고, 여러 회 클리어+나머지 경계까지 넉넉히 덮도록)에 대해
+        /// 배분 합이 항상 정확히 처치 수와 같은지 확인한다. 수정 전에는 이슈가 실측한 그대로
+        /// killed=1→배분 0, killed=20→배분 21처럼 어긋났을 것이다.
+        /// </summary>
+        private static void CheckAllocateByLargestRemainderSumMatchesIssueRepro()
+        {
+            var toDestroy = new List<UnityEngine.Object>();
+
+            try
+            {
+                object groups = BuildOfflineGroupsForCounts(new[] { 15, 7, 8, 1 }, toDestroy);
+
+                for (int killed = 0; killed <= 65; killed++)
+                {
+                    int[] allocations = InvokeAllocateByLargestRemainder(groups, 31f, killed);
+                    int sum = 0;
+
+                    foreach (int allocation in allocations)
+                    {
+                        sum += allocation;
+                    }
+
+                    if (sum != killed)
+                    {
+                        throw new Exception($"killed={killed}일 때 배분 합이 {sum}(기대={killed}) - GitHub 이슈 #34 재현(이슈 실측 불일치 지점: 1→0, 5→4, 9→8, 11→10, 13→12, 15→14, 16→17, 18→19, 20→21)");
+                    }
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object obj in toDestroy)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 완료 조건 - "엔트리 1개/다수... 검증". 그룹이 하나뿐이면 나눌 대상이
+        /// 없으므로 항상 total 전체가 그 그룹에 그대로 배분돼야 한다(모든 처치 수에서).
+        /// </summary>
+        private static void CheckAllocateByLargestRemainderSingleGroup()
+        {
+            var toDestroy = new List<UnityEngine.Object>();
+
+            try
+            {
+                object groups = BuildOfflineGroupsForCounts(new[] { 5 }, toDestroy);
+
+                for (int killed = 0; killed <= 20; killed++)
+                {
+                    int[] allocations = InvokeAllocateByLargestRemainder(groups, 5f, killed);
+
+                    if (allocations.Length != 1 || allocations[0] != killed)
+                    {
+                        throw new Exception($"단일 그룹인데 killed={killed}일 때 배분이 {(allocations.Length > 0 ? allocations[0].ToString() : "그룹 없음")}(기대={killed})");
+                    }
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object obj in toDestroy)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 완료 조건 - "극단적 비율... 검증". Count=[1, 999](totalCount=1000)에서
+        /// total=3을 배분하면 정확한 몫은 [0.003, 2.997] - floor는 [0,2], 나머지는 [0.003,0.997].
+        /// 남은 1개는 나머지가 훨씬 큰 두 번째 그룹에 가야 하므로 극단적으로 작은 첫 그룹은 0을
+        /// 유지해야 한다(0을 받으면 안 되는데 받는 것도, 반대로 큰 그룹이 부당하게 못 받는 것도
+        /// 아닌지 확인).
+        /// </summary>
+        private static void CheckAllocateByLargestRemainderExtremeRatio()
+        {
+            var toDestroy = new List<UnityEngine.Object>();
+
+            try
+            {
+                object groups = BuildOfflineGroupsForCounts(new[] { 1, 999 }, toDestroy);
+                int[] allocations = InvokeAllocateByLargestRemainder(groups, 1000f, 3);
+
+                if (allocations[0] != 0)
+                {
+                    throw new Exception($"극단적으로 작은 비율(1/1000) 그룹이 total=3에서 {allocations[0]}을 받음(기대=0)");
+                }
+
+                if (allocations[1] != 3)
+                {
+                    throw new Exception($"압도적으로 큰 비율(999/1000) 그룹이 total=3에서 {allocations[1]}을 받음(기대=3)");
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object obj in toDestroy)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 완료 조건 - "Count=0... 검증". Count=0인 그룹은 exactShare/floor/나머지가
+        /// 항상 정확히 0이라(0을 아무리 곱하고 나눠도 부동소수점 오차 없이 정확히 0), 다른 그룹에
+        /// 양의 나머지가 하나라도 남아있는 한 최대 나머지법의 순위 경쟁에서 절대 선택될 수 없다
+        /// (수학적으로 보장됨 - remaining보다 나머지가 큰 그룹이 항상 remaining개 이상 존재).
+        /// </summary>
+        private static void CheckAllocateByLargestRemainderZeroCountGroup()
+        {
+            var toDestroy = new List<UnityEngine.Object>();
+
+            try
+            {
+                object groups = BuildOfflineGroupsForCounts(new[] { 0, 5, 0, 3 }, toDestroy);
+
+                for (int killed = 0; killed <= 8; killed++)
+                {
+                    int[] allocations = InvokeAllocateByLargestRemainder(groups, 8f, killed);
+
+                    if (allocations[0] != 0 || allocations[2] != 0)
+                    {
+                        throw new Exception($"killed={killed}일 때 Count=0 그룹이 배분을 받음(인덱스0={allocations[0]}, 인덱스2={allocations[2]}, 기대=둘 다 0)");
+                    }
+
+                    int sum = allocations[0] + allocations[1] + allocations[2] + allocations[3];
+
+                    if (sum != killed)
+                    {
+                        throw new Exception($"killed={killed}일 때 배분 합이 {sum}(기대={killed})");
+                    }
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object obj in toDestroy)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 완료 조건 - "null/무보상 프리팹 정책 검증" + "골드와 장비가 동일한
+        /// 보상 대상 처치 배분을 공유함". 세 그룹(A: 골드 로트 보유, B: MonsterLootProvider 자체가
+        /// 없음 - "보상 불가" 프리팹, C: 골드 로트 보유) 중 B의 배분 몫은 최대 나머지법의 공정한
+        /// 배분에는 동일하게 참여하지만(다른 그룹의 배분을 왜곡하지 않음) 실제 골드/장비 굴림에서는
+        /// 완전히 제외되는지 확인한다 - A+C의 배분 합만큼만 정확히 골드(둘 다 10골드 100% 확률)와
+        /// 장비(스테이지 공통 테이블 100% 확률)가 나와야 한다.
+        /// </summary>
+        private static void CheckOfflineStageSimulatorRollLootExcludesNoLootGroupButPreservesOthersSum()
+        {
+            GameObject lootPrefabA = null;
+            GameObject noLootPrefabB = null;
+            GameObject lootPrefabC = null;
+            CharacterStatsSO statsA = null;
+            CharacterStatsSO statsB = null;
+            CharacterStatsSO statsC = null;
+            MonsterLootSO lootA = null;
+            MonsterLootSO lootC = null;
+            EquipmentSO equipment = null;
+            StageSO stage = null;
+
+            try
+            {
+                lootPrefabA = CreateOfflineTacticPrefab("RollLootA", 100f, out statsA);
+                lootA = CreateGuaranteedGoldLoot(10, dropChance: 1f);
+                lootPrefabA.AddComponent<MonsterLootProvider>();
+                SetPrivateField(lootPrefabA.GetComponent<MonsterLootProvider>(), "loot", lootA);
+
+                noLootPrefabB = CreateOfflineTacticPrefab("RollLootB_NoLoot", 100f, out statsB);
+                // MonsterLootProvider를 의도적으로 부착하지 않음 - "보상 불가" 프리팹 시나리오.
+
+                lootPrefabC = CreateOfflineTacticPrefab("RollLootC", 100f, out statsC);
+                lootC = CreateGuaranteedGoldLoot(10, dropChance: 1f);
+                lootPrefabC.AddComponent<MonsterLootProvider>();
+                SetPrivateField(lootPrefabC.GetComponent<MonsterLootProvider>(), "loot", lootC);
+
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+                var dropEntry = new EquipmentDropEntry();
+                SetPrivateFieldOnPlainObject(dropEntry, "equipment", equipment);
+                SetPrivateFieldOnPlainObject(dropEntry, "dropChance", 1f);
+
+                var entryA = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entryA, "monsterPrefab", lootPrefabA);
+                SetPrivateFieldOnPlainObject(entryA, "count", 10);
+
+                var entryB = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entryB, "monsterPrefab", noLootPrefabB);
+                SetPrivateFieldOnPlainObject(entryB, "count", 10);
+
+                var entryC = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(entryC, "monsterPrefab", lootPrefabC);
+                SetPrivateFieldOnPlainObject(entryC, "count", 10);
+
+                stage = ScriptableObject.CreateInstance<StageSO>();
+                SetPrivateField(stage, "spawnEntries", new[] { entryA, entryB, entryC });
+                SetPrivateField(stage, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+                SetPrivateField(stage, "equipmentDrops", new[] { dropEntry });
+
+                MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+                object groups = buildGroups.Invoke(null, new object[] { stage });
+
+                const int monstersKilled = 17; // totalCount=30, 나머지가 실제로 발생하는 임의 값
+                int[] allocations = InvokeAllocateByLargestRemainder(groups, 30f, monstersKilled);
+                int expectedLootableSum = allocations[0] + allocations[2]; // A + C (B는 배분은 받되 굴리기에서 제외)
+
+                MethodInfo rollLootMethod = typeof(OfflineStageSimulator).GetMethod("RollLoot", BindingFlags.NonPublic | BindingFlags.Static);
+                var equipmentEarned = new List<EquipmentSO>();
+                var args = new object[] { stage, groups, 30, monstersKilled, 1f, BigNumber.Zero, equipmentEarned };
+                rollLootMethod.Invoke(null, args);
+
+                var totalGold = (BigNumber)args[5];
+
+                if (equipmentEarned.Count != expectedLootableSum)
+                {
+                    throw new Exception($"장비 획득 개수가 {equipmentEarned.Count}(기대={expectedLootableSum} = A+C 배분 합, B는 제외) - 보상 불가 그룹이 굴리기에서 제대로 제외되지 않거나 다른 그룹의 배분을 왜곡했을 가능성");
+                }
+
+                BigNumber expectedGold = expectedLootableSum * 10;
+
+                if (totalGold != expectedGold)
+                {
+                    throw new Exception($"골드 총액이 {totalGold}(기대={expectedGold} = (A+C 배분 합) × 10골드)");
+                }
+            }
+            finally
+            {
+                if (lootPrefabA != null) UnityEngine.Object.DestroyImmediate(lootPrefabA);
+                if (noLootPrefabB != null) UnityEngine.Object.DestroyImmediate(noLootPrefabB);
+                if (lootPrefabC != null) UnityEngine.Object.DestroyImmediate(lootPrefabC);
+                if (statsA != null) UnityEngine.Object.DestroyImmediate(statsA);
+                if (statsB != null) UnityEngine.Object.DestroyImmediate(statsB);
+                if (statsC != null) UnityEngine.Object.DestroyImmediate(statsC);
+                if (lootA != null) UnityEngine.Object.DestroyImmediate(lootA);
+                if (lootC != null) UnityEngine.Object.DestroyImmediate(lootC);
+                if (equipment != null) UnityEngine.Object.DestroyImmediate(equipment);
+                if (stage != null) UnityEngine.Object.DestroyImmediate(stage);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #34 완료 조건 - "엔트리 순서/분할만 바꿔도 전체 기대 보상이 비정상적으로
+        /// 변하지 않음". 같은 프리팹을 가리키는 엔트리 하나(Count=20)와, 같은 프리팹을 가리키는
+        /// 엔트리 둘(Count=10+10)로 쪼갠 경우를 비교한다. 최대 나머지법(Hamilton's method)은
+        /// 이론적으로 완전한 분할 불변성을 보장하지는 않지만(apportionment 이론에서 이미 알려진
+        /// 한계 - 각 그룹의 배분이 정확한 몫에서 최대 1 미만만 벗어난다는 것만 보장됨), 분할해도
+        /// 그 편차는 항상 작은 범위(여기서는 넉넉히 2 이하) 안에 머물러야 한다 - "비정상적으로"
+        /// 크게 벌어지지 않는지가 이 조건의 핵심이다(완전히 동일해야 한다는 조건이 아님).
+        /// </summary>
+        private static void CheckOfflineStageSimulatorRollLootSplitEntryBoundedDifference()
+        {
+            var toDestroyCombined = new List<UnityEngine.Object>();
+            var toDestroySplit = new List<UnityEngine.Object>();
+
+            try
+            {
+                GameObject sharedPrefab = CreateOfflineTacticPrefab("SplitShared", 100f, out CharacterStatsSO sharedStats);
+                toDestroyCombined.Add(sharedPrefab);
+                toDestroyCombined.Add(sharedStats);
+
+                var combinedEntry = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(combinedEntry, "monsterPrefab", sharedPrefab);
+                SetPrivateFieldOnPlainObject(combinedEntry, "count", 20);
+
+                StageSO combinedStage = ScriptableObject.CreateInstance<StageSO>();
+                toDestroyCombined.Add(combinedStage);
+                SetPrivateField(combinedStage, "spawnEntries", new[] { combinedEntry });
+                SetPrivateField(combinedStage, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+
+                var splitEntryA = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(splitEntryA, "monsterPrefab", sharedPrefab);
+                SetPrivateFieldOnPlainObject(splitEntryA, "count", 10);
+
+                var splitEntryB = new MonsterSpawnEntry();
+                SetPrivateFieldOnPlainObject(splitEntryB, "monsterPrefab", sharedPrefab);
+                SetPrivateFieldOnPlainObject(splitEntryB, "count", 10);
+
+                StageSO splitStage = ScriptableObject.CreateInstance<StageSO>();
+                toDestroySplit.Add(splitStage);
+                SetPrivateField(splitStage, "spawnEntries", new[] { splitEntryA, splitEntryB });
+                SetPrivateField(splitStage, "tacticEntries", Array.Empty<TacticSpawnEntry>());
+
+                MethodInfo buildGroups = typeof(OfflineStageSimulator).GetMethod("BuildEffectiveSpawnGroups", BindingFlags.NonPublic | BindingFlags.Static);
+                object combinedGroups = buildGroups.Invoke(null, new object[] { combinedStage });
+                object splitGroups = buildGroups.Invoke(null, new object[] { splitStage });
+
+                for (int killed = 0; killed <= 20; killed++)
+                {
+                    int[] combinedAllocations = InvokeAllocateByLargestRemainder(combinedGroups, 20f, killed);
+                    int[] splitAllocations = InvokeAllocateByLargestRemainder(splitGroups, 20f, killed);
+
+                    int combinedTotal = combinedAllocations[0];
+                    int splitTotal = splitAllocations[0] + splitAllocations[1];
+                    int difference = Math.Abs(combinedTotal - splitTotal);
+
+                    if (difference > 2)
+                    {
+                        throw new Exception($"killed={killed}일 때 분할 전(combined={combinedTotal})과 분할 후(split={splitTotal})의 차이가 {difference}(기대: 2 이하) - 엔트리를 쪼개는 것만으로 보상이 비정상적으로 변함");
+                    }
+
+                    if (splitTotal != killed)
+                    {
+                        throw new Exception($"분할된 두 엔트리(같은 프리팹)의 배분 합이 {splitTotal}(기대={killed}) - 전체 합계 보존 자체가 깨짐");
+                    }
+                }
+            }
+            finally
+            {
+                foreach (UnityEngine.Object obj in toDestroyCombined)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
+
+                foreach (UnityEngine.Object obj in toDestroySplit)
+                {
+                    if (obj != null)
+                    {
+                        UnityEngine.Object.DestroyImmediate(obj);
+                    }
+                }
             }
         }
 
