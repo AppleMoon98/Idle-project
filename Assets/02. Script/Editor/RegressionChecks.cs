@@ -285,6 +285,12 @@ namespace Editor
             // 호출자가 동일한 활성 GameObject를 대여받던 문제 (풀 대여/유휴 불변조건) ---
             Check("ObjectPool_DoubleRelease_RejectedAndKeepsInactiveCountCorrect",
                 CheckObjectPoolDoubleReleaseInvariant);
+            Check("PoolManager_Release_DiagnosesNullDestroyedAndForeignInstances",
+                CheckPoolManagerReleaseDiagnosticsForInvalidInputs);
+            Check("PoolManager_IPoolable_CalledExactlyOncePerTransition",
+                CheckPoolManagerIPoolableCalledOncePerTransition);
+            Check("ObjectPool_MassRepeatedSpawnRelease_ActiveInactiveCountInvariantHolds",
+                CheckObjectPoolMassRepeatedSpawnReleaseInvariant);
 
             // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
             // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
@@ -2618,6 +2624,307 @@ namespace Editor
                 {
                     UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
                 }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #30 완료 조건 - "이중 반납, 다른 풀 객체, 파괴된 객체, null 입력의 정책과
+        /// 진단이 명확함". PoolManager.Release의 네 가지 비정상 입력 각각이 문서화된 정책대로
+        /// 동작하는지 확인한다: null 인스턴스는 경고 로그 후 false(예외 없음), 파괴된 인스턴스도
+        /// Unity의 오버로드된 == null이 이를 감지해 같은 경로로 처리됨(예외 없음), 이 PoolManager가
+        /// 스폰한 적 없는(PooledInstance 태그가 없거나 등록되지 않은 프리팹을 가리키는) "다른 풀"
+        /// 객체는 InvalidOperationException으로 명확히 실패한다. 세 경로 모두 다른 인스턴스의
+        /// 정상 반납에 영향을 주지 않는지도 함께 확인한다.
+        /// </summary>
+        private static void CheckPoolManagerReleaseDiagnosticsForInvalidInputs()
+        {
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+            GameObject foreignObject = null;
+
+            try
+            {
+                prefab = new GameObject("RegressionCheck_PoolDiagnostics_Prefab");
+                prefab.SetActive(false);
+                pool.EnsurePool(prefab, 1, 4);
+
+                // null 입력 - 예외 없이 false
+                if (pool.Release(null))
+                {
+                    throw new Exception("null 인스턴스 반납이 true를 반환함(기대: 예외 없이 false)");
+                }
+
+                // 파괴된 인스턴스 - Unity의 오버로드된 == null이 감지해 null과 동일하게 처리됨
+                GameObject destroyed = pool.Get(prefab, Vector3.zero, Quaternion.identity);
+                UnityEngine.Object.DestroyImmediate(destroyed);
+
+                if (pool.Release(destroyed))
+                {
+                    throw new Exception("파괴된 인스턴스 반납이 true를 반환함(기대: 예외 없이 false)");
+                }
+
+                // 다른 풀(이 PoolManager가 스폰한 적 없는) 객체 - 명확한 예외로 실패해야 함
+                foreignObject = new GameObject("RegressionCheck_PoolDiagnostics_ForeignObject");
+                bool threw = false;
+
+                try
+                {
+                    pool.Release(foreignObject);
+                }
+                catch (InvalidOperationException)
+                {
+                    threw = true;
+                }
+
+                if (!threw)
+                {
+                    throw new Exception("이 PoolManager가 스폰한 적 없는 객체 반납이 예외 없이 통과함(기대: InvalidOperationException)");
+                }
+
+                // 위 세 가지 비정상 입력을 거치는 동안 정상 인스턴스의 반납은 영향받지 않아야 함
+                GameObject normal = pool.Get(prefab, Vector3.one, Quaternion.identity);
+
+                if (!pool.Release(normal))
+                {
+                    throw new Exception("비정상 입력들을 거친 뒤 정상 인스턴스의 반납이 실패로 보고됨");
+                }
+            }
+            finally
+            {
+                if (foreignObject != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(foreignObject);
+                }
+
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #30 완료 조건 - "IPoolable 콜백이 상태 전환당 한 번만 호출됨". Get()이
+        /// OnSpawned를, Release()가 OnDespawned를 정확히 한 번씩만 호출하는지, 그리고 이중 반납
+        /// 시도는 OnDespawned를 추가로 호출하지 않는지(ObjectPool.Release가 false를 반환하면
+        /// PoolManager가 NotifyDespawned를 아예 건너뛰므로) 카운터로 직접 확인한다.
+        /// </summary>
+        private static void CheckPoolManagerIPoolableCalledOncePerTransition()
+        {
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+
+            try
+            {
+                prefab = new GameObject("RegressionCheck_PoolIPoolable_Prefab");
+                prefab.SetActive(false);
+                prefab.AddComponent<RegressionCheckPoolableCounter>();
+                pool.EnsurePool(prefab, 1, 4);
+
+                GameObject instance = pool.Get(prefab, Vector3.zero, Quaternion.identity);
+                var counter = instance.GetComponent<RegressionCheckPoolableCounter>();
+
+                if (counter.SpawnedCount != 1)
+                {
+                    throw new Exception($"Get() 1회 후 OnSpawned 호출 횟수가 {counter.SpawnedCount}(기대=1)");
+                }
+
+                if (counter.DespawnedCount != 0)
+                {
+                    throw new Exception($"Get() 1회 후 OnDespawned가 이미 {counter.DespawnedCount}회 호출됨(기대=0)");
+                }
+
+                pool.Release(instance);
+
+                if (counter.DespawnedCount != 1)
+                {
+                    throw new Exception($"Release() 1회 후 OnDespawned 호출 횟수가 {counter.DespawnedCount}(기대=1)");
+                }
+
+                // 이중 반납 - ObjectPool.Release가 거부하므로 OnDespawned가 추가로 불리면 안 됨
+                pool.Release(instance);
+
+                if (counter.DespawnedCount != 1)
+                {
+                    throw new Exception($"이중 반납 시도 후 OnDespawned 호출 횟수가 {counter.DespawnedCount}(기대=1, 상태 전환당 한 번만)");
+                }
+
+                // 재대여 - OnSpawned가 다시 정확히 한 번 더 호출돼야 함(누적 2회)
+                GameObject reGet = pool.Get(prefab, Vector3.one, Quaternion.identity);
+                var reGetCounter = reGet.GetComponent<RegressionCheckPoolableCounter>();
+
+                if (reGetCounter.SpawnedCount != 2)
+                {
+                    throw new Exception($"재대여 후 OnSpawned 누적 호출 횟수가 {reGetCounter.SpawnedCount}(기대=2)");
+                }
+
+                if (reGetCounter.DespawnedCount != 1)
+                {
+                    throw new Exception($"재대여 후 OnDespawned 누적 호출 횟수가 {reGetCounter.DespawnedCount}(기대=1, 변화 없어야 함)");
+                }
+            }
+            finally
+            {
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #30 완료 조건 - "대량 반복 spawn/release 후 활성·유휴·전체 개수 불변조건
+        /// 유지". maxSize보다 큰 규모로 Get/Release를 반복하며(일부는 즉시 반납, 일부는 잠시
+        /// 대여 상태로 남김) 매 단계마다 CountActive+CountInactive가 실제로 살아있는 인스턴스
+        /// 총량과 정확히 일치하는지 확인한다 - 이중 반납 버그가 재발하면 유휴 스택에 중복 삽입된
+        /// 참조 때문에 CountInactive가 실제 살아있는 유휴 인스턴스 수보다 크게 보고될 것이다.
+        /// </summary>
+        private static void CheckObjectPoolMassRepeatedSpawnReleaseInvariant()
+        {
+            const int iterations = 500;
+            // maxSize를 iterations보다 넉넉히 크게 잡아 Release()의 상한 초과(Object.Destroy)
+            // 경로 자체를 절대 타지 않게 한다 - Object.Destroy는 Edit Mode에서 무시되고
+            // "Destroy may not be called from edit mode!" 경고만 남긴 채 인스턴스가 실제로는
+            // 파괴되지 않아(고아 GameObject로 남음), 이 검사의 핵심 목적(누적 정확성 검증)과
+            // 무관한 콘솔 잡음/누수를 만든다(section GY가 같은 이유로 pool 크기를 totalUnits보다
+            // 넉넉히 잡은 것과 동일한 관례). Get()이 항상 유휴 스택을 먼저 소비하므로 생성되는
+            // 인스턴스 총량은 Get() 호출 횟수(iterations)를 절대 넘지 않는다.
+            const int maxSize = iterations + 1;
+
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            GameObject prefab = null;
+            var stillCheckedOut = new List<GameObject>();
+
+            try
+            {
+                prefab = new GameObject("RegressionCheck_PoolMassRepeat_Prefab");
+                prefab.SetActive(false);
+                pool.EnsurePool(prefab, 4, maxSize);
+
+                FieldInfo poolsField = typeof(Managers.PoolManager).GetField("_pools", BindingFlags.NonPublic | BindingFlags.Instance);
+                var pools = (Dictionary<GameObject, ObjectPool<GameObject>>)poolsField.GetValue(pool);
+                ObjectPool<GameObject> objectPool = pools[prefab];
+
+                for (int i = 0; i < iterations; i++)
+                {
+                    GameObject instance = pool.Get(prefab, Vector3.zero, Quaternion.identity);
+
+                    // 3번에 1번꼴로는 당장 반납하지 않고 계속 대여 상태로 남긴다(대여 중인 인스턴스가
+                    // 섞인 채로도 불변조건이 유지되는지 확인하기 위함).
+                    if (i % 3 == 0)
+                    {
+                        stillCheckedOut.Add(instance);
+                        continue;
+                    }
+
+                    if (!pool.Release(instance))
+                    {
+                        throw new Exception($"{i}번째 반복에서 정상 반납이 실패로 보고됨");
+                    }
+
+                    if (objectPool.CountActive != stillCheckedOut.Count)
+                    {
+                        throw new Exception($"{i}번째 반복 직후 대여 개수가 {objectPool.CountActive}(기대={stillCheckedOut.Count})");
+                    }
+
+                    if (objectPool.CountInactive > maxSize)
+                    {
+                        throw new Exception($"{i}번째 반복 직후 유휴 개수가 maxSize({maxSize})를 초과함(실제={objectPool.CountInactive}) - 반납이 상한을 무시하고 쌓이는 중");
+                    }
+                }
+
+                int expectedActive = stillCheckedOut.Count;
+
+                if (objectPool.CountActive != expectedActive)
+                {
+                    throw new Exception($"{iterations}회 반복 완료 후 대여 개수가 {objectPool.CountActive}(기대={expectedActive})");
+                }
+
+                // 남겨둔 대여 인스턴스를 전부 반납하면 대여 개수가 정확히 0이 되어야 한다.
+                foreach (GameObject leftover in stillCheckedOut)
+                {
+                    if (!pool.Release(leftover))
+                    {
+                        throw new Exception("마무리 반납 단계에서 대여 중이던 인스턴스의 반납이 실패로 보고됨(중복 삽입/유실 의심)");
+                    }
+                }
+
+                stillCheckedOut.Clear();
+
+                if (objectPool.CountActive != 0)
+                {
+                    throw new Exception($"전량 반납 후 대여 개수가 {objectPool.CountActive}(기대=0)");
+                }
+
+                if (objectPool.CountInactive > maxSize)
+                {
+                    throw new Exception($"전량 반납 후 유휴 개수가 maxSize({maxSize})를 초과함(실제={objectPool.CountInactive})");
+                }
+            }
+            finally
+            {
+                foreach (GameObject leftover in stillCheckedOut)
+                {
+                    if (leftover != null)
+                    {
+                        pool.Release(leftover);
+                    }
+                }
+
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #30 검사 전용 IPoolable 카운터 컴포넌트 - OnSpawned/OnDespawned가 실제로
+        /// 몇 번 호출되는지 세는 것 외에는 아무 상태도 갖지 않는다.
+        /// </summary>
+        private sealed class RegressionCheckPoolableCounter : MonoBehaviour, IPoolable
+        {
+            public int SpawnedCount { get; private set; }
+            public int DespawnedCount { get; private set; }
+
+            public void OnSpawned()
+            {
+                SpawnedCount++;
+            }
+
+            public void OnDespawned()
+            {
+                DespawnedCount++;
             }
         }
 
