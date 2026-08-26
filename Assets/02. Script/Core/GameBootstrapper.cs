@@ -432,11 +432,17 @@ namespace Core
             _offlineProgressService?.ApplyCapturedReward();
         }
 
+        /// <summary>
+        /// GitHub 이슈 #28 - saveService.Save()를 직접 호출하지 않는다. Save()는 캐시된 스냅샷
+        /// 문자열이 최신인지 확인하지 않으므로, 장비/병사/스킬 컬렉션이 바뀐 바로 그 프레임에
+        /// Tick이 아직 한 번도 안 돈 채 pause/quit이 오면 낡은 캐시가 영구 저장된다.
+        /// FlushPendingChanges()는 더티 스냅샷을 먼저 최신화한 뒤에야 Save()로 넘어간다.
+        /// </summary>
         private void OnApplicationPause(bool pauseStatus)
         {
             if (pauseStatus && Services != null && Services.TryGet(out SaveService saveService))
             {
-                saveService.Save();
+                saveService.FlushPendingChanges();
             }
         }
 
@@ -444,7 +450,7 @@ namespace Core
         {
             if (Services != null && Services.TryGet(out SaveService saveService))
             {
-                saveService.Save();
+                saveService.FlushPendingChanges();
             }
         }
 

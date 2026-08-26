@@ -346,6 +346,16 @@ namespace Editor
             Check("OfflineStageSimulator_Simulate_MixedSpawnWithTacticsAndVaryingIntervals_Consistent",
                 CheckOfflineStageSimulatorMixedSpawnWithTacticsConsistent);
 
+
+            // --- 이슈 #28: 컬렉션 스냅샷이 더티인 상태에서 앱 pause/quit이 오면 Save()가 최신
+            // 캐시를 재구축하지 않고 낡은 캐시를 영구 저장하던 문제 ---
+            Check("SaveService_FlushPendingChanges_RebuildsAllFourDirtySnapshotsRegardlessOfIsDirty",
+                CheckSaveServiceFlushRebuildsAllDirtySnapshots);
+            Check("SaveService_FlushPendingChanges_ActuallyPersistsAndClearsIsDirty_SafeRoundTrip",
+                CheckSaveServiceFlushActuallyPersistsSafely);
+            Check("GameBootstrapper_OnApplicationPauseAndQuit_RouteThroughFlushPendingChanges",
+                CheckGameBootstrapperLifecycleUsesFlushPendingChanges);
+
             total = localTotal;
             failures = localFailures;
         }
@@ -3846,6 +3856,219 @@ namespace Editor
                 if (baselineStage != null) UnityEngine.Object.DestroyImmediate(baselineStage);
                 if (baseStatsMixed != null) UnityEngine.Object.DestroyImmediate(baseStatsMixed);
                 if (baseStatsBaseline != null) UnityEngine.Object.DestroyImmediate(baseStatsBaseline);
+            }
+        }
+
+        /// <summary>
+        /// SaveService의 4개 컬렉션 더티 플래그를 전부 켜고 캐시를 구분 가능한 sentinel 값으로
+        /// 채운 뒤 반환한다(GitHub 이슈 #28 재현 절차와 동일한 "컬렉션은 바뀌었지만 재구축 전"
+        /// 상태). _isDirty는 의도적으로 건드리지 않는다 - 호출부가 안전 요구에 맞춰 별도로 설정한다.
+        /// </summary>
+        private static void SeedSaveServiceStaleDirtySnapshots(SaveService saveService, string sentinel)
+        {
+            SetPrivateFieldOnPlainObject(saveService, "_inventoryJson", sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_soldierRosterJson", sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_skillLevelsJson", sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_skillCountsJson", sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_isInventorySnapshotDirty", true);
+            SetPrivateFieldOnPlainObject(saveService, "_isSoldierRosterSnapshotDirty", true);
+            SetPrivateFieldOnPlainObject(saveService, "_isSkillLevelsSnapshotDirty", true);
+            SetPrivateFieldOnPlainObject(saveService, "_isSkillCountsSnapshotDirty", true);
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #28 재현 절차의 핵심 - "컬렉션은 바뀌었지만 Tick 전" 상태에서
+        /// FlushPendingChanges()를 호출하면 4개 캐시가 전부 sentinel에서 실제로 재구축되고,
+        /// 4개 스냅샷 더티 플래그도 전부 꺼지는지 확인한다. _isDirty는 의도적으로 false로
+        /// 둬(실제 코드에서는 MarkDirty()와 항상 함께 세워지지만, 이 검사는 오직 "재구축이
+        /// 일어나는가"만 격리해서 확인하려는 것이라, false로 묶어두면 아래 Save()가 실행되지
+        /// 않아 실제 PlayerPrefs가 전혀 위험해지지 않는다 - Save() 자체의 안전한 검증은
+        /// CheckSaveServiceFlushActuallyPersistsSafely가 별도로 맡는다).
+        /// InventoryService/SoldierRosterService/SkillService가 전부 빈 상태이므로 재구축된
+        /// JSON은 빈 컬렉션 블롭이 된다 - "정확히 어떤 값인지"가 아니라 "sentinel에서 실제로
+        /// 바뀌었는가"만 확인한다(수정 전에는 Save()가 이 값들을 전혀 재구축하지 않아 sentinel이
+        /// 그대로 남아있었다).
+        /// </summary>
+        private static void CheckSaveServiceFlushRebuildsAllDirtySnapshots()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            var equippedGear = new EquippedGearService(events);
+            var soldierRoster = new SoldierRosterService(events);
+            var soldierDeployment = new SoldierDeploymentService(events, soldierRoster, null);
+            var skill = new SkillService(events);
+            var skillLoadout = new SkillLoadoutService(events, skill);
+            var squadTactic = new SquadTacticService(events);
+
+            var saveService = new SaveService(
+                events, inventory, equippedGear, null, soldierRoster, null, soldierDeployment,
+                null, skill, null, skillLoadout, squadTactic);
+
+            const string sentinel = "REGRESSION_CHECK_STALE_CACHE";
+            SeedSaveServiceStaleDirtySnapshots(saveService, sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_isDirty", false);
+
+            saveService.FlushPendingChanges();
+
+            string[] jsonFields = { "_inventoryJson", "_soldierRosterJson", "_skillLevelsJson", "_skillCountsJson" };
+            string[] dirtyFields = { "_isInventorySnapshotDirty", "_isSoldierRosterSnapshotDirty", "_isSkillLevelsSnapshotDirty", "_isSkillCountsSnapshotDirty" };
+
+            for (int i = 0; i < jsonFields.Length; i++)
+            {
+                string value = (string)GetPrivateFieldOnPlainObject(saveService, jsonFields[i]);
+
+                if (value == sentinel)
+                {
+                    throw new Exception($"{jsonFields[i]}이 FlushPendingChanges() 이후에도 sentinel 그대로임 - 재구축되지 않음(GitHub 이슈 #28 재현)");
+                }
+
+                bool stillDirty = (bool)GetPrivateFieldOnPlainObject(saveService, dirtyFields[i]);
+
+                if (stillDirty)
+                {
+                    throw new Exception($"{dirtyFields[i]}가 FlushPendingChanges() 이후에도 true로 남아있음");
+                }
+            }
+        }
+
+        /// <summary>
+        /// FlushPendingChanges()가 실제로 Save()(PlayerPrefs 기록)까지 도달해 _isDirty를 정상
+        /// 해제하는지 "안전하게" 확인한다(GitHub 이슈 #28 - "저장 성공 뒤에만 _isDirty 해제").
+        /// Initialize()로 이 개발 세션의 실제 저장값을 먼저 전부 로드해두고(4개 컬렉션 JSON도
+        /// 포함 - 아무 것도 안 건드림) 오직 MarkDirty()(스칼라 필드는 전혀 안 바꿈)로만 _isDirty를
+        /// 세우므로, Save()가 실제로 실행돼도 로드된 것과 정확히 같은 값을 도로 쓸 뿐이라 실제
+        /// PlayerPrefs 세이브 데이터가 조금도 바뀌지 않는다(LastActiveUnixTime만 "지금"으로
+        /// 자연스럽게 갱신되는데, 이는 정상적인 Save() 동작 그 자체다). 골드 키를 앞뒤로 비교해
+        /// 실제로 변형이 없었음을 이중 확인한다.
+        /// </summary>
+        private static void CheckSaveServiceFlushActuallyPersistsSafely()
+        {
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null);
+
+            FieldInfo goldKeyField = typeof(SaveService).GetField("GoldBigKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var goldKey = (string)goldKeyField.GetValue(null);
+            string goldBefore = PlayerPrefs.GetString(goldKey, "");
+
+            try
+            {
+                saveService.Initialize();
+
+                InvokeVoidHandler(saveService, "MarkDirty");
+
+                if (!(bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("MarkDirty() 호출 후 _isDirty가 true가 아님");
+                }
+
+                saveService.FlushPendingChanges();
+
+                if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("_isDirty만 세워진 상태에서 FlushPendingChanges()를 호출했는데도 Save()가 실행되지 않음(_isDirty가 여전히 true)");
+                }
+
+                string goldAfter = PlayerPrefs.GetString(goldKey, "");
+
+                if (goldAfter != goldBefore)
+                {
+                    throw new Exception($"Save()가 실행되며 골드 값이 바뀜(before={goldBefore}, after={goldAfter}) - Initialize()로 로드한 값과 다른 값을 씀");
+                }
+            }
+            finally
+            {
+                saveService.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #28의 실제 회귀 지점 - GameBootstrapper.OnApplicationPause/OnApplicationQuit이
+        /// SaveService.Save()를 직접 부르지 않고 FlushPendingChanges()를 통해서만 호출하는지,
+        /// 실제 메서드를 리플렉션으로 직접 실행해 확인한다. GameObject를 비활성 상태로 유지해
+        /// GameBootstrapper.Awake()(전체 게임 부트스트랩)가 실행되지 않게 하고, 정적 Services를
+        /// 이 검사만의 격리된 SaveService를 담은 합성 ServiceLocator로 임시 교체한다(WithNullServices와
+        /// 같은 안전한 백업/복원 패턴). SaveService의 _isDirty를 false로 고정해뒀으므로(위
+        /// CheckSaveServiceFlushRebuildsAllDirtySnapshots와 동일한 이유) 이 경로를 타도 실제
+        /// PlayerPrefs.Save()는 절대 실행되지 않는다 - 오직 "4개 스냅샷이 재구축되는가"만으로
+        /// FlushPendingChanges() 경로를 탔는지 확인한다(수정 전이었다면 Save()만 불려 캐시가
+        /// sentinel 그대로 남았을 것).
+        /// </summary>
+        private static void CheckGameBootstrapperLifecycleUsesFlushPendingChanges()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            var equippedGear = new EquippedGearService(events);
+            var soldierRoster = new SoldierRosterService(events);
+            var soldierDeployment = new SoldierDeploymentService(events, soldierRoster, null);
+            var skill = new SkillService(events);
+            var skillLoadout = new SkillLoadoutService(events, skill);
+            var squadTactic = new SquadTacticService(events);
+
+            var saveService = new SaveService(
+                events, inventory, equippedGear, null, soldierRoster, null, soldierDeployment,
+                null, skill, null, skillLoadout, squadTactic);
+
+            const string sentinel = "REGRESSION_CHECK_LIFECYCLE_STALE_CACHE";
+            SeedSaveServiceStaleDirtySnapshots(saveService, sentinel);
+            SetPrivateFieldOnPlainObject(saveService, "_isDirty", false);
+
+            var locator = new ServiceLocator();
+            locator.Register(saveService);
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+            GameObject go = null;
+
+            try
+            {
+                servicesProperty.SetValue(null, locator);
+
+                go = new GameObject("RegressionCheck_GameBootstrapper_Lifecycle");
+                go.SetActive(false);
+                GameBootstrapper bootstrapper = go.AddComponent<GameBootstrapper>();
+
+                MethodInfo pauseMethod = typeof(GameBootstrapper).GetMethod("OnApplicationPause", BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo quitMethod = typeof(GameBootstrapper).GetMethod("OnApplicationQuit", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (pauseMethod == null || quitMethod == null)
+                {
+                    throw new Exception("GameBootstrapper.OnApplicationPause/OnApplicationQuit 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                pauseMethod.Invoke(bootstrapper, new object[] { true });
+
+                if ((string)GetPrivateFieldOnPlainObject(saveService, "_inventoryJson") == sentinel)
+                {
+                    throw new Exception("OnApplicationPause(true) 이후에도 _inventoryJson이 sentinel 그대로임 - Save()를 직접 불러 재구축을 건너뛴 것으로 보임(GitHub 이슈 #28 재현)");
+                }
+
+                // OnApplicationQuit도 동일 경로를 타는지 별도로 확인 - sentinel을 다시 채운다.
+                SeedSaveServiceStaleDirtySnapshots(saveService, sentinel);
+                SetPrivateFieldOnPlainObject(saveService, "_isDirty", false);
+
+                quitMethod.Invoke(bootstrapper, null);
+
+                if ((string)GetPrivateFieldOnPlainObject(saveService, "_soldierRosterJson") == sentinel)
+                {
+                    throw new Exception("OnApplicationQuit() 이후에도 _soldierRosterJson이 sentinel 그대로임 - Save()를 직접 불러 재구축을 건너뛴 것으로 보임(GitHub 이슈 #28 재현)");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+
+                if (go != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+
+                saveService.Shutdown();
             }
         }
 

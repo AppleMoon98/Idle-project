@@ -37,10 +37,15 @@ namespace Save
     /// 프레임 안에서 InventoryChangedEvent가 수백 번 몰아치는 상황에서 그만큼 반복 실행돼 눈에
     /// 띄는 멈춤이 생긴다(실사용 중 발견 — 보유 장비 종류가 많을수록 스냅샷 재직렬화 비용까지
     /// 더해져 심해짐). EquipmentSlotPopupUI의 Refresh() 디바운스(section CL)와 같은 방향으로,
-    /// 이벤트 핸들러들은 실제 PlayerPrefs 기록 대신 MarkDirty()로 더티 플래그만 세우고, Tick()이
-    /// 프레임당 최대 한 번만 진짜 Save()를 수행한다. 다만 공개 Save()는 그대로 즉시 동기 실행을
-    /// 유지한다 — GameBootstrapper.OnApplicationPause/OnApplicationQuit이 앱이 꺼지기 직전
-    /// 마지막 상태를 반드시 기록하기 위해 직접 호출하는 안전장치라, 여기 손대면 그 보장이 깨진다.
+    /// 이벤트 핸들러들은 실제 PlayerPrefs 기록 대신 MarkDirty()로 더티 플래그만 세우고,
+    /// FlushPendingChanges()가 프레임당 최대 한 번만 진짜 Save()를 수행한다.
+    ///
+    /// GitHub 이슈 #28 - GameBootstrapper.OnApplicationPause/OnApplicationQuit은 공개 Save()를
+    /// 더 이상 직접 호출하지 않는다. Save()는 4개 컬렉션(장비/병사 로스터·배치/스킬 레벨/스킬
+    /// 보유 수) 캐시 문자열이 최신인지 전혀 확인하지 않고 그대로 기록할 뿐이라, 컬렉션이 바뀐
+    /// 바로 그 프레임에 Tick이 한 번도 안 돈 채 앱이 중단되면 낡은 캐시가 영구 저장되는 버그가
+    /// 있었다. pause/quit도 FlushPendingChanges()를 호출해 "더티 스냅샷 재구축 → 기록 → flush"를
+    /// 항상 원자적으로 거치도록 통일했다.
     /// </summary>
     public sealed class SaveService : IManager, IService, ITickable
     {
@@ -406,10 +411,17 @@ namespace Save
         /// <summary>
         /// 지금까지 추적한 값과 현재 시각을 PlayerPrefs에 즉시(동기) 기록한다 — PlayerPrefs.Save()의
         /// 디스크 flush를 포함하므로 이 클래스에서 가장 비싼 호출이다. 게임플레이 이벤트 핸들러는
-        /// 이 메서드를 직접 부르지 않고 MarkDirty()만 호출한다(Tick()이 프레임당 최대 한 번으로
-        /// 묶어서 대신 호출) — 이 공개 메서드 자체는 GameBootstrapper.OnApplicationPause/
-        /// OnApplicationQuit이 앱 종료 직전 마지막 상태를 확실히 기록하려고 직접 호출하는
-        /// 안전장치이므로 즉시 실행 동작을 그대로 유지해야 한다.
+        /// 이 메서드를 직접 부르지 않고 MarkDirty()만 호출한다(FlushPendingChanges()가 프레임당
+        /// 최대 한 번으로 묶어서 대신 호출).
+        ///
+        /// GitHub 이슈 #28 - 예전엔 이 메서드가 GameBootstrapper.OnApplicationPause/
+        /// OnApplicationQuit이 앱 종료 직전 직접 호출하는 "안전장치"였다. 문제는 이 메서드가
+        /// 캐시된 _inventoryJson/_soldierRosterJson/_skillLevelsJson/_skillCountsJson 문자열을
+        /// 그대로 기록할 뿐, 그 문자열이 최신 상태인지(4개 스냅샷 더티 플래그) 전혀 확인하지
+        /// 않는다는 것 - 컬렉션이 바뀐 바로 그 프레임에 앱이 중단되면(Tick이 아직 한 번도 안
+        /// 돈 상태) 낡은 캐시가 영구 저장되고, _isDirty만 false로 꺼져 다음 저장 기회조차
+        /// 사라졌다. pause/quit은 이제 이 메서드를 직접 부르지 않고 FlushPendingChanges()를
+        /// 통해서만 호출한다 - 그쪽이 4개 스냅샷을 먼저 최신화한 뒤에야 이 메서드로 넘어온다.
         /// </summary>
         public void Save()
         {
@@ -454,7 +466,8 @@ namespace Save
         /// <summary>
         /// 게임플레이 이벤트 핸들러가 실제 저장을 요청하는 창구. 즉시 Save()하지 않고 더티
         /// 플래그만 세운다 - 같은 프레임에 여러 이벤트가 몰아쳐도(예: 골드 뽑기 300연의
-        /// InventoryChangedEvent) 실제 PlayerPrefs 기록/디스크 flush는 Tick()에서 한 번만 일어난다.
+        /// InventoryChangedEvent) 실제 PlayerPrefs 기록/디스크 flush는 FlushPendingChanges()에서
+        /// 한 번만 일어난다(평상시엔 Tick()이, 앱 중단/종료 시점엔 GameBootstrapper가 직접 호출).
         /// </summary>
         private void MarkDirty()
         {
@@ -462,6 +475,27 @@ namespace Save
         }
 
         void ITickable.Tick(float deltaTime)
+        {
+            FlushPendingChanges();
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #28 - "더티 스냅샷 재구축 → PlayerPrefs 기록 → flush"를 하나로 묶은 원자적
+        /// 공개 경로. 평상시엔 Tick()이 프레임당 최대 한 번 호출해 성능 디바운스를 유지하고,
+        /// GameBootstrapper.OnApplicationPause/OnApplicationQuit도 이제 Save()를 직접 부르지 않고
+        /// 이 메서드를 호출한다 - 그래야 컬렉션이 바뀐 바로 그 프레임에 앱이 중단돼도(Tick이 아직
+        /// 한 번도 안 돈 상태) 낡은 캐시가 아니라 최신 상태가 저장된다.
+        ///
+        /// 4개 스냅샷 더티 플래그와 _isDirty는 항상 같은 호출 지점에서 함께 세워지므로(MarkDirty()가
+        /// 스냅샷 dirty 대입 직후 항상 함께 호출됨 - RebuildInventorySnapshot 등 각 세터 참고),
+        /// 스냅샷 중 하나라도 재구축했다면 _isDirty는 이미 true라 아래 Save() 호출이 항상
+        /// 실행된다 - 재구축만 하고 실제로 기록은 안 되는 경우가 구조적으로 없다.
+        /// PlayerPrefs.SetString/SetInt/Save() 중 하나가 예외를 던져도 _isDirty=false는 Save()의
+        /// 마지막 줄이라 절대 도달하지 못하므로(완료 조건 6), 다음 FlushPendingChanges() 호출이
+        /// 그대로 재시도한다 - 이미 재구축된 스냅샷 문자열은 그대로 재사용되므로 중복 재구축도
+        /// 일어나지 않는다.
+        /// </summary>
+        public void FlushPendingChanges()
         {
             if (_isInventorySnapshotDirty)
             {
