@@ -6,6 +6,7 @@ using Loot;
 using Skill;
 using Skill.Events;
 using UI.Events;
+using UnityEngine;
 
 namespace Gacha
 {
@@ -107,13 +108,24 @@ namespace Gacha
             // IsMaxLevel 판정이 바뀔 수 없다(레벨이 바뀌어야 만렙 여부가 바뀌는데, 레벨을 바꾸는
             // 호출 자체가 이 배치 안에 없음) - 매 시도(TryPullOne)마다 다시 계산해도 얻는 정확성
             // 이득이 없어 그대로 비용만 300배가 되고 있었다.
-            List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(_tiers[tierIndex].Entries);
+            SkillGachaPoolEntry[] rawEntries = _tiers[tierIndex].Entries;
+            List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(rawEntries);
+
+            // 후보가 비었을 때 두 원인을 미리 구분해둔다(GitHub 이슈 #22) - 원본 엔트리 자체가
+            // 비어있으면(카탈로그 미설정 등) 콘텐츠/설정 오류(NoCandidates), 원본은 있는데
+            // 필터링(만렙 제외) 후에만 비었으면 정상적인 성장 완료 상태(AllCandidatesMaxed)다.
+            // 배치 시작 시점에 한 번만 판정하면 충분하다 - candidates 자체가 이미 배치 내내
+            // 재사용되므로(section 이슈 #21) 이 두 원인의 판정도 배치 도중 바뀔 수 없다.
+            GachaPullStopReason emptyCandidatesReason = (rawEntries == null || rawEntries.Length == 0)
+                ? GachaPullStopReason.NoCandidates
+                : GachaPullStopReason.AllCandidatesMaxed;
+
             GachaPullStopReason stopReason = GachaPullStopReason.None;
             var results = new List<SkillSO>();
 
             for (int i = 0; i < count; i++)
             {
-                if (!TryPullOne(tierIndex, candidates, out SkillSO result, out stopReason))
+                if (!TryPullOne(tierIndex, candidates, emptyCandidatesReason, out SkillSO result, out stopReason))
                 {
                     break;
                 }
@@ -127,7 +139,15 @@ namespace Gacha
                 _events.Publish(new SkillPulledEvent(results));
             }
 
-            GachaPullToast.PublishIfIncomplete(_events, results.Count, count, stopReason, "모든 스킬이 최대 레벨입니다.");
+            if (stopReason == GachaPullStopReason.NoCandidates)
+            {
+                Debug.LogWarning($"[SkillGachaService] tierIndex={tierIndex}의 뽑기 후보 데이터가 비어있음(카탈로그/테이블 설정 오류로 보임) - 만렙과는 다른 콘텐츠 오류 상태(GitHub 이슈 #22).");
+            }
+
+            GachaPullToast.PublishIfIncomplete(
+                _events, results.Count, count, stopReason,
+                noCandidatesMessage: "뽑기 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+                allMaxedMessage: "모든 스킬이 최대 레벨입니다.");
 
             return results;
         }
@@ -195,7 +215,12 @@ namespace Gacha
                 : _scrolls.CurrentScrolls >= table.TicketCostPerPull;
         }
 
-        private bool TryPullOne(int tierIndex, List<SkillGachaPoolEntry> candidates, out SkillSO result, out GachaPullStopReason reason)
+        /// <summary>
+        /// emptyCandidatesReason은 Pull()이 배치 시작 시점에 미리 판정해둔, candidates가 비었을
+        /// 때 쓸 이유(NoCandidates=데이터 오류 vs AllCandidatesMaxed=정상 성장 완료)다 - tierIndex
+        /// 자체가 범위를 벗어난 경우는 이 판정과 무관하게 항상 NoCandidates(명백한 설정 오류)다.
+        /// </summary>
+        private bool TryPullOne(int tierIndex, List<SkillGachaPoolEntry> candidates, GachaPullStopReason emptyCandidatesReason, out SkillSO result, out GachaPullStopReason reason)
         {
             result = null;
             reason = GachaPullStopReason.None;
@@ -211,7 +236,7 @@ namespace Gacha
 
             if (picked == null)
             {
-                reason = GachaPullStopReason.NoCandidates;
+                reason = emptyCandidatesReason;
                 return false;
             }
 

@@ -243,8 +243,12 @@ namespace Editor
                 CheckGachaPullToastPartialSuccessInsufficientCurrency);
             Check("GachaPullToast_NoCandidates_ZeroSuccess_UsesProvidedMessage",
                 CheckGachaPullToastNoCandidatesZeroSuccess);
+            Check("GachaPullToast_AllCandidatesMaxed_ZeroSuccess_UsesAllMaxedMessage",
+                CheckGachaPullToastAllCandidatesMaxedZeroSuccess);
             Check("GachaAffordabilityCalculator_FixedCost_ExactDivision",
                 CheckGachaAffordabilityCalculatorFixedCost);
+            Check("GachaAffordabilityCalculator_FixedCost_ZeroOffByOneExactAndOverBalanceBoundaries",
+                CheckGachaAffordabilityCalculatorFixedCostBoundaries);
             Check("GachaAffordabilityCalculator_EscalatingCost_SimulatesCumulativeSpend",
                 CheckGachaAffordabilityCalculatorEscalatingCost);
             Check("GachaAffordabilityCalculator_FixedCost_CapsAtMaxSimulatedPulls",
@@ -255,6 +259,8 @@ namespace Editor
                 CheckSkillGachaServiceInsufficientCurrencyPublishesPartialToast);
             Check("SkillGachaService_Pull_AllSkillsMaxLevel_ZeroResultsPublishesReasonToast",
                 CheckSkillGachaServiceAllMaxLevelPublishesNoCandidatesToast);
+            Check("SkillGachaService_Pull_EmptyCatalog_PublishesDataErrorToast_NotAllMaxedToast",
+                CheckSkillGachaServiceEmptyCatalogPublishesDataErrorToast);
             Check("SkillGachaService_HasAnyLevelableCandidate_ReflectsPerTierMaxLevelState",
                 CheckSkillGachaServiceHasAnyLevelableCandidate);
 
@@ -1880,7 +1886,8 @@ namespace Editor
 
         /// <summary>
         /// GitHub 이슈 #22 재현 사례 B(주문서 1000개로 300회 요청 → 0건 반환, 아무 설명 없이 종료)를
-        /// GachaPullToast 단위로 재현한다.
+        /// GachaPullToast 단위로 재현한다 - NoCandidates(데이터 오류)는 noCandidatesMessage를
+        /// 그대로 쓴다(allMaxedMessage는 AllCandidatesMaxed 전용이라 여기서는 안 쓰임).
         /// </summary>
         private static void CheckGachaPullToastNoCandidatesZeroSuccess()
         {
@@ -1888,11 +1895,36 @@ namespace Editor
             var toasts = new List<string>();
             events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
 
-            GachaPullToast.PublishIfIncomplete(events, 0, 300, GachaPullStopReason.NoCandidates, "모든 스킬이 최대 레벨입니다.");
+            GachaPullToast.PublishIfIncomplete(
+                events, 0, 300, GachaPullStopReason.NoCandidates,
+                noCandidatesMessage: "뽑기 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+                allMaxedMessage: "모든 스킬이 최대 레벨입니다.");
+
+            if (toasts.Count != 1 || toasts[0] != "뽑기 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.")
+            {
+                throw new Exception($"후보 없음(데이터 오류, 0/300) 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 - AllCandidatesMaxed(정상적인 성장 완료 상태)는 noCandidatesMessage가
+        /// 아니라 allMaxedMessage를 써야 한다는 것을 GachaPullToast 단위로 확인한다 - NoCandidates
+        /// 검사(바로 위)와 정확히 대칭인 케이스.
+        /// </summary>
+        private static void CheckGachaPullToastAllCandidatesMaxedZeroSuccess()
+        {
+            var events = new EventBus();
+            var toasts = new List<string>();
+            events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+            GachaPullToast.PublishIfIncomplete(
+                events, 0, 300, GachaPullStopReason.AllCandidatesMaxed,
+                noCandidatesMessage: "뽑기 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+                allMaxedMessage: "모든 스킬이 최대 레벨입니다.");
 
             if (toasts.Count != 1 || toasts[0] != "모든 스킬이 최대 레벨입니다.")
             {
-                throw new Exception($"후보 없음(0/300) 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
+                throw new Exception($"전부 만렙(0/300) 토스트가 기대와 다름: [{string.Join(", ", toasts)}]");
             }
         }
 
@@ -1908,6 +1940,37 @@ namespace Editor
             if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(50, 100) != 0)
             {
                 throw new Exception("1회분도 안 되는 잔액인데 0이 아님");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 완료 조건("재화 0, 비용보다 1 부족, 정확한 비용, 초과 잔액 경계가
+        /// 검증됨")을 고정 비용 경로(CalculateMaxAffordableFixedCostPulls) 기준으로 정확히
+        /// 그 네 값으로 확인한다 - 기존 검사(305/100, 50/100)는 계산기의 일반적인 정확성을
+        /// 덮지만, 이슈가 콕 집은 경계값 자체를 명시적으로 검증하지는 않았다.
+        /// </summary>
+        private static void CheckGachaAffordabilityCalculatorFixedCostBoundaries()
+        {
+            const int cost = 100;
+
+            if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(0, cost) != 0)
+            {
+                throw new Exception("잔액 0인데 0회가 아님");
+            }
+
+            if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(cost - 1, cost) != 0)
+            {
+                throw new Exception("비용보다 1 부족한 잔액인데 0회가 아님");
+            }
+
+            if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(cost, cost) != 1)
+            {
+                throw new Exception("잔액이 비용과 정확히 일치하는데 1회가 아님");
+            }
+
+            if (GachaAffordabilityCalculator.CalculateMaxAffordableFixedCostPulls(cost + 50, cost) != 1)
+            {
+                throw new Exception("비용을 초과했지만 2회분에는 못 미치는 잔액인데 1회가 아님");
             }
         }
 
@@ -2057,6 +2120,61 @@ namespace Editor
             {
                 if (table != null) UnityEngine.Object.DestroyImmediate(table);
                 if (skill != null) UnityEngine.Object.DestroyImmediate(skill);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #22 - 바로 위 검사(전부 만렙)와 대칭인 "진짜 데이터 오류" 시나리오. 카탈로그
+        /// 자체가 비어있으면(스킬 0개) "모든 스킬이 최대 레벨입니다."가 아니라 별도의 데이터 오류
+        /// 메시지가 떠야 한다 - 이 둘을 하나로 뭉쳐 처리하던 것이 이슈의 핵심 지적이었다("만렙이라
+        /// 그런가 보다"로 오인되는 실제 콘텐츠 버그).
+        /// </summary>
+        private static void CheckSkillGachaServiceEmptyCatalogPublishesDataErrorToast()
+        {
+            SkillCatalogSO catalog = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                var events = new EventBus();
+                var toasts = new List<string>();
+                events.Subscribe<ToastMessageRequestedEvent>(evt => toasts.Add(evt.Message));
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", Array.Empty<SkillSO>());
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+                SetPrivateField(table, "ticketCostPerPull", 1);
+                SetPrivateField(table, "currencyType", GachaCurrencyType.Ticket);
+
+                var skillService = new SkillService(events);
+                var scrolls = new SkillScrollService(events, initialScrolls: 1000);
+                var currency = new CurrencyService(events);
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { table });
+
+                IReadOnlyList<SkillSO> results = service.Pull(0, 300);
+
+                if (results.Count != 0)
+                {
+                    throw new Exception($"빈 카탈로그인데 {results.Count}건이 성공함(기대=0)");
+                }
+
+                if (toasts.Contains("모든 스킬이 최대 레벨입니다."))
+                {
+                    throw new Exception("빈 카탈로그(데이터 오류)인데 '전부 만렙' 메시지가 뜸 - 두 원인이 여전히 뭉쳐 있음");
+                }
+
+                if (!toasts.Contains("뽑기 콘텐츠를 불러오지 못했습니다. 잠시 후 다시 시도해주세요."))
+                {
+                    throw new Exception($"데이터 오류 안내 토스트가 발행되지 않음: [{string.Join(", ", toasts)}]");
+                }
+            }
+            finally
+            {
+                if (table != null) UnityEngine.Object.DestroyImmediate(table);
                 if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
             }
         }
