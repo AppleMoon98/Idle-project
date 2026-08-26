@@ -64,6 +64,40 @@ namespace Soldier
         }
 
         /// <summary>
+        /// definitions 각각에 대해 새 개별 유닛을 로스터에 추가하되, SoldierRosterChangedEvent는
+        /// 배치 전체에 딱 한 번만 발행한다(GitHub 이슈 #21) - AddSoldier를 N번 호출하면 이벤트도
+        /// N번 발행되는데, 모든 구독자(UI 4곳 + SaveService)가 evt의 실제 필드값은 안 읽고 그냥
+        /// Refresh()/더티 플래그 설정만 하므로 N번째 이벤트가 갖는 정보량은 사실상 0이다 - 그런데도
+        /// Core.EventBus.Publish는 호출마다 GetInvocationList()로 구독자 델리게이트 배열을 새로
+        /// 할당하므로(section DV), 가챠 300연처럼 짧은 시간에 몰아치면 이 배열 할당 자체가 누적
+        /// GC 비용이 된다. 300개를 한 번에 굴려도 이벤트는 1번만 나가면, 지금 당장은 없지만 나중에
+        /// evt마다 무거운 작업을 하는 구독자(업적 시스템 등)가 추가돼도 이 증폭이 재발하지 않는다.
+        /// definitions가 비어있으면 아무 것도 안 하고 빈 목록을 반환한다(이벤트도 발행 안 함).
+        /// </summary>
+        public IReadOnlyList<OwnedSoldier> AddSoldiersBatch(IReadOnlyList<SoldierSO> definitions)
+        {
+            if (definitions == null || definitions.Count == 0)
+            {
+                return Array.Empty<OwnedSoldier>();
+            }
+
+            var added = new List<OwnedSoldier>(definitions.Count);
+
+            foreach (SoldierSO definition in definitions)
+            {
+                var owned = new OwnedSoldier(definition, _nextInstanceId);
+                _nextInstanceId++;
+
+                _roster[owned.InstanceId] = owned;
+                added.Add(owned);
+            }
+
+            _events.Publish(new SoldierRosterChangedEvent(added[added.Count - 1], _roster.Count));
+
+            return added;
+        }
+
+        /// <summary>
         /// instanceId 유닛을 반환한다. 없으면 false.
         /// </summary>
         public bool TryGet(int instanceId, out OwnedSoldier owned)

@@ -15,7 +15,9 @@ using Loot;
 using Rank;
 using Save;
 using Skill;
+using Skill.Events;
 using Soldier;
+using Soldier.Events;
 using Stage;
 using Stage.Events;
 using UI;
@@ -220,6 +222,18 @@ namespace Editor
                 CheckSaveServiceInventoryHandlersDeferRebuildToTick);
             Check("SaveService_OtherSnapshotHandlers_SetDirtyFlagWithoutEagerRebuild",
                 CheckSaveServiceOtherHandlersDeferRebuildToTick);
+
+            // --- 이슈 #21 추가 조치: 이벤트 소스 자체(SoldierRosterService/GachaService/
+            // SkillGachaService)를 배치화해 다운스트림 디바운스에만 의존하지 않도록 함 +
+            // CPU/GC 예산을 아이템당 할당량 비율로 측정하는 성능 회귀 검사 ---
+            Check("SoldierRosterService_AddSoldiersBatch_PublishesEventOnce",
+                CheckSoldierRosterServiceAddSoldiersBatchPublishesEventOnce);
+            Check("GachaService_Pull_AddsSoldiersAsSingleBatch",
+                CheckGachaServicePullAddsSoldiersAsSingleBatch);
+            Check("GachaService_Pull300_DoesNotScaleSuperlinearly_GcAllocationBudget",
+                CheckGachaServicePull300DoesNotScaleSuperlinearly);
+            Check("SkillGachaService_Pull_AggregatesAddCopyByDefinition",
+                CheckSkillGachaServicePullAggregatesAddCopyByDefinition);
 
             // --- 이슈 #22: 300회 요청의 부분 성공/전체 실패가 이유·실행 수 안내 없이 조용히 끝남 ---
             Check("GachaPullToast_FullSuccess_NoToast", CheckGachaPullToastFullSuccessNoToast);
@@ -1558,6 +1572,263 @@ namespace Editor
             if (!(bool)GetPrivateFieldOnPlainObject(saveService, dirtyFieldName))
             {
                 throw new Exception($"{handlerName} 호출 후 {dirtyFieldName}이 true가 아님");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21 - SoldierRosterService.AddSoldiersBatch(N개)가 SoldierRosterChangedEvent를
+        /// 딱 1번만 발행하고, 반환된 N개 유닛이 서로 다른 InstanceId를 갖는지 확인한다.
+        /// </summary>
+        private static void CheckSoldierRosterServiceAddSoldiersBatchPublishesEventOnce()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+
+            try
+            {
+                definition = ScriptableObject.CreateInstance<SoldierSO>();
+
+                int publishCount = 0;
+                events.Subscribe<SoldierRosterChangedEvent>(_ => publishCount++);
+
+                var definitions = new List<SoldierSO> { definition, definition, definition, definition, definition };
+                IReadOnlyList<OwnedSoldier> added = roster.AddSoldiersBatch(definitions);
+
+                if (publishCount != 1)
+                {
+                    throw new Exception($"AddSoldiersBatch(5개)가 SoldierRosterChangedEvent를 {publishCount}번 발행함(기대=1)");
+                }
+
+                if (added.Count != 5)
+                {
+                    throw new Exception($"반환된 유닛 수가 {added.Count}(기대=5)");
+                }
+
+                var distinctIds = new HashSet<int>();
+
+                foreach (OwnedSoldier owned in added)
+                {
+                    distinctIds.Add(owned.InstanceId);
+                }
+
+                if (distinctIds.Count != 5)
+                {
+                    throw new Exception("배치로 추가된 유닛들의 InstanceId가 중복됨");
+                }
+            }
+            finally
+            {
+                if (definition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(definition);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21 - GachaService.Pull(tier, N)이 내부적으로 N번 굴려도, 로스터 반영/
+        /// SoldierRosterChangedEvent 발행은 배치 전체에 딱 1번만 일어나는지 확인한다(section GY
+        /// 이후 이 파일이 확립한 "합성 GachaTableSO/GachaPoolEntry를 SetPrivateField로 조립"
+        /// 패턴 재사용).
+        /// </summary>
+        private static void CheckGachaServicePullAddsSoldiersAsSingleBatch()
+        {
+            var events = new EventBus();
+            var tickets = new SoldierTicketService(events, 1000);
+            var currency = new CurrencyService(events);
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+            GachaTableSO table = null;
+
+            try
+            {
+                definition = ScriptableObject.CreateInstance<SoldierSO>();
+
+                var entry = new GachaPoolEntry();
+                SetPrivateFieldOnPlainObject(entry, "soldier", definition);
+                SetPrivateFieldOnPlainObject(entry, "weight", 1);
+
+                table = ScriptableObject.CreateInstance<GachaTableSO>();
+                SetPrivateField(table, "entries", new[] { entry });
+                SetPrivateField(table, "ticketCostPerPull", 1);
+
+                var service = new GachaService(events, tickets, currency, roster, new[] { table });
+
+                int publishCount = 0;
+                events.Subscribe<SoldierRosterChangedEvent>(_ => publishCount++);
+
+                IReadOnlyList<OwnedSoldier> results = service.Pull(0, 50);
+
+                if (results.Count != 50)
+                {
+                    throw new Exception($"Pull(0,50) 결과가 {results.Count}개(기대=50)");
+                }
+
+                if (publishCount != 1)
+                {
+                    throw new Exception($"50연 뽑기가 SoldierRosterChangedEvent를 {publishCount}번 발행함(기대=1)");
+                }
+            }
+            finally
+            {
+                if (definition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(definition);
+                }
+
+                if (table != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(table);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21 완료 조건("저사양 모바일 기준 CPU·GC 예산이 정의되고 측정됨") - 절대
+        /// ms/바이트 임계값 대신 아이템당 GC 할당량의 "비율"로 판정한다. 하드웨어/CI 러너 성능에
+        /// 좌우되는 벽시계 시간과 달리 GC.GetAllocatedBytesForCurrentThread()는 같은 코드 경로에서
+        /// 항상 같은 바이트 수를 반환하므로(타이머 노이즈 없음), 절대 임계값을 잡을 때 겪는 flaky
+        /// 위험(이슈 #11 조사 때 자동 UI 레이캐스트 검사를 포기한 것과 같은 이유) 없이도 재발을
+        /// 감지할 수 있다. 30개짜리 배치를 먼저 돌려 로스터를 채운 뒤, 그 상태에서 300개짜리
+        /// 배치를 이어서 돌린다 - 이슈가 실제로 재현한 버그(기존 로스터가 클수록 다음 배치의
+        /// "아이템당" 비용이 커지는 패턴, 100/300/600개 순차 추가 시 4ms/20ms/82ms로 초선형
+        /// 증가)를 그대로 재현하는 순서다. 아이템당 할당량이 3배 이상 벌어지면 초선형 회귀로
+        /// 판정한다. 절대 시간은 하드웨어 차이를 감안한 관대한 안전망(3초)으로만 별도 확인한다.
+        /// </summary>
+        private static void CheckGachaServicePull300DoesNotScaleSuperlinearly()
+        {
+            var events = new EventBus();
+            var tickets = new SoldierTicketService(events, 10000);
+            var currency = new CurrencyService(events);
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+            GachaTableSO table = null;
+
+            try
+            {
+                definition = ScriptableObject.CreateInstance<SoldierSO>();
+
+                var entry = new GachaPoolEntry();
+                SetPrivateFieldOnPlainObject(entry, "soldier", definition);
+                SetPrivateFieldOnPlainObject(entry, "weight", 1);
+
+                table = ScriptableObject.CreateInstance<GachaTableSO>();
+                SetPrivateField(table, "entries", new[] { entry });
+                SetPrivateField(table, "ticketCostPerPull", 1);
+
+                var service = new GachaService(events, tickets, currency, roster, new[] { table });
+
+                const int smallCount = 30;
+                const int largeCount = 300;
+                const double safetyFactor = 3.0;
+                const long generousTimeBudgetMs = 3000;
+
+                long allocBeforeSmall = GC.GetAllocatedBytesForCurrentThread();
+                service.Pull(0, smallCount);
+                long allocSmall = GC.GetAllocatedBytesForCurrentThread() - allocBeforeSmall;
+
+                long allocBeforeLarge = GC.GetAllocatedBytesForCurrentThread();
+                var sw = System.Diagnostics.Stopwatch.StartNew();
+                service.Pull(0, largeCount);
+                sw.Stop();
+                long allocLarge = GC.GetAllocatedBytesForCurrentThread() - allocBeforeLarge;
+
+                double bytesPerItemSmall = (double)allocSmall / smallCount;
+                double bytesPerItemLarge = (double)allocLarge / largeCount;
+
+                if (allocSmall > 0 && bytesPerItemLarge > bytesPerItemSmall * safetyFactor)
+                {
+                    throw new Exception(
+                        $"아이템당 GC 할당량이 초선형으로 증가함 - {smallCount}개: {bytesPerItemSmall:F1}B/개, " +
+                        $"{largeCount}개: {bytesPerItemLarge:F1}B/개(허용 배율 {safetyFactor}배 초과)");
+                }
+
+                if (sw.ElapsedMilliseconds > generousTimeBudgetMs)
+                {
+                    throw new Exception($"{largeCount}연 뽑기가 {sw.ElapsedMilliseconds}ms 소요됨(관대한 상한 {generousTimeBudgetMs}ms 초과)");
+                }
+            }
+            finally
+            {
+                if (definition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(definition);
+                }
+
+                if (table != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(table);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #21 - SkillGachaService.Pull(tier, N)이 같은 스킬을 여러 번 뽑아도
+        /// SkillService.AddCopy 호출(및 SkillCountChangedEvent 발행)이 서로 다른 스킬 종류
+        /// 수만큼만 일어나는지 확인한다. 카탈로그에 스킬을 하나만 넣어 50연 전부가 그 한 스킬로만
+        /// 귀결되도록 강제한다 - 이벤트가 1번만 떠야 정상이고, 50번 뜨면 회귀다.
+        /// </summary>
+        private static void CheckSkillGachaServicePullAggregatesAddCopyByDefinition()
+        {
+            var events = new EventBus();
+            var scrolls = new SkillScrollService(events, 1000);
+            var currency = new CurrencyService(events);
+            var skillService = new SkillService(events);
+            SkillSO definition = null;
+            SkillCatalogSO catalog = null;
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                definition = ScriptableObject.CreateInstance<SkillSO>();
+
+                catalog = ScriptableObject.CreateInstance<SkillCatalogSO>();
+                SetPrivateField(catalog, "skills", new[] { definition });
+
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "catalog", catalog);
+                SetPrivateField(table, "weightPerSkill", 1);
+                SetPrivateField(table, "ticketCostPerPull", 1);
+
+                var service = new SkillGachaService(events, scrolls, currency, skillService, new[] { table });
+
+                int publishCount = 0;
+                events.Subscribe<SkillCountChangedEvent>(_ => publishCount++);
+
+                IReadOnlyList<SkillSO> results = service.Pull(0, 50);
+
+                if (results.Count != 50)
+                {
+                    throw new Exception($"Pull(0,50) 결과가 {results.Count}개(기대=50)");
+                }
+
+                if (publishCount != 1)
+                {
+                    throw new Exception($"단일 스킬 카탈로그로 50연 뽑기해도 SkillCountChangedEvent가 {publishCount}번 발행됨(기대=1)");
+                }
+
+                if (skillService.GetCount(definition) != 50)
+                {
+                    throw new Exception($"최종 보유 개수가 {skillService.GetCount(definition)}(기대=50)");
+                }
+            }
+            finally
+            {
+                if (definition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(definition);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (table != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(table);
+                }
             }
         }
 

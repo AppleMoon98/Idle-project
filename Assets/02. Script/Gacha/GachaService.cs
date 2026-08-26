@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core;
 using Gacha.Events;
@@ -81,14 +82,16 @@ namespace Gacha
         /// SoldierPulledEvent를 한 번만 발행한다(1개 뽑기도 원소 1개짜리 목록으로 동일하게 처리).
         /// 요청한 횟수보다 적게 실행됐다면(0회 포함) GachaPullToast로 몇 회가, 왜 안 됐는지
         /// 토스트를 함께 띄운다(GitHub 이슈 #22 - 예전엔 조용히 break만 하고 끝났다).
+        /// 확률 판정/재화 소모는 여전히 시도마다(TryPullOne) 개별적으로 이뤄지지만, 실제 로스터
+        /// 반영은 루프가 끝난 뒤 SoldierRosterService.AddSoldiersBatch로 한 번에 처리한다(GitHub
+        /// 이슈 #21) - TryPullOne이 매번 AddSoldier를 부르면 SoldierRosterChangedEvent도 매번
+        /// 발행돼, 300연에서 EventBus.Publish의 구독자 배열 재할당이 300번 누적되는 비용이 있었다.
         /// </summary>
         public IReadOnlyList<OwnedSoldier> Pull(int tierIndex, int count)
         {
-            var results = new List<OwnedSoldier>();
-
             if (count <= 0 || tierIndex < 0 || tierIndex >= _tiers.Length)
             {
-                return results;
+                return Array.Empty<OwnedSoldier>();
             }
 
             // 1회분조차 못 낼 잔액이면 굴려보지도 않고 안내만 하고 끝낸다 - "N회 뽑기"를 눌렀는데
@@ -96,20 +99,23 @@ namespace Gacha
             if (!CanAffordOnePull(_tiers[tierIndex], tierIndex))
             {
                 _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
-                return results;
+                return Array.Empty<OwnedSoldier>();
             }
 
+            var picks = new List<SoldierSO>();
             GachaPullStopReason stopReason = GachaPullStopReason.None;
 
             for (int i = 0; i < count; i++)
             {
-                if (!TryPullOne(tierIndex, out OwnedSoldier result, out stopReason))
+                if (!TryPullOne(tierIndex, out SoldierSO picked, out stopReason))
                 {
                     break;
                 }
 
-                results.Add(result);
+                picks.Add(picked);
             }
+
+            IReadOnlyList<OwnedSoldier> results = _roster.AddSoldiersBatch(picks);
 
             if (results.Count > 0)
             {
@@ -132,9 +138,13 @@ namespace Gacha
                 : _tickets.CurrentTickets >= table.TicketCostPerPull;
         }
 
-        private bool TryPullOne(int tierIndex, out OwnedSoldier result, out GachaPullStopReason reason)
+        /// <summary>
+        /// 확률 판정과 재화 소모만 수행하고, picked 정의를 반환한다 - 로스터에 실제로 추가하는
+        /// 것은 Pull()이 루프가 끝난 뒤 배치로 한 번에 처리한다(GitHub 이슈 #21).
+        /// </summary>
+        private bool TryPullOne(int tierIndex, out SoldierSO picked, out GachaPullStopReason reason)
         {
-            result = null;
+            picked = null;
             reason = GachaPullStopReason.None;
 
             if (tierIndex < 0 || tierIndex >= _tiers.Length)
@@ -144,7 +154,7 @@ namespace Gacha
             }
 
             GachaTableSO table = _tiers[tierIndex];
-            SoldierSO picked = GachaRoller.RollWeighted(table.Entries);
+            picked = GachaRoller.RollWeighted(table.Entries);
 
             if (picked == null)
             {
@@ -158,6 +168,7 @@ namespace Gacha
 
             if (!spent)
             {
+                picked = null;
                 reason = GachaPullStopReason.InsufficientCurrency;
                 return false;
             }
@@ -167,7 +178,6 @@ namespace Gacha
                 _goldPullTracker.Increment(tierIndex);
             }
 
-            result = _roster.AddSoldier(picked);
             return true;
         }
     }

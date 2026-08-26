@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Core;
 using Gacha.Events;
@@ -81,21 +82,24 @@ namespace Gacha
         /// 콘텐츠가 없거나(만렙 스킬 제외 후 후보가 하나도 없는 경우 포함) 중간에 실패하면
         /// 그 시점까지 성공한 결과만 반환한다(부분 성공 허용). 1개 이상 성공하면 SkillPulledEvent를
         /// 한 번만 발행한다(1개 뽑기도 원소 1개짜리 목록으로 동일하게 처리).
+        /// 확률 판정/재화 소모는 시도마다(TryPullOne) 개별적으로 이뤄지지만, SkillService.AddCopy는
+        /// 루프가 끝난 뒤 결과를 정의별로 집계해 서로 다른 스킬 종류 수만큼만 호출한다(GitHub 이슈
+        /// #21) - 300연에서 같은 스킬이 반복 당첨될 때마다 AddCopy를 매번 부르면
+        /// SkillCountChangedEvent도 매번 발행되는데, AddCopy(definition, amount)가 이미 개수
+        /// 인자를 지원하므로 새 API 없이 호출 횟수만 줄일 수 있다.
         /// </summary>
         public IReadOnlyList<SkillSO> Pull(int tierIndex, int count)
         {
-            var results = new List<SkillSO>();
-
             if (count <= 0 || tierIndex < 0 || tierIndex >= _tiers.Length)
             {
-                return results;
+                return Array.Empty<SkillSO>();
             }
 
             // 1회분조차 못 낼 잔액이면 굴려보지도 않고 안내만 하고 끝낸다.
             if (!CanAffordOnePull(_tiers[tierIndex], tierIndex))
             {
                 _events.Publish(new ToastMessageRequestedEvent("재화가 모자랍니다."));
-                return results;
+                return Array.Empty<SkillSO>();
             }
 
             // 후보 목록은 배치 시작 시점에 한 번만 계산한다(GitHub 이슈 #21) - 가챠는 AddCopy(보유
@@ -105,6 +109,7 @@ namespace Gacha
             // 이득이 없어 그대로 비용만 300배가 되고 있었다.
             List<SkillGachaPoolEntry> candidates = BuildLevelableCandidates(_tiers[tierIndex].Entries);
             GachaPullStopReason stopReason = GachaPullStopReason.None;
+            var results = new List<SkillSO>();
 
             for (int i = 0; i < count; i++)
             {
@@ -118,12 +123,34 @@ namespace Gacha
 
             if (results.Count > 0)
             {
+                GrantByDefinition(results);
                 _events.Publish(new SkillPulledEvent(results));
             }
 
             GachaPullToast.PublishIfIncomplete(_events, results.Count, count, stopReason, "모든 스킬이 최대 레벨입니다.");
 
             return results;
+        }
+
+        /// <summary>
+        /// results를 정의별로 집계해(같은 스킬이 여러 번 뽑혔으면 amount로 합산) SkillService.
+        /// AddCopy를 서로 다른 스킬 종류 수만큼만 호출한다 - 300연이어도 스킬 종류(현재 9종)를
+        /// 넘는 호출은 일어나지 않는다.
+        /// </summary>
+        private void GrantByDefinition(List<SkillSO> results)
+        {
+            var countByDefinition = new Dictionary<SkillSO, int>();
+
+            foreach (SkillSO definition in results)
+            {
+                countByDefinition.TryGetValue(definition, out int existing);
+                countByDefinition[definition] = existing + 1;
+            }
+
+            foreach (KeyValuePair<SkillSO, int> entry in countByDefinition)
+            {
+                _skills.AddCopy(entry.Key, entry.Value);
+            }
         }
 
         /// <summary>
@@ -203,7 +230,6 @@ namespace Gacha
                 _goldPullTracker.Increment(tierIndex);
             }
 
-            _skills.AddCopy(picked);
             result = picked;
             return true;
         }
