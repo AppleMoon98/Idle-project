@@ -23,6 +23,11 @@ namespace UI
     /// Rank.Boss.PromotionBossController(승급전 보스 페이즈2 동안 강제 최광각 전환)가 그대로
     /// 참조한다. Camera 컴포넌트에 직접 부착돼(RequireComponent) Camera.main 탐색 없이 자기 자신을
     /// 바로 조작한다.
+    ///
+    /// 마우스/터치 둘 다 매 틱 UI.PointerOverUI.IsOverUI로 포인터가 UI(스크롤 가능한 팝업 등) 위에
+    /// 있는지 먼저 확인하고, 위에 있으면 이 프레임의 카메라 입력을 건너뛴다 - 예전엔 이 확인이
+    /// 전혀 없어 팝업을 스크롤하는 마우스 휠/핀치가 배경 전투 카메라 줌까지 함께 바꿨다(GitHub
+    /// 이슈 #11). 핀치는 두 터치 중 하나라도 UI 위면 전체 제스처를 건너뛴다.
     /// </summary>
     [RequireComponent(typeof(Camera))]
     public sealed class CameraPinchZoomUI : MonoBehaviour, ITickable
@@ -130,7 +135,21 @@ namespace UI
                 return;
             }
 
-            float currentDistance = Vector2.Distance(first.position.ReadValue(), second.position.ReadValue());
+            Vector2 firstPosition = first.position.ReadValue();
+            Vector2 secondPosition = second.position.ReadValue();
+
+            // 두 터치 중 하나라도 UI(팝업 스크롤뷰 등) 위에 있으면 이 프레임은 카메라 줌으로
+            // 넘기지 않는다(GitHub 이슈 #11) - _isPinching을 꺼서 델타 계산 자체를 건너뛰고,
+            // _previousDistance도 갱신하지 않는다 - 그래야 손가락이 UI 밖으로 벗어나 다시 잡히는
+            // 첫 프레임이 "새로 시작하는 제스처"(거리만 기록, 델타 없음)로 처리돼 그 사이 누적된
+            // 거리 변화가 한꺼번에 점프하듯 적용되는 걸 막는다.
+            if (PointerOverUI.IsOverUI(firstPosition) || PointerOverUI.IsOverUI(secondPosition))
+            {
+                _isPinching = false;
+                return;
+            }
+
+            float currentDistance = Vector2.Distance(firstPosition, secondPosition);
 
             if (_isPinching)
             {
@@ -146,7 +165,8 @@ namespace UI
         /// <summary>
         /// 모바일 타겟이지만 PC에서도 테스트하는 경우가 있어 추가된 보조 입력 - 휠을 위로 굴리면
         /// (양수 값) 확대, 아래로 굴리면(음수 값) 축소. 터치스크린이 없는 개발 환경에서 핀치를
-        /// 대신할 수 있도록 한다.
+        /// 대신할 수 있도록 한다. 포인터가 UI(스크롤 가능한 팝업 등) 위에 있으면 휠 입력을 그
+        /// UI에 맡기고 카메라 줌은 건드리지 않는다(GitHub 이슈 #11).
         /// </summary>
         private void TickMouseScroll()
         {
@@ -160,6 +180,11 @@ namespace UI
             float scrollY = mouse.scroll.ReadValue().y;
 
             if (Mathf.Approximately(scrollY, 0f))
+            {
+                return;
+            }
+
+            if (PointerOverUI.IsOverUI(mouse.position.ReadValue()))
             {
                 return;
             }
