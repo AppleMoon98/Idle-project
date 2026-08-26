@@ -12,6 +12,7 @@ using Enhancement;
 using Equipment;
 using Gacha;
 using Inventory;
+using Inventory.Events;
 using Loot;
 using Loot.Events;
 using Offline;
@@ -291,6 +292,21 @@ namespace Editor
                 CheckPoolManagerIPoolableCalledOncePerTransition);
             Check("ObjectPool_MassRepeatedSpawnRelease_ActiveInactiveCountInvariantHolds",
                 CheckObjectPoolMassRepeatedSpawnReleaseInvariant);
+
+            // --- 이슈 #31: 음수 소모 요청이 owned.Count < amount 검사를 통과해 오히려
+            // 스택을 늘리던 문제(장비 재료 무한 복제) ---
+            Check("InventoryService_TryConsume_NegativeOrZeroAmount_RejectedWithNoStateChangeOrEvent",
+                CheckInventoryServiceTryConsumeRejectsNonPositiveAmount);
+            Check("InventoryService_TryConsume_BoundaryAmounts_IntMinMaxAndExactShortage",
+                CheckInventoryServiceTryConsumeBoundaryAmounts);
+            Check("InventoryService_AddEnhancementLevel_NonPositiveRejected_OverflowSaturates",
+                CheckInventoryServiceAddEnhancementLevelGuardsAndSaturates);
+            Check("InventoryService_RestoreSnapshot_DiscardsInvalidEntriesKeepsValidOnes",
+                CheckInventoryServiceRestoreSnapshotDiscardsInvalidEntries);
+            Check("InventoryService_TryConsume_RepeatedCalls_NeverGoesBelowZero",
+                CheckInventoryServiceTryConsumeRepeatedCallsNeverGoesBelowZero);
+            Check("EquipmentEnhancementService_TryEnhance_NegativeDuplicatesRequiredConfig_DoesNotInflateCount",
+                CheckEquipmentEnhancementServiceMisconfiguredNegativeCostDoesNotInflate);
 
             // --- 이슈 #40: 같은 병사(풀 인스턴스)가 다른 부대 슬롯으로 재등록돼도 이전 부대
             // 목록에서 제거되지 않아 한 GameObject가 두 부대에 동시에 소속되던 문제
@@ -2925,6 +2941,398 @@ namespace Editor
             public void OnDespawned()
             {
                 DespawnedCount++;
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 재현 절차 그대로 - 실제 EquipmentSO 한 개를 보유 1개인 상태로 만들고
+        /// TryConsume(definition, -5)를 호출한다. 수정 전에는 owned.Count < amount(1 < -5,
+        /// false)를 그대로 통과해 owned.Count -= amount(1 - (-5) = 6)로 오히려 늘어났다(이슈의
+        /// 실제 로그 "before=1, after=6"과 정확히 일치). 0도 함께 거부되는지, 그리고 두 경우 모두
+        /// InventoryChangedEvent가 전혀 발행되지 않는지(완료 조건 "실패 시 InventoryChangedEvent와
+        /// 저장 더티 상태가 발생하지 않음" - SaveService의 더티 플래그는 이 이벤트 구독으로만
+        /// 세워지므로, 이벤트가 안 뜨면 더티 상태도 자동으로 안 뜬다) 함께 확인한다.
+        /// </summary>
+        private static void CheckInventoryServiceTryConsumeRejectsNonPositiveAmount()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipment = null;
+            int inventoryChangedCount = 0;
+            Action<InventoryChangedEvent> onChanged = _ => inventoryChangedCount++;
+
+            try
+            {
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+                events.Publish(new ItemDroppedEvent(equipment)); // owned.Count = 1
+
+                events.Subscribe(onChanged);
+
+                if (inventory.TryConsume(equipment, -5))
+                {
+                    throw new Exception("TryConsume(-5)가 true를 반환함(GitHub 이슈 #31 재현)");
+                }
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterNegative) || afterNegative.Count != 1)
+                {
+                    throw new Exception($"음수 소모 시도 후 Count가 {(inventory.TryGet(equipment, out OwnedEquipment o) ? o.Count.ToString() : "라인 소실")}(기대=1, 변화 없어야 함)");
+                }
+
+                if (inventory.TryConsume(equipment, 0))
+                {
+                    throw new Exception("TryConsume(0)이 true를 반환함(0은 상태 변경이 없으므로 거부돼야 함)");
+                }
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterZero) || afterZero.Count != 1)
+                {
+                    throw new Exception($"0 소모 시도 후 Count가 {afterZero.Count}(기대=1, 변화 없어야 함)");
+                }
+
+                if (inventoryChangedCount != 0)
+                {
+                    throw new Exception($"실패한 TryConsume 호출들이 InventoryChangedEvent를 {inventoryChangedCount}회 발행함(기대=0)");
+                }
+            }
+            finally
+            {
+                events.Unsubscribe(onChanged);
+                inventory.Shutdown();
+
+                if (equipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipment);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 완료 조건 - "int.MinValue, int.MaxValue, 현재 보유량 정확히 일치/1
+        /// 부족 경계 검증". amount=int.MinValue는 amount<=0 가드에서 즉시 거부되어(뺄셈 자체가
+        /// 일어나지 않아 오버플로 경로를 안 탐), amount=int.MaxValue는 보유량 부족으로 거부,
+        /// 보유량과 정확히 일치하는 소모는 성공해 Count가 정확히 0이 되고, 그 상태에서 1개
+        /// 부족한 소모(사실상 아무것도 없는데 1개 요청)는 실패해야 한다.
+        /// </summary>
+        private static void CheckInventoryServiceTryConsumeBoundaryAmounts()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipment = null;
+            const int owned = 3;
+
+            try
+            {
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+
+                for (int i = 0; i < owned; i++)
+                {
+                    events.Publish(new ItemDroppedEvent(equipment));
+                }
+
+                if (inventory.TryConsume(equipment, int.MinValue))
+                {
+                    throw new Exception("TryConsume(int.MinValue)가 true를 반환함(오버플로 경로가 열려 있을 위험)");
+                }
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterMin) || afterMin.Count != owned)
+                {
+                    throw new Exception($"int.MinValue 소모 시도 후 Count가 {afterMin.Count}(기대={owned}, 변화 없어야 함)");
+                }
+
+                if (inventory.TryConsume(equipment, int.MaxValue))
+                {
+                    throw new Exception("TryConsume(int.MaxValue)가 true를 반환함(보유량을 훨씬 초과하는데도 성공)");
+                }
+
+                // 보유량과 정확히 일치 - 성공해야 하고 Count가 정확히 0이 되어야 한다.
+                if (!inventory.TryConsume(equipment, owned))
+                {
+                    throw new Exception("보유량과 정확히 일치하는 소모가 실패로 보고됨");
+                }
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterExact) || afterExact.Count != 0)
+                {
+                    throw new Exception($"정확히 일치하는 소모 후 Count가 {afterExact.Count}(기대=0)");
+                }
+
+                // 이제 0개인데 1개를 요청 - 1개 부족 경계, 실패해야 한다.
+                if (inventory.TryConsume(equipment, 1))
+                {
+                    throw new Exception("보유량이 0인데 1개 소모 요청이 성공으로 보고됨(1개 부족 경계 위반)");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (equipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipment);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 - AddEnhancementLevel(definition, levels)도 음수 레벨을 허용하던 문제.
+        /// levels <= 0은 조용히 무시되고(CurrencyService.AddGold 등이 이미 쓰는 "Add*는 조용히
+        /// no-op" 관례, 이슈 #8과 동일 방향), 오버플로는 long 계산 후 int.MaxValue로 saturate돼야
+        /// 한다(EquipmentEnhancementService.GetNextStoneCost가 이미 쓰는 것과 동일한 관례).
+        /// </summary>
+        private static void CheckInventoryServiceAddEnhancementLevelGuardsAndSaturates()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipment = null;
+            int inventoryChangedCount = 0;
+            Action<InventoryChangedEvent> onChanged = _ => inventoryChangedCount++;
+
+            try
+            {
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+                events.Publish(new ItemDroppedEvent(equipment));
+
+                events.Subscribe(onChanged);
+
+                inventory.AddEnhancementLevel(equipment, -3);
+                inventory.AddEnhancementLevel(equipment, 0);
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterNonPositive) || afterNonPositive.EnhancementLevel != 0)
+                {
+                    throw new Exception($"음수/0 레벨 추가 후 EnhancementLevel이 {afterNonPositive.EnhancementLevel}(기대=0, 변화 없어야 함)");
+                }
+
+                if (inventoryChangedCount != 0)
+                {
+                    throw new Exception($"음수/0 레벨 추가가 InventoryChangedEvent를 {inventoryChangedCount}회 발행함(기대=0)");
+                }
+
+                // 오버플로 saturate 확인 - 최대치 근처로 올려둔 뒤 큰 값을 한 번 더 더한다.
+                inventory.AddEnhancementLevel(equipment, int.MaxValue - 1);
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterFirst) || afterFirst.EnhancementLevel != int.MaxValue - 1)
+                {
+                    throw new Exception($"정상 범위 내 레벨 추가 후 EnhancementLevel이 {afterFirst.EnhancementLevel}(기대={int.MaxValue - 1})");
+                }
+
+                inventory.AddEnhancementLevel(equipment, 100);
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterOverflow) || afterOverflow.EnhancementLevel != int.MaxValue)
+                {
+                    throw new Exception($"오버플로 유발 후 EnhancementLevel이 {afterOverflow.EnhancementLevel}(기대={int.MaxValue}, saturate돼야 함)");
+                }
+            }
+            finally
+            {
+                events.Unsubscribe(onChanged);
+                inventory.Shutdown();
+
+                if (equipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipment);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 완료 조건 - "복원 시 음수 수량/레벨을 안전하게 거부·정규화하고 유효
+        /// 항목은 계속 복원함". 네 항목(음수 Count, 음수 EnhancementLevel, 카탈로그에 없는
+        /// StableId, 완전히 유효한 항목)을 한 스냅샷에 섞어 넣고, RestoreResult의 각 사유별
+        /// 카운트가 정확한지 + 실제로 유효한 항목 하나만 인벤토리에 반영됐는지 확인한다.
+        /// </summary>
+        private static void CheckInventoryServiceRestoreSnapshotDiscardsInvalidEntries()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO validEquipment = null;
+            EquipmentCatalogSO catalog = null;
+
+            try
+            {
+                validEquipment = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(validEquipment, "stableId", "issue31-valid");
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { validEquipment });
+
+                var snapshot = new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue31-valid", Count = -1, EnhancementLevel = 0 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue31-valid", Count = 0, EnhancementLevel = -1 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue31-missing-from-catalog", Count = 1, EnhancementLevel = 0 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue31-valid", Count = 5, EnhancementLevel = 2 },
+                };
+
+                InventoryService.RestoreResult result = inventory.RestoreSnapshot(snapshot, catalog);
+
+                if (result.RestoredCount != 1)
+                {
+                    throw new Exception($"복원 성공 건수가 {result.RestoredCount}(기대=1)");
+                }
+
+                if (result.DiscardedNegativeCount != 1)
+                {
+                    throw new Exception($"음수 Count로 폐기된 건수가 {result.DiscardedNegativeCount}(기대=1)");
+                }
+
+                if (result.DiscardedNegativeEnhancementLevel != 1)
+                {
+                    throw new Exception($"음수 EnhancementLevel로 폐기된 건수가 {result.DiscardedNegativeEnhancementLevel}(기대=1)");
+                }
+
+                if (result.DiscardedMissingCatalogEntry != 1)
+                {
+                    throw new Exception($"카탈로그 없음으로 폐기된 건수가 {result.DiscardedMissingCatalogEntry}(기대=1)");
+                }
+
+                if (!result.HasDiscardedEntries || result.TotalDiscarded != 3)
+                {
+                    throw new Exception($"TotalDiscarded가 {result.TotalDiscarded}(기대=3)");
+                }
+
+                if (!inventory.TryGet(validEquipment, out OwnedEquipment restored) || restored.Count != 5 || restored.EnhancementLevel != 2)
+                {
+                    throw new Exception("마지막 유효 항목(Count=5, Level=2)이 정확히 복원되지 않음 - 손상된 항목들이 유효 항목 복원을 막았을 가능성");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (validEquipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(validEquipment);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 완료 조건 - "여러 번 빠르게 소모해도 수량이 0 미만 또는 오버플로되지
+        /// 않음". Count=3에서 1개씩 4번 연속 소모 - 앞의 3번은 성공하며 Count가 3→2→1→0으로
+        /// 정확히 줄고, 4번째는 실패해 Count가 음수로 내려가지 않는지 확인한다. TryConsume이
+        /// 매 호출마다 그 시점의 owned.Count를 다시 확인하므로 이는 새 코드 경로가 아니라 이미
+        /// 존재하던 검사(owned.Count < amount)가 amount>0 보장 하에서도 여전히 정확히 동작하는지
+        /// 확인하는 회귀 방지 성격이 강하다.
+        /// </summary>
+        private static void CheckInventoryServiceTryConsumeRepeatedCallsNeverGoesBelowZero()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipment = null;
+
+            try
+            {
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+
+                for (int i = 0; i < 3; i++)
+                {
+                    events.Publish(new ItemDroppedEvent(equipment));
+                }
+
+                var results = new bool[4];
+
+                for (int i = 0; i < 4; i++)
+                {
+                    results[i] = inventory.TryConsume(equipment, 1);
+                }
+
+                if (!results[0] || !results[1] || !results[2])
+                {
+                    throw new Exception($"연속 소모 1~3회차 결과가 [{results[0]},{results[1]},{results[2]}](기대=전부 true)");
+                }
+
+                if (results[3])
+                {
+                    throw new Exception("보유량이 바닥난 4회차 소모가 성공으로 보고됨(Count가 음수로 내려갈 위험)");
+                }
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment final) || final.Count != 0)
+                {
+                    throw new Exception($"연속 소모 종료 후 Count가 {final.Count}(기대=0, 음수 불가)");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (equipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipment);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #31 완료 조건 - "합성·강화 SO에 잘못된 비용이 있어도 수량이 증가하지
+        /// 않음". EquipmentEnhancementConfigSO.DuplicatesRequiredPerLevel을 리플렉션으로 음수로
+        /// 오염시킨 실제 시나리오 - 이 경우 owned.Count < duplicatesRequired + 1 검사 자체가
+        /// (음수+1이라) 사실상 항상 통과해버리므로, TryEnhance 내부의 "보유량 확인" 방어선이
+        /// 무력화된다. 그래도 InventoryService.TryConsume 자신이 amount <= 0을 거부하는 최종
+        /// 방어선이 되어, 실제 EquipmentEnhancementService.TryEnhance를 통해 호출해도 Count가
+        /// 늘어나지 않는지 end-to-end로 확인한다(이슈가 명시한 "UI/서비스 호출부 검증에만
+        /// 의존하지 말고 상태를 소유한 서비스가 최종 방어선이 된다" 요구사항 그대로).
+        /// </summary>
+        private static void CheckEquipmentEnhancementServiceMisconfiguredNegativeCostDoesNotInflate()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+            var stones = new EnhancementStoneService(events, initialStones: 1_000_000);
+
+            EquipmentSO equipment = null;
+            EquipmentEnhancementConfigSO config = null;
+
+            try
+            {
+                equipment = ScriptableObject.CreateInstance<EquipmentSO>();
+                events.Publish(new ItemDroppedEvent(equipment)); // owned.Count = 1
+
+                config = ScriptableObject.CreateInstance<EquipmentEnhancementConfigSO>();
+                SetPrivateField(config, "duplicatesRequiredPerLevel", -5); // 오염된 SO 값
+                SetPrivateField(config, "stoneCostBase", 10);
+                SetPrivateField(config, "stoneCostIncreasePerLevel", 0);
+                SetPrivateField(config, "maxLevel", 100);
+
+                var enhancement = new EquipmentEnhancementService(inventory, stones, config, null);
+
+                bool succeeded = enhancement.TryEnhance(equipment);
+
+                if (!inventory.TryGet(equipment, out OwnedEquipment afterEnhance))
+                {
+                    throw new Exception("강화 시도 후 라인 자체가 사라짐");
+                }
+
+                if (afterEnhance.Count > 1)
+                {
+                    throw new Exception($"음수 DuplicatesRequiredPerLevel 설정으로 TryEnhance(succeeded={succeeded}) 이후 Count가 {afterEnhance.Count}(기대<=1, 재료 무한 복제 위험)");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (equipment != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipment);
+                }
+
+                if (config != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(config);
+                }
             }
         }
 

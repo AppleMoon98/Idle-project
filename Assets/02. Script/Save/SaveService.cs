@@ -540,7 +540,16 @@ namespace Save
                 return;
             }
 
-            _inventory.RestoreSnapshot(blob.Owned, _equipmentCatalog);
+            // GitHub 이슈 #31 - InventoryService.RestoreSnapshot이 이제 폐기 건수를 구조화된 결과로
+            // 돌려주므로, 뭔가 버려졌을 때만(정상 세이브는 거의 항상 0건) 콘솔에 경고를 남긴다 -
+            // 이슈 #7/#26이 이미 쓰는 "[SaveService] ..." 로그 관례를 그대로 재사용한다.
+            InventoryService.RestoreResult inventoryResult = _inventory.RestoreSnapshot(blob.Owned, _equipmentCatalog);
+
+            if (inventoryResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 보유 장비 복원 중 {inventoryResult.TotalDiscarded}건을 버림(카탈로그 없음={inventoryResult.DiscardedMissingCatalogEntry}, 음수 수량={inventoryResult.DiscardedNegativeCount}, 음수 강화 레벨={inventoryResult.DiscardedNegativeEnhancementLevel}) - 복원={inventoryResult.RestoredCount}건.");
+            }
+
             _equippedGear.RestoreSnapshot(blob.Equipped, _equipmentCatalog, _inventory);
         }
 
