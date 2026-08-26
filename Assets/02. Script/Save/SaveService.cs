@@ -318,38 +318,38 @@ namespace Save
         public SaveData Load()
         {
             BigNumber gold = LoadGold();
-            int enhancementStones = PlayerPrefs.GetInt(EnhancementStonesKey, 0);
-            int chapter = PlayerPrefs.GetInt(ChapterKey, 1);
-            int stageNumber = PlayerPrefs.GetInt(StageNumberKey, 1);
-            int highestClearedChapter = PlayerPrefs.GetInt(HighestClearedChapterKey, 0);
-            int highestClearedStageNumber = PlayerPrefs.GetInt(HighestClearedStageNumberKey, 0);
+            int enhancementStones = ClampNonNegative(PlayerPrefs.GetInt(EnhancementStonesKey, 0));
+            int chapter = ClampAtLeastOne(PlayerPrefs.GetInt(ChapterKey, 1));
+            int stageNumber = ClampAtLeastOne(PlayerPrefs.GetInt(StageNumberKey, 1));
+            int highestClearedChapter = ClampNonNegative(PlayerPrefs.GetInt(HighestClearedChapterKey, 0));
+            int highestClearedStageNumber = ClampNonNegative(PlayerPrefs.GetInt(HighestClearedStageNumberKey, 0));
             long lastActiveUnixTime = ParseLastActiveUnixTimeOrZero(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
-            int attackPowerLevel = PlayerPrefs.GetInt(AttackPowerLevelKey, 0);
-            int maxHealthLevel = PlayerPrefs.GetInt(MaxHealthLevelKey, 0);
-            int attackSpeedLevel = PlayerPrefs.GetInt(AttackSpeedLevelKey, 0);
-            int moveSpeedLevel = PlayerPrefs.GetInt(MoveSpeedLevelKey, 0);
-            int criticalChanceLevel = PlayerPrefs.GetInt(CriticalChanceLevelKey, 0);
-            int criticalDamageLevel = PlayerPrefs.GetInt(CriticalDamageLevelKey, 0);
+            int attackPowerLevel = ClampNonNegative(PlayerPrefs.GetInt(AttackPowerLevelKey, 0));
+            int maxHealthLevel = ClampNonNegative(PlayerPrefs.GetInt(MaxHealthLevelKey, 0));
+            int attackSpeedLevel = ClampNonNegative(PlayerPrefs.GetInt(AttackSpeedLevelKey, 0));
+            int moveSpeedLevel = ClampNonNegative(PlayerPrefs.GetInt(MoveSpeedLevelKey, 0));
+            int criticalChanceLevel = ClampNonNegative(PlayerPrefs.GetInt(CriticalChanceLevelKey, 0));
+            int criticalDamageLevel = ClampNonNegative(PlayerPrefs.GetInt(CriticalDamageLevelKey, 0));
             string inventoryJson = PlayerPrefs.GetString(InventoryJsonKey, "");
-            int rankIndex = PlayerPrefs.GetInt(RankIndexKey, 0);
-            int soldierTicketCount = PlayerPrefs.GetInt(SoldierTicketCountKey, 0);
+            int rankIndex = ClampNonNegative(PlayerPrefs.GetInt(RankIndexKey, 0));
+            int soldierTicketCount = ClampNonNegative(PlayerPrefs.GetInt(SoldierTicketCountKey, 0));
             string soldierRosterJson = PlayerPrefs.GetString(SoldierRosterJsonKey, "");
             string skillLevelsJson = PlayerPrefs.GetString(SkillLevelsJsonKey, "");
-            int soldierAttackPowerLevel = PlayerPrefs.GetInt(SoldierAttackPowerLevelKey, 0);
-            int soldierMaxHealthLevel = PlayerPrefs.GetInt(SoldierMaxHealthLevelKey, 0);
-            int soldierAttackSpeedLevel = PlayerPrefs.GetInt(SoldierAttackSpeedLevelKey, 0);
-            int soldierMoveSpeedLevel = PlayerPrefs.GetInt(SoldierMoveSpeedLevelKey, 0);
-            int soldierCriticalChanceLevel = PlayerPrefs.GetInt(SoldierCriticalChanceLevelKey, 0);
-            int soldierCriticalDamageLevel = PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0);
+            int soldierAttackPowerLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierAttackPowerLevelKey, 0));
+            int soldierMaxHealthLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierMaxHealthLevelKey, 0));
+            int soldierAttackSpeedLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierAttackSpeedLevelKey, 0));
+            int soldierMoveSpeedLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierMoveSpeedLevelKey, 0));
+            int soldierCriticalChanceLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierCriticalChanceLevelKey, 0));
+            int soldierCriticalDamageLevel = ClampNonNegative(PlayerPrefs.GetInt(SoldierCriticalDamageLevelKey, 0));
             string skillLoadoutJson = PlayerPrefs.GetString(SkillLoadoutJsonKey, "");
             string skillEnabledJson = PlayerPrefs.GetString(SkillEnabledJsonKey, "");
-            int skillScrollCount = PlayerPrefs.GetInt(SkillScrollCountKey, 0);
+            int skillScrollCount = ClampNonNegative(PlayerPrefs.GetInt(SkillScrollCountKey, 0));
             string skillCountsJson = PlayerPrefs.GetString(SkillCountsJsonKey, "");
-            int equipmentGachaTicketCount = PlayerPrefs.GetInt(EquipmentGachaTicketCountKey, 0);
+            int equipmentGachaTicketCount = ClampNonNegative(PlayerPrefs.GetInt(EquipmentGachaTicketCountKey, 0));
             string squadTacticsJson = PlayerPrefs.GetString(SquadTacticsJsonKey, "");
             string soldierGachaGoldPullCountsJson = PlayerPrefs.GetString(SoldierGachaGoldPullCountsJsonKey, "");
             string skillGachaGoldPullCountsJson = PlayerPrefs.GetString(SkillGachaGoldPullCountsJsonKey, "");
-            int bossTokenCount = PlayerPrefs.GetInt(BossTokenCountKey, 0);
+            int bossTokenCount = ClampNonNegative(PlayerPrefs.GetInt(BossTokenCountKey, 0));
 
             return new SaveData(
                 gold,
@@ -400,7 +400,7 @@ namespace Save
                 return parsed;
             }
 
-            return PlayerPrefs.GetInt(GoldKey, 0);
+            return ClampNonNegative(PlayerPrefs.GetInt(GoldKey, 0));
         }
 
         /// <summary>
@@ -679,6 +679,22 @@ namespace Save
 
             return value;
         }
+
+        /// <summary>
+        /// 0 미만이 될 수 없는 정수 저장값(재화 레거시 폴백/강화 레벨/티켓·토큰 카운트 등)을
+        /// 안전한 기본값(0)으로 클램프한다. PlayerPrefs.GetInt 자체는 손상된 문자열에 대해
+        /// 예외를 던지지 않지만, 레지스트리/plist를 직접 편집해 음수를 넣는 것은 여전히 가능하고
+        /// 그 값이 그대로 게임 상태에 들어가면 하위 시스템에서 예상치 못한 동작으로 이어질 수 있다
+        /// (GitHub 이슈 #7의 "음수·오버플로에 안전한 기본값" 조건).
+        /// </summary>
+        private static int ClampNonNegative(int value) => value < 0 ? 0 : value;
+
+        /// <summary>
+        /// 1 미만이 될 수 없는 정수 저장값(Chapter/StageNumber — 항상 1부터 시작하는 진행 좌표)을
+        /// 안전한 최소값(1)으로 클램프한다. ClampNonNegative와 별개로 두는 이유: 이 두 필드는
+        /// 0이나 음수가 "기록 없음"이 아니라 카탈로그 인덱스 계산이 깨지는 잘못된 상태다.
+        /// </summary>
+        private static int ClampAtLeastOne(int value) => value < 1 ? 1 : value;
 
         private void OnGoldChanged(GoldChangedEvent evt)
         {

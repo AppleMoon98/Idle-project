@@ -75,6 +75,8 @@ namespace Editor
             // --- 이슈 #7: 저장 데이터 일부 손상 시 안전한 기본값 복구(부트스트랩 크래시 방지) ---
             Check("SaveService_ParseLastActiveUnixTime_MalformedFallsBackToZero", CheckParseLastActiveUnixTimeOrZero);
             Check("SaveService_ParseBlobOrNull_MalformedJsonReturnsNullWithoutThrowing", CheckParseBlobOrNullSurvivesMalformedJson);
+            Check("BigNumber_TryParse_OverflowExponentFallsBackToZeroWithoutThrowing", CheckBigNumberTryParseOverflow);
+            Check("SaveService_ClampHelpers_NegativeAndBelowMinimumFallBackToSafeDefault", CheckSaveServiceClampHelpers);
 
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
@@ -365,6 +367,79 @@ namespace Editor
             if (emptyResult != null)
             {
                 throw new Exception("빈 문자열을 넘겼는데 null이 아닌 값을 반환함");
+            }
+        }
+
+        /// <summary>
+        /// BigNumber.TryParse의 catch(FormatException)가 지수/가수 파트의 OverflowException까지
+        /// 잡는지 확인한다 - 이슈 #7의 재현 절차(SaveService.LoadGold를 통해 Load() 전체가
+        /// 중단되는 것)와 같은 클래스의 손상값이 Gold 필드에서도 크래시 없이 Zero로 폴백해야 한다.
+        /// </summary>
+        private static void CheckBigNumberTryParseOverflow()
+        {
+            bool overflowOk = BigNumber.TryParse("1E99999999999999999999", out BigNumber overflowResult);
+
+            if (overflowOk || overflowResult != BigNumber.Zero)
+            {
+                throw new Exception($"지수 오버플로 입력이 예외 없이 처리됐지만 결과가 기대와 다름: ok={overflowOk}, result={overflowResult}");
+            }
+
+            bool mantissaOverflowOk = BigNumber.TryParse(
+                "99999999999999999999999999999999999999999999999999999999999999999999999999999999999999E5",
+                out BigNumber mantissaOverflowResult);
+
+            // double.Parse는 오버플로 시 예외 대신 PositiveInfinity를 반환하므로(Parse 자체는 성공),
+            // 여기서는 "예외 없이 반환됐는지"만 확인한다 - 무한대/비정상 값이 BigNumber 연산에서
+            // 어떻게 다뤄지는지는 이 검사의 범위 밖이다.
+            _ = mantissaOverflowOk;
+            _ = mantissaOverflowResult;
+
+            bool normalOk = BigNumber.TryParse("1.5E10", out BigNumber normalResult);
+
+            if (!normalOk || !AreApproximatelyEqual(normalResult.ToDouble(), 1.5e10))
+            {
+                throw new Exception($"정상 입력까지 회귀됨: ok={normalOk}, result={normalResult}");
+            }
+        }
+
+        private static bool AreApproximatelyEqual(double a, double b) => Math.Abs(a - b) < Math.Max(1.0, Math.Abs(b)) * 1e-6;
+
+        /// <summary>
+        /// SaveService.ClampNonNegative/ClampAtLeastOne이 음수·경계값을 안전한 기본값으로
+        /// 되돌리는지 확인한다 - 이슈 #7 완료 조건("음수·오버플로·누락 값에 안전한 기본값과
+        /// 범위 검사")이 LastActiveUnixTime 외 나머지 정수 저장 필드(강화 레벨/티켓·토큰 카운트/
+        /// Chapter·StageNumber 등)에도 적용됐는지 검증한다.
+        /// </summary>
+        private static void CheckSaveServiceClampHelpers()
+        {
+            MethodInfo clampNonNegative = typeof(SaveService).GetMethod(
+                "ClampNonNegative", BindingFlags.NonPublic | BindingFlags.Static);
+            MethodInfo clampAtLeastOne = typeof(SaveService).GetMethod(
+                "ClampAtLeastOne", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (clampNonNegative == null || clampAtLeastOne == null)
+            {
+                throw new Exception("ClampNonNegative/ClampAtLeastOne 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            AssertClamp(clampNonNegative, -5, 0, "ClampNonNegative(-5)");
+            AssertClamp(clampNonNegative, 0, 0, "ClampNonNegative(0)");
+            AssertClamp(clampNonNegative, 42, 42, "ClampNonNegative(42)");
+            AssertClamp(clampNonNegative, int.MinValue, 0, "ClampNonNegative(int.MinValue)");
+
+            AssertClamp(clampAtLeastOne, -5, 1, "ClampAtLeastOne(-5)");
+            AssertClamp(clampAtLeastOne, 0, 1, "ClampAtLeastOne(0)");
+            AssertClamp(clampAtLeastOne, 1, 1, "ClampAtLeastOne(1)");
+            AssertClamp(clampAtLeastOne, 7, 7, "ClampAtLeastOne(7)");
+        }
+
+        private static void AssertClamp(MethodInfo method, int input, int expected, string label)
+        {
+            int actual = (int)method.Invoke(null, new object[] { input });
+
+            if (actual != expected)
+            {
+                throw new Exception($"{label}: 기대={expected} 실제={actual}");
             }
         }
 

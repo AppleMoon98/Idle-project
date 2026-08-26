@@ -200,6 +200,15 @@ namespace Core
                 result = Zero;
                 return false;
             }
+            catch (OverflowException)
+            {
+                // 지수/가수 파트가 long.Parse/double.Parse의 표현 범위를 넘는 손상값
+                // (예: "1E99999999999999999999") — FormatException과 별개 계열이라 따로 잡아야
+                // 한다. 잡지 않으면 SaveService.LoadGold()를 거쳐 부트스트랩까지 예외가 새 나간다
+                // (GitHub 이슈 #7).
+                result = Zero;
+                return false;
+            }
         }
 
         /// <summary>
