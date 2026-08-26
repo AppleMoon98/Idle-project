@@ -35,25 +35,99 @@ namespace Editor
     /// 메뉴 한 번으로 전부 재실행할 수 있는 회귀 방지 도구로 동일하게 기능한다. Character.
     /// RuntimeStatApplier/PossessionStatApplier(internal)는 AssemblyInfo.cs의
     /// InternalsVisibleTo("Assembly-CSharp-Editor")로 접근을 허용해뒀다.
+    ///
+    /// <para>
+    /// **분류/실행 시간(GitHub 이슈 #14):** 이 파일의 검사는 전부 Edit Mode에서 동기적으로
+    /// 완료된다 - Play Mode 진입이 필요한 검사는 없다(일부 검사가 Play Mode에서도 동일하게
+    /// 동작하는지 별도로 라이브 확인한 이력은 있지만, RunAllChecks 자체는 Edit Mode 밖에서
+    /// 돌 이유가 없다). 로컬 실측 실행 시간은 57건 기준 1초 미만(수 프레임 이내) - 전부
+    /// ScriptableObject.CreateInstance/합성 GameObject/독립 EventBus로 격리된 순수 로직
+    /// 검증이라 씬 로드/에셋 임포트 같은 무거운 단계가 없기 때문이다.
+    /// </para>
+    /// <para>
+    /// **메뉴 실행과 배치 실행이 로직을 공유하는 이유(이슈 #14):** 메뉴에서 13건→57건으로
+    /// 검사를 늘려온 과정에서, Unity Test Runner(NUnit)가 이 클래스를 전혀 스캔하지 못해
+    /// EditMode/PlayMode 양쪽 다 "0건 발견, Passed"로 집계되는 문제가 있었다 - CI가 이
+    /// "0건 성공"을 진짜 성공으로 오인하는 거짓 양성이었다. asmdef 재구성(중기 과제, 위
+    /// 문단과 같은 이유로 이번엔 보류) 대신, 검사 실행 본문을 <see cref="RunAllChecks"/>로
+    /// 뽑아 대화형 메뉴(<see cref="RunAll"/>)와 CI 배치 진입점(<see cref="RunAllForCI"/>)이
+    /// 완전히 같은 로직을 실행하도록 했다 - 로직이 갈리면 "메뉴에서는 통과, CI에서는 다른
+    /// 로직이 돌아 결과가 어긋남" 같은 새로운 이원화 문제가 생기기 때문. RunAllForCI는 검사
+    /// 총 개수가 0이면(=RunAllChecks 자체가 실행되지 않았거나 검사 등록이 전부 빠진 상태)
+    /// 그 자체를 실패로 취급하고, Application.isBatchMode일 때만 EditorApplication.Exit로
+    /// 성공/실패를 프로세스 종료 코드에 반영한다(대화형 메뉴에서 실수로 호출돼도 에디터가
+    /// 안 죽도록 배치 모드 여부로 가드).
+    /// </para>
     /// </summary>
     internal static class RegressionChecks
     {
         [MenuItem("Idle Project/Run Regression Checks (Offline Reward)")]
         private static void RunAll()
         {
-            var failures = new List<string>();
-            int total = 0;
+            RunAllChecks(out int total, out List<string> failures);
+            LogResult(total, failures);
+        }
+
+        /// <summary>
+        /// CI 배치 진입점 - <c>-executeMethod Editor.RegressionChecks.RunAllForCI</c>로 호출한다.
+        /// RunAll()과 완전히 같은 <see cref="RunAllChecks"/> 로직을 돌리되, 검사 총 개수가 0이면
+        /// (Test Runner가 이 클래스를 스캔하지 못해 "0건 성공"으로 집계되던 이슈 #14의 재현
+        /// 조건과 동일) 그 자체를 실패로 취급한다. Application.isBatchMode일 때만
+        /// EditorApplication.Exit를 호출해 종료 코드로 성공/실패를 알린다 - 대화형 에디터에서
+        /// 메뉴 대신 이 메서드를 잘못 호출해도(리플렉션 등) 에디터가 강제 종료되지 않는다.
+        /// </summary>
+        public static void RunAllForCI()
+        {
+            RunAllChecks(out int total, out List<string> failures);
+            LogResult(total, failures);
+
+            bool hasNoChecks = total == 0;
+
+            if (hasNoChecks)
+            {
+                Debug.LogError("[RegressionChecks] 검사가 0건 실행됨 - RunAllChecks 등록 목록이 비었거나 실행 자체가 실패한 것으로 보임(이슈 #14의 거짓 양성 조건과 동일).");
+            }
+
+            if (!Application.isBatchMode)
+            {
+                return;
+            }
+
+            bool succeeded = !hasNoChecks && failures.Count == 0;
+            EditorApplication.Exit(succeeded ? 0 : 1);
+        }
+
+        private static void LogResult(int total, List<string> failures)
+        {
+            if (failures.Count == 0)
+            {
+                Debug.Log($"[RegressionChecks] 전부 통과 ({total}/{total}).");
+            }
+            else
+            {
+                Debug.LogError($"[RegressionChecks] {failures.Count}/{total}개 실패:\n" + string.Join("\n", failures));
+            }
+        }
+
+        /// <summary>
+        /// 실제 검사 등록/실행 본문. RunAll()(대화형 메뉴)과 RunAllForCI()(CI 배치 진입점)가
+        /// 이 메서드 하나를 그대로 공유한다 - 두 진입점의 로직이 갈리지 않도록 하기 위함(이슈 #14).
+        /// </summary>
+        private static void RunAllChecks(out int total, out List<string> failures)
+        {
+            var localFailures = new List<string>();
+            int localTotal = 0;
 
             void Check(string name, Action check)
             {
-                total++;
+                localTotal++;
                 try
                 {
                     check();
                 }
                 catch (Exception e)
                 {
-                    failures.Add($"{name}: {e.Message}");
+                    localFailures.Add($"{name}: {e.Message}");
                 }
             }
 
@@ -186,14 +260,8 @@ namespace Editor
             Check("DenseCombatWithModalTransition_PoolAndTrackerInvariantsHold",
                 CheckDenseCombatWithModalTransitionInvariants);
 
-            if (failures.Count == 0)
-            {
-                Debug.Log($"[RegressionChecks] 전부 통과 ({total}/{total}).");
-            }
-            else
-            {
-                Debug.LogError($"[RegressionChecks] {failures.Count}/{total}개 실패:\n" + string.Join("\n", failures));
-            }
+            total = localTotal;
+            failures = localFailures;
         }
 
         private static void AssertFormatElapsedDuration(float seconds, string expected)

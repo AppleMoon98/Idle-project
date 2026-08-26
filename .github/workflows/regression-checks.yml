@@ -1,0 +1,57 @@
+name: Regression Checks
+
+# GitHub 이슈 #14: Assets/02. Script/Editor/RegressionChecks.cs가 [MenuItem] 기반 수동
+# 검증 모음이라(asmdef/NUnit 미사용) Unity Test Runner(-runTests)는 이 클래스를 전혀
+# 스캔하지 못해 EditMode/PlayMode 둘 다 "0건 성공"으로 집계됐다 - CI가 결과만 확인하면
+# 회귀 검사를 한 건도 안 돌리고도 성공하는 거짓 양성이었다. 이 워크플로우는 대신
+# RegressionChecks.RunAllForCI()를 -executeMethod로 직접 호출하고, 그 메서드가 검사 총
+# 개수 0건/실패를 프로세스 종료 코드로 반영하는지에 의존한다(메뉴 실행과 완전히 같은
+# RunAllChecks 로직을 공유 - RegressionChecks.cs 클래스 문서 참고).
+#
+# 실행 전 준비: 저장소 Settings > Secrets and variables > Actions에 Unity Personal
+# 라이선스용 시크릿 3개(UNITY_LICENSE/UNITY_EMAIL/UNITY_PASSWORD)를 등록해야 한다.
+# game-ci 문서(https://game.ci/docs/github/getting-started)의 "Activation" 절차를 따를 것.
+#
+# 검증 상태: 이 워크플로우는 실제 GitHub Actions 실행으로 검증되지 않았다(로컬 개발
+# 환경에서는 실제 워크플로우 실행이 불가능함) - 첫 실행 결과를 확인하고, game-ci/unity-builder가
+# 빌드 산출물 부재로 오탐하는 등의 문제가 있으면 raw `unityci/editor` 컨테이너를 직접
+# 구동하는 더 단순한 방식으로 교체할 것.
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  regression-checks:
+    name: RegressionChecks.RunAllForCI (Unity ${{ vars.UNITY_VERSION || '6000.3.12f1' }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Cache Unity Library
+        uses: actions/cache@v4
+        with:
+          path: Library
+          key: Library-regression-checks-${{ hashFiles('Assets/**', 'Packages/**', 'ProjectSettings/**') }}
+          restore-keys: |
+            Library-regression-checks-
+
+      - name: Run RegressionChecks.RunAllForCI in Unity batch mode
+        uses: game-ci/unity-builder@v4
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
+        with:
+          unityVersion: 6000.3.12f1
+          targetPlatform: StandaloneLinux64
+          buildMethod: Editor.RegressionChecks.RunAllForCI
+          allowDirtyBuild: true
