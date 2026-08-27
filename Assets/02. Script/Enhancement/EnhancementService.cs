@@ -148,16 +148,27 @@ namespace Enhancement
         /// 저장된 레벨로 복원한다. 골드 소모 없이 레벨만 맞추고, 그동안 쌓인 누적 보너스를
         /// StatEnhancedEvent로 재발행해 구독자(Character.StatEnhancementReceiver)가 반영하게 한다.
         /// GameBootstrapper.Start()에서(구독자의 OnEnable이 모두 끝난 뒤) 호출해야 이벤트를 놓치지 않는다.
+        ///
+        /// GitHub 이슈 #50 - level을 [0, config.MaxLevel]로 클램프한 뒤 항상 적용·재발행한다.
+        /// 예전에는 두 가지 문제가 있었다: ① 상한 검증이 없어 손상된 저장값(예: int.MaxValue)이
+        /// 그대로 레벨이 됐다 ② level&lt;=0이면 조용히 아무것도 안 해, 이전에 이미 설정된 레벨이
+        /// 있어도(같은 서비스 인스턴스에 두 번째로 복원되는 경우) 지워지지 않았다 - 0도 유효한
+        /// 복원 대상(레벨 없음)이므로 이제 항상 반영한다. config 자체가 없으면(콘텐츠 갭) 여전히
+        /// 아무것도 하지 않는다 - 클램프할 기준이 없기 때문.
         /// </summary>
-        public void RestoreLevel(EnhancementStatType statType, int level)
+        public LevelRestoreOutcome RestoreLevel(EnhancementStatType statType, int level)
         {
-            if (level <= 0 || !_configs.TryGetValue(statType, out EnhancementConfigSO config))
+            if (!_configs.TryGetValue(statType, out EnhancementConfigSO config))
             {
-                return;
+                return LevelRestoreOutcome.ConfigMissing;
             }
 
-            _levels[statType] = level;
-            _events.Publish(new StatEnhancedEvent(statType, config.ValuePerLevel * level, level));
+            int clampedLevel = Math.Clamp(level, 0, config.MaxLevel);
+
+            _levels[statType] = clampedLevel;
+            _events.Publish(new StatEnhancedEvent(statType, config.ValuePerLevel * clampedLevel, clampedLevel));
+
+            return clampedLevel == level ? LevelRestoreOutcome.Applied : LevelRestoreOutcome.ClampedToMax;
         }
 
         /// <summary>

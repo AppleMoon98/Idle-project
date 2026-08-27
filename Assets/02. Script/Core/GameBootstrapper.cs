@@ -216,6 +216,7 @@ namespace Core
                 inventoryService,
                 equippedGearService,
                 equipmentCatalog,
+                equipmentEnhancementConfig,
                 soldierRosterService,
                 soldierCatalog,
                 soldierDeploymentService,
@@ -266,12 +267,12 @@ namespace Core
             // Player의 RestoreLevel과 달리 여기서(Awake, Start가 아니라) 바로 복원한다 — 병사는
             // SoldierStatReceiver가 스폰 시점(OnEnable)에 현재 레벨을 직접 조회하는 방식이라, 다른
             // 구독자의 OnEnable을 기다릴 필요 없이 어떤 병사보다도 먼저 세팅되기만 하면 된다.
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackPower, save.SoldierAttackPowerLevel);
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.MaxHealth, save.SoldierMaxHealthLevel);
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackSpeed, save.SoldierAttackSpeedLevel);
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.MoveSpeed, save.SoldierMoveSpeedLevel);
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalChance, save.SoldierCriticalChanceLevel);
-            soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalDamage, save.SoldierCriticalDamageLevel);
+            LogIfClamped("병사", EnhancementStatType.AttackPower, soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackPower, save.SoldierAttackPowerLevel));
+            LogIfClamped("병사", EnhancementStatType.MaxHealth, soldierEnhancementService.RestoreLevel(EnhancementStatType.MaxHealth, save.SoldierMaxHealthLevel));
+            LogIfClamped("병사", EnhancementStatType.AttackSpeed, soldierEnhancementService.RestoreLevel(EnhancementStatType.AttackSpeed, save.SoldierAttackSpeedLevel));
+            LogIfClamped("병사", EnhancementStatType.MoveSpeed, soldierEnhancementService.RestoreLevel(EnhancementStatType.MoveSpeed, save.SoldierMoveSpeedLevel));
+            LogIfClamped("병사", EnhancementStatType.CriticalChance, soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalChance, save.SoldierCriticalChanceLevel));
+            LogIfClamped("병사", EnhancementStatType.CriticalDamage, soldierEnhancementService.RestoreLevel(EnhancementStatType.CriticalDamage, save.SoldierCriticalDamageLevel));
 
             var equipmentFusionService = new EquipmentFusionService(Events, inventoryService, equipmentGradeCatalog, equipmentCatalog);
             equipmentFusionService.Initialize();
@@ -411,12 +412,12 @@ namespace Core
             // 맨 마지막)에 호출한다 — "세이브 복원이 완료된 시점의 유효 전투력 스냅샷"을 쓰기 위해서다.
             _offlineProgressService?.CaptureBudget();
 
-            _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel);
-            _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel);
-            _enhancementService?.RestoreLevel(EnhancementStatType.AttackSpeed, _initialSave.AttackSpeedLevel);
-            _enhancementService?.RestoreLevel(EnhancementStatType.MoveSpeed, _initialSave.MoveSpeedLevel);
-            _enhancementService?.RestoreLevel(EnhancementStatType.CriticalChance, _initialSave.CriticalChanceLevel);
-            _enhancementService?.RestoreLevel(EnhancementStatType.CriticalDamage, _initialSave.CriticalDamageLevel);
+            LogIfClamped("플레이어", EnhancementStatType.AttackPower, _enhancementService?.RestoreLevel(EnhancementStatType.AttackPower, _initialSave.AttackPowerLevel));
+            LogIfClamped("플레이어", EnhancementStatType.MaxHealth, _enhancementService?.RestoreLevel(EnhancementStatType.MaxHealth, _initialSave.MaxHealthLevel));
+            LogIfClamped("플레이어", EnhancementStatType.AttackSpeed, _enhancementService?.RestoreLevel(EnhancementStatType.AttackSpeed, _initialSave.AttackSpeedLevel));
+            LogIfClamped("플레이어", EnhancementStatType.MoveSpeed, _enhancementService?.RestoreLevel(EnhancementStatType.MoveSpeed, _initialSave.MoveSpeedLevel));
+            LogIfClamped("플레이어", EnhancementStatType.CriticalChance, _enhancementService?.RestoreLevel(EnhancementStatType.CriticalChance, _initialSave.CriticalChanceLevel));
+            LogIfClamped("플레이어", EnhancementStatType.CriticalDamage, _enhancementService?.RestoreLevel(EnhancementStatType.CriticalDamage, _initialSave.CriticalDamageLevel));
 
             // RestoreInventory()는 세이브 시딩일 뿐 이벤트를 발행하지 않으므로, 복원된 장착 상태를
             // EquipmentStatReceiver가 놓치지 않도록 여기서 한 번 직접 재계산/발행한다.
@@ -435,6 +436,19 @@ namespace Core
             // CaptureBudget()이 미리 확정해둔 경과 시간으로, 지금 이 순간의 유효 전투력 스냅샷을
             // 사용해 실제 오프라인 보상을 계산/적용한다(OfflineProgressService 클래스 doc 참고).
             _offlineProgressService?.ApplyCapturedReward();
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #50 - Enhancement.EnhancementService/SoldierEnhancement.SoldierEnhancementService.
+        /// RestoreLevel이 저장된 레벨을 설정 최대치로 보정했을 때만(정상 복원은 로그하지 않음)
+        /// 경고를 남긴다. label은 "플레이어"/"병사"처럼 어느 강화 트랙인지 구분하는 표시.
+        /// </summary>
+        private static void LogIfClamped(string label, EnhancementStatType statType, LevelRestoreOutcome? outcome)
+        {
+            if (outcome == LevelRestoreOutcome.ClampedToMax)
+            {
+                Debug.LogWarning($"[GameBootstrapper] {label} {statType} 강화 레벨이 저장된 값에서 설정 최대치로 보정됨 - 손상된 저장 데이터이거나 설정 최대 레벨이 낮아졌을 수 있음(GitHub 이슈 #50).");
+            }
         }
 
         /// <summary>

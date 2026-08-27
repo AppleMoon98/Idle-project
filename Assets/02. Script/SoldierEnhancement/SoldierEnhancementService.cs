@@ -123,16 +123,24 @@ namespace SoldierEnhancement
         /// Player용과 달리 실제 적용은 이벤트 재생이 아니라 SoldierStatReceiver가 스폰 시점에 직접
         /// 조회하는 방식이라, 어떤 병사가 스폰되기보다 먼저 세팅되기만 하면 되고 Start() 타이밍(다른
         /// 구독자의 OnEnable 대기)을 지킬 필요가 없다.
+        ///
+        /// GitHub 이슈 #50 - Enhancement.EnhancementService.RestoreLevel과 동일한 이유로 level을
+        /// [0, config.MaxLevel]로 클램프한 뒤 항상 적용·재발행한다(0도 유효한 복원 대상이라 더 이상
+        /// 조용히 무시하지 않음).
         /// </summary>
-        public void RestoreLevel(EnhancementStatType statType, int level)
+        public LevelRestoreOutcome RestoreLevel(EnhancementStatType statType, int level)
         {
-            if (level <= 0 || !_configs.TryGetValue(statType, out EnhancementConfigSO config))
+            if (!_configs.TryGetValue(statType, out EnhancementConfigSO config))
             {
-                return;
+                return LevelRestoreOutcome.ConfigMissing;
             }
 
-            _levels[statType] = level;
-            _events.Publish(new SoldierStatEnhancedEvent(statType, config.ValuePerLevel * level, level));
+            int clampedLevel = Math.Clamp(level, 0, config.MaxLevel);
+
+            _levels[statType] = clampedLevel;
+            _events.Publish(new SoldierStatEnhancedEvent(statType, config.ValuePerLevel * clampedLevel, clampedLevel));
+
+            return clampedLevel == level ? LevelRestoreOutcome.Applied : LevelRestoreOutcome.ClampedToMax;
         }
 
         /// <summary>

@@ -22,6 +22,7 @@ using Skill;
 using Skill.Events;
 using Soldier;
 using Soldier.Events;
+using SoldierEnhancement;
 using Stage;
 using Stage.Events;
 using UI;
@@ -329,6 +330,15 @@ namespace Editor
             // 그대로 런타임 상태가 되고 정상 저장으로도 재직렬화되던 문제 ---
             Check("EquippedGearService_RestoreSnapshot_ValidatesSlotTypeUndefinedEnumAndDuplicates",
                 CheckEquippedGearServiceRestoreSnapshotValidatesSlotTypeAndDuplicates);
+
+            // --- 이슈 #50: 플레이어/병사 능력치 강화와 장비 강화 레벨 복원이 설정 SO의 최대
+            // 레벨을 무시하고, 0 복원이 이전 레벨을 지우지 못하던 문제 ---
+            Check("EnhancementService_RestoreLevel_ClampsToConfigMaxLevel_ZeroClearsPreviousLevel",
+                CheckEnhancementServiceRestoreLevelClampsToConfigMaxLevel);
+            Check("SoldierEnhancementService_RestoreLevel_ClampsToConfigMaxLevel_ZeroClearsPreviousLevel",
+                CheckSoldierEnhancementServiceRestoreLevelClampsToConfigMaxLevel);
+            Check("InventoryService_RestoreSnapshot_ClampsEnhancementLevelToMax_KeepsCountIntact",
+                CheckInventoryServiceRestoreSnapshotClampsEnhancementLevelToMax);
 
             // --- 이슈 #32: SkillLoadoutService.RestoreSnapshot이 TryEquip과 달리 레벨 1
             // 이상/중복 장착 금지를 검증하지 않아 손상된 저장 데이터가 미습득·중복 장착을
@@ -1871,7 +1881,7 @@ namespace Editor
             var events = new EventBus();
             var inventory = new InventoryService(events);
             var equippedGear = new EquippedGearService(events);
-            var saveService = new SaveService(events, inventory, equippedGear, null, null, null, null, null, null, null, null, null);
+            var saveService = new SaveService(events, inventory, equippedGear, null, null, null, null, null, null, null, null, null, null);
 
             const string sentinel = "REGRESSION_CHECK_SENTINEL";
             SetPrivateFieldOnPlainObject(saveService, "_inventoryJson", sentinel);
@@ -1927,7 +1937,7 @@ namespace Editor
         private static void CheckSaveServiceOtherHandlersDeferRebuildToTick()
         {
             var events = new EventBus();
-            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null);
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
 
             AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSoldierRosterChanged", "_isSoldierRosterSnapshotDirty");
             AssertHandlerSetsDirtyFlagWithoutRebuilding(saveService, "OnSoldierDeploymentChanged", "_isSoldierRosterSnapshotDirty");
@@ -3434,7 +3444,7 @@ namespace Editor
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue31-valid", Count = 5, EnhancementLevel = 2 },
                 };
 
-                InventoryService.RestoreResult result = inventory.RestoreSnapshot(snapshot, catalog);
+                InventoryService.RestoreResult result = inventory.RestoreSnapshot(snapshot, catalog, int.MaxValue);
 
                 if (result.RestoredCount != 1)
                 {
@@ -3510,14 +3520,14 @@ namespace Editor
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-a", Count = 3, EnhancementLevel = 1 },
                 };
 
-                inventory.RestoreSnapshot(firstSnapshot, catalog);
+                inventory.RestoreSnapshot(firstSnapshot, catalog, int.MaxValue);
 
                 if (inventory.Items.Count != 1)
                 {
                     throw new Exception($"1차 복원 직후 보유 라인 수가 {inventory.Items.Count}(기대=1)");
                 }
 
-                InventoryService.RestoreResult emptyResult = inventory.RestoreSnapshot(Array.Empty<InventoryService.OwnedEquipmentSnapshot>(), catalog);
+                InventoryService.RestoreResult emptyResult = inventory.RestoreSnapshot(Array.Empty<InventoryService.OwnedEquipmentSnapshot>(), catalog, int.MaxValue);
 
                 if (inventory.Items.Count != 0 || emptyResult.RestoredCount != 0)
                 {
@@ -3530,8 +3540,8 @@ namespace Editor
                 }
 
                 // null 스냅샷(파싱 실패/저장 기록 없음)으로 복원해도 마찬가지로 비워져야 한다.
-                inventory.RestoreSnapshot(firstSnapshot, catalog);
-                inventory.RestoreSnapshot(null, catalog);
+                inventory.RestoreSnapshot(firstSnapshot, catalog, int.MaxValue);
+                inventory.RestoreSnapshot(null, catalog, int.MaxValue);
 
                 if (inventory.Items.Count != 0)
                 {
@@ -3590,7 +3600,7 @@ namespace Editor
                 {
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-weapon", Count = 1, EnhancementLevel = 0 },
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-armor", Count = 1, EnhancementLevel = 0 },
-                }, catalog);
+                }, catalog, int.MaxValue);
 
                 var firstEquipped = new[]
                 {
@@ -3706,7 +3716,7 @@ namespace Editor
                 {
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue47-weapon", Count = 1, EnhancementLevel = 0 },
                     new InventoryService.OwnedEquipmentSnapshot { StableId = "issue47-gloves", Count = 1, EnhancementLevel = 0 },
-                }, catalog);
+                }, catalog, int.MaxValue);
 
                 var maliciousSnapshot = new[]
                 {
@@ -3776,6 +3786,262 @@ namespace Editor
                 if (gloves != null)
                 {
                     UnityEngine.Object.DestroyImmediate(gloves);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #50의 재현 그대로 - 설정 최대 레벨(2000)을 넘는 값(max+1, int.MaxValue)으로
+        /// 복원해도 실제 레벨은 항상 설정 최대치를 넘지 않는지, 경계(max-1/max)는 그대로 적용되는지,
+        /// 그리고 레벨이 설정된 상태에서 0으로 다시 복원하면 실제로 0까지 내려가는지(예전엔 level&lt;=0
+        /// 이면 조용히 무시해 이전 레벨이 남아있었음) 확인한다. 설정 자체가 없는 스탯은 여전히
+        /// ConfigMissing으로 아무 것도 안 바뀌어야 한다(회귀 방지).
+        /// </summary>
+        private static void CheckEnhancementServiceRestoreLevelClampsToConfigMaxLevel()
+        {
+            EnhancementConfigSO config = null;
+
+            try
+            {
+                config = ScriptableObject.CreateInstance<EnhancementConfigSO>();
+                SetPrivateField(config, "statType", EnhancementStatType.AttackPower);
+                SetPrivateField(config, "maxLevel", 2000);
+                SetPrivateFloat(config, "valuePerLevel", 1f);
+
+                var events = new EventBus();
+                var service = new EnhancementService(events, null, new[] { config });
+
+                LevelRestoreOutcome outcomeBelow = service.RestoreLevel(EnhancementStatType.AttackPower, 1999);
+
+                if (outcomeBelow != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 1999)
+                {
+                    throw new Exception($"max-1 복원 결과가 예상과 다름(outcome={outcomeBelow}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeAt = service.RestoreLevel(EnhancementStatType.AttackPower, 2000);
+
+                if (outcomeAt != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"max 복원 결과가 예상과 다름(outcome={outcomeAt}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeAbove = service.RestoreLevel(EnhancementStatType.AttackPower, 2001);
+
+                if (outcomeAbove != LevelRestoreOutcome.ClampedToMax || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"max+1 복원이 클램프되지 않음(outcome={outcomeAbove}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeIntMax = service.RestoreLevel(EnhancementStatType.AttackPower, int.MaxValue);
+
+                if (outcomeIntMax != LevelRestoreOutcome.ClampedToMax || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"int.MaxValue 복원이 설정 최대치로 클램프되지 않음(level={service.GetLevel(EnhancementStatType.AttackPower)}) - GitHub 이슈 #50 재현");
+                }
+
+                LevelRestoreOutcome outcomeZero = service.RestoreLevel(EnhancementStatType.AttackPower, 0);
+
+                if (outcomeZero != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 0)
+                {
+                    throw new Exception($"0 복원이 이전 레벨을 지우지 못함(outcome={outcomeZero}, level={service.GetLevel(EnhancementStatType.AttackPower)}) - GitHub 이슈 #50 재현");
+                }
+
+                service.RestoreLevel(EnhancementStatType.AttackPower, 500);
+                service.RestoreLevel(EnhancementStatType.AttackPower, -5);
+
+                if (service.GetLevel(EnhancementStatType.AttackPower) != 0)
+                {
+                    throw new Exception($"음수 복원 후 레벨이 {service.GetLevel(EnhancementStatType.AttackPower)}(기대=0)");
+                }
+
+                LevelRestoreOutcome outcomeMissing = service.RestoreLevel(EnhancementStatType.MaxHealth, 100);
+
+                if (outcomeMissing != LevelRestoreOutcome.ConfigMissing || service.GetLevel(EnhancementStatType.MaxHealth) != 0)
+                {
+                    throw new Exception($"설정 없는 스탯 복원 결과가 예상과 다름(outcome={outcomeMissing})");
+                }
+            }
+            finally
+            {
+                if (config != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(config);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #50 - SoldierEnhancement.SoldierEnhancementService.RestoreLevel도
+        /// Enhancement.EnhancementService와 완전히 동일한 병렬 구조라(section AM) 같은 결함을
+        /// 공유했다. 위 검사와 동일한 경계(max-1/max/max+1/int.MaxValue/0/음수/설정 없음)를 그대로
+        /// 반복한다.
+        /// </summary>
+        private static void CheckSoldierEnhancementServiceRestoreLevelClampsToConfigMaxLevel()
+        {
+            EnhancementConfigSO config = null;
+
+            try
+            {
+                config = ScriptableObject.CreateInstance<EnhancementConfigSO>();
+                SetPrivateField(config, "statType", EnhancementStatType.AttackPower);
+                SetPrivateField(config, "maxLevel", 2000);
+                SetPrivateFloat(config, "valuePerLevel", 1f);
+
+                var events = new EventBus();
+                var service = new SoldierEnhancementService(events, null, new[] { config });
+
+                LevelRestoreOutcome outcomeBelow = service.RestoreLevel(EnhancementStatType.AttackPower, 1999);
+
+                if (outcomeBelow != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 1999)
+                {
+                    throw new Exception($"max-1 복원 결과가 예상과 다름(outcome={outcomeBelow}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeAt = service.RestoreLevel(EnhancementStatType.AttackPower, 2000);
+
+                if (outcomeAt != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"max 복원 결과가 예상과 다름(outcome={outcomeAt}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeAbove = service.RestoreLevel(EnhancementStatType.AttackPower, 2001);
+
+                if (outcomeAbove != LevelRestoreOutcome.ClampedToMax || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"max+1 복원이 클램프되지 않음(outcome={outcomeAbove}, level={service.GetLevel(EnhancementStatType.AttackPower)})");
+                }
+
+                LevelRestoreOutcome outcomeIntMax = service.RestoreLevel(EnhancementStatType.AttackPower, int.MaxValue);
+
+                if (outcomeIntMax != LevelRestoreOutcome.ClampedToMax || service.GetLevel(EnhancementStatType.AttackPower) != 2000)
+                {
+                    throw new Exception($"int.MaxValue 복원이 설정 최대치로 클램프되지 않음(level={service.GetLevel(EnhancementStatType.AttackPower)}) - GitHub 이슈 #50 재현");
+                }
+
+                LevelRestoreOutcome outcomeZero = service.RestoreLevel(EnhancementStatType.AttackPower, 0);
+
+                if (outcomeZero != LevelRestoreOutcome.Applied || service.GetLevel(EnhancementStatType.AttackPower) != 0)
+                {
+                    throw new Exception($"0 복원이 이전 레벨을 지우지 못함(outcome={outcomeZero}, level={service.GetLevel(EnhancementStatType.AttackPower)}) - GitHub 이슈 #50 재현");
+                }
+
+                service.RestoreLevel(EnhancementStatType.AttackPower, 500);
+                service.RestoreLevel(EnhancementStatType.AttackPower, -5);
+
+                if (service.GetLevel(EnhancementStatType.AttackPower) != 0)
+                {
+                    throw new Exception($"음수 복원 후 레벨이 {service.GetLevel(EnhancementStatType.AttackPower)}(기대=0)");
+                }
+
+                LevelRestoreOutcome outcomeMissing = service.RestoreLevel(EnhancementStatType.MaxHealth, 100);
+
+                if (outcomeMissing != LevelRestoreOutcome.ConfigMissing || service.GetLevel(EnhancementStatType.MaxHealth) != 0)
+                {
+                    throw new Exception($"설정 없는 스탯 복원 결과가 예상과 다름(outcome={outcomeMissing})");
+                }
+            }
+            finally
+            {
+                if (config != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(config);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #50의 재현 그대로 - 장비 강화 레벨이 EquipmentEnhancementConfigSO.MaxLevel을
+        /// 넘으면(예: 21 또는 int.MaxValue, 설정 최대 20) 그 항목 전체를 폐기하지 않고 레벨만
+        /// 최대치로 클램프하며 보유 개수(Count)는 그대로 유지되는지 확인한다 - RestoreResult가
+        /// 이를 "폐기"가 아니라 "보정"으로 별도 집계하는지(TotalDiscarded에 안 섞이는지)까지
+        /// 함께 확인한다. 설정 최대 이하 레벨(max-1/max)은 손대지 않고 그대로 통과해야 한다.
+        /// </summary>
+        private static void CheckInventoryServiceRestoreSnapshotClampsEnhancementLevelToMax()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipmentA = null;
+            EquipmentSO equipmentB = null;
+            EquipmentCatalogSO catalog = null;
+
+            try
+            {
+                equipmentA = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(equipmentA, "stableId", "issue50-a");
+
+                equipmentB = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(equipmentB, "stableId", "issue50-b");
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { equipmentA, equipmentB });
+
+                const int maxLevel = 20;
+
+                var overMaxSnapshot = new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue50-a", Count = 3, EnhancementLevel = maxLevel + 1 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue50-b", Count = 7, EnhancementLevel = int.MaxValue },
+                };
+
+                InventoryService.RestoreResult result = inventory.RestoreSnapshot(overMaxSnapshot, catalog, maxLevel);
+
+                if (result.RestoredCount != 2)
+                {
+                    throw new Exception($"복원 건수가 {result.RestoredCount}(기대=2) - 초과 레벨 항목이 클램프 대신 폐기됐을 가능성");
+                }
+
+                if (result.CorrectedEnhancementLevelClamped != 2 || !result.HasCorrectedEntries)
+                {
+                    throw new Exception($"클램프 집계가 {result.CorrectedEnhancementLevelClamped}(기대=2)");
+                }
+
+                if (result.HasDiscardedEntries)
+                {
+                    throw new Exception("클램프 대상인데 TotalDiscarded에 섞여 폐기로 집계됨");
+                }
+
+                if (!inventory.TryGet(equipmentA, out OwnedEquipment ownedA) || ownedA.EnhancementLevel != maxLevel || ownedA.Count != 3)
+                {
+                    throw new Exception($"항목 A가 예상과 다름(Level={ownedA?.EnhancementLevel}, Count={ownedA?.Count}) - 기대 Level={maxLevel}, Count=3(보유 개수는 유지돼야 함)");
+                }
+
+                if (!inventory.TryGet(equipmentB, out OwnedEquipment ownedB) || ownedB.EnhancementLevel != maxLevel)
+                {
+                    throw new Exception($"항목 B(int.MaxValue)가 클램프되지 않음(Level={ownedB?.EnhancementLevel}) - GitHub 이슈 #50 재현");
+                }
+
+                var withinRangeSnapshot = new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue50-a", Count = 1, EnhancementLevel = maxLevel - 1 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue50-b", Count = 1, EnhancementLevel = maxLevel },
+                };
+
+                InventoryService.RestoreResult withinRangeResult = inventory.RestoreSnapshot(withinRangeSnapshot, catalog, maxLevel);
+
+                if (withinRangeResult.HasCorrectedEntries)
+                {
+                    throw new Exception($"max 이하 레벨인데도 {withinRangeResult.CorrectedEnhancementLevelClamped}건이 클램프로 집계됨(기대=0)");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (equipmentA != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipmentA);
+                }
+
+                if (equipmentB != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipmentB);
                 }
 
                 if (catalog != null)
@@ -7036,7 +7302,7 @@ namespace Editor
             var squadTactic = new SquadTacticService(events);
 
             var saveService = new SaveService(
-                events, inventory, equippedGear, null, soldierRoster, null, soldierDeployment,
+                events, inventory, equippedGear, null, null, soldierRoster, null, soldierDeployment,
                 null, skill, null, skillLoadout, squadTactic);
 
             const string sentinel = "REGRESSION_CHECK_STALE_CACHE";
@@ -7079,7 +7345,7 @@ namespace Editor
         private static void CheckSaveServiceFlushActuallyPersistsSafely()
         {
             var events = new EventBus();
-            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null);
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
 
             FieldInfo goldKeyField = typeof(SaveService).GetField("GoldBigKey", BindingFlags.NonPublic | BindingFlags.Static);
             var goldKey = (string)goldKeyField.GetValue(null);
@@ -7140,7 +7406,7 @@ namespace Editor
             var squadTactic = new SquadTacticService(events);
 
             var saveService = new SaveService(
-                events, inventory, equippedGear, null, soldierRoster, null, soldierDeployment,
+                events, inventory, equippedGear, null, null, soldierRoster, null, soldierDeployment,
                 null, skill, null, skillLoadout, squadTactic);
 
             const string sentinel = "REGRESSION_CHECK_LIFECYCLE_STALE_CACHE";

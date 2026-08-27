@@ -170,16 +170,25 @@ namespace Inventory
             public readonly int DiscardedMissingCatalogEntry;
             public readonly int DiscardedNegativeCount;
             public readonly int DiscardedNegativeEnhancementLevel;
+            public readonly int CorrectedEnhancementLevelClamped;
 
-            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNegativeCount, int discardedNegativeEnhancementLevel)
+            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNegativeCount, int discardedNegativeEnhancementLevel, int correctedEnhancementLevelClamped)
             {
                 RestoredCount = restoredCount;
                 DiscardedMissingCatalogEntry = discardedMissingCatalogEntry;
                 DiscardedNegativeCount = discardedNegativeCount;
                 DiscardedNegativeEnhancementLevel = discardedNegativeEnhancementLevel;
+                CorrectedEnhancementLevelClamped = correctedEnhancementLevelClamped;
             }
 
             public int TotalDiscarded => DiscardedMissingCatalogEntry + DiscardedNegativeCount + DiscardedNegativeEnhancementLevel;
+
+            /// <summary>
+            /// 항목 자체는 폐기되지 않고 유지됐지만(보유 개수는 그대로), 강화 레벨이 설정 최대치를
+            /// 넘어 최대치로 보정된 건수(GitHub 이슈 #50). TotalDiscarded에는 포함하지 않는다 -
+            /// "버려진 것"이 아니라 "고쳐서 계속 쓴 것"이기 때문.
+            /// </summary>
+            public bool HasCorrectedEntries => CorrectedEnhancementLevelClamped > 0;
 
             public bool HasDiscardedEntries => TotalDiscarded > 0;
         }
@@ -200,20 +209,30 @@ namespace Inventory
         /// 다시 복원해도(새 게임/계정 전환/테스트 재초기화) 개수가 0으로 안 돌아가고 이전 상태가
         /// 계속 누적되는 문제였다. 다른 모든 RestoreSnapshot(SoldierRosterService 등, 이슈 #26/#32)이
         /// 이미 따르는 "먼저 비우고 다시 채운다" 관례를 여기도 마저 적용한 것.
+        ///
+        /// GitHub 이슈 #50 - maxEnhancementLevel(호출부가 EquipmentEnhancementConfigSO.MaxLevel을
+        /// 넘겨준다)을 넘는 강화 레벨은 그 항목 전체를 버리지 않고 레벨만 최대치로 클램프한다 -
+        /// 손상된 강화 레벨 하나 때문에 정상적으로 쌓인 보유 개수(Count)까지 잃을 이유가 없고,
+        /// 이렇게 하면 나중에 설정 최대 레벨 자체가 낮아지는 콘텐츠 변경이 있어도(예: 30→20)
+        /// 기존 저장이 사라지지 않고 자동으로 새 상한에 맞춰진다. InventoryService는 이 정수 하나만
+        /// 받을 뿐 EquipmentEnhancementConfigSO 타입 자체는 몰라도 된다(도메인 경계 유지) - 순수
+        /// 저장소인 이 서비스에 "강화 레벨 상한"이라는 개념 자체를 새로 갖게 하지 않으려는 것.
         /// </summary>
-        public RestoreResult RestoreSnapshot(OwnedEquipmentSnapshot[] snapshot, EquipmentCatalogSO catalog)
+        public RestoreResult RestoreSnapshot(OwnedEquipmentSnapshot[] snapshot, EquipmentCatalogSO catalog, int maxEnhancementLevel)
         {
             _owned.Clear();
 
             if (snapshot == null)
             {
-                return new RestoreResult(0, 0, 0, 0);
+                return new RestoreResult(0, 0, 0, 0, 0);
             }
 
+            int effectiveMaxLevel = Math.Max(maxEnhancementLevel, 0);
             int restoredCount = 0;
             int discardedMissingCatalog = 0;
             int discardedNegativeCount = 0;
             int discardedNegativeLevel = 0;
+            int correctedLevelClamped = 0;
 
             foreach (OwnedEquipmentSnapshot entry in snapshot)
             {
@@ -237,11 +256,19 @@ namespace Inventory
                     continue;
                 }
 
-                _owned[definition] = new OwnedEquipment(definition, entry.Count, entry.EnhancementLevel);
+                int enhancementLevel = entry.EnhancementLevel;
+
+                if (enhancementLevel > effectiveMaxLevel)
+                {
+                    enhancementLevel = effectiveMaxLevel;
+                    correctedLevelClamped++;
+                }
+
+                _owned[definition] = new OwnedEquipment(definition, entry.Count, enhancementLevel);
                 restoredCount++;
             }
 
-            return new RestoreResult(restoredCount, discardedMissingCatalog, discardedNegativeCount, discardedNegativeLevel);
+            return new RestoreResult(restoredCount, discardedMissingCatalog, discardedNegativeCount, discardedNegativeLevel, correctedLevelClamped);
         }
 
         private void OnItemDropped(ItemDroppedEvent evt)

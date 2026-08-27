@@ -139,6 +139,7 @@ namespace Save
         private readonly InventoryService _inventory;
         private readonly EquippedGearService _equippedGear;
         private readonly EquipmentCatalogSO _equipmentCatalog;
+        private readonly EquipmentEnhancementConfigSO _equipmentEnhancementConfig;
         private readonly SoldierRosterService _soldierRoster;
         private readonly SoldierCatalogSO _soldierCatalog;
         private readonly SoldierDeploymentService _soldierDeployment;
@@ -199,6 +200,7 @@ namespace Save
             InventoryService inventory,
             EquippedGearService equippedGear,
             EquipmentCatalogSO equipmentCatalog,
+            EquipmentEnhancementConfigSO equipmentEnhancementConfig,
             SoldierRosterService soldierRoster,
             SoldierCatalogSO soldierCatalog,
             SoldierDeploymentService soldierDeployment,
@@ -212,6 +214,7 @@ namespace Save
             _inventory = inventory;
             _equippedGear = equippedGear;
             _equipmentCatalog = equipmentCatalog;
+            _equipmentEnhancementConfig = equipmentEnhancementConfig;
             _soldierRoster = soldierRoster;
             _soldierCatalog = soldierCatalog;
             _soldierDeployment = soldierDeployment;
@@ -543,11 +546,18 @@ namespace Save
             // GitHub 이슈 #31 - InventoryService.RestoreSnapshot이 이제 폐기 건수를 구조화된 결과로
             // 돌려주므로, 뭔가 버려졌을 때만(정상 세이브는 거의 항상 0건) 콘솔에 경고를 남긴다 -
             // 이슈 #7/#26이 이미 쓰는 "[SaveService] ..." 로그 관례를 그대로 재사용한다.
-            InventoryService.RestoreResult inventoryResult = _inventory.RestoreSnapshot(blob.Owned, _equipmentCatalog);
+            // GitHub 이슈 #50 - EquipmentEnhancementConfigSO.MaxLevel을 함께 넘겨, 설정 최대치를
+            // 넘는 강화 레벨이 클램프됐을 때도(폐기와 별개로) 진단 로그를 남긴다.
+            InventoryService.RestoreResult inventoryResult = _inventory.RestoreSnapshot(blob.Owned, _equipmentCatalog, _equipmentEnhancementConfig.MaxLevel);
 
             if (inventoryResult.HasDiscardedEntries)
             {
                 Debug.LogWarning($"[SaveService] 보유 장비 복원 중 {inventoryResult.TotalDiscarded}건을 버림(카탈로그 없음={inventoryResult.DiscardedMissingCatalogEntry}, 음수 수량={inventoryResult.DiscardedNegativeCount}, 음수 강화 레벨={inventoryResult.DiscardedNegativeEnhancementLevel}) - 복원={inventoryResult.RestoredCount}건.");
+            }
+
+            if (inventoryResult.HasCorrectedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 보유 장비 복원 중 강화 레벨이 설정 최대치({_equipmentEnhancementConfig.MaxLevel})로 보정된 항목 {inventoryResult.CorrectedEnhancementLevelClamped}건 - 손상된 저장 데이터이거나 설정 최대 레벨이 낮아졌을 수 있음(GitHub 이슈 #50).");
             }
 
             EquippedGearService.RestoreResult equippedResult = _equippedGear.RestoreSnapshot(blob.Equipped, _equipmentCatalog, _inventory);
