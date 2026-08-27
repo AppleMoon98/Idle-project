@@ -554,7 +554,7 @@ namespace Save
 
             if (equippedResult.HasDiscardedEntries)
             {
-                Debug.LogWarning($"[SaveService] 장착 슬롯 복원 중 {equippedResult.TotalDiscarded}건을 버림(카탈로그 없음={equippedResult.DiscardedMissingCatalogEntry}, 인벤토리 미보유={equippedResult.DiscardedNotInInventory}) - 복원={equippedResult.RestoredCount}건.");
+                Debug.LogWarning($"[SaveService] 장착 슬롯 복원 중 {equippedResult.TotalDiscarded}건을 버림(카탈로그 없음={equippedResult.DiscardedMissingCatalogEntry}, 인벤토리 미보유={equippedResult.DiscardedNotInInventory}, 정의되지 않은 슬롯={equippedResult.DiscardedUndefinedSlot}, 슬롯 타입 불일치={equippedResult.DiscardedSlotTypeMismatch}, 중복 장비={equippedResult.DiscardedDuplicateEquipment}) - 복원={equippedResult.RestoredCount}건.");
             }
         }
 

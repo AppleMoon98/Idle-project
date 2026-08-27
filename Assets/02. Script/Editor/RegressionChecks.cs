@@ -324,6 +324,12 @@ namespace Editor
             Check("EquippedGearService_RestoreSnapshot_ClearsExistingSlotsBeforeRestoring",
                 CheckEquippedGearServiceRestoreSnapshotClearsExistingSlots);
 
+            // --- 이슈 #47: 장착 복원이 저장된 슬롯 값을 실제 장비 타입/정의된 enum/중복 참조와
+            // 대조 검증하지 않아, 같은 무기를 여러 슬롯에 동시 배정하거나 정의되지 않은 슬롯값이
+            // 그대로 런타임 상태가 되고 정상 저장으로도 재직렬화되던 문제 ---
+            Check("EquippedGearService_RestoreSnapshot_ValidatesSlotTypeUndefinedEnumAndDuplicates",
+                CheckEquippedGearServiceRestoreSnapshotValidatesSlotTypeAndDuplicates);
+
             // --- 이슈 #32: SkillLoadoutService.RestoreSnapshot이 TryEquip과 달리 레벨 1
             // 이상/중복 장착 금지를 검증하지 않아 손상된 저장 데이터가 미습득·중복 장착을
             // 그대로 런타임 상태로 만들던 문제 ---
@@ -3655,6 +3661,121 @@ namespace Editor
                 if (armor != null)
                 {
                     UnityEngine.Object.DestroyImmediate(armor);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #47의 재현 그대로 - 저장된 슬롯 값이 실제 장비 정의 타입과 다르거나(무기를
+        /// Gloves 슬롯에 배정), 정의되지 않은 EquipmentType 값이거나((EquipmentType)999), 같은
+        /// 슬롯에 같은 항목이 중복으로 나열된 경우를 한 스냅샷 안에서 함께 재현한다. 세 가지 모두
+        /// 폐기되고, 정상 항목만 정확히 1건 복원되며, ExportSnapshot으로 재직렬화해도 손상된
+        /// 값이 다시 나타나지 않는지(완료 조건 "정의되지 않은 enum이 재저장되지 않음")까지 확인한다.
+        /// </summary>
+        private static void CheckEquippedGearServiceRestoreSnapshotValidatesSlotTypeAndDuplicates()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+            var equippedGear = new EquippedGearService(events);
+            equippedGear.Initialize();
+
+            EquipmentSO weapon = null;
+            EquipmentSO gloves = null;
+            EquipmentCatalogSO catalog = null;
+
+            try
+            {
+                weapon = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(weapon, "stableId", "issue47-weapon");
+                SetPrivateField(weapon, "equipmentType", EquipmentType.Weapon);
+
+                gloves = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(gloves, "stableId", "issue47-gloves");
+                SetPrivateField(gloves, "equipmentType", EquipmentType.Gloves);
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { weapon, gloves });
+
+                inventory.RestoreSnapshot(new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue47-weapon", Count = 1, EnhancementLevel = 0 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue47-gloves", Count = 1, EnhancementLevel = 0 },
+                }, catalog);
+
+                var maliciousSnapshot = new[]
+                {
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Weapon, StableId = "issue47-weapon" }, // 정상
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Gloves, StableId = "issue47-weapon" }, // 타입 불일치(무기를 Gloves에)
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = (EquipmentType)999, StableId = "issue47-gloves" },   // 정의되지 않은 슬롯
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Weapon, StableId = "issue47-weapon" }, // 중복(첫 항목과 동일)
+                };
+
+                EquippedGearService.RestoreResult result = equippedGear.RestoreSnapshot(maliciousSnapshot, catalog, inventory);
+
+                if (result.RestoredCount != 1)
+                {
+                    throw new Exception($"복원 성공 건수가 {result.RestoredCount}(기대=1) - 손상된 항목이 섞여 들어갔을 가능성");
+                }
+
+                if (result.DiscardedSlotTypeMismatch != 1)
+                {
+                    throw new Exception($"슬롯 타입 불일치로 폐기된 건수가 {result.DiscardedSlotTypeMismatch}(기대=1) - GitHub 이슈 #47 재현");
+                }
+
+                if (result.DiscardedUndefinedSlot != 1)
+                {
+                    throw new Exception($"정의되지 않은 슬롯으로 폐기된 건수가 {result.DiscardedUndefinedSlot}(기대=1) - GitHub 이슈 #47 재현");
+                }
+
+                if (result.DiscardedDuplicateEquipment != 1)
+                {
+                    throw new Exception($"중복 장비로 폐기된 건수가 {result.DiscardedDuplicateEquipment}(기대=1) - GitHub 이슈 #47 재현");
+                }
+
+                if (!result.HasDiscardedEntries || result.TotalDiscarded != 3)
+                {
+                    throw new Exception($"TotalDiscarded가 {result.TotalDiscarded}(기대=3)");
+                }
+
+                OwnedEquipment equippedWeapon = equippedGear.GetEquipped(EquipmentType.Weapon);
+
+                if (equippedWeapon == null || equippedWeapon.Definition.EquipmentType != EquipmentType.Weapon)
+                {
+                    throw new Exception("Weapon 슬롯에 정상적으로 무기가 복원되지 않음");
+                }
+
+                if (equippedGear.GetEquipped(EquipmentType.Gloves) != null)
+                {
+                    throw new Exception("타입이 안 맞는 무기가 Gloves 슬롯에 그대로 배정됨 - GitHub 이슈 #47 재현");
+                }
+
+                // 완료 조건: 정의되지 않은 enum/중복이 정상 저장으로도 재직렬화되지 않는다.
+                EquippedGearService.EquippedSnapshotEntry[] reExported = equippedGear.ExportSnapshot(catalog);
+
+                if (reExported.Length != 1 || reExported[0].Slot != EquipmentType.Weapon || reExported[0].StableId != "issue47-weapon")
+                {
+                    throw new Exception($"재직렬화 결과가 예상과 다름(항목 수={reExported.Length}) - 손상된 상태가 정상 저장으로 다시 새어나감");
+                }
+            }
+            finally
+            {
+                equippedGear.Shutdown();
+                inventory.Shutdown();
+
+                if (weapon != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weapon);
+                }
+
+                if (gloves != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(gloves);
                 }
 
                 if (catalog != null)

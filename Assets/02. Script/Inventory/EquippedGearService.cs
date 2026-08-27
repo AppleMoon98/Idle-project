@@ -84,22 +84,28 @@ namespace Inventory
 
         /// <summary>
         /// EquippedGearService.RestoreSnapshot의 폐기 건수를 구조화된 결과로 돌려준다
-        /// (Inventory.InventoryService.RestoreResult와 동일한 형태, GitHub 이슈 #46).
+        /// (Inventory.InventoryService.RestoreResult와 동일한 형태, GitHub 이슈 #46/#47).
         /// </summary>
         public readonly struct RestoreResult
         {
             public readonly int RestoredCount;
             public readonly int DiscardedMissingCatalogEntry;
             public readonly int DiscardedNotInInventory;
+            public readonly int DiscardedUndefinedSlot;
+            public readonly int DiscardedSlotTypeMismatch;
+            public readonly int DiscardedDuplicateEquipment;
 
-            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNotInInventory)
+            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNotInInventory, int discardedUndefinedSlot, int discardedSlotTypeMismatch, int discardedDuplicateEquipment)
             {
                 RestoredCount = restoredCount;
                 DiscardedMissingCatalogEntry = discardedMissingCatalogEntry;
                 DiscardedNotInInventory = discardedNotInInventory;
+                DiscardedUndefinedSlot = discardedUndefinedSlot;
+                DiscardedSlotTypeMismatch = discardedSlotTypeMismatch;
+                DiscardedDuplicateEquipment = discardedDuplicateEquipment;
             }
 
-            public int TotalDiscarded => DiscardedMissingCatalogEntry + DiscardedNotInInventory;
+            public int TotalDiscarded => DiscardedMissingCatalogEntry + DiscardedNotInInventory + DiscardedUndefinedSlot + DiscardedSlotTypeMismatch + DiscardedDuplicateEquipment;
 
             public bool HasDiscardedEntries => TotalDiscarded > 0;
         }
@@ -116,6 +122,18 @@ namespace Inventory
         /// 그 슬롯은 이전 장착을 그대로 유지함 - 특히 ②는 InventoryService.RestoreSnapshot을
         /// 먼저 정상적으로 비웠어도, 그 슬롯이 가리키던 OwnedEquipment가 이제 _owned에 존재하지
         /// 않는데 _equipped만 여전히 그 참조를 들고 있는 댕글링 상태로 이어졌다.
+        ///
+        /// GitHub 이슈 #47 - Equip()(정상 게임플레이 경로)은 항상 owned.Definition.EquipmentType을
+        /// 키로 쓰므로 "슬롯==정의 타입"과 "정의되지 않은 enum 없음"이 저절로 성립하지만, 이
+        /// 메서드는 저장된 EquippedSnapshotEntry.Slot을 검증 없이 그대로 키로 썼다 - 그래서
+        /// (EquipmentType)999 같은 정의되지 않은 값이나, 같은 무기를 Weapon/Gloves 두 슬롯에
+        /// 동시에 배정한 손상된 스냅샷이 그대로 런타임 상태가 됐고, ExportSnapshot은 검증 없이
+        /// _equipped를 그대로 재직렬화하므로 정상 저장으로도 자동 치유되지 않았다. 이제 슬롯마다
+        /// ① entry.Slot이 정의된 EquipmentType인지 ② definition.EquipmentType과 entry.Slot이
+        /// 일치하는지 ③ 같은 owned 라인이 이번 복원에서 이미 다른 슬롯에 배정되지 않았는지(중복은
+        /// 배열 순서상 먼저 나온 항목이 우선 - SkillLoadoutService.RestoreSnapshot 등 이 프로젝트의
+        /// 다른 RestoreSnapshot이 이미 쓰는 "첫 항목 우선" 관례와 동일)를 순서대로 확인해, 하나라도
+        /// 걸리면 그 항목만 완전히 버리고 나머지 유효 항목은 계속 복원한다.
         /// </summary>
         public RestoreResult RestoreSnapshot(EquippedSnapshotEntry[] snapshot, EquipmentCatalogSO catalog, InventoryService inventory)
         {
@@ -123,20 +141,36 @@ namespace Inventory
 
             if (snapshot == null)
             {
-                return new RestoreResult(0, 0, 0);
+                return new RestoreResult(0, 0, 0, 0, 0, 0);
             }
 
             int restoredCount = 0;
             int discardedMissingCatalog = 0;
             int discardedNotInInventory = 0;
+            int discardedUndefinedSlot = 0;
+            int discardedSlotTypeMismatch = 0;
+            int discardedDuplicateEquipment = 0;
+            var assignedThisPass = new HashSet<EquipmentSO>();
 
             foreach (EquippedSnapshotEntry entry in snapshot)
             {
+                if (!Enum.IsDefined(typeof(EquipmentType), entry.Slot))
+                {
+                    discardedUndefinedSlot++;
+                    continue;
+                }
+
                 EquipmentSO definition = catalog.FindByStableId(entry.StableId);
 
                 if (definition == null)
                 {
                     discardedMissingCatalog++;
+                    continue;
+                }
+
+                if (definition.EquipmentType != entry.Slot)
+                {
+                    discardedSlotTypeMismatch++;
                     continue;
                 }
 
@@ -146,11 +180,17 @@ namespace Inventory
                     continue;
                 }
 
+                if (!assignedThisPass.Add(definition))
+                {
+                    discardedDuplicateEquipment++;
+                    continue;
+                }
+
                 _equipped[entry.Slot] = owned;
                 restoredCount++;
             }
 
-            return new RestoreResult(restoredCount, discardedMissingCatalog, discardedNotInInventory);
+            return new RestoreResult(restoredCount, discardedMissingCatalog, discardedNotInInventory, discardedUndefinedSlot, discardedSlotTypeMismatch, discardedDuplicateEquipment);
         }
     }
 }
