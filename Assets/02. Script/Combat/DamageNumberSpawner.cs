@@ -91,7 +91,16 @@ namespace Combat
 
             if (_config != null && _activeByTarget.Count >= _config.MaxActiveOnScreen)
             {
-                return;
+                // 상한에 걸렸을 때만(매 이벤트마다 무조건이 아니라) 죽은 항목을 정리한다 -
+                // 대부분의 대상은 한두 번 맞고 죽어 "다시 맞아서 병합 시도되며 정리되는" 경로
+                // 자체가 없으므로, 정리를 전적으로 TryMergeIntoActive의 실패 경로에만 맡기면
+                // 실제로는 화면에 하나도 안 떠 있는데도 Count가 영원히 상한에 고정된다.
+                PruneStaleEntries();
+
+                if (_activeByTarget.Count >= _config.MaxActiveOnScreen)
+                {
+                    return;
+                }
             }
 
             Vector3 spawnPosition = evt.Target.transform.position + RandomJitter();
@@ -134,6 +143,42 @@ namespace Combat
             active.Component.Show(evt.Target, evt.Target.transform.position, active.AggregatedAmount, active.IsCritical, evt.IsPoison);
 
             return true;
+        }
+
+        /// <summary>
+        /// 컴포넌트가 이미 비활성화됐거나(Lifetime 만료로 스스로 풀에 반납됨) 다른 대상 몫으로
+        /// 재사용된(OwnerTarget 불일치) 죽은 항목을 _activeByTarget에서 제거한다 - 실제로는 화면에
+        /// 보이지 않는데도 계속 "활성"으로 집계돼 MaxActiveOnScreen 상한을 영구히 채우던 실사용
+        /// 버그를 고친다. Dictionary를 순회하며 바로 제거하면 InvalidOperationException이 나므로
+        /// 대상 키를 먼저 모아 두 번째 패스에서 제거한다.
+        /// </summary>
+        private void PruneStaleEntries()
+        {
+            List<GameObject> staleKeys = null;
+
+            foreach (KeyValuePair<GameObject, AggregatedNumber> pair in _activeByTarget)
+            {
+                AggregatedNumber entry = pair.Value;
+                bool isStale = entry.Component == null
+                    || !entry.Component.gameObject.activeInHierarchy
+                    || entry.Component.OwnerTarget != pair.Key;
+
+                if (isStale)
+                {
+                    staleKeys ??= new List<GameObject>();
+                    staleKeys.Add(pair.Key);
+                }
+            }
+
+            if (staleKeys == null)
+            {
+                return;
+            }
+
+            foreach (GameObject key in staleKeys)
+            {
+                _activeByTarget.Remove(key);
+            }
         }
 
         private Vector3 RandomJitter()

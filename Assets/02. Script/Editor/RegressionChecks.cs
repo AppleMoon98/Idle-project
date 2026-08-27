@@ -287,6 +287,12 @@ namespace Editor
             Check("CharacterSeparation_PushesApartAndZeroAllocAfterWarmup",
                 CheckCharacterSeparationPushesApartAndZeroAlloc);
 
+            // --- 실사용 중 발견: DamageNumberSpawner가 죽은(수명 만료로 스스로 풀 반납된)
+            // _activeByTarget 항목을 정리하지 않아, 서로 다른 대상 MaxActiveOnScreen개가 누적되면
+            // 화면에 실제로는 하나도 안 떠 있어도 데미지 숫자가 영구히 표시되지 않던 문제 ---
+            Check("DamageNumberSpawner_PrunesStaleEntriesWhenCapReached_NewDamageStillShows",
+                CheckDamageNumberSpawnerPrunesStaleEntriesWhenCapReached);
+
             // --- 이슈 #12: HUD/팝업이 세로(1080x1920) 전제로만 설계돼 있는데 PlayerSettings가
             // 가로 자동회전까지 허용해 실기기 회전 시 레이아웃이 겹치던 문제 ---
             Check("PlayerSettings_Orientation_LockedToPortraitOnly", CheckPlayerSettingsOrientationLockedToPortrait);
@@ -2827,6 +2833,148 @@ namespace Editor
             {
                 if (goA != null) UnityEngine.Object.DestroyImmediate(goA);
                 if (goB != null) UnityEngine.Object.DestroyImmediate(goB);
+            }
+        }
+
+        /// <summary>
+        /// 실사용 중 발견된 버그 - DamageNumberSpawner.OnDamageApplied는 MaxActiveOnScreen 상한에
+        /// 걸리면 새 데미지 숫자 스폰을 조용히 건너뛰는데, TryMergeIntoActive는 병합 실패(대상이
+        /// 이미 죽어 컴포넌트가 비활성화된 경우 포함)를 그냥 false로만 반환할 뿐 _activeByTarget에서
+        /// 그 죽은 항목을 지우지 않았다 - 대부분의 대상은 한두 번 맞고 죽어 "같은 대상이 다시 맞아
+        /// 병합 시도되며 정리되는" 경로 자체가 없으므로, 서로 다른 대상 MaxActiveOnScreen개가
+        /// 누적되면 화면에 실제로는 하나도 안 떠 있어도 그 뒤로 데미지 숫자가 영구히 표시되지
+        /// 않게 된다. 실제 DamageNumber.prefab(Assets/04. Prefab/Units/DamageNumber.prefab)을
+        /// 그대로 로드해 Show()/Awake() 파이프라인까지 실제 게임과 동일하게 검증한다 - 합성
+        /// 프리팹으로는 TextMesh/MeshRenderer 머티리얼 배선이 없어 Show()가 NRE를 던진다.
+        /// </summary>
+        private static void CheckDamageNumberSpawnerPrunesStaleEntriesWhenCapReached()
+        {
+            GameObject prefab = AssetDatabase.LoadAssetAtPath<GameObject>("Assets/04. Prefab/Units/DamageNumber.prefab");
+
+            if (prefab == null)
+            {
+                throw new Exception("DamageNumber.prefab을 찾지 못함 - 경로가 바뀌었는지 확인");
+            }
+
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+            var events = new EventBus();
+            var staleTargets = new List<GameObject>();
+            var staleComponents = new List<GameObject>();
+            GameObject freshTarget = null;
+
+            try
+            {
+                var spawner = new DamageNumberSpawner(events, pool, prefab, poolCapacity: 2, poolMaxSize: 50);
+
+                FieldInfo configField = typeof(DamageNumberSpawner).GetField("_config", BindingFlags.NonPublic | BindingFlags.Instance);
+                var config = configField.GetValue(spawner) as DamageNumberConfigSO;
+
+                if (config == null)
+                {
+                    throw new Exception("DamageNumberSpawner._config가 null - DamageNumber.prefab에 DamageNumberConfigSO가 배선돼 있는지 확인");
+                }
+
+                int cap = config.MaxActiveOnScreen;
+
+                FieldInfo activeByTargetField = typeof(DamageNumberSpawner).GetField("_activeByTarget", BindingFlags.NonPublic | BindingFlags.Instance);
+                object activeByTarget = activeByTargetField.GetValue(spawner);
+                MethodInfo setItem = activeByTarget.GetType().GetMethod("set_Item");
+
+                Type aggregatedNumberType = typeof(DamageNumberSpawner).GetNestedType("AggregatedNumber", BindingFlags.NonPublic);
+                FieldInfo componentField = aggregatedNumberType.GetField("Component");
+                FieldInfo aggregatedAmountField = aggregatedNumberType.GetField("AggregatedAmount");
+                FieldInfo lastUpdateTimeField = aggregatedNumberType.GetField("LastUpdateTime");
+
+                // cap개의 "죽은" 항목을 직접 채워 넣는다 - 전부 비활성 GameObject 위의 실제
+                // DamageNumber 컴포넌트라 activeInHierarchy==false 하나만으로 스윕 대상이 된다
+                // (Show()/Awake()를 거칠 필요 없음 - 스윕은 활성 여부만 확인한다).
+                for (int i = 0; i < cap; i++)
+                {
+                    var target = new GameObject("RegressionCheck_DamageNumber_StaleTarget_" + i);
+                    staleTargets.Add(target);
+
+                    var staleGo = new GameObject("RegressionCheck_DamageNumber_Stale_" + i);
+                    staleComponents.Add(staleGo);
+                    DamageNumber staleComponent = staleGo.AddComponent<DamageNumber>();
+                    staleGo.SetActive(false);
+
+                    object aggregated = Activator.CreateInstance(aggregatedNumberType);
+                    componentField.SetValue(aggregated, staleComponent);
+                    aggregatedAmountField.SetValue(aggregated, 1f);
+                    lastUpdateTimeField.SetValue(aggregated, -9999f);
+
+                    setItem.Invoke(activeByTarget, new object[] { target, aggregated });
+                }
+
+                var countProperty = activeByTarget.GetType().GetProperty("Count");
+                int countBefore = (int)countProperty.GetValue(activeByTarget);
+
+                if (countBefore != cap)
+                {
+                    throw new Exception($"셋업 직후 _activeByTarget.Count가 {countBefore}(기대={cap})");
+                }
+
+                // 실제 프리팹/풀을 EnsurePool한 프리웜 인스턴스는 Edit Mode에서 Awake()가 자동으로
+                // 안 불리므로(section GY/GP와 동일한 함정), Get() 이전에 미리 리플렉션으로 호출해둔다.
+                FieldInfo poolsField = typeof(Managers.PoolManager).GetField("_pools", BindingFlags.NonPublic | BindingFlags.Instance);
+                var pools = (Dictionary<GameObject, ObjectPool<GameObject>>)poolsField.GetValue(pool);
+                ObjectPool<GameObject> objectPool = pools[prefab];
+                FieldInfo poolStackField = typeof(ObjectPool<GameObject>).GetField("_pool", BindingFlags.NonPublic | BindingFlags.Instance);
+                var prewarmedStack = (Stack<GameObject>)poolStackField.GetValue(objectPool);
+                MethodInfo damageNumberAwake = typeof(DamageNumber).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                foreach (GameObject prewarmed in prewarmedStack)
+                {
+                    damageNumberAwake.Invoke(prewarmed.GetComponent<DamageNumber>(), null);
+                }
+
+                // cap에 꽉 찬 상태에서 완전히 새로운 대상에게 데미지 이벤트를 발행한다 - 수정 전
+                // 코드였다면 여기서 조용히 무시돼 아무 것도 안 떴을 것이다.
+                freshTarget = new GameObject("RegressionCheck_DamageNumber_FreshTarget");
+                events.Publish(new Character.Events.DamageAppliedEvent(freshTarget, 5f, false, false));
+
+                int countAfter = (int)countProperty.GetValue(activeByTarget);
+
+                if (countAfter != 1)
+                {
+                    throw new Exception($"새 대상 스폰 후 _activeByTarget.Count가 {countAfter}(기대=1 - 죽은 항목 {cap}개가 전부 정리되고 새 항목 1개만 남아야 함) - 스윕이 동작하지 않은 것으로 보임(실사용 버그 재현)");
+                }
+
+                object getItem = activeByTarget.GetType().GetMethod("get_Item").Invoke(activeByTarget, new object[] { freshTarget });
+                var freshComponent = componentField.GetValue(getItem) as DamageNumber;
+
+                if (freshComponent == null || !freshComponent.gameObject.activeInHierarchy)
+                {
+                    throw new Exception("새 대상의 DamageNumber가 실제로 활성화되지 않음");
+                }
+
+                if (objectPool.CountActive != 1)
+                {
+                    throw new Exception($"실제 대여 중인 인스턴스 수가 {objectPool.CountActive}(기대=1)");
+                }
+            }
+            finally
+            {
+                foreach (GameObject go in staleTargets)
+                {
+                    if (go != null) UnityEngine.Object.DestroyImmediate(go);
+                }
+
+                foreach (GameObject go in staleComponents)
+                {
+                    if (go != null) UnityEngine.Object.DestroyImmediate(go);
+                }
+
+                if (freshTarget != null) UnityEngine.Object.DestroyImmediate(freshTarget);
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
             }
         }
 
