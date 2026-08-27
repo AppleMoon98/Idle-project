@@ -46,6 +46,13 @@ namespace Save
     /// 바로 그 프레임에 Tick이 한 번도 안 돈 채 앱이 중단되면 낡은 캐시가 영구 저장되는 버그가
     /// 있었다. pause/quit도 FlushPendingChanges()를 호출해 "더티 스냅샷 재구축 → 기록 → flush"를
     /// 항상 원자적으로 거치도록 통일했다.
+    ///
+    /// GitHub 이슈 #49 - FlushPendingChanges()는 더티 상태가 아니면 Save() 자체를 건너뛰므로,
+    /// 마지막 저장 이후 변경 사항이 전혀 없는 세션에서 pause/quit이 발생하면 LastActiveUnixTime이
+    /// 갱신되지 않아 다음 실행의 오프라인 경과 시간 계산에 그 활성 시간이 이중으로 포함됐다.
+    /// GameBootstrapper.OnApplicationPause/OnApplicationQuit은 이제 FlushPendingChanges() 대신
+    /// FlushForApplicationLifecycle()을 호출한다 - 더티 상태가 아니었더라도 LastActiveUnixTime만은
+    /// 반드시 "지금"으로 갱신한다. Tick()의 매 프레임 경로는 그대로 FlushPendingChanges()만 쓴다.
     /// </summary>
     public sealed class SaveService : IManager, IService, ITickable
     {
@@ -528,6 +535,44 @@ namespace Save
             {
                 Save();
             }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #49 - 앱 생명주기 종료 지점(pause/quit) 전용 진입점. FlushPendingChanges()가
+        /// 이미 더티 상태라 Save()를 호출했다면 그 안에서 LastActiveUnixTime도 함께 "지금"으로
+        /// 갱신되지만(Save()의 기존 동작), 마지막 저장 이후 변경 사항이 전혀 없어 더티 플래그가
+        /// 계속 false인 채로 앱이 백그라운드로 가거나 종료되면 LastActiveUnixTime이 아예 갱신되지
+        /// 않는다 - 그러면 실제로 앱을 켜 두고 있던 활성 시간이 다음 실행의 오프라인 경과 시간
+        /// 계산(Offline.OfflineProgressService.CaptureBudget)에 이중으로 포함된다(실제 GitHub
+        /// 이슈로 제보됨: 저장 직후 변경 없이 앱을 켜 뒀다가 종료 → 다음 실행에서 그 활성 시간이
+        /// 오프라인 경과 시간에 포함됨). 이 메서드는 그 경우에도 타임스탬프만은 반드시 갱신하도록
+        /// 보장한다.
+        ///
+        /// **Tick()의 매 프레임 호출(FlushPendingChanges 직접 호출) 경로에는 절대 이 보정을 넣지
+        /// 않는다** - 매 프레임마다 PlayerPrefs.Save()(디스크 flush)를 강제하면 심각한 성능
+        /// 저하가 되기 때문(이슈 #21/#28이 확립한 디바운스 원칙과 정면 배치) - 오직 드물게
+        /// 발생하는 pause/quit 생명주기 지점에서만 이 보정이 필요하고 안전하다.
+        /// </summary>
+        public void FlushForApplicationLifecycle()
+        {
+            bool wasDirtyBeforeFlush = _isDirty;
+
+            FlushPendingChanges();
+
+            if (!wasDirtyBeforeFlush)
+            {
+                TouchLastActiveTime();
+            }
+        }
+
+        /// <summary>
+        /// LastActiveUnixTime만 "지금"으로 갱신하고 즉시 디스크에 flush한다 - 다른 어떤 필드도
+        /// 건드리지 않는다(FlushForApplicationLifecycle 문서 참고).
+        /// </summary>
+        private void TouchLastActiveTime()
+        {
+            PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+            PlayerPrefs.Save();
         }
 
         /// <summary>

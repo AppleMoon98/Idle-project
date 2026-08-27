@@ -459,9 +459,12 @@ namespace Core
         /// </summary>
         private void OnApplicationPause(bool pauseStatus)
         {
+            // GitHub 이슈 #49 - FlushPendingChanges()는 더티 상태가 아니면 LastActiveUnixTime을
+            // 갱신하지 않는다. pause/quit은 FlushForApplicationLifecycle()을 써서 변경 사항이
+            // 없어도 마지막 활동 시각만은 반드시 갱신되도록 한다.
             if (pauseStatus && Services != null && Services.TryGet(out SaveService saveService))
             {
-                saveService.FlushPendingChanges();
+                saveService.FlushForApplicationLifecycle();
             }
         }
 
@@ -469,7 +472,7 @@ namespace Core
         {
             if (Services != null && Services.TryGet(out SaveService saveService))
             {
-                saveService.FlushPendingChanges();
+                saveService.FlushForApplicationLifecycle();
             }
         }
 

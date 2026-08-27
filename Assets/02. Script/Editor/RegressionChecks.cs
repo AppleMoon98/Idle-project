@@ -340,6 +340,18 @@ namespace Editor
             Check("InventoryService_RestoreSnapshot_ClampsEnhancementLevelToMax_KeepsCountIntact",
                 CheckInventoryServiceRestoreSnapshotClampsEnhancementLevelToMax);
 
+            // --- 이슈 #49: 변경 없는(더티가 아닌) 세션에서 pause/quit이 FlushPendingChanges만
+            // 호출해 LastActiveUnixTime이 갱신되지 않고, 다음 실행의 오프라인 경과 시간 계산에
+            // 실제 활성 시간이 이중으로 포함되던 문제 ---
+            Check("SaveService_FlushForApplicationLifecycle_TouchesLastActiveTimeEvenWhenNotDirty",
+                CheckSaveServiceFlushForApplicationLifecycleTouchesTimeWhenNotDirty);
+            Check("SaveService_FlushForApplicationLifecycle_DirtySessionStillSavesNormallyAndTouchesTime",
+                CheckSaveServiceFlushForApplicationLifecycleDirtySessionStillSaves);
+            Check("GameBootstrapper_OnApplicationPauseAndQuit_RouteThroughFlushForApplicationLifecycle",
+                CheckGameBootstrapperPauseAndQuitRouteThroughFlushForApplicationLifecycle);
+            Check("OfflineProgressService_CaptureBudget_DoesNotDoubleCountActiveSessionTimeAfterCleanPauseQuit",
+                CheckOfflineProgressServiceDoesNotDoubleCountActiveSessionTime);
+
             // --- 이슈 #32: SkillLoadoutService.RestoreSnapshot이 TryEquip과 달리 레벨 1
             // 이상/중복 장착 금지를 검증하지 않아 손상된 저장 데이터가 미습득·중복 장착을
             // 그대로 런타임 상태로 만들던 문제 ---
@@ -4048,6 +4060,271 @@ namespace Editor
                 {
                     UnityEngine.Object.DestroyImmediate(catalog);
                 }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #49의 재현 그대로 - 마지막 저장 이후 변경 사항이 없어 _isDirty가 계속
+        /// false인 세션에서도 FlushForApplicationLifecycle()이 LastActiveUnixTime만은 반드시
+        /// "지금"으로 갱신하는지 확인한다. FlushPendingChanges()만으로는 _isDirty가 false라
+        /// Save() 자체가 건너뛰어져 LastActiveUnixTime이 갱신되지 않는 것이 이 이슈의 근본
+        /// 원인이었다.
+        ///
+        /// SaveService.LastActiveUnixTimeKey는 실제 PlayerPrefs 키("Save.LastActiveUnixTime")를
+        /// 그대로 쓰므로, 이 개발 세션의 실제 저장 데이터를 건드리지 않도록 기존 값을 리플렉션으로
+        /// 백업해뒀다가 finally에서 반드시 복원한다(GoldBigKey를 리플렉션으로 얻는 기존 검사와
+        /// 같은 관례 - 리터럴 문자열 하드코딩 대신 실제 상수를 그대로 조회해 드리프트를 막는다).
+        /// </summary>
+        private static void CheckSaveServiceFlushForApplicationLifecycleTouchesTimeWhenNotDirty()
+        {
+            FieldInfo keyField = typeof(SaveService).GetField("LastActiveUnixTimeKey", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (keyField == null)
+            {
+                throw new Exception("SaveService.LastActiveUnixTimeKey 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            var key = (string)keyField.GetValue(null);
+            string backup = PlayerPrefs.GetString(key, "0");
+
+            try
+            {
+                long staleTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 3600;
+                PlayerPrefs.SetString(key, staleTimestamp.ToString());
+                PlayerPrefs.Save();
+
+                var events = new EventBus();
+                var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+                // Initialize()를 부르지 않은 갓 생성된 인스턴스는 _isDirty가 기본값(false)이다 -
+                // "변경 사항이 전혀 없는 세션"을 정확히 흉내낸다.
+                saveService.FlushForApplicationLifecycle();
+
+                long updatedTimestamp = long.Parse(PlayerPrefs.GetString(key, "0"));
+                long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+                if (staleTimestamp == updatedTimestamp)
+                {
+                    throw new Exception("더티 상태가 아닌데도 LastActiveUnixTime이 갱신되지 않음 - GitHub 이슈 #49 재현");
+                }
+
+                if (Math.Abs(nowUnix - updatedTimestamp) > 5)
+                {
+                    throw new Exception($"갱신된 LastActiveUnixTime({updatedTimestamp})이 현재 시각({nowUnix})과 5초 이상 차이남");
+                }
+            }
+            finally
+            {
+                PlayerPrefs.SetString(key, backup);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #49 - 새로 추가한 FlushForApplicationLifecycle()이 기존 더티 세션 경로(이슈
+        /// #28이 이미 검증한 "MarkDirty → FlushPendingChanges → Save() 실행 → _isDirty 해제")를
+        /// 깨뜨리지 않았는지 확인하는 회귀 방지 검사. Initialize()로 실제 저장 데이터를 먼저
+        /// 로드해 내부 필드를 채운 뒤(값 자체는 바꾸지 않음) MarkDirty()만 호출하는 "안전한
+        /// 라운드트립" - Save()가 실행돼도 골드 등 다른 필드는 원래 값 그대로 다시 쓰여 실제
+        /// 저장 데이터가 손상되지 않는다(이슈 #28의 CheckSaveServiceFlushActuallyPersistsSafely와
+        /// 동일한 안전장치). LastActiveUnixTime만은 Save() 자신의 기존 동작대로 "지금"으로
+        /// 갱신되는지 함께 확인한다.
+        /// </summary>
+        private static void CheckSaveServiceFlushForApplicationLifecycleDirtySessionStillSaves()
+        {
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+            FieldInfo goldKeyField = typeof(SaveService).GetField("GoldBigKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var goldKey = (string)goldKeyField.GetValue(null);
+            string goldBefore = PlayerPrefs.GetString(goldKey, "");
+
+            FieldInfo lastActiveKeyField = typeof(SaveService).GetField("LastActiveUnixTimeKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var lastActiveKey = (string)lastActiveKeyField.GetValue(null);
+
+            try
+            {
+                saveService.Initialize();
+
+                InvokeVoidHandler(saveService, "MarkDirty");
+
+                if (!(bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("MarkDirty() 호출 후 _isDirty가 true가 아님");
+                }
+
+                saveService.FlushForApplicationLifecycle();
+
+                if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("더티 상태에서 FlushForApplicationLifecycle()을 호출했는데도 Save()가 실행되지 않음(_isDirty가 여전히 true)");
+                }
+
+                string goldAfter = PlayerPrefs.GetString(goldKey, "");
+
+                if (goldAfter != goldBefore)
+                {
+                    throw new Exception($"Save()가 실행되며 골드 값이 바뀜(before={goldBefore}, after={goldAfter}) - Initialize()로 로드한 값과 다른 값을 씀");
+                }
+
+                long updatedTimestamp = long.Parse(PlayerPrefs.GetString(lastActiveKey, "0"));
+                long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+
+                if (Math.Abs(nowUnix - updatedTimestamp) > 5)
+                {
+                    throw new Exception($"더티 세션의 정상 Save() 경로인데도 LastActiveUnixTime({updatedTimestamp})이 현재 시각({nowUnix})과 5초 이상 차이남");
+                }
+            }
+            finally
+            {
+                saveService.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #49의 실제 회귀 지점 - GameBootstrapper.OnApplicationPause/OnApplicationQuit이
+        /// FlushPendingChanges()가 아니라 FlushForApplicationLifecycle()을 호출하는지, 실제 메서드를
+        /// 리플렉션으로 직접 실행해 확인한다. 이슈 #28의
+        /// CheckGameBootstrapperLifecycleUsesFlushPendingChanges와 동일한 격리 패턴(GameObject 비활성
+        /// 유지, 정적 Services를 합성 ServiceLocator로 임시 교체)을 재사용하되, 이번엔 _isDirty를
+        /// false로 고정해뒀을 때(=FlushPendingChanges()만으로는 아무 것도 안 바뀌는 상태)도
+        /// LastActiveUnixTime이 실제로 갱신되는지를 확인한다 - 수정 전 코드였다면 이 시나리오에서
+        /// 절대 갱신되지 않았을 것이므로, 이 자체가 GameBootstrapper가 새 메서드를 호출하고 있다는
+        /// 직접적인 증거가 된다.
+        /// </summary>
+        private static void CheckGameBootstrapperPauseAndQuitRouteThroughFlushForApplicationLifecycle()
+        {
+            FieldInfo lastActiveKeyField = typeof(SaveService).GetField("LastActiveUnixTimeKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var lastActiveKey = (string)lastActiveKeyField.GetValue(null);
+            string backup = PlayerPrefs.GetString(lastActiveKey, "0");
+
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+            SetPrivateFieldOnPlainObject(saveService, "_isDirty", false);
+
+            var locator = new ServiceLocator();
+            locator.Register(saveService);
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+            GameObject go = null;
+
+            try
+            {
+                servicesProperty.SetValue(null, locator);
+
+                go = new GameObject("RegressionCheck_GameBootstrapper_Lifecycle_Issue49");
+                go.SetActive(false);
+                GameBootstrapper bootstrapper = go.AddComponent<GameBootstrapper>();
+
+                MethodInfo pauseMethod = typeof(GameBootstrapper).GetMethod("OnApplicationPause", BindingFlags.NonPublic | BindingFlags.Instance);
+                MethodInfo quitMethod = typeof(GameBootstrapper).GetMethod("OnApplicationQuit", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                if (pauseMethod == null || quitMethod == null)
+                {
+                    throw new Exception("GameBootstrapper.OnApplicationPause/OnApplicationQuit 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                }
+
+                long staleTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 3600;
+                PlayerPrefs.SetString(lastActiveKey, staleTimestamp.ToString());
+                PlayerPrefs.Save();
+
+                pauseMethod.Invoke(bootstrapper, new object[] { true });
+
+                long afterPause = long.Parse(PlayerPrefs.GetString(lastActiveKey, "0"));
+
+                if (afterPause == staleTimestamp)
+                {
+                    throw new Exception("OnApplicationPause(true) 이후에도 LastActiveUnixTime이 갱신되지 않음 - FlushPendingChanges()만 호출하고 있을 가능성(GitHub 이슈 #49 재현)");
+                }
+
+                // OnApplicationQuit도 동일 경로를 타는지 별도로 확인 - 다시 오래된 값으로 되돌린다.
+                PlayerPrefs.SetString(lastActiveKey, staleTimestamp.ToString());
+                PlayerPrefs.Save();
+
+                quitMethod.Invoke(bootstrapper, null);
+
+                long afterQuit = long.Parse(PlayerPrefs.GetString(lastActiveKey, "0"));
+
+                if (afterQuit == staleTimestamp)
+                {
+                    throw new Exception("OnApplicationQuit() 이후에도 LastActiveUnixTime이 갱신되지 않음 - FlushPendingChanges()만 호출하고 있을 가능성(GitHub 이슈 #49 재현)");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+
+                if (go != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(go);
+                }
+
+                saveService.Shutdown();
+
+                PlayerPrefs.SetString(lastActiveKey, backup);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #49 완료 조건 - "정상 종료 후 활성 시간이 오프라인 보상에 중복 포함되지
+        /// 않음"의 end-to-end 검증. Offline.OfflineProgressService.CaptureBudget()이 실제로 쓰는
+        /// 공식(elapsedSeconds = now - save.LastActiveUnixTime, OfflineProgressService.cs 78-79행)을
+        /// 그대로 재현해, FlushForApplicationLifecycle() 직후 저장된 LastActiveUnixTime을
+        /// SaveService.Load()로 다시 읽었을 때 경과 시간이 거의 0(수 초 이내)임을 확인한다 -
+        /// 수정 전이었다면 이 값이 원래 저장돼 있던 오래된(예: 1시간 전) 타임스탬프 그대로
+        /// 남아있어, 실제로는 활성 상태였던 시간이 그대로 "오프라인 경과 시간"으로 계산됐을
+        /// 것이다.
+        ///
+        /// OfflineProgressService.CaptureBudget() 자체를 직접 호출하지 않는 이유 - 그 메서드는
+        /// elapsedSeconds가 정수 초 단위로 우연히 정확히 0이 되면(같은 UTC 초 안에서 타임스탬프
+        /// 기록과 검사가 모두 일어나는 경우, 이 검사처럼 두 시점이 수십 ms 안에 몰려 있으면 실제로
+        /// 흔히 발생한다) budget&lt;=0f로 조기 반환해 _hasPendingReward 자체가 false가 되는
+        /// 완전히 무관한 타이밍 경합이 있다 - 이 이슈의 수정 대상과 무관한 그 경합 때문에 검사가
+        /// 이따금 실패하는(flaky) 것을 피하려고, OfflineProgressService/OfflineStageSimulator/
+        /// StageCatalogSO 등 부가 인프라 없이 저장된 값과 공식만으로 직접 검증한다.
+        /// </summary>
+        private static void CheckOfflineProgressServiceDoesNotDoubleCountActiveSessionTime()
+        {
+            FieldInfo lastActiveKeyField = typeof(SaveService).GetField("LastActiveUnixTimeKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var lastActiveKey = (string)lastActiveKeyField.GetValue(null);
+            string backup = PlayerPrefs.GetString(lastActiveKey, "0");
+
+            try
+            {
+                // 이슈 재현: 저장 직후 변경 없이 1시간 동안 앱을 켜 둔 상태를 흉내낸다.
+                long staleTimestamp = DateTimeOffset.UtcNow.ToUnixTimeSeconds() - 3600;
+                PlayerPrefs.SetString(lastActiveKey, staleTimestamp.ToString());
+                PlayerPrefs.Save();
+
+                var events = new EventBus();
+                var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+                // 변경 사항 없는 세션(_isDirty 기본값 false)에서의 pause/quit을 그대로 흉내낸다.
+                saveService.FlushForApplicationLifecycle();
+
+                // OfflineProgressService.CaptureBudget()이 실제로 쓰는 것과 정확히 같은 공식.
+                SaveData save = saveService.Load();
+                long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                float elapsedSeconds = Mathf.Max(0f, nowUnix - save.LastActiveUnixTime);
+
+                if (elapsedSeconds >= 5f)
+                {
+                    throw new Exception($"FlushForApplicationLifecycle() 직후(변경 없는 세션)인데도 오프라인 경과 시간 공식이 {elapsedSeconds}초를 반환함(기대 <5초) - 활성 세션 시간이 다음 실행에서 오프라인으로 이중 계산됨(GitHub 이슈 #49 재현)");
+                }
+            }
+            finally
+            {
+                PlayerPrefs.SetString(lastActiveKey, backup);
+                PlayerPrefs.Save();
             }
         }
 
