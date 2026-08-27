@@ -550,7 +550,12 @@ namespace Save
                 Debug.LogWarning($"[SaveService] 보유 장비 복원 중 {inventoryResult.TotalDiscarded}건을 버림(카탈로그 없음={inventoryResult.DiscardedMissingCatalogEntry}, 음수 수량={inventoryResult.DiscardedNegativeCount}, 음수 강화 레벨={inventoryResult.DiscardedNegativeEnhancementLevel}) - 복원={inventoryResult.RestoredCount}건.");
             }
 
-            _equippedGear.RestoreSnapshot(blob.Equipped, _equipmentCatalog, _inventory);
+            EquippedGearService.RestoreResult equippedResult = _equippedGear.RestoreSnapshot(blob.Equipped, _equipmentCatalog, _inventory);
+
+            if (equippedResult.HasDiscardedEntries)
+            {
+                Debug.LogWarning($"[SaveService] 장착 슬롯 복원 중 {equippedResult.TotalDiscarded}건을 버림(카탈로그 없음={equippedResult.DiscardedMissingCatalogEntry}, 인벤토리 미보유={equippedResult.DiscardedNotInInventory}) - 복원={equippedResult.RestoredCount}건.");
+            }
         }
 
         /// <summary>

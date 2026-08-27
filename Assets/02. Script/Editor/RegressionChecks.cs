@@ -316,6 +316,14 @@ namespace Editor
             Check("EquipmentEnhancementService_TryEnhance_NegativeDuplicatesRequiredConfig_DoesNotInflateCount",
                 CheckEquipmentEnhancementServiceMisconfiguredNegativeCostDoesNotInflate);
 
+            // --- 이슈 #46: InventoryService/EquippedGearService.RestoreSnapshot이 기존 상태를
+            // 비우지 않아, 빈 스냅샷이나 다른 스냅샷으로 다시 복원해도(새 게임/계정 전환/테스트
+            // 재초기화) 이전 데이터가 그대로 남던 문제 ---
+            Check("InventoryService_RestoreSnapshot_ClearsExistingEntriesBeforeRestoring",
+                CheckInventoryServiceRestoreSnapshotClearsExistingEntries);
+            Check("EquippedGearService_RestoreSnapshot_ClearsExistingSlotsBeforeRestoring",
+                CheckEquippedGearServiceRestoreSnapshotClearsExistingSlots);
+
             // --- 이슈 #32: SkillLoadoutService.RestoreSnapshot이 TryEquip과 달리 레벨 1
             // 이상/중복 장착 금지를 검증하지 않아 손상된 저장 데이터가 미습득·중복 장착을
             // 그대로 런타임 상태로 만들던 문제 ---
@@ -3459,6 +3467,194 @@ namespace Editor
                 if (validEquipment != null)
                 {
                     UnityEngine.Object.DestroyImmediate(validEquipment);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #46의 재현 그대로 - 장비 1개를 복원한 뒤 빈 스냅샷(또는 null 스냅샷)으로
+        /// 다시 복원해도(새 게임/계정 전환/테스트 재초기화) 보유 라인 수가 0으로 돌아가는지
+        /// 확인한다. 수정 전에는 RestoreSnapshot이 _owned를 전혀 비우지 않아 새 스냅샷에 없는
+        /// 라인이 그대로 남아있었다.
+        /// </summary>
+        private static void CheckInventoryServiceRestoreSnapshotClearsExistingEntries()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+
+            EquipmentSO equipmentA = null;
+            EquipmentCatalogSO catalog = null;
+
+            try
+            {
+                equipmentA = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(equipmentA, "stableId", "issue46-a");
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { equipmentA });
+
+                var firstSnapshot = new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-a", Count = 3, EnhancementLevel = 1 },
+                };
+
+                inventory.RestoreSnapshot(firstSnapshot, catalog);
+
+                if (inventory.Items.Count != 1)
+                {
+                    throw new Exception($"1차 복원 직후 보유 라인 수가 {inventory.Items.Count}(기대=1)");
+                }
+
+                InventoryService.RestoreResult emptyResult = inventory.RestoreSnapshot(Array.Empty<InventoryService.OwnedEquipmentSnapshot>(), catalog);
+
+                if (inventory.Items.Count != 0 || emptyResult.RestoredCount != 0)
+                {
+                    throw new Exception($"빈 스냅샷 복원 후에도 보유 라인이 {inventory.Items.Count}개 남음(기대=0) - GitHub 이슈 #46 재현");
+                }
+
+                if (inventory.TryGet(equipmentA, out _))
+                {
+                    throw new Exception("빈 스냅샷 복원 후에도 이전 항목을 여전히 조회할 수 있음");
+                }
+
+                // null 스냅샷(파싱 실패/저장 기록 없음)으로 복원해도 마찬가지로 비워져야 한다.
+                inventory.RestoreSnapshot(firstSnapshot, catalog);
+                inventory.RestoreSnapshot(null, catalog);
+
+                if (inventory.Items.Count != 0)
+                {
+                    throw new Exception($"null 스냅샷 복원 후에도 보유 라인이 {inventory.Items.Count}개 남음(기대=0)");
+                }
+            }
+            finally
+            {
+                inventory.Shutdown();
+
+                if (equipmentA != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(equipmentA);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #46의 재현 그대로 - 정상 슬롯(무기)과, 다시 복원할 때 검증에 걸리는/새
+        /// 스냅샷에 아예 없는 "비정상" 슬롯(무기·방어구)을 각각 확인한다. 수정 전에는
+        /// EquippedGearService.RestoreSnapshot이 _equipped를 비우지 않아, 새 스냅샷에 없는
+        /// 슬롯도 검증 실패한 슬롯도 전부 이전 장착 참조를 그대로 유지했다(인벤토리 쪽을 먼저
+        /// 정상적으로 비웠어도 _equipped만 댕글링 참조로 남는 더 심각한 경우 포함).
+        /// </summary>
+        private static void CheckEquippedGearServiceRestoreSnapshotClearsExistingSlots()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+            var equippedGear = new EquippedGearService(events);
+            equippedGear.Initialize();
+
+            EquipmentSO weapon = null;
+            EquipmentSO armor = null;
+            EquipmentCatalogSO catalog = null;
+
+            try
+            {
+                weapon = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(weapon, "stableId", "issue46-weapon");
+                SetPrivateField(weapon, "equipmentType", EquipmentType.Weapon);
+
+                armor = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(armor, "stableId", "issue46-armor");
+                SetPrivateField(armor, "equipmentType", EquipmentType.Armor);
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { weapon, armor });
+
+                inventory.RestoreSnapshot(new[]
+                {
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-weapon", Count = 1, EnhancementLevel = 0 },
+                    new InventoryService.OwnedEquipmentSnapshot { StableId = "issue46-armor", Count = 1, EnhancementLevel = 0 },
+                }, catalog);
+
+                var firstEquipped = new[]
+                {
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Weapon, StableId = "issue46-weapon" },
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Armor, StableId = "issue46-armor" },
+                };
+
+                equippedGear.RestoreSnapshot(firstEquipped, catalog, inventory);
+
+                if (equippedGear.GetEquipped(EquipmentType.Weapon) == null || equippedGear.GetEquipped(EquipmentType.Armor) == null)
+                {
+                    throw new Exception("1차 복원 직후 두 슬롯이 모두 채워지지 않음");
+                }
+
+                EquippedGearService.RestoreResult emptyResult = equippedGear.RestoreSnapshot(Array.Empty<EquippedGearService.EquippedSnapshotEntry>(), catalog, inventory);
+
+                if (equippedGear.GetEquipped(EquipmentType.Weapon) != null)
+                {
+                    throw new Exception("빈 장착 스냅샷 복원 후에도 무기 슬롯에 이전 장비가 남음 - GitHub 이슈 #46 재현");
+                }
+
+                if (equippedGear.GetEquipped(EquipmentType.Armor) != null)
+                {
+                    throw new Exception("빈 장착 스냅샷 복원 후에도 방어구 슬롯에 이전 장비가 남음 - GitHub 이슈 #46 재현");
+                }
+
+                if (emptyResult.RestoredCount != 0)
+                {
+                    throw new Exception($"빈 스냅샷인데 복원 건수가 {emptyResult.RestoredCount}(기대=0)");
+                }
+
+                // "비정상 슬롯" 재현: 무기는 검증에 걸리는(카탈로그에 없는) 항목, 방어구는 새
+                // 스냅샷에 아예 등장하지 않음 - 두 경우 모두 이전 값이 남지 않고 비어있어야 한다.
+                equippedGear.RestoreSnapshot(firstEquipped, catalog, inventory);
+
+                var abnormalSnapshot = new[]
+                {
+                    new EquippedGearService.EquippedSnapshotEntry { Slot = EquipmentType.Weapon, StableId = "issue46-unknown" },
+                };
+
+                EquippedGearService.RestoreResult abnormalResult = equippedGear.RestoreSnapshot(abnormalSnapshot, catalog, inventory);
+
+                if (equippedGear.GetEquipped(EquipmentType.Weapon) != null)
+                {
+                    throw new Exception("검증 실패한 슬롯 항목이 이전 장착을 그대로 남김(댕글링 참조) - GitHub 이슈 #46 재현");
+                }
+
+                if (equippedGear.GetEquipped(EquipmentType.Armor) != null)
+                {
+                    throw new Exception("새 스냅샷에 없는 슬롯이 이전 장착을 그대로 남김 - GitHub 이슈 #46 재현");
+                }
+
+                if (abnormalResult.DiscardedMissingCatalogEntry != 1 || abnormalResult.RestoredCount != 0)
+                {
+                    throw new Exception($"비정상 슬롯 진단 결과가 예상과 다름(폐기={abnormalResult.DiscardedMissingCatalogEntry}, 복원={abnormalResult.RestoredCount})");
+                }
+            }
+            finally
+            {
+                equippedGear.Shutdown();
+                inventory.Shutdown();
+
+                if (weapon != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weapon);
+                }
+
+                if (armor != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(armor);
                 }
 
                 if (catalog != null)

@@ -193,9 +193,18 @@ namespace Inventory
         /// 손상된 항목을 다루는 것과 동일한 "안전한 쪽으로 완전히 버림" 관례) 나머지 유효 항목은
         /// 그대로 계속 복원한다. Count/EnhancementLevel이 정확히 0인 항목은 유효하다(0은 정상
         /// 상태 - 위 TryConsume의 doc comment 참고).
+        ///
+        /// GitHub 이슈 #46 - 매 호출마다 기존 _owned를 먼저 비운 뒤 스냅샷 내용으로 다시 채운다
+        /// (snapshot이 null이어도 마찬가지 - 예전엔 이 경우 아무것도 안 건드리고 그대로 반환했다).
+        /// 이전에는 새 스냅샷에 없는 라인이 그대로 남아있었다 - 장비 1개를 복원한 뒤 빈 스냅샷을
+        /// 다시 복원해도(새 게임/계정 전환/테스트 재초기화) 개수가 0으로 안 돌아가고 이전 상태가
+        /// 계속 누적되는 문제였다. 다른 모든 RestoreSnapshot(SoldierRosterService 등, 이슈 #26/#32)이
+        /// 이미 따르는 "먼저 비우고 다시 채운다" 관례를 여기도 마저 적용한 것.
         /// </summary>
         public RestoreResult RestoreSnapshot(OwnedEquipmentSnapshot[] snapshot, EquipmentCatalogSO catalog)
         {
+            _owned.Clear();
+
             if (snapshot == null)
             {
                 return new RestoreResult(0, 0, 0, 0);

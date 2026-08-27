@@ -83,28 +83,74 @@ namespace Inventory
         }
 
         /// <summary>
+        /// EquippedGearService.RestoreSnapshot의 폐기 건수를 구조화된 결과로 돌려준다
+        /// (Inventory.InventoryService.RestoreResult와 동일한 형태, GitHub 이슈 #46).
+        /// </summary>
+        public readonly struct RestoreResult
+        {
+            public readonly int RestoredCount;
+            public readonly int DiscardedMissingCatalogEntry;
+            public readonly int DiscardedNotInInventory;
+
+            public RestoreResult(int restoredCount, int discardedMissingCatalogEntry, int discardedNotInInventory)
+            {
+                RestoredCount = restoredCount;
+                DiscardedMissingCatalogEntry = discardedMissingCatalogEntry;
+                DiscardedNotInInventory = discardedNotInInventory;
+            }
+
+            public int TotalDiscarded => DiscardedMissingCatalogEntry + DiscardedNotInInventory;
+
+            public bool HasDiscardedEntries => TotalDiscarded > 0;
+        }
+
+        /// <summary>
         /// 세이브 스냅샷으로 장착 상태를 복원한다. inventory가 해당 라인을 보유하고 있어야 복원된다
         /// (InventoryService.RestoreSnapshot을 먼저 호출해야 함). 게임플레이 장착이 아니므로
         /// EquipmentEquippedEvent는 발행하지 않는다.
+        ///
+        /// GitHub 이슈 #46 - 매 호출마다 기존 _equipped를 먼저 비운 뒤 스냅샷 내용으로 다시
+        /// 채운다(snapshot이 null이어도 마찬가지). 예전엔 비우지 않아 두 가지 방식으로 이전
+        /// 데이터가 남았다: ① 새 스냅샷에 아예 없는 슬롯은 이전 장착이 그대로 유지됨 ② 새
+        /// 스냅샷의 슬롯 항목이 유효성 검사(카탈로그 없음/인벤토리 미보유)에 걸려 건너뛰어져도
+        /// 그 슬롯은 이전 장착을 그대로 유지함 - 특히 ②는 InventoryService.RestoreSnapshot을
+        /// 먼저 정상적으로 비웠어도, 그 슬롯이 가리키던 OwnedEquipment가 이제 _owned에 존재하지
+        /// 않는데 _equipped만 여전히 그 참조를 들고 있는 댕글링 상태로 이어졌다.
         /// </summary>
-        public void RestoreSnapshot(EquippedSnapshotEntry[] snapshot, EquipmentCatalogSO catalog, InventoryService inventory)
+        public RestoreResult RestoreSnapshot(EquippedSnapshotEntry[] snapshot, EquipmentCatalogSO catalog, InventoryService inventory)
         {
+            _equipped.Clear();
+
             if (snapshot == null)
             {
-                return;
+                return new RestoreResult(0, 0, 0);
             }
+
+            int restoredCount = 0;
+            int discardedMissingCatalog = 0;
+            int discardedNotInInventory = 0;
 
             foreach (EquippedSnapshotEntry entry in snapshot)
             {
                 EquipmentSO definition = catalog.FindByStableId(entry.StableId);
 
-                if (definition == null || !inventory.TryGet(definition, out OwnedEquipment owned))
+                if (definition == null)
                 {
+                    discardedMissingCatalog++;
+                    continue;
+                }
+
+                if (!inventory.TryGet(definition, out OwnedEquipment owned))
+                {
+                    discardedNotInInventory++;
                     continue;
                 }
 
                 _equipped[entry.Slot] = owned;
+                restoredCount++;
             }
+
+            return new RestoreResult(restoredCount, discardedMissingCatalog, discardedNotInInventory);
         }
     }
 }
