@@ -72,8 +72,14 @@ Assets/
 @docs/implementation-log-2.md
 @docs/implementation-log-3.md
 @docs/implementation-log-4.md
+@docs/implementation-log-5.md
+@docs/implementation-log-6.md
+@docs/implementation-log-7.md
+@docs/implementation-log-8.md
 
 **문서화 정책 (개발 일지 아님, 협업용 레퍼런스임):** 각 섹션은 "이 시스템이 지금 어떻게 동작하는가"만 남긴다 — 클래스/파일 구조, 책임, 공개 API, 다른 시스템과의 연결, 설계상 이유(왜 이렇게 만들었는지), 그리고 앞으로도 다시 발목 잡을 수 있는 구조적 함정(Unity API 특이 동작, 순서 의존성, 모호성 트랩 등)만 기록한다. "execute_code로 이런 값을 확인했다", "Play 모드에서 검증했다" 같은 검증/테스트 서술은 남기지 않는다 — 그건 결과가 아니라 과정이다. 이후 섹션이 이전 섹션의 기능을 완전히 대체했다면 이전 섹션은 삭제하고 현재 상태만 하나의 섹션에 남긴다(레터링은 건드리지 않음 — 중간에 빈 문자가 생겨도 상관없음).
+
+**분할 정책:** 이 로그 파일들 중 마지막 것(현재는 `implementation-log-8.md`)이 새 섹션을 추가하는 대상이다. 파일 하나가 지나치게 커지면(대략 200~300KB 이상) 그 파일 끝에 계속 이어붙이지 말고 `implementation-log-(N+1).md`를 새로 만들어 분할한다 — 위 @import 목록에도 새 파일을 추가해야 한다. 각 로그 파일 맨 위에 이 파일이 어느 섹션 범위를 담고 있고 다음 섹션이 어느 파일에 이어지는지 명시한다(예시는 기존 파일들의 첫 줄 참고). 2026-08-27에 `implementation-log-4.md` 하나가 500KB를 넘겨 BZ~DZ(4부)/EA~EZ(5부)/FA~FZ(6부)/GA~GZ(7부)/HA~(8부) 다섯으로 재분할된 것이 선례다 — 섹션 내용 자체는 전혀 바뀌지 않고 파일 경계만 옮겨졌다.
 
 ## 4. Execution Workflow (Strict Rule)
 Do NOT write full implementation code at once. Follow this iterative approval process:
