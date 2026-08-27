@@ -94,9 +94,14 @@ namespace Soldier
         /// 현재 스폰된 병사 전부를 잠깐 비활성화(true로 복귀 전까지 전투/이동/리스폰 판정 정지)한다.
         /// 병사 동행이 금지된 콘텐츠(예: 던전 오버레이) 진입/종료 시 사용한다. 아직 한 번도
         /// 스폰되지 않았으면(예: 랭크 미달) 아무 일도 하지 않는다.
+        /// raidCoordinator.SetDungeonHidden도 함께 호출한다(GitHub 이슈 #41) — 그렇지 않으면
+        /// 습격 전술 타이머가 던전 안에서도 계속 돌아 병사가 되살아나거나(진입), 아직 대기 중인
+        /// 습격 부대까지 SetActiveAll이 강제로 드러낸다(퇴장). 던전 컨트롤러는 이 메서드 하나만
+        /// 호출하므로 별도 배선 없이 자동으로 함께 적용된다.
         /// </summary>
         public void SetSoldiersActive(bool active)
         {
+            raidCoordinator?.SetDungeonHidden(!active);
             _respawner?.SetActiveAll(active);
         }
 
@@ -147,7 +152,7 @@ namespace Soldier
 
             _spawned = true;
 
-            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats, _cameraFollowService);
+            _respawner = new SoldierRespawner(GameBootstrapper.Events, _pool, _deployment, playerStats, _cameraFollowService, raidCoordinator);
 
             Dictionary<int, Vector3> placements = _respawner.ComputePlacements(slots);
 

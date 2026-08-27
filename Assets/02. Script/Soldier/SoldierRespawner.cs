@@ -25,16 +25,18 @@ namespace Soldier
         private readonly SoldierDeploymentService _deployment;
         private readonly CharacterStatsProvider _playerStats;
         private readonly CameraFollowService _cameraFollowService;
+        private readonly SquadRaidCoordinator _raidCoordinator;
         private readonly Dictionary<GameObject, SoldierSpawnSlot> _activeSoldiers = new();
         private readonly Dictionary<int, GameObject> _activeBySlot = new();
 
-        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, CharacterStatsProvider playerStats, CameraFollowService cameraFollowService)
+        public SoldierRespawner(EventBus events, PoolManager pool, SoldierDeploymentService deployment, CharacterStatsProvider playerStats, CameraFollowService cameraFollowService, SquadRaidCoordinator raidCoordinator = null)
         {
             _events = events;
             _pool = pool;
             _deployment = deployment;
             _playerStats = playerStats;
             _cameraFollowService = cameraFollowService;
+            _raidCoordinator = raidCoordinator;
 
             _events.Subscribe<CharacterDiedEvent>(OnCharacterDied);
         }
@@ -63,19 +65,32 @@ namespace Soldier
         /// 금지된 던전 오버레이 진입/종료). 비활성화된 채로도 _activeSoldiers/_activeBySlot 추적은
         /// 그대로 유지되므로, 병사가 이 상태에서 죽는 일은 없다(비활성 GameObject는 애초에
         /// CharacterDiedEvent를 발행할 수 없다).
-        /// 재활성화(active=true) 시에는 OnEnable이 Soldier.SoldierStatReceiver를 통해
-        /// RuntimeStats.MoveSpeed를 본연 속도로 초기화해버리므로, 이 경로가 끝난 뒤
-        /// Soldier.SquadMovementSyncService.Resync로 부대 클램프를 명시적으로 다시 적용한다 —
-        /// 안 하면 던전을 한 번 다녀온 병사가 이후 계속 자기 본연 속도로 각자 따로 걷게 된다.
+        /// 재활성화(active=true)일 때, SquadRaidCoordinator가 아직 습격 대기(숨김) 중이라고
+        /// 보고하는 인스턴스는 건너뛰고 계속 숨겨둔다(GitHub 이슈 #41) — 그렇지 않으면 던전을
+        /// 나가는 순간 아직 등장 타이밍이 안 된 습격 부대까지 강제로 드러나고, 이후 코디네이터가
+        /// 실제로 등장시킬 때 이미 보이는 병사를 다시 스폰 지점으로 순간이동시키는 것처럼 보인다.
+        /// _raidCoordinator가 없으면(생성자 기본값) 필터링 없이 항상 전부 되돌린다.
+        /// 재활성화 시에는 OnEnable이 Soldier.SoldierStatReceiver를 통해 RuntimeStats.MoveSpeed를
+        /// 본연 속도로 초기화해버리므로, 이 경로가 끝난 뒤 Soldier.SquadMovementSyncService.Resync로
+        /// 부대 클램프를 명시적으로 다시 적용한다 — 안 하면 던전을 한 번 다녀온 병사가 이후 계속
+        /// 자기 본연 속도로 각자 따로 걷게 된다(습격 대기라 건너뛴 인스턴스도 함께 재계산해둔다 —
+        /// 실제로 등장할 때 이미 올바른 클램프 속도를 갖고 있어야 하므로).
         /// </summary>
         public void SetActiveAll(bool active)
         {
             foreach (GameObject soldier in _activeSoldiers.Keys)
             {
-                if (soldier != null)
+                if (soldier == null)
                 {
-                    soldier.SetActive(active);
+                    continue;
                 }
+
+                if (active && _raidCoordinator != null && _raidCoordinator.IsInstancePending(soldier))
+                {
+                    continue;
+                }
+
+                soldier.SetActive(active);
             }
 
             if (active && GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadMovementSyncService squadSync))

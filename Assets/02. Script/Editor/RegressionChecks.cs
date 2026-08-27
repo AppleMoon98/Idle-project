@@ -377,6 +377,14 @@ namespace Editor
             Check("SoldierRespawner_ReleaseSlot_UnregistersFromSquadMovementSync",
                 CheckSoldierRespawnerReleaseSlotUnregistersFromSquadSync);
 
+            // --- 이슈 #41: 습격 전술(SquadRaidCoordinator) 대기 타이머가 병사 동행 금지 던전
+            // 안에서도 계속 흘러 병사가 되살아나거나, 던전 퇴장이 아직 대기 중인 습격 부대까지
+            // 강제로 드러내던 문제 ---
+            Check("SquadRaidCoordinator_DungeonHidden_PausesCountdownAndDefersReveal",
+                CheckSquadRaidCoordinatorDungeonHiddenPausesCountdown);
+            Check("SoldierRespawner_SetActiveAll_SkipsPendingRaidSquadMembers",
+                CheckSoldierRespawnerSetActiveAllSkipsPendingRaidMembers);
+
             // --- 이슈 #30/#40과 별개로: 모달 전환(던전 팝업 열기/닫기, StageProgressTracker.
             // SetActiveAll)이 밀집 전투 도중 끼어들어도 풀 대여/유휴 불변조건과 추적 딕셔너리가
             // 함께 유지되는지 확인 (section FF에서 SetActiveAll 자체가 실제로 버그였던 지점) ---
@@ -5071,6 +5079,244 @@ namespace Editor
                 if (poolRoot != null)
                 {
                     UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #41 - SquadRaidCoordinator의 습격 대기 타이머가 병사 동행 금지 던전 안에서도
+        /// 계속 흘러, 던전 안인데도 카운트다운이 만료돼 부대가 다시 등장(ExecuteRaid)해버리던
+        /// 문제. SetDungeonHidden(true)로 숨긴 동안은 Tick 자체가 완전히 멈춰(카운트다운 소비/
+        /// 실행 없음) 있다가, SetDungeonHidden(false)로 되돌리면 숨기기 직전 남아있던 시간만큼만
+        /// 더 흘러야 실행되는지(=일시정지이지 리셋도 즉시발동도 아님) 확인한다.
+        /// GameBootstrapper.Services를 이 검사만의 격리된 ServiceLocator(실제
+        /// SquadTacticService/SquadMovementSyncService)로 임시 교체해 SquadRaidCoordinator.Awake/
+        /// OnEnable이 실전과 동일한 경로로 두 서비스를 조회하게 한다(WithNullServices와 같은
+        /// 안전한 백업/복원 패턴). GameTicker는 등록하지 않고 ITickable.Tick을 직접 호출해
+        /// 타이밍을 결정론적으로 통제한다 - stageController를 안 채워도(ExecuteRaid 자신의
+        /// 방어적 null 가드로 조용히 끝남) _isPending 플래그 자체는 Tick 안에서 ExecuteRaid보다
+        /// 먼저 false로 바뀌므로, IsInstancePending만으로 이 검사가 겨냥한 "타이머가 실제로
+        /// 멈췄는가"는 충분히 검증된다.
+        /// </summary>
+        private static void CheckSquadRaidCoordinatorDungeonHiddenPausesCountdown()
+        {
+            var events = new EventBus();
+            var movementSync = new SquadMovementSyncService(events);
+            movementSync.Initialize();
+            var tactics = new SquadTacticService(events);
+            tactics.Initialize();
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+            GameObject memberInstance = null;
+            GameObject coordinatorGo = null;
+            CharacterStatsSO baseStats = null;
+
+            try
+            {
+                var locator = new ServiceLocator();
+                locator.Register(movementSync);
+                locator.Register(tactics);
+                servicesProperty.SetValue(null, locator);
+
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "moveSpeed", 2f);
+
+                memberInstance = new GameObject("RegressionCheck_RaidMember");
+                var provider = memberInstance.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(provider, "baseStats", baseStats);
+
+                const int squadIndex = 0;
+                movementSync.Register(memberInstance, squadIndex * SoldierDeploymentService.SlotsPerSquad, false);
+                tactics.SetTactic(squadIndex, SquadTacticType.LeftRightRaid);
+
+                coordinatorGo = new GameObject("RegressionCheck_RaidCoordinator");
+                var coordinator = coordinatorGo.AddComponent<SquadRaidCoordinator>();
+
+                coordinator.OnStageStarted();
+
+                if (memberInstance.activeSelf)
+                {
+                    throw new Exception("OnStageStarted 직후 습격 대기 부대원이 숨겨지지 않음");
+                }
+
+                if (!coordinator.IsInstancePending(memberInstance))
+                {
+                    throw new Exception("OnStageStarted 직후 IsInstancePending이 false를 반환함 - 무장(ArmSquad)이 실패한 것으로 보임");
+                }
+
+                coordinator.SetDungeonHidden(true);
+
+                // 지연시간(기본 8초)을 훨씬 뛰어넘는 델타를 여러 번 흘려도, 숨겨진 동안은
+                // 카운트다운 자체가 진행되지 않아야 한다 - 이슈가 재현한 "던전 안에서 습격이
+                // 실행됨"과 정반대 결과.
+                ((ITickable)coordinator).Tick(1000f);
+                ((ITickable)coordinator).Tick(1000f);
+
+                if (!coordinator.IsInstancePending(memberInstance))
+                {
+                    throw new Exception("던전 은닉 중(SetDungeonHidden(true))인데도 카운트다운이 진행돼 습격이 실행됨(GitHub 이슈 #41 재현)");
+                }
+
+                coordinator.SetDungeonHidden(false);
+
+                // 원래 지연시간(8초)에 훨씬 못 미치는 델타 - 아직 실행되면 안 된다(재개가 처음부터
+                // 다시 시작하거나 즉시 발동하는 게 아니라, 숨기기 전 남은 시간을 그대로 이어받아야 함).
+                ((ITickable)coordinator).Tick(0.1f);
+
+                if (!coordinator.IsInstancePending(memberInstance))
+                {
+                    throw new Exception("숨김 해제 직후 짧은 델타만으로 습격이 실행됨 - 재개 시 남은 시간이 보존되지 않고 즉시 발동한 것으로 보임");
+                }
+
+                // 8초 지연시간을 확실히 넘기는 델타 - 이제는 실행돼야 한다.
+                ((ITickable)coordinator).Tick(20f);
+
+                if (coordinator.IsInstancePending(memberInstance))
+                {
+                    throw new Exception("숨김 해제 후 충분한 시간이 지나도 습격이 재개(실행)되지 않음");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+                movementSync.Shutdown();
+                tactics.Shutdown();
+
+                if (coordinatorGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(coordinatorGo);
+                }
+
+                if (memberInstance != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(memberInstance);
+                }
+
+                if (baseStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(baseStats);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #41 - 던전 퇴장이 SoldierRespawner.SetActiveAll(true)로 병사 전원을 일괄
+        /// 재활성화할 때, 아직 습격 대기 중인 부대원까지 강제로 드러내던 문제. 습격 대기 중인
+        /// 인스턴스(pendingMember)는 SetActiveAll(true) 이후에도 계속 숨겨져 있어야 하고, 습격과
+        /// 무관한 인스턴스(normalMember, 던전이 똑같이 숨겼다가 정상적으로 되돌리는 경우)는
+        /// 정상적으로 다시 보여야 한다 - 후자를 함께 검증해야 "선택적으로 건너뛰는지"(아무것도
+        /// 안 켜지는 폭넓은 실패와 구분)를 실제로 확인할 수 있다.
+        /// </summary>
+        private static void CheckSoldierRespawnerSetActiveAllSkipsPendingRaidMembers()
+        {
+            var events = new EventBus();
+            var movementSync = new SquadMovementSyncService(events);
+            movementSync.Initialize();
+            var tactics = new SquadTacticService(events);
+            tactics.Initialize();
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+            GameObject coordinatorGo = null;
+            GameObject pendingMember = null;
+            GameObject normalMember = null;
+            CharacterStatsSO baseStats = null;
+            SoldierRespawner respawner = null;
+
+            try
+            {
+                var locator = new ServiceLocator();
+                locator.Register(movementSync);
+                locator.Register(tactics);
+                servicesProperty.SetValue(null, locator);
+
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "moveSpeed", 2f);
+
+                pendingMember = new GameObject("RegressionCheck_PendingRaidMember");
+                var pendingProvider = pendingMember.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(pendingProvider, "baseStats", baseStats);
+
+                normalMember = new GameObject("RegressionCheck_NormalMember");
+                normalMember.AddComponent<CharacterStatsProvider>();
+
+                const int squadIndex = 0;
+                movementSync.Register(pendingMember, squadIndex * SoldierDeploymentService.SlotsPerSquad, false);
+                tactics.SetTactic(squadIndex, SquadTacticType.LeftRightRaid);
+
+                coordinatorGo = new GameObject("RegressionCheck_RaidCoordinator");
+                var coordinator = coordinatorGo.AddComponent<SquadRaidCoordinator>();
+                coordinator.OnStageStarted(); // pendingMember를 숨기고 습격 카운트다운을 무장한다.
+
+                if (pendingMember.activeSelf)
+                {
+                    throw new Exception("사전 조건 실패: OnStageStarted 직후 pendingMember가 숨겨지지 않음");
+                }
+
+                // 던전 진입 시 SoldierSpawner.SetSoldiersActive(false)가 습격 대기 여부와 무관하게
+                // 전원을 숨기는 것과 동일한 상황을 재현 - normalMember도 여기서 숨긴다.
+                normalMember.SetActive(false);
+
+                respawner = new SoldierRespawner(events, null, null, null, null, coordinator);
+
+                var pendingSlot = new SoldierSpawnSlot();
+                SetPrivateFieldOnPlainObject(pendingSlot, "slotIndex", 0);
+                respawner.RegisterSpawned(pendingMember, pendingSlot);
+
+                var normalSlot = new SoldierSpawnSlot();
+                SetPrivateFieldOnPlainObject(normalSlot, "slotIndex", 1);
+                respawner.RegisterSpawned(normalMember, normalSlot);
+
+                respawner.SetActiveAll(true); // 던전 퇴장 - 전원 재활성화 시도.
+
+                if (pendingMember.activeSelf)
+                {
+                    throw new Exception("SetActiveAll(true)이 아직 습격 대기 중인 부대원까지 강제로 드러냄(GitHub 이슈 #41 재현)");
+                }
+
+                if (!normalMember.activeSelf)
+                {
+                    throw new Exception("SetActiveAll(true)이 습격과 무관한 인스턴스까지 건너뜀 - 선택적 스킵이 아니라 전체가 동작하지 않는 것으로 보임");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+                respawner?.Dispose();
+                movementSync.Shutdown();
+                tactics.Shutdown();
+
+                if (coordinatorGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(coordinatorGo);
+                }
+
+                if (pendingMember != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(pendingMember);
+                }
+
+                if (normalMember != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(normalMember);
+                }
+
+                if (baseStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(baseStats);
                 }
             }
         }

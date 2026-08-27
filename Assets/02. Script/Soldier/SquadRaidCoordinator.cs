@@ -36,6 +36,7 @@ namespace Soldier
 
         private SquadTacticService _tactics;
         private SquadMovementSyncService _movementSync;
+        private bool _isDungeonHidden;
 
         private void Awake()
         {
@@ -137,8 +138,46 @@ namespace Soldier
             return tactic == SquadTacticType.LeftRightRaid || tactic == SquadTacticType.RearRaid;
         }
 
+        /// <summary>
+        /// 던전(병사 동행 금지) 진입/퇴장 시 SoldierSpawner.SetSoldiersActive가 호출한다
+        /// (GitHub 이슈 #41) — 숨겨진 동안은 카운트다운을 완전히 멈춘다(재진입해도 남은 시간이
+        /// 그대로 보존되는 결정적 일시정지이지, 다시 처음부터 재무장하는 게 아니다) — 그렇지
+        /// 않으면 이 컴포넌트는 던전 안에서도 계속 Tick이 돌아 타이머가 만료되고, ExecuteRaid가
+        /// 던전이 숨겨둔 병사를 그대로 다시 등장시켜버린다. Reveal()(전술 변경으로 인한 즉시
+        /// 복귀)도 숨겨진 동안은 실제 SetActive(true)를 보류한다 - "이 부대는 더 이상 대기 중이
+        /// 아니다"라는 상태(_isPending=false)는 즉시 반영해, 던전을 나갈 때
+        /// SoldierRespawner.SetActiveAll(true)가 정상적으로 함께 되살려주게 한다.
+        /// </summary>
+        public void SetDungeonHidden(bool hidden)
+        {
+            _isDungeonHidden = hidden;
+        }
+
+        /// <summary>
+        /// instance가 지금 습격 대기(숨김) 중인 부대 소속인지 - SoldierRespawner.SetActiveAll(true)가
+        /// 던전을 나가며 추적 중인 병사 전원을 일괄 재활성화할 때, 아직 대기 중인 습격 부대만은
+        /// 건너뛰어 이 코디네이터가 나중에(카운트다운이 끝났을 때) 직접 정확한 스폰 지점으로
+        /// 등장시키도록 하기 위함이다(GitHub 이슈 #41). 등록돼 있지 않거나 부대 정보를 못 구하면
+        /// 안전한 기본값(막지 않음, false)을 반환한다.
+        /// </summary>
+        public bool IsInstancePending(GameObject instance)
+        {
+            if (_movementSync == null || !_movementSync.TryGetSlotIndex(instance, out int slotIndex))
+            {
+                return false;
+            }
+
+            int squadIndex = slotIndex / SoldierDeploymentService.SlotsPerSquad;
+            return squadIndex >= 0 && squadIndex < SoldierDeploymentService.SquadCount && _isPending[squadIndex];
+        }
+
         void ITickable.Tick(float deltaTime)
         {
+            if (_isDungeonHidden)
+            {
+                return;
+            }
+
             for (int squadIndex = 0; squadIndex < SoldierDeploymentService.SquadCount; squadIndex++)
             {
                 if (!_isPending[squadIndex])
@@ -181,7 +220,7 @@ namespace Soldier
 
         private void Reveal(int squadIndex)
         {
-            if (_movementSync == null)
+            if (_movementSync == null || _isDungeonHidden)
             {
                 return;
             }
