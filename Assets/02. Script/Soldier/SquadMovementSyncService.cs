@@ -89,11 +89,7 @@ namespace Soldier
             if (_members.TryGetValue(instance, out Member existing))
             {
                 int previousSquadIndex = SquadIndexOf(existing.SlotIndex);
-
-                if (_squadMembers.TryGetValue(previousSquadIndex, out List<Member> previousList))
-                {
-                    previousList.Remove(existing);
-                }
+                RemoveFromSquadList(existing);
 
                 if (previousSquadIndex != SquadIndexOf(slotIndex))
                 {
@@ -136,6 +132,30 @@ namespace Soldier
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// instance를 등록에서 완전히 제거한다(GitHub 이슈 #40) — 소속 부대 목록에서 즉시 빼고
+        /// 그 부대를 재계산한다. 사망(OnCharacterDied)뿐 아니라 Soldier.SoldierRespawner.
+        /// ReleaseSlot(배치 해제/재편성으로 살아있는 인스턴스를 사망 이벤트 없이 풀로 반환하는
+        /// 경로)도 반드시 이 메서드를 호출해야 한다 — 그렇지 않으면 그 인스턴스는 비활성화된 채
+        /// 풀에 있으면서도 이전 부대의 이동속도 클램프/교전 집계(RecomputeSquad)와
+        /// GetSquadMembers를 소비하는 다른 부대 기능(SquadShieldWallCoordinator/
+        /// SquadRaidCoordinator)에 영원히 유령으로 남는다 — Register가 같은 인스턴스로 다시
+        /// 호출되기 전까지는 어떤 경로로도 저절로 정리되지 않는다. 등록돼 있지 않은 인스턴스는
+        /// 조용히 무시한다(멱등).
+        /// </summary>
+        public void Unregister(GameObject instance)
+        {
+            if (instance == null || !_members.TryGetValue(instance, out Member member))
+            {
+                return;
+            }
+
+            _members.Remove(instance);
+            int squadIndex = SquadIndexOf(member.SlotIndex);
+            RemoveFromSquadList(member);
+            RecomputeSquad(squadIndex);
         }
 
         /// <summary>
@@ -212,21 +232,7 @@ namespace Soldier
 
         private void OnCharacterDied(CharacterDiedEvent evt)
         {
-            if (evt.Character == null || !_members.TryGetValue(evt.Character, out Member member))
-            {
-                return;
-            }
-
-            _members.Remove(evt.Character);
-
-            int squadIndex = SquadIndexOf(member.SlotIndex);
-
-            if (_squadMembers.TryGetValue(squadIndex, out List<Member> list))
-            {
-                list.Remove(member);
-            }
-
-            RecomputeSquad(squadIndex);
+            Unregister(evt.Character);
         }
 
         private void OnSoldierStatEnhanced(SoldierStatEnhancedEvent evt)
@@ -308,6 +314,14 @@ namespace Soldier
         private static int SquadIndexOf(int slotIndex)
         {
             return slotIndex / SoldierDeploymentService.SlotsPerSquad;
+        }
+
+        private void RemoveFromSquadList(Member member)
+        {
+            if (_squadMembers.TryGetValue(SquadIndexOf(member.SlotIndex), out List<Member> list))
+            {
+                list.Remove(member);
+            }
         }
 
         private List<Member> GetOrCreateSquadList(int squadIndex)

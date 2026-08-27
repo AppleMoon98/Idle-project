@@ -146,6 +146,10 @@ namespace Soldier
         /// slotIndex를 즉시 비운다 — 지금 그 슬롯을 차지하고 있는 살아있는 인스턴스가 있으면
         /// 사망 처리 없이(루팅 등 부수효과 없이) 풀로 반환한다. 배치 재편성으로 슬롯의 배정이
         /// 바뀌거나 해제됐을 때, SoldierSpawner가 새로 스폰하기 전에 호출해 이전 점유자를 정리한다.
+        /// CharacterDiedEvent를 발행하지 않는 경로라(GitHub 이슈 #40), Soldier.SquadMovementSyncService.
+        /// Unregister를 여기서 직접 호출해줘야 한다 — 안 그러면 그 인스턴스가 비활성화된 채 풀에
+        /// 있으면서도 이전 부대의 이동속도/교전 집계에 영원히 유령으로 남는다(배치 해제처럼 그 뒤로
+        /// 다시 Register가 호출되지 않는 경로에서는 어떤 방법으로도 저절로 정리되지 않았다).
         /// </summary>
         public void ReleaseSlot(int slotIndex)
         {
@@ -153,6 +157,12 @@ namespace Soldier
             {
                 _activeBySlot.Remove(slotIndex);
                 _activeSoldiers.Remove(instance);
+
+                if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out SquadMovementSyncService squadSync))
+                {
+                    squadSync.Unregister(instance);
+                }
+
                 _pool.Release(instance);
             }
         }

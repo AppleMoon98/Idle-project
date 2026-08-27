@@ -369,6 +369,14 @@ namespace Editor
             Check("SquadMovementSyncService_ReRegisterToDifferentSquad_RemovesFromPreviousSquad",
                 CheckSquadMovementSyncServiceReRegistrationInvariant);
 
+            // --- 이슈 #40 나머지 구멍: 재등록(위 검사)과 달리, 이후로 다시 Register가 절대 호출
+            // 되지 않는 경로(순수 배치 해제) - Unregister API 자체와 SoldierRespawner.ReleaseSlot의
+            // 실제 배선을 각각 검증한다 ---
+            Check("SquadMovementSyncService_Unregister_RemovesMemberAndRecomputesRemainingSquad",
+                CheckSquadMovementSyncServiceUnregisterInvariant);
+            Check("SoldierRespawner_ReleaseSlot_UnregistersFromSquadMovementSync",
+                CheckSoldierRespawnerReleaseSlotUnregistersFromSquadSync);
+
             // --- 이슈 #30/#40과 별개로: 모달 전환(던전 팝업 열기/닫기, StageProgressTracker.
             // SetActiveAll)이 밀집 전투 도중 끼어들어도 풀 대여/유휴 불변조건과 추적 딕셔너리가
             // 함께 유지되는지 확인 (section FF에서 SetActiveAll 자체가 실제로 버그였던 지점) ---
@@ -4866,6 +4874,204 @@ namespace Editor
                 }
 
                 service.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #40의 나머지 구멍 - 위 재등록 검사(Register가 같은 인스턴스로 다시 호출되는
+        /// 경로)와 달리, 이후로 다시 Register가 절대 호출되지 않는 경로(순수 배치 해제)를 재현한다.
+        /// Unregister 한 번으로 즉시 부대 목록에서 빠지고, 남은 부대원의 이동속도 클램프가 그
+        /// 순간 재계산되는지(제거된 멤버가 최저속이었을 경우 남은 멤버가 더 빠른 값으로 즉시
+        /// 갱신되는지) 확인한다. GameBootstrapper.Services의 실제 SoldierEnhancementService(이
+        /// 개발 세션의 실제 강화 레벨)에 값이 좌우되지 않도록, 절대 수치가 아니라 "제거 전후
+        /// 상대 비교"(클램프됐던 값 → 제거 후 더 커짐)로만 검증한다.
+        /// </summary>
+        private static void CheckSquadMovementSyncServiceUnregisterInvariant()
+        {
+            var events = new EventBus();
+            var service = new SquadMovementSyncService(events);
+            service.Initialize();
+
+            GameObject slow = null;
+            GameObject fast = null;
+            CharacterStatsSO slowStats = null;
+            CharacterStatsSO fastStats = null;
+
+            try
+            {
+                slowStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(slowStats, "moveSpeed", 1f);
+                fastStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(fastStats, "moveSpeed", 3f);
+
+                slow = new GameObject("RegressionCheck_SquadMember_Slow");
+                var slowProvider = slow.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(slowProvider, "baseStats", slowStats);
+
+                fast = new GameObject("RegressionCheck_SquadMember_Fast");
+                var fastProvider = fast.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(fastProvider, "baseStats", fastStats);
+
+                const int squadSlotA = 0;
+                const int squadSlotB = 1;
+
+                service.Register(slow, squadSlotA, false);
+                service.Register(fast, squadSlotB, false);
+
+                float clampedTogether = fastProvider.Stats.MoveSpeed;
+
+                if (!Mathf.Approximately(clampedTogether, slowProvider.Stats.MoveSpeed))
+                {
+                    throw new Exception($"등록 직후 fast({clampedTogether})가 부대 최저속(slow={slowProvider.Stats.MoveSpeed})으로 클램프되지 않음");
+                }
+
+                service.Unregister(slow);
+
+                if (service.GetSquadMembers(0).Count != 1 || service.GetSquadMembers(0)[0] != fast)
+                {
+                    throw new Exception($"Unregister 이후 부대 인원 구성이 예상과 다름(인원={service.GetSquadMembers(0).Count})");
+                }
+
+                if (service.TryGetSlotIndex(slow, out _))
+                {
+                    throw new Exception("Unregister 이후에도 인스턴스가 여전히 등록된 것으로 조회됨");
+                }
+
+                float afterRemoval = fastProvider.Stats.MoveSpeed;
+
+                if (!(afterRemoval > clampedTogether))
+                {
+                    throw new Exception($"Unregister 이후 fast의 속도({afterRemoval})가 이전 클램프 속도({clampedTogether})보다 커지지 않음 - RecomputeSquad가 즉시 안 불렸을 가능성");
+                }
+
+                // 멱등/방어: 이미 제거된 인스턴스, null 인스턴스 모두 예외 없이 조용히 무시.
+                service.Unregister(slow);
+                service.Unregister(null);
+            }
+            finally
+            {
+                if (slow != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(slow);
+                }
+
+                if (fast != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(fast);
+                }
+
+                if (slowStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(slowStats);
+                }
+
+                if (fastStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(fastStats);
+                }
+
+                service.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #40의 실제 회귀 지점 - Soldier.SoldierRespawner.ReleaseSlot(배치 해제/재편성으로
+        /// 살아있는 인스턴스를 CharacterDiedEvent 없이 풀로 반환하는 경로)이 실제로
+        /// Soldier.SquadMovementSyncService.Unregister를 호출해, 재등록 없이도 이전 부대 목록에서
+        /// 빠지는지 확인한다. 수정 전에는 이 경로가 SquadMovementSyncService를 전혀 몰라, 배치
+        /// 해제된 인스턴스가 비활성화된 채 풀에 있으면서도 이전 부대에 영원히 유령으로 남았다
+        /// (그 뒤로 같은 인스턴스가 다시 Register되는 일이 없어 위 재등록 경로로도 해소되지 않음).
+        /// GameBootstrapper.Services를 이 검사만의 격리된 ServiceLocator(실제 SquadMovementSyncService
+        /// 하나만 등록)로 임시 교체해, ReleaseSlot이 실전과 동일하게 TryGet으로 서비스를 찾는
+        /// 경로 그대로 검증한다(WithNullServices와 같은 안전한 백업/복원 패턴).
+        /// </summary>
+        private static void CheckSoldierRespawnerReleaseSlotUnregistersFromSquadSync()
+        {
+            var events = new EventBus();
+            var squadSync = new SquadMovementSyncService(events);
+            squadSync.Initialize();
+
+            var pool = new Managers.PoolManager();
+            pool.Initialize();
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+            GameObject prefab = null;
+            SoldierRespawner respawner = null;
+            CharacterStatsSO baseStats = null;
+
+            try
+            {
+                var locator = new ServiceLocator();
+                locator.Register(squadSync);
+                servicesProperty.SetValue(null, locator);
+
+                baseStats = ScriptableObject.CreateInstance<CharacterStatsSO>();
+                SetPrivateFloat(baseStats, "moveSpeed", 2f);
+
+                prefab = new GameObject("RegressionCheck_ReleaseSlot_Prefab");
+                prefab.SetActive(false);
+                CharacterStatsProvider provider = prefab.AddComponent<CharacterStatsProvider>();
+                SetPrivateField(provider, "baseStats", baseStats);
+                pool.EnsurePool(prefab, 1, 4);
+
+                GameObject instance = pool.Get(prefab, Vector3.zero, Quaternion.identity);
+
+                const int slotIndex = SoldierDeploymentService.SlotsPerSquad; // 부대 1
+
+                squadSync.Register(instance, slotIndex, false);
+
+                if (squadSync.GetSquadMembers(1).Count != 1)
+                {
+                    throw new Exception($"등록 직후 부대 1의 인원이 {squadSync.GetSquadMembers(1).Count}(기대=1)");
+                }
+
+                respawner = new SoldierRespawner(events, pool, null, null, null);
+                var slot = new SoldierSpawnSlot();
+                SetPrivateFieldOnPlainObject(slot, "slotIndex", slotIndex);
+                respawner.RegisterSpawned(instance, slot);
+
+                respawner.ReleaseSlot(slotIndex);
+
+                if (squadSync.GetSquadMembers(1).Count != 0)
+                {
+                    throw new Exception($"ReleaseSlot 이후에도 부대 1에 유령 멤버가 남음(인원={squadSync.GetSquadMembers(1).Count}, 기대=0) - GitHub 이슈 #40 재현");
+                }
+
+                if (squadSync.TryGetSlotIndex(instance, out _))
+                {
+                    throw new Exception("ReleaseSlot 이후에도 인스턴스가 SquadMovementSyncService에 여전히 등록된 것으로 조회됨");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+                respawner?.Dispose();
+                squadSync.Shutdown();
+
+                if (prefab != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(prefab);
+                }
+
+                if (baseStats != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(baseStats);
+                }
+
+                FieldInfo poolRootField = typeof(Managers.PoolManager).GetField("_poolRoot", BindingFlags.NonPublic | BindingFlags.Instance);
+                var poolRoot = (Transform)poolRootField?.GetValue(pool);
+
+                if (poolRoot != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(poolRoot.gameObject);
+                }
             }
         }
 
