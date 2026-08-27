@@ -192,6 +192,14 @@ namespace Editor
             Check("BossTokenService_RejectsNonPositiveAmounts", CheckBossTokenServiceRejectsNonPositiveAmounts);
             Check("ContentCostValidation_ProjectAssets_NoNegativeCosts", CheckContentCostValidationProjectAssets);
 
+            // --- 이슈 #45: 정수형 보상 재화 5종이 int.MaxValue 근처에서 순수 int 덧셈으로
+            // 오버플로해 음수로 반전되던 문제 - long 중간 계산 + int.MaxValue saturate로 수정 ---
+            Check("EnhancementStoneService_AddStones_SaturatesAtIntMaxValue", CheckEnhancementStoneServiceSaturatesAtIntMaxValue);
+            Check("SoldierTicketService_AddTickets_SaturatesAtIntMaxValue", CheckSoldierTicketServiceSaturatesAtIntMaxValue);
+            Check("SkillScrollService_AddScrolls_SaturatesAtIntMaxValue", CheckSkillScrollServiceSaturatesAtIntMaxValue);
+            Check("EquipmentGachaTicketService_AddTickets_SaturatesAtIntMaxValue", CheckEquipmentGachaTicketServiceSaturatesAtIntMaxValue);
+            Check("BossTokenService_AddTokens_SaturatesAtIntMaxValue", CheckBossTokenServiceSaturatesAtIntMaxValue);
+
             // --- 이슈 #19: 카탈로그가 배열 인덱스 대신 StableId로 항목을 식별(재정렬/삭제에도
             // 안전) + 실제 프로젝트 콘텐츠에 중복/빈 StableId가 없는지 ---
             Check("EquipmentCatalog_FindByStableId_RoundTripsAndRejectsUnknown", CheckEquipmentCatalogFindByStableId);
@@ -1132,6 +1140,178 @@ namespace Editor
             if (restored.CurrentTokens != 0)
             {
                 throw new Exception($"음수 초기값이 0으로 클램프되지 않음: {restored.CurrentTokens}");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #45의 재현 그대로: int.MaxValue 근처에서 AddStones를 호출해도 순수 int
+        /// 덧셈처럼 음수로 반전되지 않고 int.MaxValue에서 saturate하는지 확인한다. 경계-1(정확히
+        /// int.MaxValue가 되는 지점)과 경계(이미 int.MaxValue인 상태에서 대량 추가)를 모두
+        /// 검증하고, saturate된 이후에도 TrySpendStones가 정상적으로 계속 동작함(=진짜 유효한
+        /// 양수 잔액이지 손상된 상태가 아님)까지 확인한다.
+        /// </summary>
+        private static void CheckEnhancementStoneServiceSaturatesAtIntMaxValue()
+        {
+            var events = new Core.EventBus();
+
+            var atBoundaryMinusOne = new EnhancementStoneService(events, int.MaxValue - 1);
+            atBoundaryMinusOne.AddStones(1);
+
+            if (atBoundaryMinusOne.CurrentStones != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue-1에서 1 추가 후 {atBoundaryMinusOne.CurrentStones}(기대={int.MaxValue}) - 경계 직전에서 조기 saturate됐거나 계산이 틀림");
+            }
+
+            var atBoundary = new EnhancementStoneService(events, int.MaxValue);
+            atBoundary.AddStones(1);
+
+            if (atBoundary.CurrentStones != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 1 추가 후 {atBoundary.CurrentStones}(기대={int.MaxValue}, 음수 반전 없이 saturate돼야 함) - GitHub 이슈 #45 재현");
+            }
+
+            atBoundary.AddStones(int.MaxValue); // 대량 추가도 saturate 유지돼야 함(long 중간 계산 확인).
+
+            if (atBoundary.CurrentStones != int.MaxValue)
+            {
+                throw new Exception($"대량 추가 후 {atBoundary.CurrentStones}(기대={int.MaxValue})");
+            }
+
+            if (!atBoundary.TrySpendStones(5) || atBoundary.CurrentStones != int.MaxValue - 5)
+            {
+                throw new Exception($"saturate된 잔액에서 정상 소비가 실패함(잔액={atBoundary.CurrentStones}) - 유효한 잔액이 아닌 것으로 보임");
+            }
+        }
+
+        private static void CheckSoldierTicketServiceSaturatesAtIntMaxValue()
+        {
+            var events = new Core.EventBus();
+
+            var atBoundaryMinusOne = new SoldierTicketService(events, int.MaxValue - 1);
+            atBoundaryMinusOne.AddTickets(1);
+
+            if (atBoundaryMinusOne.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue-1에서 1 추가 후 {atBoundaryMinusOne.CurrentTickets}(기대={int.MaxValue})");
+            }
+
+            var atBoundary = new SoldierTicketService(events, int.MaxValue);
+            atBoundary.AddTickets(1);
+
+            if (atBoundary.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 1 추가 후 {atBoundary.CurrentTickets}(기대={int.MaxValue}, 음수 반전 없이 saturate돼야 함) - GitHub 이슈 #45 재현");
+            }
+
+            atBoundary.AddTickets(int.MaxValue);
+
+            if (atBoundary.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"대량 추가 후 {atBoundary.CurrentTickets}(기대={int.MaxValue})");
+            }
+
+            if (!atBoundary.TrySpendTickets(5) || atBoundary.CurrentTickets != int.MaxValue - 5)
+            {
+                throw new Exception($"saturate된 잔액에서 정상 소비가 실패함(잔액={atBoundary.CurrentTickets})");
+            }
+        }
+
+        private static void CheckSkillScrollServiceSaturatesAtIntMaxValue()
+        {
+            var events = new Core.EventBus();
+
+            var atBoundaryMinusOne = new SkillScrollService(events, int.MaxValue - 1);
+            atBoundaryMinusOne.AddScrolls(1);
+
+            if (atBoundaryMinusOne.CurrentScrolls != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue-1에서 1 추가 후 {atBoundaryMinusOne.CurrentScrolls}(기대={int.MaxValue})");
+            }
+
+            var atBoundary = new SkillScrollService(events, int.MaxValue);
+            atBoundary.AddScrolls(1);
+
+            if (atBoundary.CurrentScrolls != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 1 추가 후 {atBoundary.CurrentScrolls}(기대={int.MaxValue}, 음수 반전 없이 saturate돼야 함) - GitHub 이슈 #45 재현");
+            }
+
+            atBoundary.AddScrolls(int.MaxValue);
+
+            if (atBoundary.CurrentScrolls != int.MaxValue)
+            {
+                throw new Exception($"대량 추가 후 {atBoundary.CurrentScrolls}(기대={int.MaxValue})");
+            }
+
+            if (!atBoundary.TrySpendScrolls(5) || atBoundary.CurrentScrolls != int.MaxValue - 5)
+            {
+                throw new Exception($"saturate된 잔액에서 정상 소비가 실패함(잔액={atBoundary.CurrentScrolls})");
+            }
+        }
+
+        private static void CheckEquipmentGachaTicketServiceSaturatesAtIntMaxValue()
+        {
+            var events = new Core.EventBus();
+
+            var atBoundaryMinusOne = new EquipmentGachaTicketService(events, int.MaxValue - 1);
+            atBoundaryMinusOne.AddTickets(1);
+
+            if (atBoundaryMinusOne.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue-1에서 1 추가 후 {atBoundaryMinusOne.CurrentTickets}(기대={int.MaxValue})");
+            }
+
+            var atBoundary = new EquipmentGachaTicketService(events, int.MaxValue);
+            atBoundary.AddTickets(1);
+
+            if (atBoundary.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 1 추가 후 {atBoundary.CurrentTickets}(기대={int.MaxValue}, 음수 반전 없이 saturate돼야 함) - GitHub 이슈 #45 재현");
+            }
+
+            atBoundary.AddTickets(int.MaxValue);
+
+            if (atBoundary.CurrentTickets != int.MaxValue)
+            {
+                throw new Exception($"대량 추가 후 {atBoundary.CurrentTickets}(기대={int.MaxValue})");
+            }
+
+            if (!atBoundary.TrySpendTickets(5) || atBoundary.CurrentTickets != int.MaxValue - 5)
+            {
+                throw new Exception($"saturate된 잔액에서 정상 소비가 실패함(잔액={atBoundary.CurrentTickets})");
+            }
+        }
+
+        private static void CheckBossTokenServiceSaturatesAtIntMaxValue()
+        {
+            var events = new Core.EventBus();
+
+            var atBoundaryMinusOne = new BossTokenService(events, int.MaxValue - 1);
+            atBoundaryMinusOne.AddTokens(1);
+
+            if (atBoundaryMinusOne.CurrentTokens != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue-1에서 1 추가 후 {atBoundaryMinusOne.CurrentTokens}(기대={int.MaxValue})");
+            }
+
+            var atBoundary = new BossTokenService(events, int.MaxValue);
+            atBoundary.AddTokens(1);
+
+            if (atBoundary.CurrentTokens != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 1 추가 후 {atBoundary.CurrentTokens}(기대={int.MaxValue}, 음수 반전 없이 saturate돼야 함) - GitHub 이슈 #45 재현");
+            }
+
+            atBoundary.AddTokens(int.MaxValue);
+
+            if (atBoundary.CurrentTokens != int.MaxValue)
+            {
+                throw new Exception($"대량 추가 후 {atBoundary.CurrentTokens}(기대={int.MaxValue})");
+            }
+
+            if (!atBoundary.TrySpendTokens(5) || atBoundary.CurrentTokens != int.MaxValue - 5)
+            {
+                throw new Exception($"saturate된 잔액에서 정상 소비가 실패함(잔액={atBoundary.CurrentTokens})");
             }
         }
 
