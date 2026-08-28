@@ -2,7 +2,6 @@ using Character;
 using Core;
 using Managers;
 using UnityEngine;
-using War.Boss;
 
 namespace Combat
 {
@@ -21,7 +20,7 @@ namespace Combat
     public sealed class SiegeMortarAttackBehavior : MonoBehaviour, IAttackBehavior, ITickable
     {
         /// <summary>
-        /// 착탄 지점 범위 표시 색 - 적의 공격 예고(빨강, WarBossTelegraphIndicator 기본색)와 구분되는
+        /// 착탄 지점 범위 표시 색 - 적의 공격 예고(빨강, CircleTelegraphIndicator 기본색)와 구분되는
         /// 파란색을 쓴다(Skill.Effects.MeteorSkillEffect의 포탄 낙하 예고와 동일한 색).
         /// </summary>
         private static readonly Color TelegraphColor = new(0.2f, 0.5f, 1f, 1f);
@@ -180,7 +179,7 @@ namespace Combat
             {
                 telegraphInstance = _pool.Get(telegraphIndicatorPrefab, _pendingDestination, Quaternion.identity);
 
-                if (telegraphInstance.TryGetComponent(out WarBossTelegraphIndicator telegraph))
+                if (telegraphInstance.TryGetComponent(out CircleTelegraphIndicator telegraph))
                 {
                     telegraph.Show(_pendingDestination, splashRadius, TelegraphColor);
                 }

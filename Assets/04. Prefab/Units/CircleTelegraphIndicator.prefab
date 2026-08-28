@@ -12,7 +12,7 @@ GameObject:
   - component: {fileID: 3741156855379574751}
   - component: {fileID: 1934338179970691567}
   m_Layer: 0
-  m_Name: WarBossTelegraphIndicator
+  m_Name: CircleTelegraphIndicator
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -103,5 +103,5 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 866f9e23828bf954b90f89922181b300, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::War.Boss.WarBossTelegraphIndicator
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.CircleTelegraphIndicator
   spriteRenderer: {fileID: 3741156855379574751}

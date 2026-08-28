@@ -7,7 +7,6 @@ using Managers;
 using Services;
 using Stage.Events;
 using UnityEngine;
-using War.Boss;
 
 namespace Skill.Effects
 {
@@ -15,12 +14,12 @@ namespace Skill.Effects
     /// 맵 안(줌 배율과 무관한 고정 플레이 범위 기준, Dungeon.DungeonSpawnUtility 재사용)에
     /// SkillSO.MeteorShellCount개의 포탄을 동시에 떨어뜨린다. 낙하 위치는 ResolvePositions가
     /// 정한다 - 그 절반은 적을 노리고 나머지는 완전 무작위이되, 어떤 경우든 포탄끼리 범위(반지름
-    /// AreaRadius인 원)가 서로 겹치지 않는다. 예고 표시는 War.Boss.WarBossTelegraphIndicator를
-    /// 그대로 재사용한다(War 전용 컴포넌트가 아니라 "위치/반경을 받아 원형 경고를 그리는" 순수
-    /// 시각 컴포넌트라 도메인 의존 없이 재사용 가능). SkillSO.MeteorTelegraphDuration 뒤 그
+    /// AreaRadius인 원)가 서로 겹치지 않는다. 예고 표시는 Combat.CircleTelegraphIndicator를
+    /// 그대로 재사용한다(특정 도메인 전용 컴포넌트가 아니라 "위치/반경을 받아 원형 경고를 그리는"
+    /// 순수 시각 컴포넌트라 도메인 의존 없이 재사용 가능). SkillSO.MeteorTelegraphDuration 뒤 그
     /// 자리에 남아있는 적 전체에게 (시전자 현재 공격력 + magnitude)만큼의 피해를 준다. 여러
-    /// 포탄이 동시에 서로 다른 진행도로 카운트다운되므로 War.Boss.WarBossPatternRunner(포탄
-    /// 하나만 순차 처리)와 달리 리스트로 여러 개를 동시에 추적한다. Stage.Events.
+    /// 포탄이 동시에 서로 다른 진행도로 카운트다운되므로(예: 삭제된 War.Boss.WarBossPatternRunner
+    /// 처럼 하나만 순차 처리하는 방식과 달리) 리스트로 여러 개를 동시에 추적한다. Stage.Events.
     /// CombatFieldResetEvent(스테이지 전환/던전 등 오버레이 진입·복귀)를 받으면 아직 낙하 중인
     /// 포탄 전체를 예고 표시까지 포함해 즉시 반납한다 - 안 그러면 예고 원이 화면에 그대로 남은
     /// 채 다음 스테이지/던전에서 카운트다운이 끝나 엉뚱한 대상에게 피해를 준다.
@@ -29,7 +28,7 @@ namespace Skill.Effects
     public sealed class MeteorSkillEffect : MonoBehaviour, ISkillEffect, ITickable
     {
         /// <summary>
-        /// 플레이어 자신이 시전하는 포탄 낙하 예고는 적의 공격 예고(빨강, WarBossTelegraphIndicator
+        /// 플레이어 자신이 시전하는 포탄 낙하 예고는 적의 공격 예고(빨강, CircleTelegraphIndicator
         /// 기본색)와 구분되도록 파란색을 쓴다.
         /// </summary>
         private static readonly Color TelegraphColor = new Color(0.2f, 0.5f, 1f, 1f);
@@ -44,7 +43,7 @@ namespace Skill.Effects
             public Vector3 Position;
             public float Elapsed;
             public GameObject IndicatorInstance;
-            public WarBossTelegraphIndicator IndicatorComponent;
+            public CircleTelegraphIndicator IndicatorComponent;
         }
 
         [SerializeField]
@@ -164,7 +163,7 @@ namespace Skill.Effects
                 Vector3 position = positions[i];
 
                 GameObject instance = _pool.Get(telegraphIndicatorPrefab, position, Quaternion.identity);
-                var indicator = instance.GetComponent<WarBossTelegraphIndicator>();
+                var indicator = instance.GetComponent<CircleTelegraphIndicator>();
                 indicator.Show(position, definition.AreaRadius, TelegraphColor);
 
                 _activeShells.Add(new Shell

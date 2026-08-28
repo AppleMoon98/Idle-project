@@ -8,7 +8,7 @@ namespace Skill
     /// <summary>
     /// 스킬 이펙트 하나의 재생을 담당하는 범용 시각 컴포넌트. 어떤 스킬인지, 왜 재생되는지는 모르고
     /// Play()로 지시받은 자리에서 Particle System을 재생한 뒤 스스로 풀에 반납하는 것만 한다
-    /// (War.Boss.WarBossTelegraphIndicator와 동일하게 판정/타이밍은 호출자가 소유하고 이 컴포넌트는
+    /// (Combat.CircleTelegraphIndicator와 동일하게 판정/타이밍은 호출자가 소유하고 이 컴포넌트는
     /// 그리기만 담당). AreaDamage/SingleTargetStrike/SelfBuff 세 스킬 이펙트가 프리팹만 바꿔 공유한다.
     /// Animator/스프라이트 시트 기반 이펙트는 대신 SkillEffectAnimationVfx가 담당하며,
     /// 어느 쪽을 쓸지는 프리팹에 실제로 붙어있는 컴포넌트로 SpawnAndPlay가 판단한다.

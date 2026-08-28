@@ -59,7 +59,7 @@ namespace Combat
         /// <summary>
         /// 포탄을 발사한다. 풀에서 꺼낸 직후 호출되어야 한다. spinClockwise는 발사 순간 공성병이
         /// 바라보던 방향(우측이면 시계 방향, 좌측이면 반시계 방향)으로 정한다. telegraphInstance는
-        /// 착탄 지점에 이미 표시돼 있는 War.Boss.WarBossTelegraphIndicator 인스턴스 - 도착 시점에
+        /// 착탄 지점에 이미 표시돼 있는 Combat.CircleTelegraphIndicator 인스턴스 - 도착 시점에
         /// 이 포탄이 함께 반납한다(포탄과 예고 표시의 생명주기를 하나로 묶는다). explosionPrefab이
         /// 지정돼 있으면(sparse opt-in) 착탄 순간 Combat.ExplosionEffect를 splashRadius 크기로
         /// 재생한다 - Combat.SplashAttackBehavior의 explosionPrefab과 같은 목적/관례.

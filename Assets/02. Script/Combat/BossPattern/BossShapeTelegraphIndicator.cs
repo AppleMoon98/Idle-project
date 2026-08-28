@@ -9,7 +9,7 @@ namespace Combat.BossPattern
     /// <summary>
     /// 보스 패턴의 직사각형/부채꼴 예고(텔레그래프) 표시를 담당하는 순수 시각 컴포넌트. 판정/
     /// 데미지/타이밍은 전부 호출자(Rank.Boss.PromotionBossController 등)가 소유하며, 이 컴포넌트는
-    /// Show*()/SetProgress01()로 지시받은 대로 그리기만 한다(War.Boss.WarBossTelegraphIndicator와
+    /// Show*()/SetProgress01()로 지시받은 대로 그리기만 한다(Combat.CircleTelegraphIndicator와
     /// 동일한 철학을 직사각형/부채꼴로 확장한 것). 스프라이트는 별도 아트 에셋 없이 최초 1회
     /// 코드로 생성해 모든 인스턴스가 공유한다.
     /// </summary>

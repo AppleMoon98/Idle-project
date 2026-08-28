@@ -16,7 +16,7 @@ namespace UI
     /// 알려주는 것"이라, 다른 곳(적 탐지 범위 등)과 달리 실시간 카메라 뷰포트가 정답이다) 이미
     /// 점령됐으면(War.WarStructure.IsCaptured) 그 구역의 화살표는 숨긴다.
     ///
-    /// 화살표 스프라이트는 War.Boss.WarBossTelegraphIndicator.GetOrCreateCircleSprite와 같은 이유로
+    /// 화살표 스프라이트는 Combat.CircleTelegraphIndicator.GetOrCreateCircleSprite와 같은 이유로
     /// 별도 아트 에셋 없이 코드로 한 번 생성해 공유한다(흰색+알파 모양만 담고 Image.color로 틴트).
     /// 인디케이터 GameObject 자체도 미리 만든 프리팹 없이 필요한 개수만큼(최대 zoneCount) 그때그때
     /// 코드로 생성해 재사용하는 풀 - 매 시도 구역 수가 항상 같지만, 하드코딩 없이 실제 활성 구역

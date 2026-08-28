@@ -1,6 +1,6 @@
+using Combat;
 using Core;
 using UnityEngine;
-using War.Boss;
 using War.Events;
 
 namespace War
@@ -23,7 +23,7 @@ namespace War
         private LayerMask enemyLayerMask;
 
         [SerializeField]
-        private WarBossTelegraphIndicator rangeIndicator;
+        private CircleTelegraphIndicator rangeIndicator;
 
         private SpriteRenderer _spriteRenderer;
         private float _elapsed;
@@ -45,8 +45,8 @@ namespace War
         public float ActivationRadius => definition != null ? definition.ActivationRadius : 0f;
 
         /// <summary>
-        /// War 보스 광역기 예고(WarBossTelegraphIndicator)를 그대로 재사용해, 점령 판정 반경을
-        /// 보스 공격 범위처럼 항상 표시해둔다 - ActivationRadius는 구조물이 존재하는 동안 변하지
+        /// 공유 원형 예고 시각 컴포넌트(Combat.CircleTelegraphIndicator)를 그대로 재사용해, 점령
+        /// 판정 반경을 위험 범위처럼 항상 표시해둔다 - ActivationRadius는 구조물이 존재하는 동안 변하지
         /// 않으므로 한 번만 Show()하면 된다(자식이라 위치는 부모를 따라 자동으로 맞는다).
         /// </summary>
         private void Awake()

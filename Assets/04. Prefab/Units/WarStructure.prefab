@@ -180,7 +180,7 @@ MonoBehaviour:
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 866f9e23828bf954b90f89922181b300, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::War.Boss.WarBossTelegraphIndicator
+  m_EditorClassIdentifier: Assembly-CSharp::Combat.CircleTelegraphIndicator
 --- !u!4 &4747475500406358241 stripped
 Transform:
   m_CorrespondingSourceObject: {fileID: 6614811697189200429, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}

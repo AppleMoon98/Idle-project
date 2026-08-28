@@ -7,7 +7,7 @@ namespace Combat
     /// <summary>
     /// Attacker.AttackWindupStarted를 구독해, 실제 발사 attackWindupLeadTime초 전부터 예상 타겟까지
     /// 빨간 선(LineRenderer)으로 예고한다. 판정에는 전혀 관여하지 않는 순수 시각 컴포넌트 —
-    /// War.Boss.WarBossTelegraphIndicator와 동일한 "판정은 Attacker/RangedAttackBehavior가, 그리기는
+    /// Combat.CircleTelegraphIndicator와 동일한 "판정은 Attacker/RangedAttackBehavior가, 그리기는
     /// 이 컴포넌트가" 분리 원칙을 따른다.
     /// </summary>
     [RequireComponent(typeof(Attacker))]

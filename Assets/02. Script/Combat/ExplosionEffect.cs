@@ -11,7 +11,7 @@ namespace Combat
     /// 현재 스테이트 길이를 읽어 그 시간이 지나면 스스로 풀에 반납)을 쓰되, 이 이펙트만의 특징으로
     /// 반경(radius)에 맞춰 시각적 크기를 함께 조절한다 — 공격마다 스플래시 반경이 다를 수 있어
     /// (Combat.SplashAttackBehavior.splashRadius/Combat.MortarShell의 착탄 반경) 폭발 크기도 그
-    /// 범위를 그대로 나타내야 한다. War.Boss.WarBossTelegraphIndicator.Show가 코드로 생성한 원형
+    /// 범위를 그대로 나타내야 한다. Combat.CircleTelegraphIndicator.Show가 코드로 생성한 원형
     /// 스프라이트를 반경에 맞춰 스케일하는 것과 같은 방향이지만, 이쪽은 실제 아트(Explosions.png,
     /// spritePixelsToUnits 64 기준 프레임 192px = 3유닛 지름)라 그 자연 크기(NaturalDiameter)를
     /// 기준으로 배율을 계산한다.
