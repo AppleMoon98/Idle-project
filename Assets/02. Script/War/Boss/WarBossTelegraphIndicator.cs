@@ -4,10 +4,13 @@ using UnityEngine;
 namespace War.Boss
 {
     /// <summary>
-    /// War 보스 패턴의 예고(텔레그래프) 표시를 담당하는 순수 시각 컴포넌트. 판정/데미지/타이밍은
-    /// 전부 WarBossPatternRunner가 소유하며, 이 컴포넌트는 Show()/SetProgress01()로 지시받은
-    /// 대로 그리기만 한다(Combat.WeaponSwing이 Attacker의 판정과 분리되어 있는 것과 동일한 철학).
-    /// 원형 스프라이트는 별도 아트 에셋 없이 최초 1회 코드로 생성해 모든 인스턴스가 공유한다 —
+    /// 원형 예고(텔레그래프) 표시를 담당하는 순수 시각 컴포넌트. 판정/데미지/타이밍은 호출자가
+    /// 전부 소유하며, 이 컴포넌트는 Show()/SetProgress01()로 지시받은 대로 그리기만 한다
+    /// (Combat.WeaponSwing이 Attacker의 판정과 분리되어 있는 것과 동일한 철학). War.Boss 네임스페이스에
+    /// 남아있지만 War 보스 전용이 아니다 - War.WarStructure(점령 범위)/Skill.Effects.MeteorSkillEffect
+    /// (포탄 낙하 예고)/Combat.MortarShell(공성병 박격포 착탄) 등 여러 도메인이 공유하는 범용
+    /// 유틸리티다(전용이던 War.Boss.WarBossPatternRunner는 사용처가 없어 삭제됨). 원형 스프라이트는
+    /// 별도 아트 에셋 없이 최초 1회 코드로 생성해 모든 인스턴스가 공유한다 —
     /// 스프라이트 텍스처 자체는 흰색+알파(모양)만 담고, 실제 색조는 SpriteRenderer.color로
     /// 입힌다(스프라이트가 색을 곱연산으로 틴트하므로 흰색 스프라이트 × 임의 색 = 그 색 그대로).
     /// 이렇게 분리해야 같은 스프라이트를 공유하면서도 호출자마다 다른 색(적 공격=빨강, 플레이어
@@ -19,8 +22,7 @@ namespace War.Boss
         private const int TextureSize = 128;
 
         /// <summary>
-        /// Show()에 색을 안 넘긴 호출자(War 보스 패턴/WarStructure 점령 범위 등, 전부 적/위험
-        /// 표시)가 쓰는 기본색.
+        /// Show()에 색을 안 넘긴 호출자(WarStructure 점령 범위 등, 전부 적/위험 표시)가 쓰는 기본색.
         /// </summary>
         private static readonly Color DefaultColor = new Color(1f, 0.15f, 0.1f, 1f);
 

@@ -21,7 +21,6 @@ GameObject:
   - component: {fileID: 54522853668950333}
   - component: {fileID: 7736985882160912777}
   - component: {fileID: 91045284777858891}
-  - component: {fileID: 8008368952035582425}
   - component: {fileID: 7343061446896339025}
   - component: {fileID: 8703062279107916267}
   - component: {fileID: 1431470700813377935}
@@ -291,29 +290,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::Combat.MeleeAttackBehavior
   weaponMotion: {fileID: 0}
---- !u!114 &8008368952035582425
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 3104091886448902630}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2bebff76a4e7d5f488cdd7d76519203f, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::War.Boss.WarBossPatternRunner
-  patterns:
-  - {fileID: 11400000, guid: d19b2a38f677be948befe09df8c07b85, type: 2}
-  - {fileID: 11400000, guid: 70b915bbdaa9d124092173b5f85bb696, type: 2}
-  intervalBetweenPatterns: 4
-  detectionRange: 20
-  allyLayerMask:
-    serializedVersion: 2
-    m_Bits: 256
-  telegraphIndicatorPrefab: {fileID: 357340407349357720, guid: c1d5b9a9ff2a159428d707b18609c18f, type: 3}
-  poolCapacity: 2
-  poolMaxSize: 4
 --- !u!114 &7343061446896339025
 MonoBehaviour:
   m_ObjectHideFlags: 0
