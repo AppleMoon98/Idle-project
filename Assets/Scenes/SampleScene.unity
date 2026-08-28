@@ -77852,7 +77852,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: cdd4722430fdcb44e8b83462cdf26011, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::War.WarBattleController
-  climaxStageNumber: 40
+  climaxStageNumber: 0
   climaxWarmupDuration: 3
   chapterObjectives: []
   stageCatalog: {fileID: 11400000, guid: cf64dbde5266ff14ab81745cc0d25c48, type: 2}
