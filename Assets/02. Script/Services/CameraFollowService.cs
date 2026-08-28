@@ -24,9 +24,14 @@ namespace Services
         /// 더 넓은 가로 폭이 그대로 노출된다 - 배경 아트가 덮은 폭을 넘어서면 맵 바깥이,
         /// 스폰/방황 좌표(GetRandomPointWithinBounds 등)도 더 멀리서 뽑혀 화면에 그대로
         /// 보일 수 있다. 실제 안드로이드/iOS 폰 대부분은 9:16(0.5625)보다 좁아(세로로 더 김)
-        /// 이 상한 안쪽이고, 이보다 넓은 기기(태블릿 등 예외 케이스)에서만 아래
-        /// ApplyAspectPillarbox가 카메라 Rect를 좁혀 좌우에 여백을 준다 - Screen Space Overlay
-        /// Canvas는 카메라 Rect와 무관하게 항상 전체 화면을 쓰므로 UI는 이 영향을 받지 않는다.
+        /// 이 상한 안쪽이고, 이보다 넓은 기기(태블릿, 2960x1440처럼 아주 넓은 테스트 해상도 등)
+        /// 에서만 아래 ApplyAspectPillarbox가 카메라 Rect를 좁혀 좌우에 여백을 준다 - 씬의
+        /// Canvas 컴포넌트가 Screen Space - Camera 모드로 이 카메라(Main Camera)를 물고 있어서
+        /// (Canvas.renderMode/worldCamera, 코드가 아니라 씬에 직접 설정됨), UI도 이 Rect 안으로
+        /// 함께 좁혀진다. 검정 여백을 UI 위에 별도 Image로 덧그리는 방식은 시도했다가 폐기됐다 -
+        /// 여백 안에 있던 다른 UI를 가리기만 하고 실제로는 클릭까지 되는 상태가 되어 더
+        /// 혼란스러웠다(2026-08-28); Screen Space - Camera 전환이 유일하게 UI 레이아웃 자체를
+        /// 이 Rect 안으로 실제로 밀어 넣는 방법이었다.
         /// </summary>
         private const float MaxSupportedAspect = 0.5625f;
 
