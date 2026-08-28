@@ -2,8 +2,8 @@ namespace War
 {
     /// <summary>
     /// War 목표 하나의 진행 상태 계약. WarBattleController가 활성 목표를 이 인터페이스로만
-    /// 다루므로, 목표 종류(전멸/구조물 점령/보스 처치/수하물 보호)가 늘어나도
-    /// WarBattleController 쪽 판정 로직은 바뀌지 않는다.
+    /// 다루므로, 목표 종류(구조물 점령/수하물 보호)가 늘어나도 WarBattleController 쪽 판정
+    /// 로직은 바뀌지 않는다.
     /// </summary>
     public interface IWarObjective
     {
@@ -18,7 +18,7 @@ namespace War
         bool HasFailed { get; }
 
         /// <summary>
-        /// 목표 진행도(0~1). 연속적 진행도가 없는 목표(전멸/보스 처치)는 완료 여부를 그대로 반환한다.
+        /// 목표 진행도(0~1).
         /// </summary>
         float Progress01 { get; }
 

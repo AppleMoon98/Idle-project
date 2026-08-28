@@ -7,11 +7,6 @@ namespace War
     public enum WarObjectiveType
     {
         /// <summary>
-        /// 전멸: 기존 StageProgressTracker의 몬스터 처치 조건을 그대로 사용(패스스루).
-        /// </summary>
-        Annihilation,
-
-        /// <summary>
         /// 구조물 점령: 지정된 WarStructure 전부가 점령되면 클리어.
         /// </summary>
         StructureCapture,

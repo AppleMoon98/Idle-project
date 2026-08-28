@@ -71,9 +71,6 @@ namespace War
         private GameObject cargoProtectionProps;
 
         [SerializeField]
-        private AnnihilationObjective annihilationObjective;
-
-        [SerializeField]
         private StructureCaptureObjective structureCaptureObjective;
 
         [SerializeField]
@@ -116,7 +113,15 @@ namespace War
             DeactivateAll();
             _isWarmingUp = false;
 
-            bool isClimax = evt.StageNumber == climaxStageNumber;
+            // 전멸(Annihilation) 목표를 완전히 없앤 이후, "챕터에 명시적으로 배정된 목표가 없다"는
+            // 더 이상 폴백(예전의 Annihilation)으로 대체되지 않는다 - 그런 챕터는 climaxStageNumber에
+            // 도달해도 클라이맥스로 취급하지 않고 그냥 평범한 스테이지로 흘러간다. War 클라이맥스가
+            // 되려면 이제 항상 StructureCapture/CargoProtection 중 하나가 명시적으로 배정돼 있어야
+            // 한다.
+            WarObjectiveType? resolvedType = evt.StageNumber == climaxStageNumber
+                ? ResolveObjectiveType(evt.Chapter)
+                : null;
+            bool isClimax = resolvedType.HasValue;
 
             if (warZoneRoot != null)
             {
@@ -126,7 +131,7 @@ namespace War
             if (!isClimax)
             {
                 _isActive = false;
-                SetWarZonePropsActive(WarObjectiveType.Annihilation);
+                DeactivateWarZoneProps();
                 GameBootstrapper.Events?.Publish(new WarClimaxStateChangedEvent(false, _activeType, evt.Chapter));
                 return;
             }
@@ -142,7 +147,7 @@ namespace War
             // 스포너 틱을 묶어 카운트다운 동안은 아무것도 스폰/이동하지 않게 한다 - 이 시점은
             // LoadStage()가 아직 스포너를 한 번도 틱하지 않은 채라(StageChangedEvent 발행 직후,
             // 같은 프레임) 이미 스폰된 걸 되돌릴 필요 없이 깔끔하게 막힌다.
-            _activeType = ResolveObjectiveType(evt.Chapter);
+            _activeType = resolvedType.Value;
             SetWarZonePropsActive(_activeType);
             _isActive = false;
             _isWarmingUp = true;
@@ -191,9 +196,10 @@ namespace War
                 GameBootstrapper.Events?.Publish(new WarObjectiveProgressChangedEvent(progress));
             }
 
-            // Annihilation은 StageProgressTracker의 자연스러운 클리어를 그대로 두고,
-            // 나머지 세 목표만 조기 클리어로 StageClearedEvent를 직접 발행한다.
-            if (_activeType != WarObjectiveType.Annihilation && _activeObjective.IsCompleted)
+            // 전멸(Annihilation)이 없어진 뒤로는 활성화될 수 있는 목표가 항상 StructureCapture/
+            // CargoProtection뿐이라, 완료 시 조기 클리어로 StageClearedEvent를 직접 발행하는
+            // 경로가 유일하다(자연스러운 StageProgressTracker 클리어에 맡기던 예외가 없어짐).
+            if (_activeObjective.IsCompleted)
             {
                 _isActive = false;
                 StageSO clearedStage = stageCatalog.Find(_currentChapter, _currentStageNumber);
@@ -208,9 +214,9 @@ namespace War
         /// <summary>
         /// warZoneRoot 밑의 구조물/수하물 소품은 실제로 그 목표가 활성화된 챕터에서만 보여야 한다 -
         /// warZoneRoot.SetActive(true)만으로는 안에 있는 모든 소품(다른 목표용까지)이 한꺼번에
-        /// 켜져버린다(실제 발견된 문제: chapterObjectives가 비어 Annihilation으로 배정된 챕터의
-        /// 클라이맥스에 들어가도 Cargo가 화면에 나타났고, Player 레이어라 몬스터의 실제 공격
-        /// 대상이 되기까지 했다). Annihilation처럼 전용 소품이 없는 목표는 끈다.
+        /// 켜져버린다(실제 발견된 문제: chapterObjectives가 비어 전멸로 배정된 챕터의 클라이맥스에
+        /// 들어가도 Cargo가 화면에 나타났고, Player 레이어라 몬스터의 실제 공격 대상이 되기까지
+        /// 했다 - 전멸 자체는 이후 완전히 삭제됐지만 이 소품 격리 원칙은 그대로 유효하다).
         /// </summary>
         private void SetWarZonePropsActive(WarObjectiveType type)
         {
@@ -225,7 +231,29 @@ namespace War
             }
         }
 
-        private WarObjectiveType ResolveObjectiveType(int chapter)
+        /// <summary>
+        /// 클라이맥스가 아니거나(챕터에 배정된 목표가 없음) 클라이맥스를 이탈할 때, 모든 전장
+        /// 소품을 끈다.
+        /// </summary>
+        private void DeactivateWarZoneProps()
+        {
+            if (structureCaptureProps != null)
+            {
+                structureCaptureProps.SetActive(false);
+            }
+
+            if (cargoProtectionProps != null)
+            {
+                cargoProtectionProps.SetActive(false);
+            }
+        }
+
+        /// <summary>
+        /// chapter에 명시적으로 배정된 목표를 반환한다. 배정이 없으면 null - 예전의 전멸
+        /// (Annihilation) 폴백은 완전히 삭제됐다: 배정이 없는 챕터는 climaxStageNumber에
+        /// 도달해도 클라이맥스로 취급되지 않는다(OnStageChanged 참고).
+        /// </summary>
+        private WarObjectiveType? ResolveObjectiveType(int chapter)
         {
             if (chapterObjectives != null)
             {
@@ -238,7 +266,7 @@ namespace War
                 }
             }
 
-            return WarObjectiveType.Annihilation;
+            return null;
         }
 
         private IWarObjective ActivateObjective(WarObjectiveType type)
@@ -247,7 +275,7 @@ namespace War
             {
                 WarObjectiveType.StructureCapture => structureCaptureObjective,
                 WarObjectiveType.CargoProtection => cargoProtectionObjective,
-                _ => annihilationObjective
+                _ => null
             };
 
             if (target == null)
@@ -263,7 +291,6 @@ namespace War
 
         private void DeactivateAll()
         {
-            SetActiveIfAssigned(annihilationObjective);
             SetActiveIfAssigned(structureCaptureObjective);
             SetActiveIfAssigned(cargoProtectionObjective);
 

@@ -14,7 +14,7 @@ namespace UI
             {
                 WarObjectiveType.StructureCapture => "구조물을 점령하세요!",
                 WarObjectiveType.CargoProtection => "수하물을 보호하세요!",
-                _ => "적을 전멸시키세요!"
+                _ => "목표를 완료하세요!"
             };
         }
     }

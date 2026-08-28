@@ -2,7 +2,6 @@ using Core;
 using Stage.Events;
 using UnityEngine;
 using UnityEngine.UI;
-using War;
 using War.Events;
 
 namespace UI
@@ -68,13 +67,16 @@ namespace UI
 
         private void OnWarClimaxWarmupStarted(WarClimaxWarmupStartedEvent evt)
         {
-            _hideMonsterCount = evt.ObjectiveType != WarObjectiveType.Annihilation;
+            // 전멸(Annihilation) 목표 삭제 이후, 이 이벤트는 항상 실제 목표(구조물 점령/수하물
+            // 보호)가 배정된 클라이맥스에서만 발행된다 - 그 두 목표는 몬스터 수가 클리어 조건과
+            // 무관하므로 항상 숨긴다.
+            _hideMonsterCount = true;
             Refresh();
         }
 
         private void OnWarClimaxStateChanged(WarClimaxStateChangedEvent evt)
         {
-            _hideMonsterCount = evt.IsClimax && evt.ObjectiveType != WarObjectiveType.Annihilation;
+            _hideMonsterCount = evt.IsClimax;
             Refresh();
         }
 
