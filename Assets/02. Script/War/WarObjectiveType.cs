@@ -17,11 +17,6 @@ namespace War
         StructureCapture,
 
         /// <summary>
-        /// 보스 처치: BossMarker가 붙은 대상이 사망하면 클리어(다른 몬스터 생존 여부 무관).
-        /// </summary>
-        BossDefeat,
-
-        /// <summary>
         /// 수하물 보호: 지정된 시간 동안 수하물이 생존하면 클리어, 그전에 사망하면 실패.
         /// </summary>
         CargoProtection

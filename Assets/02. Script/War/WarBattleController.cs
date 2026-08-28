@@ -77,9 +77,6 @@ namespace War
         private StructureCaptureObjective structureCaptureObjective;
 
         [SerializeField]
-        private BossDefeatObjective bossDefeatObjective;
-
-        [SerializeField]
         private CargoProtectionObjective cargoProtectionObjective;
 
         private IWarObjective _activeObjective;
@@ -213,7 +210,7 @@ namespace War
         /// warZoneRoot.SetActive(true)만으로는 안에 있는 모든 소품(다른 목표용까지)이 한꺼번에
         /// 켜져버린다(실제 발견된 문제: chapterObjectives가 비어 Annihilation으로 배정된 챕터의
         /// 클라이맥스에 들어가도 Cargo가 화면에 나타났고, Player 레이어라 몬스터의 실제 공격
-        /// 대상이 되기까지 했다). Annihilation/BossDefeat처럼 전용 소품이 없는 목표는 둘 다 끈다.
+        /// 대상이 되기까지 했다). Annihilation처럼 전용 소품이 없는 목표는 끈다.
         /// </summary>
         private void SetWarZonePropsActive(WarObjectiveType type)
         {
@@ -249,7 +246,6 @@ namespace War
             MonoBehaviour target = type switch
             {
                 WarObjectiveType.StructureCapture => structureCaptureObjective,
-                WarObjectiveType.BossDefeat => bossDefeatObjective,
                 WarObjectiveType.CargoProtection => cargoProtectionObjective,
                 _ => annihilationObjective
             };
@@ -269,7 +265,6 @@ namespace War
         {
             SetActiveIfAssigned(annihilationObjective);
             SetActiveIfAssigned(structureCaptureObjective);
-            SetActiveIfAssigned(bossDefeatObjective);
             SetActiveIfAssigned(cargoProtectionObjective);
 
             _activeObjective = null;
