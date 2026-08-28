@@ -101,6 +101,15 @@ namespace UI
         {
             _owned = owned;
 
+            // EquipmentSlotPopupUI가 같은 행 인스턴스를 재사용해(Destroy+Instantiate 대신) 반복
+            // Initialize할 수 있으므로, 매번 새로 AddListener하기 전에 이전 클로저를 반드시 지운다 -
+            // 그렇지 않으면 재사용 횟수만큼 리스너가 쌓여 클릭 한 번에 합성/강화가 여러 번 실행되는
+            // (재료가 의도보다 더 많이 소모되는) 심각한 부작용이 생긴다.
+            equipButton.onClick.RemoveAllListeners();
+            nameButton?.onClick.RemoveAllListeners();
+            fuseButton.onClick.RemoveAllListeners();
+            enhanceButton.onClick.RemoveAllListeners();
+
             if (owned == null)
             {
                 background.color = new Color(backgroundColor.r, backgroundColor.g, backgroundColor.b, backgroundColor.a * LockedBackgroundAlphaMultiplier);

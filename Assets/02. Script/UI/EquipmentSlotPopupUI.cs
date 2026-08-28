@@ -77,7 +77,16 @@ namespace UI
         // 어디에서도 리셋하지 않는다. 초기값은 Awake()가 PlayerPrefs에서 읽어온다.
         private bool _sortDescending;
 
-        private readonly List<EquipmentRowUI> _spawnedRows = new();
+        // EquipmentCatalogSO는 런타임에 바뀌지 않는 정적 콘텐츠라, 같은 슬롯에 대한 entries
+        // 집합(그 슬롯의 전체 등급 원형들)은 항상 고정이다 - 그래서 슬롯이 바뀌지 않는 한 행을
+        // Destroy+Instantiate로 다시 만들 필요가 전혀 없고, 정의(EquipmentSO)별로 기존 행을
+        // 재사용해 내용/순서만 갱신하면 된다. 실사용 중 "몬스터를 계속 잡을 때마다 장비가 드롭될
+        // 때마다 EquipmentRow(Clone)가 반복해서 생성/삭제된다"는 제보로 발견됐다 - section CL의
+        // 프레임당 1회 디바운스는 "같은 프레임에 몰린 이벤트"만 묶어줄 뿐, 서로 다른 프레임에
+        // 걸쳐 드롭이 계속되면(활발한 파밍 중 팝업을 열어둔 경우) 매 드롭마다 여전히 목록 전체를
+        // 다시 그렸다.
+        private EquipmentType? _spawnedSlot;
+        private readonly Dictionary<EquipmentSO, EquipmentRowUI> _rowsByDefinition = new();
 
         private BackNavigationService _backNavigationService;
 
@@ -271,19 +280,22 @@ namespace UI
 
         private void Refresh()
         {
-            foreach (EquipmentRowUI row in _spawnedRows)
-            {
-                Destroy(row.gameObject);
-            }
-
-            _spawnedRows.Clear();
-
             if (GameBootstrapper.Services == null
                 || !GameBootstrapper.Services.TryGet(out InventoryService inventory)
                 || !GameBootstrapper.Services.TryGet(out EquippedGearService equippedGear)
                 || equipmentCatalog == null)
             {
+                ClearRows();
                 return;
+            }
+
+            // 슬롯이 바뀌면(다른 부위로 재오픈) 대상 원형 집합 자체가 완전히 달라지므로 기존 행을
+            // 전부 버리고 새로 만든다 - 같은 슬롯을 유지한 채 보유/장착 상태만 바뀌는 흔한 경우는
+            // 아래에서 기존 행을 그대로 재사용한다.
+            if (_spawnedSlot != _openSlot)
+            {
+                ClearRows();
+                _spawnedSlot = _openSlot;
             }
 
             OwnedEquipment currentlyEquipped = equippedGear.GetEquipped(_openSlot);
@@ -310,14 +322,32 @@ namespace UI
                 ? ordered.ThenByDescending(entry => gradeCatalog.IndexOf(entry.Definition.Grade))
                 : ordered.ThenBy(entry => gradeCatalog.IndexOf(entry.Definition.Grade));
 
+            int siblingIndex = 0;
+
             foreach ((EquipmentSO definition, OwnedEquipment owned) in ordered)
             {
-                EquipmentRowUI row = Instantiate(rowPrefab, rowContainer);
+                if (!_rowsByDefinition.TryGetValue(definition, out EquipmentRowUI row))
+                {
+                    row = Instantiate(rowPrefab, rowContainer);
+                    _rowsByDefinition[definition] = row;
+                }
+
                 Color backgroundColor = EquipmentRowUI.ComputeGradeBackground(cardBaseColor, definition.Grade, gradeTintBlend);
                 row.Initialize(definition, owned, owned != null && owned == currentlyEquipped, backgroundColor, target => detailPopup?.Open(target, currentlyEquipped), target => enhancementPopup?.Open(target), RequestFuseConfirm);
-
-                _spawnedRows.Add(row);
+                row.transform.SetSiblingIndex(siblingIndex);
+                siblingIndex++;
             }
+        }
+
+        private void ClearRows()
+        {
+            foreach (EquipmentRowUI row in _rowsByDefinition.Values)
+            {
+                Destroy(row.gameObject);
+            }
+
+            _rowsByDefinition.Clear();
+            _spawnedSlot = null;
         }
 
         bool IDismissible.TryDismiss()

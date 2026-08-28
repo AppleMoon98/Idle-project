@@ -520,6 +520,17 @@ namespace Editor
             Check("LootDropper_OnCharacterDied_ResumesNormalDropsAfterOverlayEnds",
                 CheckLootDropperResumesNormalDropsAfterOverlay);
 
+            // --- 실사용 제보(GitHub 이슈 아님, 2026-08-28): 장비 창에서 EquipmentRow(Clone)가
+            // Instantiate/Destroy를 반복. EquipmentSlotPopupUI.Refresh는 section CL의 프레임당
+            // 1회 디바운스가 있었지만, 그 디바운스 이후에도 매번 목록 전체를 Destroy+Instantiate로
+            // 다시 그렸다 - 파밍 중 팝업을 열어두면 드롭될 때마다 반복됐다. EquipmentCatalogSO는
+            // 런타임에 안 바뀌는 정적 콘텐츠라 슬롯당 행 집합 자체는 고정이라는 점을 이용해, 슬롯이
+            // 안 바뀌는 한 기존 행을 재사용하도록 바꿨다 ---
+            Check("EquipmentRowUI_Initialize_CalledRepeatedly_DoesNotAccumulateButtonListeners",
+                CheckEquipmentRowUIInitializeIdempotent);
+            Check("EquipmentSlotPopupUI_Refresh_ReusesRowsForSameSlot_RebuildsOnSlotChange",
+                CheckEquipmentSlotPopupUIRefreshReusesRows);
+
             total = localTotal;
             failures = localFailures;
         }
@@ -8363,6 +8374,228 @@ namespace Editor
             if (Mathf.Abs(expected - actual) > 0.0005f)
             {
                 throw new Exception($"{context}: 기대={expected}, 실제={actual}");
+            }
+        }
+
+        /// <summary>
+        /// EquipmentSlotPopupUI가 같은 EquipmentRowUI 인스턴스를 재사용해(Destroy+Instantiate 대신)
+        /// 반복 Initialize할 수 있게 되면서, Initialize 자신이 매번 이전 버튼 리스너를 지우지
+        /// 않으면 클릭 한 번에 합성/강화 콜백이 여러 번 실행되는(재료가 의도보다 더 많이 소모되는)
+        /// 심각한 부작용이 생긴다. 같은 인스턴스에 Initialize를 3번 호출한 뒤 합성 버튼을 한 번
+        /// 클릭해 콜백이 정확히 한 번만 실행되는지 확인한다.
+        /// </summary>
+        private static void CheckEquipmentRowUIInitializeIdempotent()
+        {
+            string prefabPath = "Assets/04. Prefab/UI/EquipmentRow.prefab";
+            var prefab = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+            if (prefab == null || !prefab.TryGetComponent(out UI.EquipmentRowUI rowPrefab))
+            {
+                throw new Exception($"{prefabPath}에서 UI.EquipmentRowUI 프리팹을 찾지 못함 - 경로/컴포넌트가 바뀌었는지 확인");
+            }
+
+            GameObject instanceGo = null;
+            EquipmentSO definition = null;
+
+            try
+            {
+                definition = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(definition, "stableId", "regression-idempotent-row");
+                SetPrivateField(definition, "equipmentType", EquipmentType.Weapon);
+                SetPrivateField(definition, "itemName", "회귀검사용 무기");
+
+                var owned = new OwnedEquipment(definition, 5, 0);
+
+                instanceGo = UnityEngine.Object.Instantiate(rowPrefab.gameObject);
+                var row = instanceGo.GetComponent<UI.EquipmentRowUI>();
+
+                int fuseRequestedCount = 0;
+                Action<OwnedEquipment> onFuse = _ => fuseRequestedCount++;
+
+                row.Initialize(definition, owned, false, Color.white, null, null, onFuse);
+                row.Initialize(definition, owned, false, Color.white, null, null, onFuse);
+                row.Initialize(definition, owned, false, Color.white, null, null, onFuse);
+
+                FieldInfo fuseButtonField = typeof(UI.EquipmentRowUI).GetField("fuseButton", BindingFlags.NonPublic | BindingFlags.Instance);
+                var fuseButton = (UnityEngine.UI.Button)fuseButtonField.GetValue(row);
+                fuseButton.onClick.Invoke();
+
+                if (fuseRequestedCount != 1)
+                {
+                    throw new Exception($"Initialize를 3번 호출한 뒤 합성 버튼 클릭 1회의 콜백 실행 횟수가 {fuseRequestedCount}(기대=1) - 리스너가 누적됨(재료 중복 소모 위험)");
+                }
+            }
+            finally
+            {
+                if (instanceGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(instanceGo);
+                }
+
+                if (definition != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(definition);
+                }
+            }
+        }
+
+        /// <summary>
+        /// EquipmentCatalogSO는 런타임에 바뀌지 않는 정적 콘텐츠라, 같은 슬롯에 대한 행 집합은
+        /// 항상 고정이다 - EquipmentSlotPopupUI.Refresh()가 이 점을 이용해 같은 슬롯을 유지한 채
+        /// 반복 호출돼도 기존 행을 재사용(Destroy+Instantiate 없음)하고, 슬롯이 실제로 바뀔
+        /// 때만 전부 다시 만드는지 확인한다.
+        /// </summary>
+        private static void CheckEquipmentSlotPopupUIRefreshReusesRows()
+        {
+            var events = new EventBus();
+            var inventory = new InventoryService(events);
+            inventory.Initialize();
+            var equippedGear = new EquippedGearService(events);
+            equippedGear.Initialize();
+
+            PropertyInfo servicesProperty = typeof(GameBootstrapper).GetProperty("Services", BindingFlags.Public | BindingFlags.Static);
+
+            if (servicesProperty == null)
+            {
+                throw new Exception("GameBootstrapper.Services 프로퍼티를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            object originalServices = servicesProperty.GetValue(null);
+
+            string prefabPath = "Assets/04. Prefab/UI/EquipmentRow.prefab";
+            var rowPrefabAsset = AssetDatabase.LoadAssetAtPath<GameObject>(prefabPath);
+
+            if (rowPrefabAsset == null || !rowPrefabAsset.TryGetComponent(out UI.EquipmentRowUI rowPrefab))
+            {
+                throw new Exception($"{prefabPath}에서 UI.EquipmentRowUI 프리팹을 찾지 못함 - 경로/컴포넌트가 바뀌었는지 확인");
+            }
+
+            EquipmentSO weaponA = null;
+            EquipmentSO weaponB = null;
+            EquipmentCatalogSO catalog = null;
+            EquipmentGradeCatalogSO gradeCatalog = null;
+            GameObject popupGo = null;
+            GameObject rowContainerGo = null;
+
+            try
+            {
+                var locator = new ServiceLocator();
+                locator.Register(inventory);
+                locator.Register(equippedGear);
+                servicesProperty.SetValue(null, locator);
+
+                weaponA = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(weaponA, "stableId", "regression-slotpopup-weapon-a");
+                SetPrivateField(weaponA, "equipmentType", EquipmentType.Weapon);
+
+                weaponB = ScriptableObject.CreateInstance<EquipmentSO>();
+                SetPrivateString(weaponB, "stableId", "regression-slotpopup-weapon-b");
+                SetPrivateField(weaponB, "equipmentType", EquipmentType.Weapon);
+
+                catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+                SetPrivateField(catalog, "items", new[] { weaponA, weaponB });
+
+                gradeCatalog = ScriptableObject.CreateInstance<EquipmentGradeCatalogSO>();
+
+                popupGo = new GameObject("RegressionCheck_EquipmentSlotPopupUI");
+                popupGo.SetActive(false); // Awake()가 실행되지 않도록(팝업 전체 배선 없이 Refresh만 검증)
+                var popup = popupGo.AddComponent<UI.EquipmentSlotPopupUI>();
+
+                rowContainerGo = new GameObject("RegressionCheck_RowContainer", typeof(RectTransform));
+
+                SetPrivateField(popup, "rowContainer", rowContainerGo.transform);
+                SetPrivateField(popup, "rowPrefab", rowPrefab);
+                SetPrivateField(popup, "gradeCatalog", gradeCatalog);
+                SetPrivateField(popup, "equipmentCatalog", catalog);
+                SetPrivateField(popup, "_openSlot", EquipmentType.Weapon);
+
+                MethodInfo refresh = typeof(UI.EquipmentSlotPopupUI).GetMethod("Refresh", BindingFlags.NonPublic | BindingFlags.Instance);
+
+                refresh.Invoke(popup, null);
+
+                if (rowContainerGo.transform.childCount != 2)
+                {
+                    throw new Exception($"첫 Refresh 후 행 수가 {rowContainerGo.transform.childCount}(기대=2)");
+                }
+
+                var firstInstanceIds = new HashSet<int>();
+                for (int i = 0; i < rowContainerGo.transform.childCount; i++)
+                {
+                    firstInstanceIds.Add(rowContainerGo.transform.GetChild(i).gameObject.GetInstanceID());
+                }
+
+                // 실제 아이템 획득(ItemDroppedEvent)으로 보유 상태를 바꾼 뒤 같은 슬롯으로 다시
+                // Refresh - 예전에는 이때마다 행 전체를 Destroy+Instantiate로 다시 그렸다.
+                events.Publish(new Loot.Events.ItemDroppedEvent(weaponA));
+                refresh.Invoke(popup, null);
+
+                if (rowContainerGo.transform.childCount != 2)
+                {
+                    throw new Exception($"같은 슬롯 재갱신 후 행 수가 {rowContainerGo.transform.childCount}(기대=2) - 행이 중복 생성됨");
+                }
+
+                var secondInstanceIds = new HashSet<int>();
+                for (int i = 0; i < rowContainerGo.transform.childCount; i++)
+                {
+                    secondInstanceIds.Add(rowContainerGo.transform.GetChild(i).gameObject.GetInstanceID());
+                }
+
+                if (!firstInstanceIds.SetEquals(secondInstanceIds))
+                {
+                    throw new Exception("같은 슬롯을 유지한 재갱신인데 행 GameObject 인스턴스가 재사용되지 않고 새로 생성/삭제됨 - 실사용 제보(EquipmentRow(Clone) 반복 생성/삭제) 재현");
+                }
+
+                // 슬롯이 실제로 바뀌면(이 테스트 카탈로그에는 Armor 항목이 없음) 대상 집합 자체가
+                // 완전히 달라지므로 전부 정리돼야 한다. ClearRows()는 실제 GameObject 파괴에
+                // Destroy()(Play Mode 전용, Edit Mode에서는 즉시 반영되지 않고 경고만 남긴다)를
+                // 쓰므로, 여기서는 물리적 자식 수 대신 내부 추적 딕셔너리가 실제로 비워졌는지로
+                // 확인한다 - ClearRows()가 실제로 호출됐는지를 나타내는 진짜 상태 변화다.
+                SetPrivateField(popup, "_openSlot", EquipmentType.Armor);
+                refresh.Invoke(popup, null);
+
+                FieldInfo rowsByDefinitionField = typeof(UI.EquipmentSlotPopupUI).GetField("_rowsByDefinition", BindingFlags.NonPublic | BindingFlags.Instance);
+                var rowsByDefinitionAfterSlotChange = (System.Collections.IDictionary)rowsByDefinitionField.GetValue(popup);
+
+                if (rowsByDefinitionAfterSlotChange.Count != 0)
+                {
+                    throw new Exception($"슬롯 변경 후 추적 중인 행 수가 {rowsByDefinitionAfterSlotChange.Count}(기대=0) - 이전 슬롯의 행이 정리되지 않음");
+                }
+            }
+            finally
+            {
+                servicesProperty.SetValue(null, originalServices);
+                inventory.Shutdown();
+                equippedGear.Shutdown();
+
+                if (popupGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(popupGo);
+                }
+
+                if (rowContainerGo != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(rowContainerGo);
+                }
+
+                if (weaponA != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponA);
+                }
+
+                if (weaponB != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(weaponB);
+                }
+
+                if (catalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(catalog);
+                }
+
+                if (gradeCatalog != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(gradeCatalog);
+                }
             }
         }
     }
