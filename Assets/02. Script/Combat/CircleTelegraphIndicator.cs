@@ -17,6 +17,15 @@ namespace Combat
     /// SpriteRenderer.color로 입힌다(스프라이트가 색을 곱연산으로 틴트하므로 흰색 스프라이트 ×
     /// 임의 색 = 그 색 그대로). 이렇게 분리해야 같은 스프라이트를 공유하면서도 호출자마다 다른
     /// 색(적 공격=빨강, 플레이어 스킬=파랑 등)을 쓸 수 있다.
+    ///
+    /// 프리팹의 SpriteRenderer.sortingOrder는 바닥 장식처럼 배경(GroundTilemap, -100)보다는 위,
+    /// 그 외 모든 오브젝트보다는 아래여야 한다(실사용 중 "공격 범위 표시가 캐릭터를 가린다"는
+    /// 제보로 발견 - 기존 값 1은 캐릭터보다 위였다). Character.YSortRenderer가 화면 안 캐릭터에
+    /// 부여하는 sortingOrder 실질 범위가 약 [-80, -20](baseSortingOrder=-50 ± 가시 Y 범위)이라,
+    /// 그보다 낮은 -90으로 고정해뒀다 - 예고 위치/캐릭터 위치와 무관하게 항상 배경보다는 위,
+    /// 캐릭터를 포함한 나머지 전부보다는 아래를 유지한다(캐릭터처럼 Y에 따라 동적으로 재계산할
+    /// 필요가 없다 - 바닥 장식은 원근에 따라 다른 오브젝트를 가리거나 가려질 이유가 없으므로
+    /// 고정값 하나로 항상 충분하다).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public sealed class CircleTelegraphIndicator : MonoBehaviour, IPoolable
