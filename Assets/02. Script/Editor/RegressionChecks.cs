@@ -1621,6 +1621,7 @@ namespace Editor
                 MethodInfo restore = typeof(UI.GachaResultRevealController).GetMethod("RestoreAlreadyRevealedSlots", BindingFlags.NonPublic | BindingFlags.Instance);
                 FieldInfo contentField = typeof(UI.GachaResultRevealController).GetField("content", BindingFlags.NonPublic | BindingFlags.Instance);
                 FieldInfo nextIndexField = typeof(UI.GachaResultRevealController).GetField("_nextIndex", BindingFlags.NonPublic | BindingFlags.Instance);
+                FieldInfo pendingField = typeof(UI.GachaResultRevealController).GetField("_pending", BindingFlags.NonPublic | BindingFlags.Instance);
                 var content = (Transform)contentField.GetValue(controller);
 
                 for (int i = 0; i < revealedBeforeLeaving; i++)
@@ -1664,12 +1665,28 @@ namespace Editor
                     throw new Exception($"나머지 리빌 완료 후 슬롯 수가 {content.childCount}(기대={slotCount})");
                 }
 
+                // 완전히 끝난 리빌(_nextIndex == _pending.Count)을 재열기하면 더 이상 예전 결과를
+                // 되살리지 않는다 - 계속 되살리면 탭을 오갈 때마다 다 본 결과가 매번 다시 나타나
+                // pullButtonsContainer 위 슬롯 영역을 채워 뽑기 버튼을 가리는 문제로 이어졌다
+                // (실사용 제보, GitHub 이슈 #10과는 별개의 후속 결함).
                 InvokeOnDisable(controller);
                 restore.Invoke(controller, null);
 
-                if (content.childCount != slotCount)
+                if (content.childCount != 0)
                 {
-                    throw new Exception($"완전히 끝난 리빌을 재열기했는데 슬롯 수가 {content.childCount}(기대={slotCount}) - 화면이 비는 회귀");
+                    throw new Exception($"완전히 끝난 리빌을 재열기했는데 예전 결과가 다시 나타남: 슬롯 수 {content.childCount}(기대=0) - 뽑기 버튼을 가리는 회귀");
+                }
+
+                if (pendingField.GetValue(controller) != null)
+                {
+                    throw new Exception("완전히 끝난 리빌을 재열기한 뒤에도 _pending이 비워지지 않음");
+                }
+
+                int nextIndexAfterConsumedRestore = (int)nextIndexField.GetValue(controller);
+
+                if (nextIndexAfterConsumedRestore != 0)
+                {
+                    throw new Exception($"완전히 끝난 리빌을 재열기한 뒤 _nextIndex가 0으로 초기화되지 않음: {nextIndexAfterConsumedRestore}");
                 }
 
                 InvokeOnDisable(controller);

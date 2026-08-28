@@ -301,3 +301,10 @@ CLAUDE.md의 "### HA. Unused Direct Package Dependencies Removed..."부터 이�
 - **순수 데이터(에셋) 변경이라 코드 수정은 전혀 없다** — `StageController.LoadStage`(전술 프리팹 풀 등록)와 `StageProgressTracker.CalculateTotal`(전술+일반 웨이브 마릿수 합산)은 이미 `TacticEntries`가 비어 있는 경우를 정상 처리하므로(section CA/CB가 33~39 구간에서 이미 검증한 것과 동일한 코드 경로) 자동으로 반영된다.
 - **section ID의 "영향받지 않는 것" 서술은 이 변경으로 더 이상 유효하지 않다** — 그 문단은 War 클라이맥스 배정 해제 시점(방패벽 전술이 아직 살아있던 상태) 기준이었고, 이번 섹션이 그 전술 콘텐츠 자체를 대체한다.
 - **검증:** 컴파일 0 errors(`refresh_unity`+`read_console`, 순수 `.asset` 텍스트 편집이라 씬 저장 노이즈 자체가 발생할 여지가 없음 — section ID/IC/IB가 반복 겪은 문제와 무관). `git diff`로 두 파일 모두 의도한 5줄(`spawnWithTactics` 2곳 0으로 변경, `tacticEntries` 블록 삭제 후 `[]`, 신규 보병/궁병 `spawnEntries` 2항목 추가)만 정확히 바뀌었음을 확인했다.
+
+### IF. Gacha Result Panel: Fully-Completed Reveal No Longer Resurfaces on Every Tab Revisit (Covered the Pull Button)
+`Assets/02. Script/UI/GachaResultRevealController.cs` + `Editor/RegressionChecks.cs` — "뽑기 기록이 초기화되지 않고 계속 남아있다"는 제보와, 그로 인해 "뽑기 이후 다른 칸에 갔다가 돌아오면 버튼을 가린다"는 구체적 증상을 실사용 중 제보받아 조사·수정했다.
+- **원인:** `RestoreAlreadyRevealedSlots()`(section GU, GitHub 이슈 #10)가 탭을 벗어났다 돌아올 때마다 `_pending`/`_nextIndex`가 남아있으면 **리빌이 이미 완전히 끝난 경우까지 포함해** 무조건 그 결과를 다시 스폰했다 — 원래 의도(이슈 #10 완료 조건: "리빌이 완전히 끝난 뒤 벗어났다 돌아와도 화면이 비면 안 된다")는 정확했지만, 그 결과 이미 다 본 예전 뽑기 결과가 그 탭을 다시 열 때마다(심지어 한참 뒤에 아무 관계 없이 다시 방문해도) 매번 되살아나 계속 화면에 남아있게 됐다 — 이게 바로 "기록이 초기화되지 않고 계속 남아있다"는 증상이다. `ResultGrid`(결과 슬롯 스크롤 영역)와 `PullPanel`(뽑기 버튼 영역)은 평소엔 겹치지 않는 별도 rect지만, 되살아난 슬롯이 계속 쌓인 채로 화면에 남아 뽑기 버튼 위/주변을 가리는 것으로 실사용 중 확인됐다.
+- **수정:** `RestoreAlreadyRevealedSlots()`가 `_nextIndex >= _pending.Count`(리빌이 이미 완전히 끝난 상태)면 더 이상 복원하지 않고 `_pending = null; _nextIndex = 0;`로 비운 뒤 즉시 반환한다 — 이미 다 본 결과는 탭을 벗어나는 순간 "소비됨"으로 간주한다. `_nextIndex < _pending.Count`(리빌 도중 이탈한 경우)만 기존처럼 즉시 복원한다 — 이슈 #10이 막으려던 "진행 중이던 리빌이 탭 전환으로 증발하는" 문제는 그대로 방지된다.
+- `RegressionChecks.cs`의 기존 검사(`GachaResultRevealController_OnEnable_RestoresAlreadyRevealedSlotsInstantly`)를 새 기대값에 맞춰 갱신했다 — "완전히 끝난 리빌을 재열기하면 슬롯 수가 `slotCount`여야 한다"(옛 기대)를 "슬롯 수가 0이어야 하고 `_pending`도 `null`로 비어야 한다"(새 기대)로 뒤집었다. 새 검사를 추가하는 대신 기존 검사 자체를 고쳤으므로 회귀 검사 총 개수는 147개로 그대로다.
+- 컴파일 0 errors, `RegressionChecks` 147/147 통과 확인.
