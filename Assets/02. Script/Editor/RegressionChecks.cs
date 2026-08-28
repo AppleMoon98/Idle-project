@@ -478,6 +478,18 @@ namespace Editor
             Check("SquadRaidCoordinator_OnTacticChanged_OutOfRangeIndex_DoesNotThrow",
                 CheckSquadRaidCoordinatorOnTacticChangedOutOfRangeIndex);
 
+            // --- 이슈 #26 재오픈(2026-08-27): 복원된 최대 InstanceId(int.MaxValue)가 saturate된
+            // _nextInstanceId 자체와 충돌해, 발급 전 점유 확인 없이 그대로 재사용되며 기존 병사를
+            // 덮어쓰고 다음 발급이 음수로 오버플로하던 문제 ---
+            Check("SoldierRosterService_AddSoldier_DoesNotOverwriteOccupiedNextId",
+                CheckSoldierRosterAddSoldierDoesNotOverwriteOccupiedNextId);
+            Check("SoldierRosterService_AddSoldier_BoundaryAtIntMaxValueMinusOne",
+                CheckSoldierRosterAddSoldierBoundaryAtIntMaxValueMinusOne);
+            Check("SoldierRosterService_AddSoldier_SkipsOccupiedRunToFindFreeSlot",
+                CheckSoldierRosterAddSoldierSkipsOccupiedRunToFindFreeSlot);
+            Check("SoldierRosterService_AddSoldiersBatch_SharesSameCollisionAvoidancePolicy",
+                CheckSoldierRosterAddSoldiersBatchSharesSameCollisionAvoidancePolicy);
+
 
             // --- 이슈 #27: 일반 웨이브 SpawnInterval을 실전은 무시하고(즉시 스폰) 오프라인
             // 시뮬레이터는 병목으로 계산하던 시간 모델 불일치 ---
@@ -7172,6 +7184,250 @@ namespace Editor
             finally
             {
                 if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #26 재오픈(2026-08-27) 재현 절차 그대로 - InstanceId가 int.MaxValue인
+        /// 기존 병사를 복원한 뒤(RestoreSnapshot이 _nextInstanceId를 int.MaxValue로 saturate,
+        /// 바로 위 CheckSoldierRosterRestoreSaturatesOnOverflow가 확인하는 지점) AddSoldier를
+        /// 연달아 두 번 호출한다. 수정 전에는 첫 호출이 그 자리를 점유 확인 없이 그대로
+        /// 재발급받아 기존 병사를 덮어썼고(로스터 수 1 유지), 두 번째 호출은 _nextInstanceId++가
+        /// int 오버플로로 음수(-2147483648)로 순환했다. 수정 후에는 int.MaxValue가 점유돼 있으므로
+        /// 선형 탐색이 0으로 순환해 그 자리를 대신 발급하고, 기존 병사는 그대로 보존되며, 반환된
+        /// ID도 항상 0 이상(음수로 순환하지 않음)이어야 한다.
+        /// </summary>
+        private static void CheckSoldierRosterAddSoldierDoesNotOverwriteOccupiedNextId()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                catalog = CreateSoldierCatalog(new[] { definitionA, definitionB });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = int.MaxValue, BehaviorProfileStableId = null },
+                };
+
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                OwnedSoldier first = roster.AddSoldier(definitionB);
+
+                if (first == null)
+                {
+                    throw new Exception("첫 AddSoldier가 null을 반환함(정상적으로 발급 가능해야 함)");
+                }
+
+                if (first.InstanceId == int.MaxValue)
+                {
+                    throw new Exception("새 병사가 기존 InstanceId int.MaxValue와 충돌함(점유 확인 없이 그대로 재발급됨)");
+                }
+
+                if (first.InstanceId < 0)
+                {
+                    throw new Exception($"발급된 InstanceId={first.InstanceId}가 음수임 - int 오버플로로 순환했을 가능성");
+                }
+
+                if (roster.Roster.Count != 2)
+                {
+                    throw new Exception($"로스터 수가 {roster.Roster.Count}(기대=2) - 기존 병사가 덮어써져 사라짐");
+                }
+
+                if (!roster.TryGet(int.MaxValue, out OwnedSoldier original) || original.Definition != definitionA)
+                {
+                    throw new Exception("InstanceId int.MaxValue가 가리키는 정의가 원래 병사(definitionA)가 아님 - 덮어써짐");
+                }
+
+                OwnedSoldier second = roster.AddSoldier(definitionB);
+
+                if (second == null || second.InstanceId < 0 || second.InstanceId == first.InstanceId || second.InstanceId == int.MaxValue)
+                {
+                    throw new Exception($"두 번째 AddSoldier 결과가 비정상(InstanceId={second?.InstanceId})");
+                }
+
+                if (roster.Roster.Count != 3)
+                {
+                    throw new Exception($"연속 두 번 추가 후 로스터 수가 {roster.Roster.Count}(기대=3)");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// int.MaxValue 바로 아래(int.MaxValue-1)까지만 점유된 상태에서 AddSoldier를 호출하면
+        /// off-by-one 없이 정확히 int.MaxValue를 발급하는지 확인한다(GitHub 이슈 #26 재오픈 -
+        /// "int.MaxValue-1, int.MaxValue... 회귀 테스트" 완료 조건).
+        /// </summary>
+        private static void CheckSoldierRosterAddSoldierBoundaryAtIntMaxValueMinusOne()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                catalog = CreateSoldierCatalog(new[] { definitionA, definitionB });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = int.MaxValue - 1, BehaviorProfileStableId = null },
+                };
+
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                OwnedSoldier added = roster.AddSoldier(definitionB);
+
+                if (added == null || added.InstanceId != int.MaxValue)
+                {
+                    throw new Exception($"발급된 InstanceId={added?.InstanceId}(기대=int.MaxValue) - 경계에서 하나를 건너뛰거나 불필요하게 순환함");
+                }
+
+                if (roster.Roster.Count != 2)
+                {
+                    throw new Exception($"로스터 수가 {roster.Roster.Count}(기대=2)");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// _nextInstanceId 바로 앞에 여러 개(5~7) InstanceId가 이미 점유돼 있으면, 극단적인
+        /// int.MaxValue 경계가 아니어도 선형 탐색이 그 구간 전체를 건너뛰어 실제로 비어있는
+        /// 다음 자리(8)를 찾는지 확인한다 - "점유돼 있으면 덮어쓰지 않는다"는 정책이 한 칸짜리
+        /// 충돌뿐 아니라 여러 칸이 연속으로 막혀 있어도 성립하는지(GitHub 이슈 #26 재오픈).
+        /// </summary>
+        private static void CheckSoldierRosterAddSoldierSkipsOccupiedRunToFindFreeSlot()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definition = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definition = CreateSoldierDefinition("stable-a");
+                catalog = CreateSoldierCatalog(new[] { definition });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 5, BehaviorProfileStableId = null },
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 6, BehaviorProfileStableId = null },
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = 7, BehaviorProfileStableId = null },
+                };
+
+                // nextInstanceId를 일부러 5(이미 점유된 구간의 시작)로 지정해, RestoreSnapshot의
+                // "복원된 최대 InstanceId+1로 보정"에 기대지 않고 TryAllocateInstanceId 자신의
+                // 점유 탐색만으로 free slot을 찾는지 검증한다.
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 5);
+
+                SetPrivateFieldOnPlainObject(roster, "_nextInstanceId", 5);
+
+                OwnedSoldier added = roster.AddSoldier(definition);
+
+                if (added == null || added.InstanceId != 8)
+                {
+                    throw new Exception($"발급된 InstanceId={added?.InstanceId}(기대=8) - 점유된 5~7 구간을 건너뛰지 못함");
+                }
+            }
+            finally
+            {
+                if (definition != null) UnityEngine.Object.DestroyImmediate(definition);
+                if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
+                if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
+            }
+        }
+
+        /// <summary>
+        /// AddSoldiersBatch도 AddSoldier와 동일한 점유 회피 정책을 공유하는지 확인한다(GitHub
+        /// 이슈 #26 재오픈 - "AddSoldier와 일괄 추가 경로가 같은 소진 정책을 사용한다" 완료 조건).
+        /// int.MaxValue가 이미 점유된 상태에서 2명을 배치로 추가해도 둘 다 int.MaxValue와
+        /// 충돌하지 않고 서로 다른 ID를 받아야 한다.
+        /// </summary>
+        private static void CheckSoldierRosterAddSoldiersBatchSharesSameCollisionAvoidancePolicy()
+        {
+            var events = new EventBus();
+            var roster = new SoldierRosterService(events);
+            SoldierSO definitionA = null;
+            SoldierSO definitionB = null;
+            SoldierCatalogSO catalog = null;
+            BehaviorProfileCatalogSO behaviorCatalog = null;
+
+            try
+            {
+                definitionA = CreateSoldierDefinition("stable-a");
+                definitionB = CreateSoldierDefinition("stable-b");
+                catalog = CreateSoldierCatalog(new[] { definitionA, definitionB });
+                behaviorCatalog = ScriptableObject.CreateInstance<BehaviorProfileCatalogSO>();
+
+                var snapshot = new[]
+                {
+                    new SoldierRosterService.OwnedSoldierSnapshot { StableId = "stable-a", InstanceId = int.MaxValue, BehaviorProfileStableId = null },
+                };
+
+                roster.RestoreSnapshot(snapshot, catalog, behaviorCatalog, nextInstanceId: 0);
+
+                IReadOnlyList<OwnedSoldier> added = roster.AddSoldiersBatch(new List<SoldierSO> { definitionB, definitionB });
+
+                if (added.Count != 2)
+                {
+                    throw new Exception($"AddSoldiersBatch(2)가 {added.Count}개만 성공함(기대=2)");
+                }
+
+                if (added[0].InstanceId == int.MaxValue || added[1].InstanceId == int.MaxValue || added[0].InstanceId < 0 || added[1].InstanceId < 0)
+                {
+                    throw new Exception($"배치 결과 ID가 비정상(InstanceId={added[0].InstanceId}, {added[1].InstanceId}) - int.MaxValue와 충돌했거나 음수로 순환함");
+                }
+
+                if (added[0].InstanceId == added[1].InstanceId)
+                {
+                    throw new Exception("배치 안에서 두 유닛이 같은 InstanceId를 받음");
+                }
+
+                if (roster.Roster.Count != 3)
+                {
+                    throw new Exception($"로스터 수가 {roster.Roster.Count}(기대=3) - 기존 병사가 배치 추가로 덮어써짐");
+                }
+
+                if (!roster.TryGet(int.MaxValue, out OwnedSoldier original) || original.Definition != definitionA)
+                {
+                    throw new Exception("InstanceId int.MaxValue가 가리키는 정의가 원래 병사(definitionA)가 아님 - 배치 추가로 덮어써짐");
+                }
+            }
+            finally
+            {
+                if (definitionA != null) UnityEngine.Object.DestroyImmediate(definitionA);
+                if (definitionB != null) UnityEngine.Object.DestroyImmediate(definitionB);
                 if (catalog != null) UnityEngine.Object.DestroyImmediate(catalog);
                 if (behaviorCatalog != null) UnityEngine.Object.DestroyImmediate(behaviorCatalog);
             }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Behavior;
 using Core;
 using Soldier.Events;
+using UnityEngine;
 
 namespace Soldier
 {
@@ -51,16 +52,63 @@ namespace Soldier
 
         /// <summary>
         /// definition 병사의 새 개별 유닛을 로스터에 추가하고 SoldierRosterChangedEvent를 발행한다.
+        /// ID 공간이 소진돼(GitHub 이슈 #26 재오픈) 발급할 자리가 없으면 아무 것도 추가하지 않고
+        /// null을 반환한다 - 실제 플레이에서 로스터가 21억 개를 넘어야 발생하는, 사실상 도달
+        /// 불가능한 방어적 경계다.
         /// </summary>
         public OwnedSoldier AddSoldier(SoldierSO definition)
         {
-            var owned = new OwnedSoldier(definition, _nextInstanceId);
-            _nextInstanceId++;
+            if (!TryAllocateInstanceId(out int instanceId))
+            {
+                Debug.LogError("[SoldierRosterService] ID 공간이 소진되어 새 병사를 추가할 수 없습니다(GitHub 이슈 #26).");
+                return null;
+            }
 
-            _roster[owned.InstanceId] = owned;
+            var owned = new OwnedSoldier(definition, instanceId);
+            _roster[instanceId] = owned;
             _events.Publish(new SoldierRosterChangedEvent(owned, _roster.Count));
 
             return owned;
+        }
+
+        /// <summary>
+        /// 발급 대상 InstanceId가 이미 로스터에 점유돼 있지 않은지 확인한 뒤(GitHub 이슈 #26
+        /// 재오픈 - RestoreSnapshot이 nextInstanceId를 int.MaxValue로 saturate한 값이 실제로는
+        /// 이미 점유된 값일 수 있어, 점유 확인 없이 그대로 발급하면 기존 병사를 덮어썼다),
+        /// [0, int.MaxValue] 범위 안에서 빈 자리를 선형 탐색해 발급한다. RestoreSnapshot이
+        /// 음수 InstanceId를 손상된 데이터로 간주해 폐기하는 정책(section HH)과 일관되도록,
+        /// int.MaxValue에서 막히면 음수로 넘어가지 않고 0으로 순환한다 - 여기서 발급한 ID가
+        /// 다음 저장/복원 왕복에서 스스로 폐기되는 모순을 피하기 위함. 탐색이 시작점으로
+        /// 되돌아오면(=이 범위 전체가 점유) false를 반환한다.
+        /// </summary>
+        private bool TryAllocateInstanceId(out int instanceId)
+        {
+            int candidate = _nextInstanceId < 0 ? 0 : _nextInstanceId;
+            int start = candidate;
+            bool wrapped = false;
+
+            while (_roster.ContainsKey(candidate))
+            {
+                if (candidate == int.MaxValue)
+                {
+                    candidate = 0;
+                    wrapped = true;
+                }
+                else
+                {
+                    candidate++;
+                }
+
+                if (wrapped && candidate == start)
+                {
+                    instanceId = 0;
+                    return false;
+                }
+            }
+
+            instanceId = candidate;
+            _nextInstanceId = candidate == int.MaxValue ? 0 : candidate + 1;
+            return true;
         }
 
         /// <summary>
@@ -73,6 +121,10 @@ namespace Soldier
         /// GC 비용이 된다. 300개를 한 번에 굴려도 이벤트는 1번만 나가면, 지금 당장은 없지만 나중에
         /// evt마다 무거운 작업을 하는 구독자(업적 시스템 등)가 추가돼도 이 증폭이 재발하지 않는다.
         /// definitions가 비어있으면 아무 것도 안 하고 빈 목록을 반환한다(이벤트도 발행 안 함).
+        /// ID 공간이 소진되면(GitHub 이슈 #26 재오픈, TryAllocateInstanceId와 같은 정책 공유)
+        /// 그 시점까지 성공한 만큼만 반환한다 - 남은 definitions는 건너뛴다. 사실상 도달
+        /// 불가능한 경계이지만, 호출부(GachaService.Pull)는 이미 "요청보다 적게 성공"을
+        /// 정상 처리하는 부분 성공 계약을 갖고 있어 별도 처리가 필요 없다.
         /// </summary>
         public IReadOnlyList<OwnedSoldier> AddSoldiersBatch(IReadOnlyList<SoldierSO> definitions)
         {
@@ -85,14 +137,21 @@ namespace Soldier
 
             foreach (SoldierSO definition in definitions)
             {
-                var owned = new OwnedSoldier(definition, _nextInstanceId);
-                _nextInstanceId++;
+                if (!TryAllocateInstanceId(out int instanceId))
+                {
+                    Debug.LogError("[SoldierRosterService] ID 공간이 소진되어 나머지 병사를 추가하지 못했습니다(GitHub 이슈 #26).");
+                    break;
+                }
 
-                _roster[owned.InstanceId] = owned;
+                var owned = new OwnedSoldier(definition, instanceId);
+                _roster[instanceId] = owned;
                 added.Add(owned);
             }
 
-            _events.Publish(new SoldierRosterChangedEvent(added[added.Count - 1], _roster.Count));
+            if (added.Count > 0)
+            {
+                _events.Publish(new SoldierRosterChangedEvent(added[added.Count - 1], _roster.Count));
+            }
 
             return added;
         }
