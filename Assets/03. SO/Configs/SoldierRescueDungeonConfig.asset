@@ -12,7 +12,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 15ae903013523d64eabc6467051e6c97, type: 3}
   m_Name: SoldierRescueDungeonConfig
   m_EditorClassIdentifier: Assembly-CSharp::Dungeon.SoldierRescueDungeonConfigSO
-  cavalryPrefab: {fileID: 3104091886448902630, guid: 105c56d9539f36f48a6819e5ce64104d, type: 3}
   structureDefinition: {fileID: 11400000, guid: 1427e8bbdb2c9024aad747865903a41f, type: 2}
   zoneCount: 3
   minDistanceBetweenZones: 4
