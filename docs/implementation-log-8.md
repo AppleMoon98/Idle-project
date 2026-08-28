@@ -363,3 +363,6 @@ CLAUDE.md의 "### HA. Unused Direct Package Dependencies Removed..."부터 이�
 - 클래스 doc 주석에 이 sortingOrder 제약(배경보다 위, 나머지보다 아래)과 근거 수치를 기록해뒀다 — 프리팹 값이라 코드 자체에 상수로 강제할 수 없는 값이라, 다음에 이 프리팹을 만지는 사람이 실수로 되돌리지 않도록 하는 문서화.
 - 이 컴포넌트를 재사용하는 소비처(`WarStructure`의 점령 범위, `MeteorSkillEffect`의 포탄 낙하 예고, `SiegeMortarAttackBehavior`의 공성 박격포 착탄 예고)가 프리팹 하나를 공유하므로 이 수정 한 곳으로 전부 함께 고쳐진다.
 - 컴파일 0 errors, `RegressionChecks` 149/149 통과, `execute_code`로 실제 프리팹의 `sortingOrder=-90`을 재확인.
+- **같은 결함이 형제 컴포넌트 `Combat.BossPattern.BossShapeTelegraphIndicator`(직사각형/부채꼴 예고, 랭크 승급전/보스 던전의 `Rank.Boss.PromotionBossController`가 사용)에도 그대로 남아있어(실사용 중 사용자가 Play 모드를 일시정지한 채 직접 스크린샷으로 지목) 같은 방식으로 함께 고쳤다** — `BossShapeTelegraphIndicator.prefab`도 `sortingOrder: 1 → -90`, 클래스 doc 주석에 동일한 근거를 기록했다.
+- **함정(라이브 검증 중 실제로 겪음) — Play 모드 도중 프리팹만 고쳐도, 이미 그 세션에서 풀링된 인스턴스는 반영되지 않는다:** `PoolManager`는 `Get()`마다 프리팹을 새로 복사하지 않고 기존에 만들어둔 인스턴스를 재활용하므로, 이미 8개를 풀링해둔 이 세션에서는 전부 옛 `sortingOrder=1`을 그대로 들고 있었다(프리팹 에셋 자체는 `-90`으로 정상 확인됨) - `execute_code`로 현재 활성 인스턴스 하나를 직접 `-90`으로 패치해 즉시 반영되는 것만 확인했다. **이 세션의 나머지 풀링된 인스턴스와 이후 새 Play 세션 전체는 Play 모드를 재시작해야 수정된 프리팹 값을 받는다** - 프리팹 데이터 수정은 실행 중인 오브젝트 풀에 소급 적용되지 않는다는 걸 실제로 확인한 사례.
+- 컴파일 0 errors(Play 모드 중 재컴파일, 세션 유지됨), `RegressionChecks` 149/149 통과(라이브 씬의 무관한 `NullReferenceException` 로그가 다수 섞였지만 회귀 검사 자체는 격리된 합성 오브젝트만 다뤄 무관 - 최종 요약 줄로 전부 통과 확인).

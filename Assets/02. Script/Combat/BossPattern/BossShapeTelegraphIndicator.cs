@@ -12,6 +12,11 @@ namespace Combat.BossPattern
     /// Show*()/SetProgress01()로 지시받은 대로 그리기만 한다(Combat.CircleTelegraphIndicator와
     /// 동일한 철학을 직사각형/부채꼴로 확장한 것). 스프라이트는 별도 아트 에셋 없이 최초 1회
     /// 코드로 생성해 모든 인스턴스가 공유한다.
+    ///
+    /// 프리팹의 SpriteRenderer.sortingOrder는 Combat.CircleTelegraphIndicator와 동일한 이유로
+    /// -90으로 고정돼 있다(바닥 장식처럼 배경보다는 위, 그 외 모든 오브젝트보다는 아래여야
+    /// 한다 - 실사용 중 "공격 범위 표시가 캐릭터를 가린다"는 제보로 CircleTelegraphIndicator에서
+    /// 먼저 발견·수정된 것과 같은 결함이 이 형제 컴포넌트에도 남아있었다).
     /// </summary>
     [RequireComponent(typeof(SpriteRenderer))]
     public sealed class BossShapeTelegraphIndicator : MonoBehaviour, IPoolable, ITickable
