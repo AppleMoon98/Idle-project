@@ -19,23 +19,27 @@ MonoBehaviour:
     count: 4
     spawnInterval: 0.8
     visualSet: {fileID: 0}
-    spawnWithTactics: 1
+    spawnWithTactics: 0
     placement: 1
   - monsterPrefab: {fileID: 3104091886448902630, guid: 49ceaa60f3ac8f54da82791f1e3480ab, type: 3}
     count: 1
     spawnInterval: 2
     visualSet: {fileID: 0}
-    spawnWithTactics: 1
+    spawnWithTactics: 0
     placement: 2
-  tacticEntries:
-  - type: 0
-    leaderPrefab: {fileID: 3104091886448902630, guid: 017b75ffb24cb3545ad23b607331a435, type: 3}
-    followerPrefab: {fileID: 3104091886448902630, guid: 2bf238906febe384d95ef5403d51d9f6, type: 3}
-    alternateFollowerPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
-    alternateFollowerChance: 0.3
-    totalUnitCount: 36
-    pairSpawnInterval: 0
-    immediateEntryDelay: 2
+  - monsterPrefab: {fileID: 3104091886448902630, guid: 7da6041b108869f4882e0f8ae520fa1a, type: 3}
+    count: 24
+    spawnInterval: 0.3
+    visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
+  - monsterPrefab: {fileID: 3104091886448902630, guid: d57dfd7ceac2fbf4a828086877aef43b, type: 3}
+    count: 12
+    spawnInterval: 0.3
+    visualSet: {fileID: 0}
+    spawnWithTactics: 0
+    placement: 0
+  tacticEntries: []
   equipmentDrops:
   - equipment: {fileID: 11400000, guid: 00d09296a27b0e949aa76e536a67e930, type: 2}
     dropChance: 0.0157
