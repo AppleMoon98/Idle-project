@@ -77,7 +77,7 @@ namespace Combat
         private float chargeStartSpeed = 3f;
 
         [SerializeField]
-        private float maxChargeSpeed = 9f;
+        private float maxChargeSpeed = 5f;
 
         [SerializeField]
         private float baseTurnRateDegreesPerSecond = 180f;
