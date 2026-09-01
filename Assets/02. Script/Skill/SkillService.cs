@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using Core;
-using Equipment;
 using Loot;
 using Skill.Events;
 
@@ -10,15 +9,15 @@ namespace Skill
     /// <summary>
     /// 스킬별 레벨과 보유 개수(중복 획득분)를 관리한다. 스킬은 뽑기/던전으로 "개수"만 늘어나고,
     /// 그 개수를 재료로 소모해야 레벨업할 수 있다 — 0강(미습득) -> 1강은 개수 1개만 있으면
-    /// 골드/강화석 없이 무료로 열리고, 그 이후(1강 이상)는 개수 3개 + 골드/강화석을 동시에
-    /// 요구한다(둘 다 충분해야 성공). 실제 효과 적용은 하지 않는다 — SkillSlot이 이 서비스에서
-    /// 레벨만 조회해 스스로 발동한다(EnhancementService/StatEnhancementReceiver와 동일한
-    /// "서비스는 상태만, 컴포넌트는 적용만" 분리).
-    /// CurrencyService/EnhancementStoneService는 생성자로 주입받지 않고 TryLevelUp 시점에
-    /// ServiceLocator에서 조회한다 — SaveService가 스냅샷 저장을 위해 이 서비스를 생성자로
-    /// 주입받아야 하는데, GameBootstrapper에서 Currency/EnhancementStone은 SaveService.Load() 이후에
-    /// (저장된 값으로) 생성되므로 그보다 먼저 존재해야 하는 SkillService가 그 둘을 생성자로
-    /// 요구하면 순환 의존이 생긴다.
+    /// 골드 없이 무료로 열리고, 그 이후(1강 이상)는 골드 + 보유 개수를 동시에 요구한다(둘 다
+    /// 충분해야 성공) — 강화석은 더 이상 쓰지 않는다. 매 레벨업마다 필요한 보유 개수가 1개씩
+    /// 늘어난다(GetRequiredCount 참고, 예: 1강→2강 3개, 2강→3강 4개, 3강→4강 5개, ...). 실제 효과
+    /// 적용은 하지 않는다 — SkillSlot이 이 서비스에서 레벨만 조회해 스스로 발동한다
+    /// (EnhancementService/StatEnhancementReceiver와 동일한 "서비스는 상태만, 컴포넌트는 적용만" 분리).
+    /// CurrencyService는 생성자로 주입받지 않고 TryLevelUp 시점에 ServiceLocator에서 조회한다 —
+    /// SaveService가 스냅샷 저장을 위해 이 서비스를 생성자로 주입받아야 하는데, GameBootstrapper에서
+    /// Currency는 SaveService.Load() 이후에(저장된 값으로) 생성되므로 그보다 먼저 존재해야 하는
+    /// SkillService가 이를 생성자로 요구하면 순환 의존이 생긴다.
     /// </summary>
     public sealed class SkillService : IManager, IService
     {
@@ -28,9 +27,10 @@ namespace Skill
         private const int FirstUnlockRequiredCount = 1;
 
         /// <summary>
-        /// 1강 이상에서 다음 레벨로 올릴 때마다 소모되는 보유 개수.
+        /// 1강 이상에서 다음 레벨로 올릴 때(레벨 1→2)의 기준 보유 개수. 그 이후로는 레벨업마다
+        /// 1개씩 늘어난다 — 실제 다음 레벨업에 필요한 개수는 GetRequiredCount를 통해 구한다.
         /// </summary>
-        private const int PerLevelRequiredCount = 3;
+        private const int PerLevelBaseRequiredCount = 3;
 
         /// <summary>
         /// 세이브 직렬화용 스냅샷 한 줄. SkillSO.StableId로 SkillSO를 식별한다
@@ -97,11 +97,13 @@ namespace Skill
         }
 
         /// <summary>
-        /// 다음 레벨업(현재 레벨 -> +1)에 필요한 보유 개수. 0강(미습득) 구간만 1개, 그 이후는 3개.
+        /// 다음 레벨업(현재 레벨 -> +1)에 필요한 보유 개수. 0강(미습득) 구간만 1개, 그 이후는
+        /// 레벨업할 때마다 1개씩 늘어난다(1강→2강 3개, 2강→3강 4개, 3강→4강 5개, ...).
         /// </summary>
         public int GetRequiredCount(SkillSO definition)
         {
-            return GetLevel(definition) == 0 ? FirstUnlockRequiredCount : PerLevelRequiredCount;
+            int level = GetLevel(definition);
+            return level == 0 ? FirstUnlockRequiredCount : PerLevelBaseRequiredCount + (level - 1);
         }
 
         /// <summary>
@@ -120,9 +122,9 @@ namespace Skill
         }
 
         /// <summary>
-        /// 레벨업을 시도한다. 최대 레벨이거나, 보유 개수가 모자라거나(0강 구간 1개 / 그 이후 3개),
-        /// 1강 이상 구간에서 골드/강화석 중 하나라도 부족하면 아무 변화 없이 false.
-        /// 0강 -> 1강은 개수만 소모하고 골드/강화석은 요구하지 않는다.
+        /// 레벨업을 시도한다. 최대 레벨이거나, 보유 개수가 모자라거나(GetRequiredCount 참고),
+        /// 1강 이상 구간에서 골드가 부족하면 아무 변화 없이 false.
+        /// 0강 -> 1강은 개수만 소모하고 골드는 요구하지 않는다.
         /// </summary>
         public bool TryLevelUp(SkillSO definition)
         {
@@ -149,23 +151,19 @@ namespace Skill
 
             if (!isFirstUnlock)
             {
-                if (GameBootstrapper.Services == null
-                    || !GameBootstrapper.Services.TryGet(out CurrencyService currency)
-                    || !GameBootstrapper.Services.TryGet(out EnhancementStoneService stones))
+                if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out CurrencyService currency))
                 {
                     return false;
                 }
 
                 int goldCost = definition.GetGoldCost(level);
-                int stoneCost = definition.GetStoneCost(level);
 
-                if (currency.CurrentGold < goldCost || stones.CurrentStones < stoneCost)
+                if (currency.CurrentGold < goldCost)
                 {
                     return false;
                 }
 
                 currency.TrySpendGold(goldCost);
-                stones.TrySpendStones(stoneCost);
             }
 
             int newCount = GetCount(definition) - requiredCount;

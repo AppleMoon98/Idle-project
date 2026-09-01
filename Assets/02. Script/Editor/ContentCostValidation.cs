@@ -22,8 +22,8 @@ namespace Editor
     ///
     /// StableIdBackfill.cs와 같은 "AssetDatabase.FindAssets로 프로젝트 자산 전체를 스캔하는"
     /// 1회성/반복 실행 가능한 Editor 검증 도구다. 비용 필드는 대부분 public 프로퍼티로 이미
-    /// 노출돼 있어 그대로 읽고, Skill.SkillSO의 골드/강화석 비용만 public 프로퍼티가 없어(계산된
-    /// GetGoldCost(level)/GetStoneCost(level)만 공개) RegressionChecks.cs가 이미 쓰는 것과 같은
+    /// 노출돼 있어 그대로 읽고, Skill.SkillSO의 골드 비용만 public 프로퍼티가 없어(계산된
+    /// GetGoldCost(level)만 공개) RegressionChecks.cs가 이미 쓰는 것과 같은
     /// 리플렉션으로 원본 필드를 직접 읽는다.
     /// </summary>
     internal static class ContentCostValidation
@@ -147,10 +147,8 @@ namespace Editor
 
             FieldInfo goldCostBaseField = typeof(SkillSO).GetField("goldCostBase", BindingFlags.NonPublic | BindingFlags.Instance);
             FieldInfo goldCostIncreaseField = typeof(SkillSO).GetField("goldCostIncreasePerLevel", BindingFlags.NonPublic | BindingFlags.Instance);
-            FieldInfo stoneCostBaseField = typeof(SkillSO).GetField("stoneCostBase", BindingFlags.NonPublic | BindingFlags.Instance);
-            FieldInfo stoneCostIncreaseField = typeof(SkillSO).GetField("stoneCostIncreasePerLevel", BindingFlags.NonPublic | BindingFlags.Instance);
 
-            if (goldCostBaseField == null || goldCostIncreaseField == null || stoneCostBaseField == null || stoneCostIncreaseField == null)
+            if (goldCostBaseField == null || goldCostIncreaseField == null)
             {
                 errors.Add("SkillSO의 비용 필드를 찾지 못함 - 필드 이름이 바뀌었는지 확인 필요");
                 return count;
@@ -161,8 +159,6 @@ namespace Editor
                 count++;
                 CheckNonNegative(errors, path, "goldCostBase", (int)goldCostBaseField.GetValue(skill));
                 CheckNonNegative(errors, path, "goldCostIncreasePerLevel", (int)goldCostIncreaseField.GetValue(skill));
-                CheckNonNegative(errors, path, "stoneCostBase", (int)stoneCostBaseField.GetValue(skill));
-                CheckNonNegative(errors, path, "stoneCostIncreasePerLevel", (int)stoneCostIncreaseField.GetValue(skill));
             }
 
             return count;

@@ -5,8 +5,9 @@ namespace Skill
     /// <summary>
     /// 스킬 하나(고정 슬롯)의 데이터 정의. 레벨 0(미강화 상태)은 아직 습득하지 않은 것으로 취급돼
     /// SkillSlot이 자동 발동시키지 않는다(SkillSlot.Tick 참고) — 레벨 1부터 EffectValueBase +
-    /// EffectValuePerLevel × 레벨 수치로 발동한다. 비용은 골드/강화석을 둘 다 요구하며 레벨에
-    /// 비례해 선형으로 증가한다(EquipmentEnhancementConfigSO와 동일한 형태).
+    /// EffectValuePerLevel × 레벨 수치로 발동한다. 비용은 골드만 요구하며 레벨에 비례해 선형으로
+    /// 증가한다(EquipmentEnhancementConfigSO와 동일한 형태) — 그 외에 레벨업마다 소모되는 보유(복제)
+    /// 개수가 1개씩 늘어난다(SkillService.GetRequiredCount 참고). 강화석은 쓰지 않는다.
     /// </summary>
     [CreateAssetMenu(fileName = "Skill", menuName = "Idle Project/Skill/Skill")]
     public sealed class SkillSO : ScriptableObject
@@ -39,14 +40,6 @@ namespace Skill
         [SerializeField]
         [Min(0)]
         private int goldCostIncreasePerLevel = 50;
-
-        [SerializeField]
-        [Min(0)]
-        private int stoneCostBase = 5;
-
-        [SerializeField]
-        [Min(0)]
-        private int stoneCostIncreasePerLevel = 2;
 
         [SerializeField]
         private float effectValueBase = 10f;
@@ -246,12 +239,5 @@ namespace Skill
             return goldCostBase + goldCostIncreasePerLevel * level;
         }
 
-        /// <summary>
-        /// 다음 레벨(level -> level+1)로 올리는 데 필요한 강화석 비용.
-        /// </summary>
-        public int GetStoneCost(int level)
-        {
-            return stoneCostBase + stoneCostIncreasePerLevel * level;
-        }
     }
 }

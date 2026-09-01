@@ -2,7 +2,6 @@ using Character;
 using Core;
 using Enhancement;
 using Enhancement.Events;
-using Equipment;
 using Equipment.Events;
 using Loot;
 using Loot.Events;
@@ -88,7 +87,6 @@ namespace UI
             GameBootstrapper.Events?.Subscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Subscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Subscribe<GoldChangedEvent>(OnCurrencyChanged);
-            GameBootstrapper.Events?.Subscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Subscribe<StatEnhancedEvent>(OnAttackPowerChanged);
             GameBootstrapper.Events?.Subscribe<EquipmentStatsChangedEvent>(OnAttackPowerChanged);
         }
@@ -98,7 +96,6 @@ namespace UI
             GameBootstrapper.Events?.Unsubscribe<SkillLeveledUpEvent>(OnSkillLeveledUp);
             GameBootstrapper.Events?.Unsubscribe<SkillCountChangedEvent>(OnSkillCountChanged);
             GameBootstrapper.Events?.Unsubscribe<GoldChangedEvent>(OnCurrencyChanged);
-            GameBootstrapper.Events?.Unsubscribe<EnhancementStoneChangedEvent>(OnCurrencyChanged);
             GameBootstrapper.Events?.Unsubscribe<StatEnhancedEvent>(OnAttackPowerChanged);
             GameBootstrapper.Events?.Unsubscribe<EquipmentStatsChangedEvent>(OnAttackPowerChanged);
         }
@@ -142,14 +139,9 @@ namespace UI
             }
         }
 
-        // 팝업이 열려있는 동안 전투 등으로 골드/강화석이 바뀌면 보유량 표시가 바로 최신 상태를
-        // 따라가도록 한다 - 어느 재화가 바뀌었는지는 구분할 필요 없이 통째로 다시 그린다.
+        // 팝업이 열려있는 동안 전투 등으로 골드가 바뀌면 보유량 표시가 바로 최신 상태를
+        // 따라가도록 한다.
         private void OnCurrencyChanged(GoldChangedEvent evt)
-        {
-            RefreshIfOpen();
-        }
-
-        private void OnCurrencyChanged(EnhancementStoneChangedEvent evt)
         {
             RefreshIfOpen();
         }
@@ -330,9 +322,10 @@ namespace UI
             }
         }
 
-        // 다음 레벨에 필요한 재료(주문서 + 0강 구간이 아니면 골드/강화석)와 현재 보유량을 나란히
-        // 보여주고, 부족한 쪽만 빨간색으로 강조한다. 0강 -> 1강은 주문서 1개만 있으면 무료라
-        // 골드/강화석 줄 자체를 보여줄 필요가 없다.
+        // 다음 레벨에 필요한 재료(중복 스킬 개수 + 0강 구간이 아니면 골드)와 현재 보유량을 나란히
+        // 보여주고, 부족한 쪽만 빨간색으로 강조한다. 0강 -> 1강은 중복 스킬 1개만 있으면 무료라
+        // 골드 줄 자체를 보여줄 필요가 없다. requiredCount는 SkillService.GetRequiredCount가
+        // 이미 레벨업마다 1개씩 늘어나는 값을 계산해준다.
         private string BuildMaterialText(int level, bool isMax, int count, int requiredCount)
         {
             if (isMax)
@@ -340,49 +333,36 @@ namespace UI
                 return "MAX";
             }
 
-            string countLine = FormatMaterialLine("주문서", requiredCount, count);
+            string countLine = FormatMaterialLine("중복 스킬", requiredCount, count);
 
             if (level == 0)
             {
-                return $"{countLine}\n(무료 습득 — 골드/강화석 불필요)";
+                return $"{countLine}\n(무료 습득 — 골드 불필요)";
             }
 
             int goldNeeded = _definition.GetGoldCost(level);
-            int stoneNeeded = _definition.GetStoneCost(level);
             BigNumber goldOwned = BigNumber.Zero;
-            int stoneOwned = 0;
 
-            if (GameBootstrapper.Services != null)
+            if (GameBootstrapper.Services != null && GameBootstrapper.Services.TryGet(out CurrencyService currency))
             {
-                if (GameBootstrapper.Services.TryGet(out CurrencyService currency))
-                {
-                    goldOwned = currency.CurrentGold;
-                }
-
-                if (GameBootstrapper.Services.TryGet(out EnhancementStoneService stones))
-                {
-                    stoneOwned = stones.CurrentStones;
-                }
+                goldOwned = currency.CurrentGold;
             }
 
             string goldLine = FormatMaterialLine("골드", goldNeeded, goldOwned);
-            string stoneLine = FormatMaterialLine("강화석", stoneNeeded, stoneOwned);
 
-            return $"{countLine}\n{goldLine}\n{stoneLine}";
+            return $"{countLine}\n{goldLine}";
         }
 
         // levelUpButton의 활성 조건 중 재화 충분 여부만 따로 뗀 헬퍼 — 복제본 개수는 Refresh에서
-        // 이미 확인했으므로 여기서는 골드/강화석만 본다(0강 구간은 이 메서드 자체를 호출하지 않는다).
+        // 이미 확인했으므로 여기서는 골드만 본다(0강 구간은 이 메서드 자체를 호출하지 않는다).
         private bool HasEnoughCurrency(int level)
         {
-            if (GameBootstrapper.Services == null
-                || !GameBootstrapper.Services.TryGet(out CurrencyService currency)
-                || !GameBootstrapper.Services.TryGet(out EnhancementStoneService stones))
+            if (GameBootstrapper.Services == null || !GameBootstrapper.Services.TryGet(out CurrencyService currency))
             {
                 return false;
             }
 
-            return currency.CurrentGold >= _definition.GetGoldCost(level) && stones.CurrentStones >= _definition.GetStoneCost(level);
+            return currency.CurrentGold >= _definition.GetGoldCost(level);
         }
 
         private static string FormatMaterialLine(string label, int needed, int owned)
