@@ -1,3 +1,4 @@
+using System;
 using Enhancement;
 using Skill;
 using UnityEngine;
@@ -114,11 +115,16 @@ namespace Gacha
         /// costIncrementTiers가 비어있으면 goldCostPerPull 고정값 그대로 반환한다. 실제 계단식
         /// 계산은 Gacha.GachaTableSO/Enhancement.EnhancementService와 공유하는
         /// CostIncrementTier.CalculateTotal이 담당한다.
+        ///
+        /// GitHub 이슈 #48 - Gacha.GachaTableSO.GetGoldCostForPull과 완전히 동일한 float 정밀도
+        /// 손실 버그(Mathf.Min에 long 오버로드가 없어 float로 암묵 변환되며 큰 값이 깨짐)가 이
+        /// 병렬 구현에도 그대로 복제돼 있었다 - 같은 이유로 System.Math.Clamp(long, long, long)로
+        /// 교체했다(자세한 근거는 GachaTableSO.GetGoldCostForPull의 doc 주석 참고).
         /// </summary>
         public int GetGoldCostForPull(int pullsSoFar)
         {
-            long total = CostIncrementTier.CalculateTotal(goldCostPerPull, costIncrementTiers, pullsSoFar);
-            return (int)Mathf.Min(total, int.MaxValue);
+            long total = CostIncrementTier.CalculateTotal(goldCostPerPull, costIncrementTiers, Mathf.Max(0, pullsSoFar));
+            return (int)Math.Clamp(total, 0L, int.MaxValue);
         }
     }
 }

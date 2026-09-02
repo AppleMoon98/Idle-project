@@ -626,6 +626,22 @@ namespace Editor
             Check("EquipmentSlotPopupUI_Refresh_ReusesRowsForSameSlot_RebuildsOnSlotChange",
                 CheckEquipmentSlotPopupUIRefreshReusesRows);
 
+
+            // --- GitHub 이슈 #48: 골드 뽑기 누적 횟수 트래커(Gacha.GachaGoldPullTracker) 복원이
+            // 음수/잔존 티어를 허용하고, Increment()가 int.MaxValue에서 오버플로하며, GachaTableSO/
+            // SkillGachaTableSO.GetGoldCostForPull이 long→float 암묵 변환으로 큰 값에서 음수
+            // 비용을 반환하던 문제 ---
+            Check("GachaGoldPullTracker_RestoreSnapshot_ShorterArrayClearsStaleTailInsteadOfRetaining",
+                CheckGachaGoldPullTrackerRestoreClearsStaleTail);
+            Check("GachaGoldPullTracker_RestoreSnapshot_ClampsNegativeCountsToZero",
+                CheckGachaGoldPullTrackerRestoreClampsNegative);
+            Check("GachaGoldPullTracker_Increment_CapsAtIntMaxValueWithoutOverflowing",
+                CheckGachaGoldPullTrackerIncrementCapsAtIntMaxValue);
+            Check("GachaTableSO_GetGoldCostForPull_NeverNegativeAndNeverExceedsIntMaxValue",
+                CheckGachaTableSOGetGoldCostForPullBoundaries);
+            Check("SkillGachaTableSO_GetGoldCostForPull_NeverNegativeAndNeverExceedsIntMaxValue",
+                CheckSkillGachaTableSOGetGoldCostForPullBoundaries);
+
             total = localTotal;
             failures = localFailures;
         }
@@ -9645,6 +9661,185 @@ namespace Editor
                 if (gradeCatalog != null)
                 {
                     UnityEngine.Object.DestroyImmediate(gradeCatalog);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #48 재현 - RestoreSnapshot(counts)는 겹치는 앞부분만 덮어쓸 뿐, counts가
+        /// 이전보다 짧아지면 뒤쪽 인덱스(tier)의 옛 값이 그대로 남아있었다. 두 티어를 유효한
+        /// 값으로 채운 뒤 길이 1짜리 배열로 재복원하면, 손대지 않은 tier1이 0으로 리셋돼야지
+        /// 이전 값을 그대로 유지해서는 안 된다.
+        /// </summary>
+        private static void CheckGachaGoldPullTrackerRestoreClearsStaleTail()
+        {
+            var tracker = new GachaGoldPullTracker(2);
+
+            tracker.RestoreSnapshot(new[] { 100, 50 });
+
+            if (tracker.GetCount(0) != 100 || tracker.GetCount(1) != 50)
+            {
+                throw new Exception($"정상 복원이 실패함(tier0={tracker.GetCount(0)}, tier1={tracker.GetCount(1)})");
+            }
+
+            tracker.RestoreSnapshot(new[] { 7 });
+
+            int[] exported = tracker.ExportSnapshot();
+
+            if (exported.Length != 2 || exported[0] != 7 || exported[1] != 0)
+            {
+                throw new Exception($"짧은 배열로 재복원한 뒤 뒤쪽 티어가 리셋되지 않고 잔존함(export=[{string.Join(",", exported)}], 기대=[7,0]) - GitHub 이슈 #48 재현");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #48 재현 - RestoreSnapshot이 음수 값을 검증 없이 그대로 복사했다. 뽑기
+        /// 횟수는 절대 음수일 수 없으므로(손상된 세이브가 만들어낼 수 있는 값), 복원 시 0으로
+        /// 클램프돼야 한다.
+        /// </summary>
+        private static void CheckGachaGoldPullTrackerRestoreClampsNegative()
+        {
+            var tracker = new GachaGoldPullTracker(2);
+
+            tracker.RestoreSnapshot(new[] { -5, int.MinValue });
+
+            if (tracker.GetCount(0) != 0 || tracker.GetCount(1) != 0)
+            {
+                throw new Exception($"음수 값이 0으로 클램프되지 않음(tier0={tracker.GetCount(0)}, tier1={tracker.GetCount(1)}) - GitHub 이슈 #48 재현");
+            }
+
+            // 클램프 이후에도 정상적으로 계속 증가할 수 있어야 한다(사후 상태가 멀쩡함).
+            tracker.Increment(0);
+
+            if (tracker.GetCount(0) != 1)
+            {
+                throw new Exception($"클램프 이후 Increment()가 정상 동작하지 않음(값={tracker.GetCount(0)}, 기대=1)");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #48 재현 - Increment()가 unchecked ++라 int.MaxValue에서 int.MinValue로
+        /// 반전됐다. int.MaxValue에 도달하면 그 값에서 캡해야 하고, 반복 호출해도 계속 캡
+        /// 상태를 유지해야 한다.
+        /// </summary>
+        private static void CheckGachaGoldPullTrackerIncrementCapsAtIntMaxValue()
+        {
+            var tracker = new GachaGoldPullTracker(1);
+
+            tracker.RestoreSnapshot(new[] { int.MaxValue });
+            tracker.Increment(0);
+
+            if (tracker.GetCount(0) != int.MaxValue)
+            {
+                throw new Exception($"int.MaxValue에서 Increment() 후 {tracker.GetCount(0)}(기대={int.MaxValue}, 오버플로로 음수 반전되면 안 됨) - GitHub 이슈 #48 재현");
+            }
+
+            tracker.Increment(0);
+
+            if (tracker.GetCount(0) != int.MaxValue)
+            {
+                throw new Exception($"반복 Increment() 호출 후에도 int.MaxValue 캡이 유지되지 않음(값={tracker.GetCount(0)})");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #48 재현 - GachaTableSO.GetGoldCostForPull이 (int)Mathf.Min(long, int)로
+        /// long→float 암묵 변환을 거쳐 큰 값에서 음수를 반환했다(실측: base=100/increment=100
+        /// 조합에서 pullsSoFar=int.MaxValue → -2147483648). 이제는 System.Math.Clamp(long, long,
+        /// long)로 부동소수점을 거치지 않으므로 항상 [0, int.MaxValue] 안에 머물러야 하고, 정상
+        /// 구간(pullsSoFar=0/1)의 계단식 계산 자체도 그대로 정확해야 한다. pullsSoFar에 음수가
+        /// 들어와도(예: 손상된 GachaGoldPullTracker 세이브) 0으로 취급돼 기본 비용을 반환한다.
+        /// </summary>
+        private static void CheckGachaTableSOGetGoldCostForPullBoundaries()
+        {
+            GachaTableSO table = null;
+
+            try
+            {
+                table = ScriptableObject.CreateInstance<GachaTableSO>();
+                SetPrivateField(table, "goldCostPerPull", 100);
+                SetPrivateField(table, "costIncrementTiers", new[] { CreateCostIncrementTier(0, 100) });
+
+                int atZero = table.GetGoldCostForPull(0);
+
+                if (atZero != 100)
+                {
+                    throw new Exception($"pullsSoFar=0일 때 기본 비용이 아님(값={atZero}, 기대=100)");
+                }
+
+                int atOne = table.GetGoldCostForPull(1);
+
+                if (atOne != 200)
+                {
+                    throw new Exception($"pullsSoFar=1일 때 정상 계단 비용이 아님(값={atOne}, 기대=200)");
+                }
+
+                int atMax = table.GetGoldCostForPull(int.MaxValue);
+
+                if (atMax < 0)
+                {
+                    throw new Exception($"pullsSoFar=int.MaxValue일 때 음수 비용({atMax}) - GitHub 이슈 #48 재현");
+                }
+
+                if (atMax != int.MaxValue)
+                {
+                    throw new Exception($"pullsSoFar=int.MaxValue일 때 비용이 int.MaxValue로 saturate되지 않음(값={atMax})");
+                }
+
+                int atMin = table.GetGoldCostForPull(int.MinValue);
+
+                if (atMin != 100)
+                {
+                    throw new Exception($"pullsSoFar=int.MinValue일 때 0으로 방어되지 않아 기본 비용(100)이 아님(값={atMin})");
+                }
+            }
+            finally
+            {
+                if (table != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(table);
+                }
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #48 - GachaTableSO와 완전히 동일한 float 정밀도 손실 버그가 복제돼 있던
+        /// SkillGachaTableSO.GetGoldCostForPull도 동일한 경계값으로 검증한다.
+        /// </summary>
+        private static void CheckSkillGachaTableSOGetGoldCostForPullBoundaries()
+        {
+            SkillGachaTableSO table = null;
+
+            try
+            {
+                table = ScriptableObject.CreateInstance<SkillGachaTableSO>();
+                SetPrivateField(table, "goldCostPerPull", 100);
+                SetPrivateField(table, "costIncrementTiers", new[] { CreateCostIncrementTier(0, 100) });
+
+                int atMax = table.GetGoldCostForPull(int.MaxValue);
+
+                if (atMax < 0)
+                {
+                    throw new Exception($"pullsSoFar=int.MaxValue일 때 음수 비용({atMax}) - GitHub 이슈 #48 재현");
+                }
+
+                if (atMax != int.MaxValue)
+                {
+                    throw new Exception($"pullsSoFar=int.MaxValue일 때 비용이 int.MaxValue로 saturate되지 않음(값={atMax})");
+                }
+
+                int atMin = table.GetGoldCostForPull(int.MinValue);
+
+                if (atMin != 100)
+                {
+                    throw new Exception($"pullsSoFar=int.MinValue일 때 0으로 방어되지 않아 기본 비용(100)이 아님(값={atMin})");
+                }
+            }
+            finally
+            {
+                if (table != null)
+                {
+                    UnityEngine.Object.DestroyImmediate(table);
                 }
             }
         }
