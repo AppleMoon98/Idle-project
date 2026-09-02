@@ -48,22 +48,72 @@ namespace Core
                 return (0.0, 0);
             }
 
+            // GitHub 이슈 #7 재오픈 - NaN/Infinity 가수가 여기까지 들어오면(문자열 파싱 경로는
+            // Parse()가 먼저 막지만, 산술 연산 등 그 외 경로에 대한 최종 방어선) 이 뒤의
+            // Math.Sign(NaN)이 ArithmeticException을 던지거나, Infinity/10 == Infinity라서
+            // 아래 while 루프가 절대 끝나지 않는 무한 루프에 빠지기 전에 안전한 0으로 격리한다.
+            if (double.IsNaN(mantissa) || double.IsInfinity(mantissa))
+            {
+                return (0.0, 0);
+            }
+
             double sign = Math.Sign(mantissa);
             double abs = Math.Abs(mantissa);
 
+            // exponent±1은 SaturatingAdd로 처리한다 - 일반 unchecked long 연산이면 exponent가
+            // long.MaxValue/MinValue 근처일 때(예: new BigNumber(10, long.MaxValue)) 조용히
+            // 반대 부호로 순환해버린다(GitHub 이슈 #7 재오픈, 실제 재현됨). abs 자체는 이 루프의
+            // 매 반복마다 exponent와 무관하게 항상 10으로 나눠지므로, exponent가 포화돼 더 이상
+            // 안 바뀌어도 루프 자체는 정상적으로 종료된다(무한 루프가 되지 않는다).
             while (abs >= NormalizeBase)
             {
                 abs /= NormalizeBase;
-                exponent++;
+                exponent = SaturatingAdd(exponent, 1);
             }
 
             while (abs < 1.0)
             {
                 abs *= NormalizeBase;
-                exponent--;
+                exponent = SaturatingAdd(exponent, -1);
             }
 
             return (sign * abs, exponent);
+        }
+
+        /// <summary>
+        /// 지수(long) 덧셈이 표현 범위를 벗어나면 조용히 순환(wrap)하지 않고 표현 가능한 가장
+        /// 큰/작은 값으로 포화시킨다(GitHub 이슈 #7 재오픈) - Normalize의 증가/감소와 operator*의
+        /// 지수 합산이 공유한다. 실제 게임플레이 성장으로는 결코 도달할 수 없는 극단값(손상된
+        /// 저장 데이터, 테스트로 직접 구성한 극단적인 BigNumber 등)에서만 이 경로를 탄다.
+        /// </summary>
+        private static long SaturatingAdd(long left, long right)
+        {
+            try
+            {
+                return checked(left + right);
+            }
+            catch (OverflowException)
+            {
+                return right >= 0 ? long.MaxValue : long.MinValue;
+            }
+        }
+
+        /// <summary>
+        /// SaturatingAdd의 뺄셈 버전 - operator+의 지수 차(gap) 계산이 쓴다. right를 부호 반전해
+        /// SaturatingAdd로 재사용하지 않는 이유는 -long.MinValue 자체가 또 오버플로하기 때문
+        /// (long의 표현 범위가 음수 쪽으로 하나 더 넓은 비대칭 구조) - checked(left - right)로
+        /// 직접 뺄셈해야 이 함정을 피한다.
+        /// </summary>
+        private static long SaturatingSubtract(long left, long right)
+        {
+            try
+            {
+                return checked(left - right);
+            }
+            catch (OverflowException)
+            {
+                return right <= 0 ? long.MaxValue : long.MinValue;
+            }
         }
 
         public static implicit operator BigNumber(long value)
@@ -93,7 +143,11 @@ namespace Core
                 (a, b) = (b, a);
             }
 
-            long gap = a.Exponent - b.Exponent;
+            // GitHub 이슈 #7 재오픈 - 두 지수가 극단적으로 멀리 떨어져 있으면(예: 하나는
+            // long.MaxValue 근처, 하나는 long.MinValue 근처) 일반 unchecked 뺄셈이 순환해 gap이
+            // 엉뚱한(심지어 음수) 값이 될 수 있다. 포화시켜두면 뒤이은 "gap > MaxSignificantExponentGap"
+            // 체크가 항상 올바르게 a를 그대로 반환하는 조기 종료로 이어진다.
+            long gap = SaturatingSubtract(a.Exponent, b.Exponent);
 
             if (gap > MaxSignificantExponentGap)
             {
@@ -116,7 +170,9 @@ namespace Core
                 return Zero;
             }
 
-            return new BigNumber(a.Mantissa * b.Mantissa, a.Exponent + b.Exponent);
+            // GitHub 이슈 #7 재오픈 - 두 지수 모두 long.MaxValue 근처면 unchecked 덧셈이 음수로
+            // 순환한다(SaturatingAdd 참고).
+            return new BigNumber(a.Mantissa * b.Mantissa, SaturatingAdd(a.Exponent, b.Exponent));
         }
 
         public static BigNumber operator *(BigNumber a, double scalar)
@@ -178,6 +234,20 @@ namespace Core
         {
             int splitIndex = text.IndexOf('E');
             double mantissa = double.Parse(text.Substring(0, splitIndex), CultureInfo.InvariantCulture);
+
+            // GitHub 이슈 #7 재오픈 - CultureInfo.InvariantCulture 기준 double.Parse는 "NaN"/
+            // "Infinity"/"-Infinity"를 예외 없이 성공시키는 .NET 표준 동작이다(예: 손상된 저장값
+            // "NaNE0"). BigNumber는 유한한 실수만 표현 가능한 타입이므로, 여기서 명시적으로
+            // 거부해 FormatException을 던진다 - TryParse가 이미 잡고 있는 catch(FormatException)
+            // 경로를 그대로 타서 별도 catch 절이 필요 없다. 이 검사를 건너뛰면 뒤이은
+            // new BigNumber(mantissa, exponent) -> Normalize()에서 Math.Sign(NaN)이
+            // ArithmeticException을 던지거나(TryParse 밖으로 새어나감), Infinity 가수가
+            // Normalize()의 while 루프를 무한 루프로 만든다.
+            if (double.IsNaN(mantissa) || double.IsInfinity(mantissa))
+            {
+                throw new FormatException($"BigNumber는 유한한 mantissa만 허용함(입력: {mantissa}).");
+            }
+
             long exponent = long.Parse(text.Substring(splitIndex + 1), CultureInfo.InvariantCulture);
             return new BigNumber(mantissa, exponent);
         }

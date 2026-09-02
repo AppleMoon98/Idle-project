@@ -163,6 +163,18 @@ namespace Editor
             Check("BigNumber_TryParse_OverflowExponentFallsBackToZeroWithoutThrowing", CheckBigNumberTryParseOverflow);
             Check("SaveService_ClampHelpers_NegativeAndBelowMinimumFallBackToSafeDefault", CheckSaveServiceClampHelpers);
 
+            // --- 이슈 #7 재오픈(2026-08-27): NaN/Infinity 가수, exponent long 경계 오버플로가
+            // TryParse 밖으로 예외를 던지거나(ArithmeticException) 무한 루프에 빠지는(Infinity/10
+            // == Infinity) 문제. BigNumber.Normalize/Parse에 명시적 거부 + SaturatingAdd/Subtract를
+            // 추가해 고쳤다 ---
+            Check("BigNumber_TryParse_NaNMantissa_FailsWithoutThrowing", CheckBigNumberTryParseNaNMantissa);
+            Check("BigNumber_TryParse_InfinityMantissa_FailsWithoutThrowingOrHanging", CheckBigNumberTryParseInfinityMantissa);
+            Check("BigNumber_Constructor_ExponentAtLongMaxValue_SaturatesInsteadOfWrapping", CheckBigNumberExponentSaturatesAtMaxValue);
+            Check("BigNumber_Constructor_ExponentAtLongMinValue_SaturatesInsteadOfWrapping", CheckBigNumberExponentSaturatesAtMinValue);
+            Check("BigNumber_Multiply_ExponentSumOverflow_Saturates", CheckBigNumberMultiplyExponentOverflowSaturates);
+            Check("BigNumber_Add_ExponentGapOverflow_DoesNotWrapOrThrow", CheckBigNumberAddExponentGapOverflow);
+            Check("SaveService_LoadGold_NaNMantissa_BootPathFallsBackSafely", CheckSaveServiceLoadGoldNaNMantissa);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -752,14 +764,19 @@ namespace Editor
             }
 
             bool mantissaOverflowOk = BigNumber.TryParse(
-                "99999999999999999999999999999999999999999999999999999999999999999999999999999999999999E5",
+                "9999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999999E5",
                 out BigNumber mantissaOverflowResult);
 
-            // double.Parse는 오버플로 시 예외 대신 PositiveInfinity를 반환하므로(Parse 자체는 성공),
-            // 여기서는 "예외 없이 반환됐는지"만 확인한다 - 무한대/비정상 값이 BigNumber 연산에서
-            // 어떻게 다뤄지는지는 이 검사의 범위 밖이다.
-            _ = mantissaOverflowOk;
-            _ = mantissaOverflowResult;
+            // double.Parse는 자릿수 오버플로 시 예외 대신 PositiveInfinity를 반환한다(Parse 자체는
+            // 성공) - 예전엔 여기서 "무한대/비정상 값이 BigNumber 연산에서 어떻게 다뤄지는지는 이
+            // 검사의 범위 밖"이라며 결과를 확인하지 않았지만, 이게 바로 GitHub 이슈 #7이 재오픈되며
+            // NaN/Infinity 미검증 문제로 지적된 바로 그 틈이었다. Parse()가 이제 mantissa가
+            // NaN/Infinity면 명시적으로 거부하므로(FormatException, TryParse의 기존 catch로 흡수),
+            // 이 케이스도 다른 손상값과 동일하게 false/Zero로 폴백해야 한다.
+            if (mantissaOverflowOk || mantissaOverflowResult != BigNumber.Zero)
+            {
+                throw new Exception($"가수 자릿수 오버플로(Infinity) 입력이 안전하게 거부되지 않음: ok={mantissaOverflowOk}, result={mantissaOverflowResult}");
+            }
 
             bool normalOk = BigNumber.TryParse("1.5E10", out BigNumber normalResult);
 
@@ -770,6 +787,169 @@ namespace Editor
         }
 
         private static bool AreApproximatelyEqual(double a, double b) => Math.Abs(a - b) < Math.Max(1.0, Math.Abs(b)) * 1e-6;
+
+        /// <summary>
+        /// GitHub 이슈 #7 재오픈 - CultureInfo.InvariantCulture 기준 double.Parse는 "NaN"을
+        /// 예외 없이 double.NaN으로 성공시킨다. 그 뒤 Normalize()의 Math.Sign(NaN)이
+        /// ArithmeticException을 던지는데, 수정 전에는 TryParse가 FormatException/OverflowException만
+        /// 잡고 있어 이 예외가 그대로 새어나갔다(SaveService.LoadGold를 거쳐 부트스트랩까지 중단).
+        /// 지금은 Parse()가 mantissa단계에서 NaN을 명시적으로 거부해 FormatException으로 바뀌므로
+        /// TryParse의 기존 catch 경로로 안전하게 흡수된다.
+        /// </summary>
+        private static void CheckBigNumberTryParseNaNMantissa()
+        {
+            bool ok = BigNumber.TryParse("NaNE0", out BigNumber result);
+
+            if (ok || result != BigNumber.Zero)
+            {
+                throw new Exception($"NaN 가수 입력이 예외 없이 처리됐지만 안전하게 거부되지 않음: ok={ok}, result={result}");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #7 재오픈 - "Infinity"/"-Infinity"도 double.Parse가 예외 없이 성공시키는
+        /// 리터럴이다. 수정 전 Normalize()의 "while (abs >= 10) abs /= 10;" 루프는 Infinity/10이
+        /// 여전히 Infinity라 절대 종료되지 않는 무한 루프였다(리포터도 에디터가 멈출 위험 때문에
+        /// 실제 실행은 하지 않고 정적으로만 확인했던 부분) - 지금은 Parse()가 Infinity를 mantissa
+        /// 단계에서 미리 거부해 그 루프에 진입 자체를 안 한다. 이 검사가 실제로 완료된다는 것
+        /// 자체가(타임아웃 없이) 더 이상 무한 루프에 빠지지 않는다는 증거다.
+        /// </summary>
+        private static void CheckBigNumberTryParseInfinityMantissa()
+        {
+            bool positiveOk = BigNumber.TryParse("InfinityE0", out BigNumber positiveResult);
+
+            if (positiveOk || positiveResult != BigNumber.Zero)
+            {
+                throw new Exception($"+Infinity 가수 입력이 예외 없이 처리됐지만 안전하게 거부되지 않음: ok={positiveOk}, result={positiveResult}");
+            }
+
+            bool negativeOk = BigNumber.TryParse("-InfinityE0", out BigNumber negativeResult);
+
+            if (negativeOk || negativeResult != BigNumber.Zero)
+            {
+                throw new Exception($"-Infinity 가수 입력이 예외 없이 처리됐지만 안전하게 거부되지 않음: ok={negativeOk}, result={negativeResult}");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #7 재오픈의 재현 그대로 - new BigNumber(10, long.MaxValue)를 직접 구성하면
+        /// Normalize()가 정규화를 위해 exponent를 1 늘려야 하는데(10 -> 1.0, exponent+1), 수정
+        /// 전에는 unchecked long 덧셈이라 long.MaxValue + 1이 조용히 long.MinValue로 순환했다.
+        /// 지금은 SaturatingAdd가 long.MaxValue에서 더 이상 안 늘어나게 막는다.
+        /// </summary>
+        private static void CheckBigNumberExponentSaturatesAtMaxValue()
+        {
+            var bn = new BigNumber(10, long.MaxValue);
+
+            if (bn.Exponent != long.MaxValue)
+            {
+                throw new Exception($"new BigNumber(10, long.MaxValue)의 Exponent가 {bn.Exponent}(기대={long.MaxValue}) - 순환(wrap)이 재현됨");
+            }
+
+            if (!AreApproximatelyEqual(bn.Mantissa, 1.0))
+            {
+                throw new Exception($"정규화된 Mantissa가 {bn.Mantissa}(기대=1.0)");
+            }
+        }
+
+        /// <summary>
+        /// 위 검사의 반대 경계(long.MinValue 쪽) - new BigNumber(0.5, long.MinValue)는 정규화를
+        /// 위해 exponent를 1 줄여야 한다(0.5 -> 5.0, exponent-1). SaturatingAdd(exponent, -1)이
+        /// long.MinValue에서 더 이상 안 줄어들게 막는지 확인한다.
+        /// </summary>
+        private static void CheckBigNumberExponentSaturatesAtMinValue()
+        {
+            var bn = new BigNumber(0.5, long.MinValue);
+
+            if (bn.Exponent != long.MinValue)
+            {
+                throw new Exception($"new BigNumber(0.5, long.MinValue)의 Exponent가 {bn.Exponent}(기대={long.MinValue}) - 순환(wrap)이 재현됨");
+            }
+
+            if (!AreApproximatelyEqual(bn.Mantissa, 5.0))
+            {
+                throw new Exception($"정규화된 Mantissa가 {bn.Mantissa}(기대=5.0)");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #7 재오픈의 재현 그대로 - operator*가 두 지수를 그대로 더하는데(a.Exponent +
+        /// b.Exponent), 둘 다 큰 양수면 unchecked 덧셈이 음수로 순환할 수 있었다. 지금은
+        /// SaturatingAdd가 long.MaxValue로 포화시킨다(수학적으로 "표현 불가능할 만큼 큼" =
+        /// "표현 가능한 가장 큰 값"이 정확한 값보다 훨씬 안전하다).
+        /// </summary>
+        private static void CheckBigNumberMultiplyExponentOverflowSaturates()
+        {
+            var a = new BigNumber(5, long.MaxValue);
+            var b = new BigNumber(5, 1);
+            BigNumber product = a * b;
+
+            if (product.Exponent != long.MaxValue)
+            {
+                throw new Exception($"(exponent=long.MaxValue) * (exponent=1)의 결과 Exponent가 {product.Exponent}(기대={long.MaxValue}) - 순환(wrap)이 재현됨");
+            }
+        }
+
+        /// <summary>
+        /// operator+의 지수 차(gap) 계산이 극단적으로 먼 두 지수(long.MaxValue 근처와 long.MinValue
+        /// 근처)에서도 예외 없이, 그리고 부호가 뒤집히지 않고 안전하게 처리되는지 확인한다.
+        /// gap이 SaturatingSubtract로 long.MaxValue로 포화되면 "gap > MaxSignificantExponentGap"
+        /// 조기 종료로 이어져 항상 a(더 큰 쪽)를 그대로 반환해야 한다 - 리포터가 명시적으로
+        /// 지목한 케이스는 아니지만 같은 클래스의 unchecked 지수 연산이라 함께 고쳤다.
+        /// </summary>
+        private static void CheckBigNumberAddExponentGapOverflow()
+        {
+            var a = new BigNumber(1, long.MaxValue - 1);
+            var b = new BigNumber(1, long.MinValue + 1);
+            BigNumber sum = a + b;
+
+            if (sum.Exponent != a.Exponent || !AreApproximatelyEqual(sum.Mantissa, a.Mantissa))
+            {
+                throw new Exception($"극단적으로 먼 지수 덧셈 결과가 a 그대로여야 하는데 다름: sum={sum}, a={a}");
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #7 재오픈의 완료 조건 4번("실제 SaveService 부팅 경로에... 회귀 테스트를
+        /// 추가한다")을 실제 SaveService.Load()로 검증한다 - 이슈의 재현 절차 그대로 실제
+        /// Save.Gold.Big PlayerPrefs를 "NaNE0"로 손상시킨 뒤 Load()를 호출해 예외 없이 완료되는지
+        /// 확인하고, 호출 직후 원래 값으로 되돌린다(다른 GoldBigKey 관련 검사들과 동일한 안전한
+        /// 백업/복원 패턴).
+        /// </summary>
+        private static void CheckSaveServiceLoadGoldNaNMantissa()
+        {
+            FieldInfo goldKeyField = typeof(SaveService).GetField("GoldBigKey", BindingFlags.NonPublic | BindingFlags.Static);
+            var goldKey = (string)goldKeyField.GetValue(null);
+            bool hadValue = PlayerPrefs.HasKey(goldKey);
+            string backup = PlayerPrefs.GetString(goldKey, "");
+
+            try
+            {
+                PlayerPrefs.SetString(goldKey, "NaNE0");
+                PlayerPrefs.Save();
+
+                var saveService = new SaveService(null, null, null, null, null, null, null, null, null, null, null, null, null);
+                SaveData loaded = saveService.Load();
+
+                if (loaded.Gold != BigNumber.Zero)
+                {
+                    throw new Exception($"손상된 Gold(NaNE0)가 0으로 안전하게 폴백되지 않음: {loaded.Gold}");
+                }
+            }
+            finally
+            {
+                if (hadValue)
+                {
+                    PlayerPrefs.SetString(goldKey, backup);
+                }
+                else
+                {
+                    PlayerPrefs.DeleteKey(goldKey);
+                }
+
+                PlayerPrefs.Save();
+            }
+        }
 
         /// <summary>
         /// SaveService.ClampNonNegative/ClampAtLeastOne이 음수·경계값을 안전한 기본값으로
