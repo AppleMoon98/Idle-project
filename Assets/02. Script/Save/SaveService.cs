@@ -53,6 +53,14 @@ namespace Save
     /// GameBootstrapper.OnApplicationPause/OnApplicationQuit은 이제 FlushPendingChanges() 대신
     /// FlushForApplicationLifecycle()을 호출한다 - 더티 상태가 아니었더라도 LastActiveUnixTime만은
     /// 반드시 "지금"으로 갱신한다. Tick()의 매 프레임 경로는 그대로 FlushPendingChanges()만 쓴다.
+    ///
+    /// GitHub 이슈 #52 - 위 "프레임당 최대 한 번" 디바운스는 같은 프레임에 몰린 이벤트만 묶어줄
+    /// 뿐, 서로 다른 프레임에 걸쳐 계속 더티가 유지되는 상황(상시 전투로 골드가 프레임마다 바뀌는
+    /// 경우 등)에서는 여전히 프레임마다 Save()(동기 디스크 flush)가 반복 실행됐다. MinSaveInterval
+    /// Seconds(기본 2초) 최소 저장 간격을 추가해, 연속된 더티 프레임은 이 간격당 최대 한 번의
+    /// 실제 저장으로 병합된다 - _isDirty는 간격을 못 채운 동안 그대로 true로 남으므로 데이터
+    /// 유실 없이 디스크 flush 타이밍만 미뤄진다. FlushForApplicationLifecycle()(pause/quit)은
+    /// 이 간격을 무시하고 항상 즉시 저장한다.
     /// </summary>
     public sealed class SaveService : IManager, IService, ITickable
     {
@@ -212,6 +220,26 @@ namespace Save
         private string _skillGachaGoldPullCountsJson = "";
         private int _bossTokenCount;
         private bool _isDirty;
+
+        /// <summary>
+        /// GitHub 이슈 #52 - 연속된 더티 프레임(상시 전투 중 골드가 프레임마다 바뀌는 경우 등)에서
+        /// 실제 디스크 flush(PlayerPrefs.Save())가 반복 실행되는 것을 막기 위한 최소 저장 간격
+        /// 정책. 값 자체는 순수 인프라/성능 튜닝값(콘텐츠 밸런스가 아님)이라 SO로 노출하지 않고
+        /// 이름 있는 상수로 둔다("매직 넘버 금지" 원칙을 유지하는 이 프로젝트의 기존 관례,
+        /// Equipment.EquipmentFusionService.RequiredCountPerFuse와 동일한 성격).
+        /// </summary>
+        private const float MinSaveIntervalSeconds = 2f;
+
+        // 인스턴스 생성 직후의 "첫 플러시"는 절대 지연시키지 않는다(변경이 드문 평소 플레이에서
+        // 체감 지연이 생기지 않도록) - 큰 값으로 시작해 첫 더티 틱이 항상 간격 조건을 통과하게 한다.
+        private float _timeSinceLastSave = float.MaxValue;
+
+        /// <summary>
+        /// GitHub 이슈 #52 - 실제로 PlayerPrefs.Save()(디스크 flush)가 실행된 누적 횟수. 저장
+        /// 빈도를 측정할 수 있는 진단 값으로 공개 노출한다(Character.CharacterSeparation.
+        /// BufferGrowthCount 등 이 프로젝트가 이미 쓰는 "진단용 공개 카운터" 관례와 동일한 성격).
+        /// </summary>
+        public int SaveCallCount { get; private set; }
 
         // 아래 4개 플래그는 각자의 스냅샷 JSON 재직렬화(Rebuild*Snapshot, 전체 컬렉션을 훑는 비용)를
         // Tick()으로 미루기 위한 더티 플래그다(GitHub 이슈 #21) - 300연 뽑기처럼 같은 프레임 안에서
@@ -502,6 +530,8 @@ namespace Save
             PlayerPrefs.Save();
 
             _isDirty = false;
+            _timeSinceLastSave = 0f;
+            SaveCallCount++;
         }
 
         /// <summary>
@@ -535,6 +565,7 @@ namespace Save
 
         void ITickable.Tick(float deltaTime)
         {
+            _timeSinceLastSave += deltaTime;
             FlushPendingChanges();
         }
 
@@ -542,19 +573,38 @@ namespace Save
         /// GitHub 이슈 #28 - "더티 스냅샷 재구축 → PlayerPrefs 기록 → flush"를 하나로 묶은 원자적
         /// 공개 경로. 평상시엔 Tick()이 프레임당 최대 한 번 호출해 성능 디바운스를 유지하고,
         /// GameBootstrapper.OnApplicationPause/OnApplicationQuit도 이제 Save()를 직접 부르지 않고
-        /// 이 메서드를 호출한다 - 그래야 컬렉션이 바뀐 바로 그 프레임에 앱이 중단돼도(Tick이 아직
-        /// 한 번도 안 돈 상태) 낡은 캐시가 아니라 최신 상태가 저장된다.
+        /// FlushForApplicationLifecycle()을 통해 이 로직(의 강제 버전)을 호출한다 - 그래야 컬렉션이
+        /// 바뀐 바로 그 프레임에 앱이 중단돼도(Tick이 아직 한 번도 안 돈 상태) 낡은 캐시가 아니라
+        /// 최신 상태가 저장된다.
         ///
         /// 4개 스냅샷 더티 플래그와 _isDirty는 항상 같은 호출 지점에서 함께 세워지므로(MarkDirty()가
         /// 스냅샷 dirty 대입 직후 항상 함께 호출됨 - RebuildInventorySnapshot 등 각 세터 참고),
-        /// 스냅샷 중 하나라도 재구축했다면 _isDirty는 이미 true라 아래 Save() 호출이 항상
-        /// 실행된다 - 재구축만 하고 실제로 기록은 안 되는 경우가 구조적으로 없다.
+        /// 스냅샷 중 하나라도 재구축했다면 _isDirty는 이미 true라 아래 Save() 호출 조건에 걸린다.
         /// PlayerPrefs.SetString/SetInt/Save() 중 하나가 예외를 던져도 _isDirty=false는 Save()의
         /// 마지막 줄이라 절대 도달하지 못하므로(완료 조건 6), 다음 FlushPendingChanges() 호출이
         /// 그대로 재시도한다 - 이미 재구축된 스냅샷 문자열은 그대로 재사용되므로 중복 재구축도
         /// 일어나지 않는다.
+        ///
+        /// GitHub 이슈 #52 - 이 public 오버로드는 항상 MinSaveIntervalSeconds 간격 정책을 존중한다
+        /// (forceSave:false로 아래 private 오버로드에 위임). Tick()의 매 프레임 호출이 이 경로를
+        /// 타므로, 상시 전투처럼 매 프레임 더티여도 실제 PlayerPrefs.Save()(디스크 flush)는 최대
+        /// MinSaveIntervalSeconds당 한 번으로 병합된다. 인스턴스 생성 직후의 첫 플러시는
+        /// _timeSinceLastSave가 float.MaxValue로 시작하므로 절대 지연되지 않는다 - 변경이 드문
+        /// 평소 플레이에서는 체감 지연이 전혀 생기지 않는다.
         /// </summary>
         public void FlushPendingChanges()
+        {
+            FlushPendingChanges(forceSave: false);
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #52 - forceSave가 false면(평상시 Tick() 경로) MinSaveIntervalSeconds 간격을
+        /// 아직 못 채웠을 때 Save() 자체를 건너뛴다 - _isDirty는 그대로 true로 남아 다음 간격
+        /// 도달 시점에 자동으로 저장된다(데이터 유실 없음, 디스크 flush 타이밍만 미뤄짐). forceSave가
+        /// true면(FlushForApplicationLifecycle 전용) 간격과 무관하게 더티 상태면 항상 즉시 저장한다
+        /// - 일시정지/종료 시점에는 절대 지연 없이 저장돼야 하기 때문(완료 조건 2).
+        /// </summary>
+        private void FlushPendingChanges(bool forceSave)
         {
             if (_isInventorySnapshotDirty)
             {
@@ -580,7 +630,7 @@ namespace Save
                 _isSkillCountsSnapshotDirty = false;
             }
 
-            if (_isDirty)
+            if (_isDirty && (forceSave || _timeSinceLastSave >= MinSaveIntervalSeconds))
             {
                 Save();
             }
@@ -601,12 +651,15 @@ namespace Save
         /// 않는다** - 매 프레임마다 PlayerPrefs.Save()(디스크 flush)를 강제하면 심각한 성능
         /// 저하가 되기 때문(이슈 #21/#28이 확립한 디바운스 원칙과 정면 배치) - 오직 드물게
         /// 발생하는 pause/quit 생명주기 지점에서만 이 보정이 필요하고 안전하다.
+        ///
+        /// GitHub 이슈 #52 - FlushPendingChanges(forceSave: true)를 호출해 MinSaveIntervalSeconds
+        /// 간격 정책을 우회한다 - 마지막 저장 이후 얼마 지나지 않았어도 더티 상태면 즉시 저장한다.
         /// </summary>
         public void FlushForApplicationLifecycle()
         {
             bool wasDirtyBeforeFlush = _isDirty;
 
-            FlushPendingChanges();
+            FlushPendingChanges(forceSave: true);
 
             if (!wasDirtyBeforeFlush)
             {

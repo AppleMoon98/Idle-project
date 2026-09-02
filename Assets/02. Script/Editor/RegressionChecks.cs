@@ -600,6 +600,14 @@ namespace Editor
                 CheckGameBootstrapperLifecycleUsesFlushPendingChanges);
 
 
+            // --- 이슈 #52: 상시 전투로 매 프레임 더티 상태가 유지되면 FlushPendingChanges()가
+            // 프레임마다 실제 Save()(동기 PlayerPrefs 디스크 flush)를 반복 실행하던 문제 ---
+            Check("SaveService_FlushPendingChanges_MergesConsecutiveDirtyFramesWithinMinSaveInterval",
+                CheckSaveServiceFlushMergesConsecutiveDirtyFrames);
+            Check("SaveService_FlushForApplicationLifecycle_BypassesMinSaveIntervalOnPauseQuit",
+                CheckSaveServiceFlushForApplicationLifecycleBypassesInterval);
+
+
             // --- 이슈 #29: 던전(강화석/스킬/보스/병사 구출) 오버레이 몬스터가 던전 진입 전
             // 일반 스테이지의 골드·장비 드롭까지 중복 지급하던 문제 ---
             Check("LootDropper_OnCharacterDied_SkipsNormalDropsWhileOverlayActive",
@@ -9082,6 +9090,144 @@ namespace Editor
                     UnityEngine.Object.DestroyImmediate(go);
                 }
 
+                saveService.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #52 - 상시 전투처럼 연속된 프레임 내내 더티 상태가 유지돼도, 실제
+        /// PlayerPrefs.Save()(SaveService.SaveCallCount로 관측)는 MinSaveIntervalSeconds(2초)당
+        /// 최대 한 번만 실행되는지 확인한다. Initialize()로 이 개발 세션의 실제 저장값을 먼저
+        /// 로드해두고(CheckSaveServiceFlushActuallyPersistsSafely와 동일한 이유) MarkDirty()만
+        /// 반복 호출하므로(스칼라 필드는 전혀 안 바꿈), Save()가 몇 번을 실행돼도 실제 골드
+        /// PlayerPrefs 값은 조금도 바뀌지 않는다 - Tick()이 실제로 하는 "_timeSinceLastSave에
+        /// deltaTime을 누적"은 여기서 SetPrivateFieldOnPlainObject로 직접 흉내 낸다(프레임 경과를
+        /// 실시간으로 기다릴 필요가 없다).
+        /// </summary>
+        private static void CheckSaveServiceFlushMergesConsecutiveDirtyFrames()
+        {
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+            try
+            {
+                saveService.Initialize();
+
+                // 1) 신규 인스턴스의 첫 플러시는 절대 지연되지 않는다(_timeSinceLastSave가
+                //    float.MaxValue로 시작) - 변경이 드문 평소 플레이에서 체감 지연이 없어야 한다.
+                InvokeVoidHandler(saveService, "MarkDirty");
+                saveService.FlushPendingChanges();
+
+                if (saveService.SaveCallCount != 1)
+                {
+                    throw new Exception($"신규 인스턴스의 첫 FlushPendingChanges() 호출인데도 즉시 저장되지 않음(SaveCallCount={saveService.SaveCallCount}, 기대값=1)");
+                }
+
+                if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("첫 저장 이후에도 _isDirty가 여전히 true임");
+                }
+
+                // 2) 저장 직후 곧바로 여러 프레임 연속으로 더티 상태가 유지돼도(각 프레임 사이
+                //    간격이 MinSaveIntervalSeconds(2초)에 못 미치면) 실제 저장은 한 번도 더
+                //    실행되지 않아야 한다 - 이슈의 핵심 재현("상시 전투 중 프레임마다 Save()") 방지.
+                float[] simulatedElapsedSinceLastSave = { 0f, 0.1f, 0.5f, 1f, 1.9f };
+
+                foreach (float elapsed in simulatedElapsedSinceLastSave)
+                {
+                    SetPrivateFieldOnPlainObject(saveService, "_timeSinceLastSave", elapsed);
+                    InvokeVoidHandler(saveService, "MarkDirty");
+                    saveService.FlushPendingChanges();
+
+                    if (saveService.SaveCallCount != 1)
+                    {
+                        throw new Exception($"간격(MinSaveIntervalSeconds=2초) 이내(경과={elapsed}초)인데도 저장이 추가로 실행됨(SaveCallCount={saveService.SaveCallCount}) - 연속 더티 프레임이 병합되지 않음(GitHub 이슈 #52 재현)");
+                    }
+
+                    if (!(bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                    {
+                        throw new Exception($"간격을 못 채웠는데도(경과={elapsed}초) _isDirty가 false로 꺼짐 - 변경 사항이 유실될 수 있음");
+                    }
+                }
+
+                // 3) 간격(2초)을 채운 뒤 다음 더티 틱에서는 자동으로 저장이 재개돼야 한다.
+                SetPrivateFieldOnPlainObject(saveService, "_timeSinceLastSave", 2f);
+                saveService.FlushPendingChanges();
+
+                if (saveService.SaveCallCount != 2)
+                {
+                    throw new Exception($"간격을 채운 뒤 저장이 재개되지 않음(SaveCallCount={saveService.SaveCallCount}, 기대값=2)");
+                }
+
+                if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("간격 도달 후 저장했는데도 _isDirty가 여전히 true임");
+                }
+
+                var timeSinceLastSaveAfterSave = (float)GetPrivateFieldOnPlainObject(saveService, "_timeSinceLastSave");
+
+                if (timeSinceLastSaveAfterSave != 0f)
+                {
+                    throw new Exception($"실제 저장이 일어난 뒤 _timeSinceLastSave가 0으로 리셋되지 않음(값={timeSinceLastSaveAfterSave})");
+                }
+            }
+            finally
+            {
+                saveService.Shutdown();
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #52 - FlushForApplicationLifecycle()(pause/quit 전용 경로)은 MinSaveInterval
+        /// Seconds 간격 정책을 무시하고 더티 상태면 항상 즉시 저장해야 한다(완료 조건 2: 일시정지/
+        /// 종료 시점에 저장 안 된 변경 사항이 유실되면 안 됨). 먼저 일반 FlushPendingChanges()
+        /// 경로가 간격 안에서는 정상적으로 저장을 보류하는 것부터 확인한 뒤(새 간격 게이트가
+        /// 실제로 걸려있는 상태에서), 그 직후 FlushForApplicationLifecycle()을 호출해 간격과
+        /// 무관하게 즉시 저장되는지 확인한다.
+        /// </summary>
+        private static void CheckSaveServiceFlushForApplicationLifecycleBypassesInterval()
+        {
+            var events = new EventBus();
+            var saveService = new SaveService(events, null, null, null, null, null, null, null, null, null, null, null, null);
+
+            try
+            {
+                saveService.Initialize();
+
+                InvokeVoidHandler(saveService, "MarkDirty");
+                saveService.FlushPendingChanges();
+
+                if (saveService.SaveCallCount != 1)
+                {
+                    throw new Exception($"첫 저장이 즉시 실행되지 않음(SaveCallCount={saveService.SaveCallCount})");
+                }
+
+                // 저장 직후(간격 0초) 곧바로 다시 더티 - 일반 경로는 간격 때문에 보류해야 한다.
+                SetPrivateFieldOnPlainObject(saveService, "_timeSinceLastSave", 0f);
+                InvokeVoidHandler(saveService, "MarkDirty");
+                saveService.FlushPendingChanges();
+
+                if (saveService.SaveCallCount != 1)
+                {
+                    throw new Exception($"간격이 전혀 안 지났는데도 일반 FlushPendingChanges()가 저장을 실행함(SaveCallCount={saveService.SaveCallCount}) - 이 검사의 전제(간격 게이트가 걸려있음) 자체가 깨짐");
+                }
+
+                // 간격을 여전히 못 채운 상태에서 pause/quit 전용 경로를 호출하면, 간격과 무관하게
+                // 즉시 저장돼야 한다.
+                saveService.FlushForApplicationLifecycle();
+
+                if (saveService.SaveCallCount != 2)
+                {
+                    throw new Exception($"FlushForApplicationLifecycle()이 간격 정책 때문에 저장을 보류함(SaveCallCount={saveService.SaveCallCount}, 기대값=2) - pause/quit 시점의 변경 사항이 유실될 수 있음(GitHub 이슈 #52 완료 조건 2 위반)");
+                }
+
+                if ((bool)GetPrivateFieldOnPlainObject(saveService, "_isDirty"))
+                {
+                    throw new Exception("FlushForApplicationLifecycle() 이후에도 _isDirty가 여전히 true임");
+                }
+            }
+            finally
+            {
                 saveService.Shutdown();
             }
         }
