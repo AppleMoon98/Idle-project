@@ -237,6 +237,19 @@ namespace Editor
             Check("TouchGestureArbiter_FocusRegained_ResetsStaleSuppression",
                 CheckTouchGestureArbiterResetsOnFocusRegain);
 
+            // --- GitHub 이슈 #54 - 오버레이(던전/연습/승급전) 컨트롤러의 OnDestroy()가 씬 정리/
+            // Play Mode 종료 도중 stageController.ResumeAfterOverlay()를 호출하면, positionResetter가
+            // 이미 파괴된 상태(Unity 파괴 순서 미보장)에서 "?."가 그 fake-null을 걸러내지 못해
+            // MissingReferenceException을 던졌다. StageController.ReleaseOverlayForTeardown()(부작용
+            // 없는 teardown 전용 API)과 ResumeAfterOverlay()/PauseForOverlay() 자체의 "!= null" 보강
+            // 둘 다로 고쳤다 ---
+            Check("StageController_ResumeAfterOverlay_DestroyedPositionResetter_DoesNotThrow",
+                CheckStageControllerResumeAfterOverlaySurvivesDestroyedPositionResetter);
+            Check("StageController_PauseForOverlay_DestroyedPositionResetter_DoesNotThrow",
+                CheckStageControllerPauseForOverlaySurvivesDestroyedPositionResetter);
+            Check("StageController_ReleaseOverlayForTeardown_NeverThrowsAndClearsFlag",
+                CheckStageControllerReleaseOverlayForTeardown);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -1505,6 +1518,115 @@ namespace Editor
             if (result)
             {
                 throw new Exception("포커스를 되찾은 뒤에도 낡은 멀티터치 억제 상태가 남아있음");
+            }
+        }
+
+        // --- GitHub 이슈 #54: StageController 오버레이 teardown 안전성 검증 ---
+        //
+        // Object.DestroyImmediate로 실제 Unity "fake-null"(C# 참조는 non-null이지만 네이티브
+        // 오브젝트는 파괴된 상태)을 재현한다 - Edit Mode에서 Object.Destroy는 경고만 남기고
+        // 실제로는 파괴하지 않으므로(section GY/HL 등 이 프로젝트 기존 노트) DestroyImmediate를
+        // 쓴다. 매 검사가 자기 GameObject를 finally에서 정리한다.
+
+        private static StagePositionResetter CreatePositionResetterInstance()
+        {
+            var go = new GameObject("RegressionCheck_Issue54_PositionResetter");
+            var resetter = go.AddComponent<StagePositionResetter>();
+
+            MethodInfo awake = typeof(StagePositionResetter).GetMethod("Awake", BindingFlags.NonPublic | BindingFlags.Instance);
+            awake?.Invoke(resetter, null);
+
+            return resetter;
+        }
+
+        private static StageController CreateStageControllerInstance(StagePositionResetter resetter)
+        {
+            var go = new GameObject("RegressionCheck_Issue54_StageController");
+            var controller = go.AddComponent<StageController>();
+
+            FieldInfo field = typeof(StageController).GetField("positionResetter", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (field == null)
+            {
+                throw new Exception("StageController.positionResetter 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            field.SetValue(controller, resetter);
+            return controller;
+        }
+
+        private static void CheckStageControllerResumeAfterOverlaySurvivesDestroyedPositionResetter()
+        {
+            StagePositionResetter resetter = CreatePositionResetterInstance();
+            StageController controller = CreateStageControllerInstance(resetter);
+
+            try
+            {
+                UnityEngine.Object.DestroyImmediate(resetter.gameObject);
+
+                if (resetter != null)
+                {
+                    throw new Exception("DestroyImmediate 이후에도 UnityEngine.Object 비교 연산자가 파괴를 감지하지 못함 - 재현 전제 자체가 무효");
+                }
+
+                // 이슈 재현: PracticeStageController.OnDestroy() 등이 이 경로로 진입할 때
+                // positionResetter가 이미 파괴돼 있었다. 예외 없이 통과해야 한다.
+                controller.ResumeAfterOverlay();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(controller.gameObject);
+            }
+        }
+
+        private static void CheckStageControllerPauseForOverlaySurvivesDestroyedPositionResetter()
+        {
+            StagePositionResetter resetter = CreatePositionResetterInstance();
+            StageController controller = CreateStageControllerInstance(resetter);
+
+            try
+            {
+                UnityEngine.Object.DestroyImmediate(resetter.gameObject);
+
+                // ResumeAfterOverlay()와 대칭되는 PauseForOverlay()도 같은 방식으로 고쳤는지
+                // 확인(일관성 - 던전 입장 시점에도 같은 종류의 fake-null 위험이 있었다).
+                controller.PauseForOverlay();
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(controller.gameObject);
+            }
+        }
+
+        private static void CheckStageControllerReleaseOverlayForTeardown()
+        {
+            StagePositionResetter resetter = CreatePositionResetterInstance();
+            StageController controller = CreateStageControllerInstance(resetter);
+
+            try
+            {
+                controller.PauseForOverlay(); // IsOverlayActive를 true로 만들어둠
+
+                if (!controller.IsOverlayActive)
+                {
+                    throw new Exception("사전 조건 실패: PauseForOverlay() 이후 IsOverlayActive가 true가 아님");
+                }
+
+                UnityEngine.Object.DestroyImmediate(resetter.gameObject);
+
+                // ReleaseOverlayForTeardown()은 positionResetter를 전혀 건드리지 않으므로,
+                // 이 시점에 그게 파괴돼 있어도(또는 살아있어도) 예외 없이 IsOverlayActive만
+                // 내려야 한다.
+                controller.ReleaseOverlayForTeardown();
+
+                if (controller.IsOverlayActive)
+                {
+                    throw new Exception("ReleaseOverlayForTeardown() 이후에도 IsOverlayActive가 true로 남음");
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(controller.gameObject);
             }
         }
 

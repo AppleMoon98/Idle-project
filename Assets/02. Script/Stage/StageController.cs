@@ -200,7 +200,14 @@ namespace Stage
 
             _tracker?.SetActiveAll(false);
             _progression?.SetSuppressed(true);
-            positionResetter?.ResetPositions();
+
+            // GitHub 이슈 #54 - "?."는 Unity가 파괴한(그러나 C# 참조 자체는 non-null인) "가짜
+            // null" 오브젝트를 걸러내지 못한다(ResumeAfterOverlay()와 동일한 이유로 여기도 함께
+            // 고쳤다 - 일관성 유지, 같은 클래스의 대칭되는 메서드).
+            if (positionResetter != null)
+            {
+                positionResetter.ResetPositions();
+            }
 
             if (overlayLabel != null)
             {
@@ -334,8 +341,18 @@ namespace Stage
 
             _progression?.SetSuppressed(false);
             _tracker?.SetActiveAll(true);
-            positionResetter?.ResetPositions();
-            positionResetter?.ResetHealth();
+
+            // GitHub 이슈 #54 - positionResetter?.ResetPositions()처럼 "?."만으로 파괴된
+            // UnityEngine.Object를 걸러내려 하면 실패한다: "?."는 C# 레벨의 진짜 null만 확인할 뿐,
+            // Unity가 파괴한(그러나 참조 자체는 여전히 non-null인) "가짜 null" 오브젝트는 그대로
+            // 통과시켜 버린다. "!= null"은 UnityEngine.Object가 오버로드한 비교 연산자를 거쳐
+            // 파괴 여부를 올바르게 감지한다.
+            if (positionResetter != null)
+            {
+                positionResetter.ResetPositions();
+                positionResetter.ResetHealth();
+            }
+
             GameBootstrapper.Events?.Publish(new Stage.Events.StageOverlayLabelChangedEvent(null));
             GameBootstrapper.Events?.Publish(new CombatFieldResetEvent());
 
@@ -343,6 +360,27 @@ namespace Stage
             {
                 TickerRegistration.Register(_spawner);
             }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #54 - 오버레이(던전/연습/승급전) 컨트롤러의 OnDestroy()가 씬 정리/Play Mode
+        /// 종료 도중 호출되는 경우 전용의, 부작용 없는 오버레이 해제 API. 이 컨트롤러들에게
+        /// OnDestroy()는 항상 teardown 신호다 - 정상적인 "사용자가 나가기/클리어"는 각자
+        /// ExitToOriginalStage()/EndSession() 등 별도 메서드로 처리되며 파괴 콜백을 거치지 않는다.
+        ///
+        /// 기존 ResumeAfterOverlay()는 positionResetter/_tracker/_spawner/EventBus를 전부
+        /// 건드리는데, Unity 종료 시 오브젝트 파괴 순서가 보장되지 않아 그중 하나라도 이미 파괴된
+        /// 상태면 MissingReferenceException을 던졌다(실제 재현됨). 이 메서드는 그 부작용을 전혀
+        /// 수행하지 않는다 - IsOverlayActive만 내려서 상태를 정리한다. 어차피 씬 전체가 사라지는
+        /// 참이라 위치/체력 복원, 스포너 재등록, 이벤트 발행 전부 아무도 관측할 수 없는 무의미한
+        /// 작업이다(개선 제안: "이미 파괴 중인 외부 도메인에 복귀 부작용을 요청하지 않는다").
+        /// 순수 bool 필드 대입뿐이라, 이 StageController 자신이 이미 파괴된 상태에서
+        /// 호출돼도(fake-null, 호출자의 "?."가 걸러주지 못하는 경우) 안전하다 - transform 등
+        /// 네이티브 엔진 상태를 요구하는 API를 전혀 거치지 않기 때문이다.
+        /// </summary>
+        public void ReleaseOverlayForTeardown()
+        {
+            IsOverlayActive = false;
         }
 
         /// <summary>

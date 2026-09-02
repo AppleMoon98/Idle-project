@@ -258,12 +258,28 @@ namespace Dungeon
             _aliveMonsters.Clear();
         }
 
+        /// <summary>
+        /// GitHub 이슈 #54 - EndSession()을 그대로 재사용하지 않는다: EndSession은 정상 종료
+        /// (시간 초과/클리어)에도 쓰이는 공유 경로라 clear 요약 이벤트 발행과
+        /// stageController.ResumeAfterOverlay()(파괴 순서를 보장할 수 없는 외부 오브젝트를
+        /// 건드려 씬 정리/Play Mode 종료 중 예외를 던질 수 있음 - 실제 재현됨)를 그대로 수행한다.
+        /// OnDestroy()는 이 컨트롤러에게 항상 teardown 신호다(정상 종료는 EndSession()이 직접
+        /// 호출되는 별도 경로를 탄다) - 이 시점엔 아무도 관측할 수 없는 클리어 요약 발행은
+        /// 건너뛰고, ResumeAfterOverlay() 대신 부작용 없는 teardown 전용 API를 쓴다.
+        /// </summary>
         private void OnDestroy()
         {
-            if (_isActive)
+            if (!_isActive)
             {
-                EndSession(cleared: false);
+                return;
             }
+
+            _isActive = false;
+
+            GameBootstrapper.Events?.Unsubscribe<CharacterDiedEvent>(OnCharacterDied);
+            TickerRegistration.Unregister(this);
+            ReleaseRemainingMonsters();
+            stageController?.ReleaseOverlayForTeardown();
         }
     }
 }

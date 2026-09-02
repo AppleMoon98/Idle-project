@@ -279,7 +279,12 @@ namespace Dungeon
             if (_isActive)
             {
                 _isActive = false;
-                stageController?.ResumeAfterOverlay();
+
+                // GitHub 이슈 #54 - OnDestroy()는 이 컨트롤러에게 항상 teardown 신호다(정상 종료는
+                // ExitToOriginalStage() 등 별도 경로를 탄다). ResumeAfterOverlay()는
+                // positionResetter 등 파괴 순서를 보장할 수 없는 외부 오브젝트를 건드려 예외를
+                // 던질 수 있으므로, 부작용 없는 teardown 전용 API로 대체한다.
+                stageController?.ReleaseOverlayForTeardown();
             }
         }
     }
