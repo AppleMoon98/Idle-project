@@ -144,6 +144,27 @@ namespace Save
         private const string SkillGachaGoldPullCountsJsonKey = "Save.SkillGachaGoldPullCountsJson";
         private const string BossTokenCountKey = "Save.BossTokenCount";
 
+        /// <summary>
+        /// GitHub 이슈 #56 - ResetProgress()가 삭제할 "진행 데이터" 키 전체 목록. 위 상수들과
+        /// 정확히 1:1로 대응한다 - 새 Save.* 키를 추가할 때 여기 추가하는 걸 잊으면 그 필드만
+        /// 초기화에서 누락되므로, RegressionChecks가 ResetProgress() 이후 Load()가 전부 기본값을
+        /// 반환하는지 검증해 누락을 잡아낸다.
+        /// </summary>
+        private static readonly string[] AllProgressKeys =
+        {
+            GoldKey, GoldBigKey, EnhancementStonesKey, ChapterKey, StageNumberKey,
+            HighestClearedChapterKey, HighestClearedStageNumberKey, LastActiveUnixTimeKey,
+            HighWaterUnixTimeKey, LastElapsedRealtimeSecondsKey, AttackPowerLevelKey,
+            MaxHealthLevelKey, AttackSpeedLevelKey, MoveSpeedLevelKey, CriticalChanceLevelKey,
+            CriticalDamageLevelKey, InventoryJsonKey, RankIndexKey, SoldierTicketCountKey,
+            SoldierRosterJsonKey, SkillLevelsJsonKey, SoldierAttackPowerLevelKey,
+            SoldierMaxHealthLevelKey, SoldierAttackSpeedLevelKey, SoldierMoveSpeedLevelKey,
+            SoldierCriticalChanceLevelKey, SoldierCriticalDamageLevelKey, SkillLoadoutJsonKey,
+            SkillEnabledJsonKey, SkillScrollCountKey, SkillCountsJsonKey,
+            EquipmentGachaTicketCountKey, SquadTacticsJsonKey, SoldierGachaGoldPullCountsJsonKey,
+            SkillGachaGoldPullCountsJsonKey, BossTokenCountKey,
+        };
+
         private readonly EventBus _events;
         private readonly InventoryService _inventory;
         private readonly EquippedGearService _equippedGear;
@@ -481,6 +502,24 @@ namespace Save
             PlayerPrefs.Save();
 
             _isDirty = false;
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #56 - "게임 데이터 초기화"가 PlayerPrefs.DeleteAll()을 그대로 호출해
+        /// 사운드/카메라/확인창 선호 설정(BgmVolume, ScreenShakeDisabled, ConfirmationPopup_
+        /// DontShow_* 등 - 전부 다른 클래스가 소유한 별도 PlayerPrefs 키)까지 함께 삭제하던 문제.
+        /// 이 메서드는 SaveService 자신이 소유한 진행 데이터 키(Save. 접두사가 붙은 것들, 전부
+        /// AllProgressKeys에 나열됨)만 명시적으로 삭제한다 - 그 외 키는 이 클래스가 존재조차
+        /// 모르므로 자동으로 보존된다. UI.ResetDataConfirmPopupUI가 유일한 호출부다.
+        /// </summary>
+        public void ResetProgress()
+        {
+            foreach (string key in AllProgressKeys)
+            {
+                PlayerPrefs.DeleteKey(key);
+            }
+
+            PlayerPrefs.Save();
         }
 
         /// <summary>

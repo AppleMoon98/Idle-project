@@ -214,6 +214,15 @@ namespace Editor
             Check("ContentCostValidation_ValidateCostIncrementTiers_AcceptsValidBoundaryCases",
                 CheckValidateCostIncrementTiersAcceptsValidBoundaryCases);
 
+            // --- GitHub 이슈 #56 - "게임 데이터 초기화"가 PlayerPrefs.DeleteAll()을 그대로
+            // 호출해 사운드/카메라 흔들림/확인창 "다시 보지 않기" 같은 SaveService와 무관한
+            // 로컬 선호 설정까지 함께 지우던 문제. SaveService.ResetProgress()가 자신이 소유한
+            // Save.* 키만 명시적으로 삭제하도록 고쳤다 ---
+            Check("SaveService_ResetProgress_DeletesProgressKeysOnly_PreservesUnrelatedPreferences",
+                CheckSaveServiceResetProgressPreservesUnrelatedPreferences);
+            Check("SaveService_AllProgressKeys_CoversEveryDeclaredSaveKeyConstant",
+                CheckSaveServiceAllProgressKeysCoversAllSaveConsts);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -1262,6 +1271,141 @@ namespace Editor
             if (largeErrors.Count != 0)
             {
                 throw new Exception($"대량 count(20억)에서 정상 구성이 부당하게 거부됨: {string.Join(" | ", largeErrors)}");
+            }
+        }
+
+        // --- GitHub 이슈 #56: SaveService.ResetProgress() 검증 ---
+
+        /// <summary>
+        /// 이슈의 재현 절차를 그대로 재현한다: 진행 데이터 키 하나(문자열 저장 - GoldBigKey)와
+        /// 진행 데이터 키 하나(정수 저장 - ChapterKey)에 각각 임의 값을 심어두고, SaveService와
+        /// 무관한 합성 선호 설정 키에도 값을 심어둔다. ResetProgress() 이후 진행 데이터 두 개는
+        /// 지워지고(Load()가 기본값을 반환) 합성 선호 설정은 그대로 남아있어야 한다 - 문자열/정수
+        /// 두 가지 PlayerPrefs 저장 형식을 각각 정확한 타입의 Get/Set으로 직접 백업·복원해(실제
+        /// 이 개발 세션의 진행 데이터를 훼손하지 않기 위함, 범용 문자열 백업 헬퍼는 정수 키에는
+        /// 안전하지 않아 여기선 쓰지 않는다) 실제 PlayerPrefs를 대상으로 안전하게 검증한다.
+        /// </summary>
+        private static void CheckSaveServiceResetProgressPreservesUnrelatedPreferences()
+        {
+            FieldInfo goldKeyField = typeof(SaveService).GetField("GoldBigKey", BindingFlags.NonPublic | BindingFlags.Static);
+            FieldInfo chapterKeyField = typeof(SaveService).GetField("ChapterKey", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (goldKeyField == null || chapterKeyField == null)
+            {
+                throw new Exception("SaveService.GoldBigKey/ChapterKey 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            var goldKey = (string)goldKeyField.GetValue(null);
+            var chapterKey = (string)chapterKeyField.GetValue(null);
+            const string syntheticPreferenceKey = "RegressionCheck_Issue56_SyntheticPreference";
+
+            bool goldHadValue = PlayerPrefs.HasKey(goldKey);
+            string goldBackup = PlayerPrefs.GetString(goldKey, "");
+            bool chapterHadValue = PlayerPrefs.HasKey(chapterKey);
+            int chapterBackup = PlayerPrefs.GetInt(chapterKey, 0);
+
+            try
+            {
+                PlayerPrefs.SetString(goldKey, "1.5E10");
+                PlayerPrefs.SetInt(chapterKey, 7);
+                PlayerPrefs.SetString(syntheticPreferenceKey, "should-survive");
+                PlayerPrefs.Save();
+
+                var saveService = new SaveService(null, null, null, null, null, null, null, null, null, null, null, null, null);
+                saveService.ResetProgress();
+
+                if (PlayerPrefs.HasKey(goldKey))
+                {
+                    throw new Exception($"ResetProgress() 이후에도 {goldKey}가 남아있음 (진행 데이터가 지워지지 않음)");
+                }
+
+                if (PlayerPrefs.HasKey(chapterKey))
+                {
+                    throw new Exception($"ResetProgress() 이후에도 {chapterKey}가 남아있음 (진행 데이터가 지워지지 않음)");
+                }
+
+                if (PlayerPrefs.GetString(syntheticPreferenceKey, "") != "should-survive")
+                {
+                    throw new Exception("ResetProgress()가 SaveService와 무관한 선호 설정 키까지 지움 (이슈 #56 재현)");
+                }
+            }
+            finally
+            {
+                if (goldHadValue) { PlayerPrefs.SetString(goldKey, goldBackup); } else { PlayerPrefs.DeleteKey(goldKey); }
+                if (chapterHadValue) { PlayerPrefs.SetInt(chapterKey, chapterBackup); } else { PlayerPrefs.DeleteKey(chapterKey); }
+                PlayerPrefs.DeleteKey(syntheticPreferenceKey);
+                PlayerPrefs.Save();
+            }
+        }
+
+        /// <summary>
+        /// SaveService.AllProgressKeys(ResetProgress()가 실제로 삭제하는 키 목록)가 클래스 안의
+        /// Save.* 접두사 const string 전체와 정확히 1:1로 일치하는지 순수 리플렉션으로 확인한다 -
+        /// 실제 PlayerPrefs를 전혀 건드리지 않는 정적 구조 검사라, 앞으로 새 Save.* 키가 추가되고
+        /// AllProgressKeys에 넣는 걸 깜빡하면(그 필드만 초기화에서 조용히 누락됨) 이 검사가 즉시
+        /// 잡아낸다 - "진행 초기화 후 골드·장비·스킬·병사·스테이지가 새 게임 상태가 됨"(완료 조건
+        /// 1번)을 36개 필드 전부에 대해 개별 PlayerPrefs 조작 없이 구조적으로 보장한다.
+        /// </summary>
+        private static void CheckSaveServiceAllProgressKeysCoversAllSaveConsts()
+        {
+            Type saveServiceType = typeof(SaveService);
+            var expectedKeys = new HashSet<string>();
+
+            foreach (FieldInfo field in saveServiceType.GetFields(BindingFlags.NonPublic | BindingFlags.Static))
+            {
+                if (field.IsLiteral && !field.IsInitOnly && field.FieldType == typeof(string))
+                {
+                    var value = (string)field.GetRawConstantValue();
+                    if (value != null && value.StartsWith("Save."))
+                    {
+                        expectedKeys.Add(value);
+                    }
+                }
+            }
+
+            if (expectedKeys.Count == 0)
+            {
+                throw new Exception("Save.* 상수를 하나도 못 찾음 - 리플렉션 조건이 바뀌었는지 확인");
+            }
+
+            FieldInfo arrayField = saveServiceType.GetField("AllProgressKeys", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (arrayField == null)
+            {
+                throw new Exception("SaveService.AllProgressKeys 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            var actualKeys = (string[])arrayField.GetValue(null);
+            var actualKeySet = new HashSet<string>(actualKeys);
+
+            if (actualKeySet.Count != actualKeys.Length)
+            {
+                throw new Exception("AllProgressKeys에 중복된 키가 있음");
+            }
+
+            var missing = new List<string>();
+            foreach (string key in expectedKeys)
+            {
+                if (!actualKeySet.Contains(key))
+                {
+                    missing.Add(key);
+                }
+            }
+
+            var extra = new List<string>();
+            foreach (string key in actualKeySet)
+            {
+                if (!expectedKeys.Contains(key))
+                {
+                    extra.Add(key);
+                }
+            }
+
+            if (missing.Count > 0 || extra.Count > 0)
+            {
+                throw new Exception(
+                    $"AllProgressKeys가 Save.* 상수 목록과 어긋남 - 누락: [{string.Join(", ", missing)}], " +
+                    $"목록에는 있지만 상수가 아닌 것: [{string.Join(", ", extra)}]");
             }
         }
 
