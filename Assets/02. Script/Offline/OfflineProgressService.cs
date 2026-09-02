@@ -29,6 +29,13 @@ namespace Offline
     ///
     /// 오프라인 보상이 반영하는 성장 시스템의 밸런스 정책은 OfflineCombatPowerCalculator의 클래스
     /// doc에 있다.
+    ///
+    /// **경과 시간 자체는 벽시계만 무조건 신뢰하지 않는다(GitHub 이슈 #71):** 서버가 없어 완전한
+    /// 방지는 불가능하지만, CaptureBudget()이 Offline.OfflineElapsedTimeCalculator를 통해 벽시계
+    /// 차이와 (있으면) Core.DeviceUptime의 기기 부팅-이후 경과시간 중 더 작은 쪽만 신뢰한다 -
+    /// 시계를 반복적으로 미래로 돌려 같은 보상을 재수령하는 걸 막는다. SaveData.LastActiveUnixTime
+    /// 자체도 SaveService.Load()가 세이브 파일 직접 편집으로 인한 롤백을 하이워터마크로 정화한
+    /// 값이다.
     /// </summary>
     public sealed class OfflineProgressService
     {
@@ -76,7 +83,20 @@ namespace Offline
             }
 
             long nowUnix = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            float elapsedSeconds = Mathf.Max(0f, nowUnix - save.LastActiveUnixTime);
+
+            // GitHub 이슈 #71 - 벽시계 차이만으로 경과 시간을 계산하면 시계를 반복적으로 미래로
+            // 돌려 같은 오프라인 보상을 무한히 재수령할 수 있다. Core.DeviceUptime(Android에서만
+            // 유효, 그 외 플랫폼은 항상 실패 반환)의 벽시계-무관 신호와 저장된 이전 관측값을
+            // Offline.OfflineElapsedTimeCalculator에 넘겨, 둘 중 더 작은 쪽만 신뢰한다.
+            long? currentElapsedRealtimeSeconds = DeviceUptime.TryGetElapsedRealtimeSeconds(out long liveElapsedRealtime)
+                ? (long?)liveElapsedRealtime
+                : null;
+            long? previousElapsedRealtimeSeconds = save.LastElapsedRealtimeSeconds > 0
+                ? (long?)save.LastElapsedRealtimeSeconds
+                : null;
+
+            float elapsedSeconds = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix, save.LastActiveUnixTime, currentElapsedRealtimeSeconds, previousElapsedRealtimeSeconds);
             float budget = Mathf.Min(elapsedSeconds, _maxOfflineSeconds);
 
             if (budget <= 0f)

@@ -115,6 +115,8 @@ namespace Save
         private const string HighestClearedChapterKey = "Save.HighestClearedChapter";
         private const string HighestClearedStageNumberKey = "Save.HighestClearedStageNumber";
         private const string LastActiveUnixTimeKey = "Save.LastActiveUnixTime";
+        private const string HighWaterUnixTimeKey = "Save.HighWaterUnixTime"; // GitHub 이슈 #71 - LastActiveUnixTime 직접 편집/롤백 방지용 하이워터마크
+        private const string LastElapsedRealtimeSecondsKey = "Save.LastElapsedRealtimeSeconds"; // GitHub 이슈 #71 - Android SystemClock.elapsedRealtime 기반 신호
         private const string AttackPowerLevelKey = "Save.AttackPowerLevel";
         private const string MaxHealthLevelKey = "Save.MaxHealthLevel";
         private const string AttackSpeedLevelKey = "Save.AttackSpeedLevel";
@@ -338,7 +340,14 @@ namespace Save
             int stageNumber = ClampAtLeastOne(PlayerPrefs.GetInt(StageNumberKey, 1));
             int highestClearedChapter = ClampNonNegative(PlayerPrefs.GetInt(HighestClearedChapterKey, 0));
             int highestClearedStageNumber = ClampNonNegative(PlayerPrefs.GetInt(HighestClearedStageNumberKey, 0));
-            long lastActiveUnixTime = ParseLastActiveUnixTimeOrZero(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
+            // GitHub 이슈 #71 - LastActiveUnixTime을 저장 파일에서 직접 편집(과거로 되돌림)해도
+            // 무력화되도록, 별도로 관리하는 하이워터마크보다 작으면 그 하이워터마크로 올린다.
+            // 정상적으로(PersistTrustedNow를 통해) 저장된 값은 두 키가 항상 같으므로 이 클램프는
+            // 아무 영향이 없다 - 값이 직접 편집으로 서로 어긋났을 때만 개입한다.
+            long rawLastActiveUnixTime = ParseNonNegativeLongOrZero(PlayerPrefs.GetString(LastActiveUnixTimeKey, "0"));
+            long highWaterUnixTime = ParseNonNegativeLongOrZero(PlayerPrefs.GetString(HighWaterUnixTimeKey, "0"));
+            long lastActiveUnixTime = Math.Max(rawLastActiveUnixTime, highWaterUnixTime);
+            long lastElapsedRealtimeSeconds = ParseNonNegativeLongOrZero(PlayerPrefs.GetString(LastElapsedRealtimeSecondsKey, "0"));
             int attackPowerLevel = ClampNonNegative(PlayerPrefs.GetInt(AttackPowerLevelKey, 0));
             int maxHealthLevel = ClampNonNegative(PlayerPrefs.GetInt(MaxHealthLevelKey, 0));
             int attackSpeedLevel = ClampNonNegative(PlayerPrefs.GetInt(AttackSpeedLevelKey, 0));
@@ -399,7 +408,8 @@ namespace Save
                 squadTacticsJson,
                 soldierGachaGoldPullCountsJson,
                 skillGachaGoldPullCountsJson,
-                bossTokenCount);
+                bossTokenCount,
+                lastElapsedRealtimeSeconds);
         }
 
         /// <summary>
@@ -441,7 +451,7 @@ namespace Save
             PlayerPrefs.SetInt(StageNumberKey, _stageNumber);
             PlayerPrefs.SetInt(HighestClearedChapterKey, _highestClearedChapter);
             PlayerPrefs.SetInt(HighestClearedStageNumberKey, _highestClearedStageNumber);
-            PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+            PersistTrustedNow();
             PlayerPrefs.SetInt(AttackPowerLevelKey, _attackPowerLevel);
             PlayerPrefs.SetInt(MaxHealthLevelKey, _maxHealthLevel);
             PlayerPrefs.SetInt(AttackSpeedLevelKey, _attackSpeedLevel);
@@ -571,7 +581,7 @@ namespace Save
         /// </summary>
         private void TouchLastActiveTime()
         {
-            PlayerPrefs.SetString(LastActiveUnixTimeKey, DateTimeOffset.UtcNow.ToUnixTimeSeconds().ToString());
+            PersistTrustedNow();
             PlayerPrefs.Save();
         }
 
@@ -803,12 +813,40 @@ namespace Save
         }
 
         /// <summary>
-        /// LastActiveUnixTime 저장값을 파싱한다. 형식이 깨졌거나(FormatException/OverflowException)
-        /// 음수면 0(= 저장 기록 없음과 동일하게 취급, 오프라인 보상 없이 시작)으로 폴백한다 -
-        /// long.Parse를 직접 쓰면 형식이 깨진 값 하나가 Load() 전체를 예외로 중단시켜 멀쩡한
-        /// 다른 필드까지 못 읽게 되는 문제가 있었다(실제 GitHub 이슈로 제보됨).
+        /// GitHub 이슈 #71 - LastActiveUnixTime을 "지금"으로 쓰는 두 지점(Save/TouchLastActiveTime)이
+        /// 공유하는 단일 진입점. 벽시계 값을 그대로 믿지 않고, 별도로 저장해둔 하이워터마크(지금까지
+        /// 이 메서드로 실제 기록한 적 있는 가장 늦은 시각)보다 작으면 그 하이워터마크 값으로 올려서
+        /// 쓴다 - 그래야 LastActiveUnixTime 저장값을 세이브 파일에서 직접 편집해 과거로 되돌려도,
+        /// 그 다음 정상적인 저장 시점에 다시 원래 신뢰 수준으로 복구된다(Load()의 동일한 클램프와
+        /// 이중으로 방어). 가능하면(Android) 그 순간의 SystemClock.elapsedRealtime()도 함께
+        /// 남겨(재부팅 시 자연 감소는 여기서 그냥 최신값으로 덮어써도 무해하다 - 클래스 doc의
+        /// Offline.OfflineElapsedTimeCalculator 설명 참고, 하이워터마크가 필요 없는 이유), 벽시계와
+        /// 무관하게 흐르는 신호로 오프라인 경과 시간을 이중 검증할 수 있게 한다.
         /// </summary>
-        private static long ParseLastActiveUnixTimeOrZero(string raw)
+        private void PersistTrustedNow()
+        {
+            long candidateUnixTime = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            long currentHighWater = ParseNonNegativeLongOrZero(PlayerPrefs.GetString(HighWaterUnixTimeKey, "0"));
+            long trustedUnixTime = Math.Max(candidateUnixTime, currentHighWater);
+
+            PlayerPrefs.SetString(LastActiveUnixTimeKey, trustedUnixTime.ToString());
+            PlayerPrefs.SetString(HighWaterUnixTimeKey, trustedUnixTime.ToString());
+
+            if (DeviceUptime.TryGetElapsedRealtimeSeconds(out long elapsedRealtimeSeconds))
+            {
+                PlayerPrefs.SetString(LastElapsedRealtimeSecondsKey, elapsedRealtimeSeconds.ToString());
+            }
+        }
+
+        /// <summary>
+        /// long 문자열로 저장된 시각/카운터 값을 파싱한다(LastActiveUnixTime/HighWaterUnixTime/
+        /// LastElapsedRealtimeSeconds가 공유). 형식이 깨졌거나(FormatException/OverflowException)
+        /// 음수면 0(= 저장 기록 없음과 동일하게 취급)으로 폴백한다 - long.Parse를 직접 쓰면 형식이
+        /// 깨진 값 하나가 Load() 전체를 예외로 중단시켜 멀쩡한 다른 필드까지 못 읽게 되는 문제가
+        /// 있었다(실제 GitHub 이슈로 제보됨). 원래 LastActiveUnixTime 전용이었으나 GitHub 이슈
+        /// #71에서 시각 관련 필드가 2개 더 생기며 이름을 일반화했다.
+        /// </summary>
+        private static long ParseNonNegativeLongOrZero(string raw)
         {
             if (!long.TryParse(raw, out long value) || value < 0)
             {

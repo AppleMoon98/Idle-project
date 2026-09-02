@@ -185,6 +185,14 @@ namespace Save
         /// </summary>
         public int BossTokenCount { get; }
 
+        /// <summary>
+        /// 마지막으로 관측된 기기 부팅-이후 경과시간(초, Android SystemClock.elapsedRealtime
+        /// 기반). 벽시계와 무관하게 흐르는 신호라 GitHub 이슈 #71(오프라인 보상 시계 조작
+        /// 방지, Offline.OfflineElapsedTimeCalculator 참고)에 쓰인다. 이 신호가 없는
+        /// 플랫폼(iOS/Standalone/에디터)이거나 기록이 없으면 0.
+        /// </summary>
+        public long LastElapsedRealtimeSeconds { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -218,7 +226,8 @@ namespace Save
             string squadTacticsJson,
             string soldierGachaGoldPullCountsJson,
             string skillGachaGoldPullCountsJson,
-            int bossTokenCount)
+            int bossTokenCount,
+            long lastElapsedRealtimeSeconds)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -253,6 +262,7 @@ namespace Save
             SoldierGachaGoldPullCountsJson = soldierGachaGoldPullCountsJson;
             SkillGachaGoldPullCountsJson = skillGachaGoldPullCountsJson;
             BossTokenCount = bossTokenCount;
+            LastElapsedRealtimeSeconds = lastElapsedRealtimeSeconds;
         }
     }
 }

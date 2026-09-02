@@ -175,6 +175,28 @@ namespace Editor
             Check("BigNumber_Add_ExponentGapOverflow_DoesNotWrapOrThrow", CheckBigNumberAddExponentGapOverflow);
             Check("SaveService_LoadGold_NaNMantissa_BootPathFallsBackSafely", CheckSaveServiceLoadGoldNaNMantissa);
 
+            // --- GitHub 이슈 #71 - 오프라인 보상이 벽시계 차이(DateTimeOffset.UtcNow - LastActiveUnixTime)
+            // 만으로 계산돼, 기기 시계를 반복적으로 미래로 옮기면 같은 기간의 보상을 무한히 재수령할
+            // 수 있었다. Offline.OfflineElapsedTimeCalculator(벽시계 vs 기기 부팅-이후 경과시간 중
+            // 더 작은 쪽만 신뢰)와 SaveService.Load()의 LastActiveUnixTime 하이워터마크 클램프(세이브
+            // 파일 직접 편집으로 인한 롤백 방지)로 고쳤다 ---
+            Check("OfflineElapsedTimeCalculator_NoDeviceSignal_FallsBackToWallClock",
+                CheckOfflineElapsedTimeCalculatorNoDeviceSignal);
+            Check("OfflineElapsedTimeCalculator_RepeatedForwardClockJump_CappedByDeviceUptime",
+                CheckOfflineElapsedTimeCalculatorCapsRepeatedForwardJump);
+            Check("OfflineElapsedTimeCalculator_GenuineLongAbsence_GrantsFullWallClockElapsed",
+                CheckOfflineElapsedTimeCalculatorGrantsGenuineAbsence);
+            Check("OfflineElapsedTimeCalculator_DeviceReboot_FallsBackToWallClockWithoutPenalty",
+                CheckOfflineElapsedTimeCalculatorHandlesReboot);
+            Check("OfflineElapsedTimeCalculator_NeverReturnsNegative",
+                CheckOfflineElapsedTimeCalculatorNeverNegative);
+            Check("SaveService_Load_LastActiveUnixTime_DirectEditRollback_ClampedToHighWaterMark",
+                CheckSaveServiceLastActiveUnixTimeRollbackClamp);
+            Check("SaveService_Load_LastActiveUnixTime_NormalRoundTrip_Unaffected",
+                CheckSaveServiceLastActiveUnixTimeNormalRoundTrip);
+            Check("DeviceUptime_InEditor_AlwaysReportsUnavailable",
+                CheckDeviceUptimeUnavailableInEditor);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -690,12 +712,14 @@ namespace Editor
 
         private static void CheckParseLastActiveUnixTimeOrZero()
         {
+            // GitHub 이슈 #71 - 메서드가 ParseNonNegativeLongOrZero로 개명됨(LastActiveUnixTime
+            // 전용이었으나 HighWaterUnixTime/LastElapsedRealtimeSeconds도 함께 파싱하도록 일반화).
             MethodInfo method = typeof(SaveService).GetMethod(
-                "ParseLastActiveUnixTimeOrZero", BindingFlags.NonPublic | BindingFlags.Static);
+                "ParseNonNegativeLongOrZero", BindingFlags.NonPublic | BindingFlags.Static);
 
             if (method == null)
             {
-                throw new Exception("ParseLastActiveUnixTimeOrZero 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
+                throw new Exception("ParseNonNegativeLongOrZero 메서드를 찾지 못함 - 이름이 바뀌었는지 확인");
             }
 
             AssertParsedTimestamp(method, "not-a-number", 0);
@@ -945,6 +969,194 @@ namespace Editor
                 else
                 {
                     PlayerPrefs.DeleteKey(goldKey);
+                }
+
+                PlayerPrefs.Save();
+            }
+        }
+
+        // --- GitHub 이슈 #71: Offline.OfflineElapsedTimeCalculator 순수 정책 검증 ---
+
+        private static void CheckOfflineElapsedTimeCalculatorNoDeviceSignal()
+        {
+            // 기기 부팅-이후 경과시간 신호가 아예 없으면(iOS/Standalone/에디터, 또는 최초 실행)
+            // 기존과 동일하게 벽시계 차이 그대로를 신뢰해야 한다.
+            float elapsed = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix: 1_700_100_000L,
+                lastActiveUnixTime: 1_700_000_000L,
+                currentElapsedRealtimeSeconds: null,
+                previousElapsedRealtimeSeconds: null);
+
+            AssertApprox(100_000f, elapsed, "신호 없음 - 벽시계 차이 그대로 신뢰해야 함");
+        }
+
+        private static void CheckOfflineElapsedTimeCalculatorCapsRepeatedForwardJump()
+        {
+            // 이슈 재현: 벽시계는 10일(864000초) 앞으로 조작됐지만, 실제 기기 가동시간은 5초만
+            // 흘렀다(짧은 시간 안에 force-stop -> 시계 조작 -> 재실행을 반복) - 보상은 5초분만
+            // 나와야 한다(완료 조건 1: 반복 수령 방지).
+            float elapsed = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix: 1_700_864_000L,
+                lastActiveUnixTime: 1_700_000_000L,
+                currentElapsedRealtimeSeconds: 1_000_005L,
+                previousElapsedRealtimeSeconds: 1_000_000L);
+
+            AssertApprox(5f, elapsed, "반복 시계 조작 시 실제 기기 가동시간만큼만 인정해야 함");
+        }
+
+        private static void CheckOfflineElapsedTimeCalculatorGrantsGenuineAbsence()
+        {
+            // 정상적으로 3일(259200초) 동안 자리를 비운 경우 - 벽시계와 기기 가동시간 둘 다
+            // 비슷하게 흘렀으므로 보상이 부당하게 깎이면 안 된다.
+            long threeDays = 259_200L;
+            float elapsed = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix: 1_700_000_000L + threeDays,
+                lastActiveUnixTime: 1_700_000_000L,
+                currentElapsedRealtimeSeconds: 5_000_000L + threeDays,
+                previousElapsedRealtimeSeconds: 5_000_000L);
+
+            AssertApprox(threeDays, elapsed, "실제 장기간 오프라인은 전액 인정돼야 함");
+        }
+
+        private static void CheckOfflineElapsedTimeCalculatorHandlesReboot()
+        {
+            // 기기가 재부팅되면 elapsedRealtime이 정의상 감소한다(정상적인 사용자 행동, 조작이
+            // 아님) - 이번엔 이 신호를 신뢰할 수 없으므로 벽시계 값을 그대로(페널티 없이) 써야
+            // 한다.
+            float elapsed = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix: 1_700_050_000L,
+                lastActiveUnixTime: 1_700_000_000L,
+                currentElapsedRealtimeSeconds: 100L, // 재부팅 직후라 작음
+                previousElapsedRealtimeSeconds: 500_000L); // 재부팅 전 큰 값
+
+            AssertApprox(50_000f, elapsed, "재부팅 감지 시 벽시계 값을 페널티 없이 그대로 써야 함");
+        }
+
+        private static void CheckOfflineElapsedTimeCalculatorNeverNegative()
+        {
+            // 벽시계 자체가 저장된 LastActiveUnixTime보다 과거를 가리키면(시계가 과거로 돌아감)
+            // 음수 대신 0이어야 한다 - 기존 Mathf.Max(0f, ...) 클램프가 이번 리팩터링에서도
+            // 그대로 유지됐는지 확인.
+            float elapsed = OfflineElapsedTimeCalculator.CalculateTrustedElapsedSeconds(
+                nowUnix: 1_699_000_000L,
+                lastActiveUnixTime: 1_700_000_000L,
+                currentElapsedRealtimeSeconds: 100L,
+                previousElapsedRealtimeSeconds: 100L);
+
+            AssertApprox(0f, elapsed, "벽시계 롤백 시 음수 대신 0이어야 함");
+        }
+
+        // --- GitHub 이슈 #71: SaveService.Load()의 LastActiveUnixTime 하이워터마크 클램프 검증 ---
+
+        private static void CheckSaveServiceLastActiveUnixTimeRollbackClamp()
+        {
+            string lastActiveKey = GetSaveServicePrivateConst("LastActiveUnixTimeKey");
+            string highWaterKey = GetSaveServicePrivateConst("HighWaterUnixTimeKey");
+
+            WithBackedUpPlayerPrefsKeys(new[] { lastActiveKey, highWaterKey }, () =>
+            {
+                // 이전에 정상적으로 저장된 상태를 흉내낸다: 두 키가 같은(늦은) 시각을 가리킴.
+                const long trustedTime = 1_700_000_000L;
+                PlayerPrefs.SetString(lastActiveKey, trustedTime.ToString());
+                PlayerPrefs.SetString(highWaterKey, trustedTime.ToString());
+                PlayerPrefs.Save();
+
+                // 이슈 재현: 세이브 파일을 직접 편집해 LastActiveUnixTime만 10일 전으로 되돌림
+                // (HighWaterUnixTime은 공격자가 그 필드의 존재 자체를 모른 채 손대지 않음).
+                long tamperedTime = trustedTime - 864_000L;
+                PlayerPrefs.SetString(lastActiveKey, tamperedTime.ToString());
+                PlayerPrefs.Save();
+
+                var saveService = new SaveService(null, null, null, null, null, null, null, null, null, null, null, null, null);
+                SaveData loaded = saveService.Load();
+
+                if (loaded.LastActiveUnixTime != trustedTime)
+                {
+                    throw new Exception(
+                        $"LastActiveUnixTime 직접 편집(롤백)이 하이워터마크로 정화되지 않음: " +
+                        $"기대={trustedTime} 실제={loaded.LastActiveUnixTime}");
+                }
+            });
+        }
+
+        private static void CheckSaveServiceLastActiveUnixTimeNormalRoundTrip()
+        {
+            string lastActiveKey = GetSaveServicePrivateConst("LastActiveUnixTimeKey");
+            string highWaterKey = GetSaveServicePrivateConst("HighWaterUnixTimeKey");
+
+            WithBackedUpPlayerPrefsKeys(new[] { lastActiveKey, highWaterKey }, () =>
+            {
+                // 조작 없는 정상 저장(두 키가 항상 같은 값) - 하이워터마크 클램프가 아무 영향도
+                // 주면 안 된다(회귀 방지: 정상 세이브에서 값이 달라지면 안 됨).
+                const long normalTime = 1_700_500_000L;
+                PlayerPrefs.SetString(lastActiveKey, normalTime.ToString());
+                PlayerPrefs.SetString(highWaterKey, normalTime.ToString());
+                PlayerPrefs.Save();
+
+                var saveService = new SaveService(null, null, null, null, null, null, null, null, null, null, null, null, null);
+                SaveData loaded = saveService.Load();
+
+                if (loaded.LastActiveUnixTime != normalTime)
+                {
+                    throw new Exception(
+                        $"조작되지 않은 정상 저장값까지 바뀜: 기대={normalTime} 실제={loaded.LastActiveUnixTime}");
+                }
+            });
+        }
+
+        private static void CheckDeviceUptimeUnavailableInEditor()
+        {
+            // UNITY_EDITOR는 빌드 타겟과 무관하게 에디터 안에서 컴파일할 때 항상 정의되므로,
+            // 이 검사는 어떤 빌드 타겟이 선택돼 있어도 결정적으로 통과해야 한다(실기기 검증은
+            // 이 환경에서 할 수 없다는 것을 명시적으로 확인하는 검사 - 실제 Android 기기에서의
+            // 동작은 별도 확인 필요).
+            bool available = DeviceUptime.TryGetElapsedRealtimeSeconds(out long seconds);
+
+            if (available || seconds != 0)
+            {
+                throw new Exception($"에디터에서 신호가 있는 것처럼 보고됨: available={available}, seconds={seconds}");
+            }
+        }
+
+        private static string GetSaveServicePrivateConst(string fieldName)
+        {
+            FieldInfo field = typeof(SaveService).GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (field == null)
+            {
+                throw new Exception($"SaveService.{fieldName} 필드를 찾지 못함 - 이름이 바뀌었는지 확인");
+            }
+
+            return (string)field.GetValue(null);
+        }
+
+        private static void WithBackedUpPlayerPrefsKeys(string[] keys, Action body)
+        {
+            var hadValue = new bool[keys.Length];
+            var backups = new string[keys.Length];
+
+            for (int i = 0; i < keys.Length; i++)
+            {
+                hadValue[i] = PlayerPrefs.HasKey(keys[i]);
+                backups[i] = PlayerPrefs.GetString(keys[i], "");
+            }
+
+            try
+            {
+                body();
+            }
+            finally
+            {
+                for (int i = 0; i < keys.Length; i++)
+                {
+                    if (hadValue[i])
+                    {
+                        PlayerPrefs.SetString(keys[i], backups[i]);
+                    }
+                    else
+                    {
+                        PlayerPrefs.DeleteKey(keys[i]);
+                    }
                 }
 
                 PlayerPrefs.Save();
