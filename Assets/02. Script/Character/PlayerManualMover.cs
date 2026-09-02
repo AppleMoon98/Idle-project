@@ -171,6 +171,16 @@ namespace Character
                 return;
             }
 
+            // GitHub 이슈 #55 - 두 손가락 핀치 줌의 첫 손가락이 Pointer.current로도 동시에
+            // 읽혀 탭 이동/부대 집결이 함께 발동하던 문제. 멀티터치가 진행 중(또는 방금 끝나
+            // 손가락이 아직 남아있는 동안)이면 이 프레임의 판정 자체를 건너뛰고, 이미 진행 중이던
+            // 후보(홀드 누적/탭 이동)는 즉시 취소한다.
+            if (TouchGestureArbiter.ShouldSuppressSingleTouchGestures())
+            {
+                CancelPendingSingleTouchGestures();
+                return;
+            }
+
             if (pointer.press.wasPressedThisFrame)
             {
                 Vector2 screenPosition = pointer.position.ReadValue();
@@ -200,6 +210,26 @@ namespace Character
             {
                 _hasTriggeredSquadRally = true;
                 TriggerSquadRally(pointer.position.ReadValue());
+            }
+        }
+
+        /// <summary>
+        /// GitHub 이슈 #55 개선 제안 2번 - 멀티터치(핀치)가 감지되는 순간 진행 중이던 단일 터치
+        /// 후보를 전부 취소한다. 아직 이동을 시작 안 한 홀드 누적(부대 집결 후보)은 그냥 리셋하고,
+        /// 이미 탭 이동이 시작돼 CharacterMover.Target이 가리키고 있었다면 그 자리에서 멈추고
+        /// (정상 도착 시의 HandleArrival과 동일하게) 모드가 Auto면 EnemyTracker를 되돌린다.
+        /// </summary>
+        private void CancelPendingSingleTouchGestures()
+        {
+            _pressHeldSeconds = 0f;
+            _hasTriggeredSquadRally = false;
+            _pressStartedOffUI = false;
+
+            if (_isMovingToTap)
+            {
+                _isMovingToTap = false;
+                _mover.Target = null;
+                EnableEnemyTrackerIfAuto();
             }
         }
 

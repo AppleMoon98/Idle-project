@@ -223,6 +223,20 @@ namespace Editor
             Check("SaveService_AllProgressKeys_CoversEveryDeclaredSaveKeyConstant",
                 CheckSaveServiceAllProgressKeysCoversAllSaveConsts);
 
+            // --- GitHub 이슈 #55 - CameraPinchZoomUI(핀치 줌)와 PlayerManualMover(탭 이동/부대
+            // 집결)가 같은 터치 스트림을 독립적으로 읽어, 핀치의 첫 손가락이 탭 이동으로도 동시에
+            // 해석되던 문제. UI.TouchGestureArbiter가 단일 중재 지점 역할을 한다 ---
+            Check("TouchGestureArbiter_SingleTouch_NotSuppressed",
+                CheckTouchGestureArbiterSingleTouchNotSuppressed);
+            Check("TouchGestureArbiter_TwoOrMoreTouches_Suppressed",
+                CheckTouchGestureArbiterMultiTouchSuppressed);
+            Check("TouchGestureArbiter_ResidualFingerAfterPinch_StaysSuppressedUntilFullRelease",
+                CheckTouchGestureArbiterStickyUntilFullRelease);
+            Check("TouchGestureArbiter_FullRelease_AllowsFreshSingleTouchGesture",
+                CheckTouchGestureArbiterResetsAfterFullRelease);
+            Check("TouchGestureArbiter_FocusRegained_ResetsStaleSuppression",
+                CheckTouchGestureArbiterResetsOnFocusRegain);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -1406,6 +1420,91 @@ namespace Editor
                 throw new Exception(
                     $"AllProgressKeys가 Save.* 상수 목록과 어긋남 - 누락: [{string.Join(", ", missing)}], " +
                     $"목록에는 있지만 상수가 아닌 것: [{string.Join(", ", extra)}]");
+            }
+        }
+
+        // --- GitHub 이슈 #55: TouchGestureArbiter.Evaluate 순수 정책 검증 ---
+        //
+        // Touchscreen/InputSystem 디바이스를 직접 시뮬레이션하는 대신 activeTouchCount/isFocused를
+        // 순수 함수 Evaluate()에 직접 넣어 검증한다 - InputSystem.QueueStateEvent 기반 터치
+        // 시뮬레이션은 이 개발 환경에서 신뢰할 수 없음을 실제로 확인했다(activeCount가 항상 0으로
+        // 남아 실제 눌림 상태에 반영되지 않았음, 이슈 #11의 UI 레이캐스트 자동화 실패와 같은
+        // 계열의 환경적 한계). Evaluate()는 정적 상태를 갖고 있어 각 검사가 시작 전
+        // ResetForTesting()으로 격리한다.
+
+        private static void CheckTouchGestureArbiterSingleTouchNotSuppressed()
+        {
+            TouchGestureArbiter.ResetForTesting();
+
+            bool result = TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 1);
+
+            if (result)
+            {
+                throw new Exception("손가락 1개만 닿아있는데 억제됨 - 단일 탭이 막히면 안 됨(완료 조건 4)");
+            }
+        }
+
+        private static void CheckTouchGestureArbiterMultiTouchSuppressed()
+        {
+            TouchGestureArbiter.ResetForTesting();
+
+            if (!TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 2))
+            {
+                throw new Exception("손가락 2개가 닿아있는데 억제되지 않음(완료 조건 1/2)");
+            }
+
+            // 3개 이상(세 번째 터치)도 동일하게 억제돼야 한다 - 개선 제안 4번.
+            if (!TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 3))
+            {
+                throw new Exception("손가락 3개가 닿아있는데 억제되지 않음(세 번째 터치 처리, 개선 제안 4번)");
+            }
+        }
+
+        private static void CheckTouchGestureArbiterStickyUntilFullRelease()
+        {
+            TouchGestureArbiter.ResetForTesting();
+
+            TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 2); // 핀치 시작
+
+            // 손가락 하나를 뗐다(1개 남음) - 완전히 떨어진 게 아니므로 계속 억제돼야 한다
+            // (개선 제안 3번: 잔류 손가락을 새 탭으로 재사용하지 않음).
+            if (!TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 1))
+            {
+                throw new Exception("핀치 후 손가락 1개가 남았는데 억제가 풀림 - 잔류 손가락이 새 탭으로 오인될 수 있음");
+            }
+        }
+
+        private static void CheckTouchGestureArbiterResetsAfterFullRelease()
+        {
+            TouchGestureArbiter.ResetForTesting();
+
+            TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 2); // 핀치 시작
+            TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 1); // 손가락 하나 뗌(계속 억제)
+            TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 0); // 완전히 다 뗌
+
+            // 완전히 뗀 뒤 새로 손가락 하나가 닿으면 - 완전히 새로운 제스처이므로 억제되면 안 된다.
+            bool result = TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 1);
+
+            if (result)
+            {
+                throw new Exception("모든 손가락을 뗀 뒤 새로 누른 단일 터치까지 계속 억제됨(완료 조건 4 위반)");
+            }
+        }
+
+        private static void CheckTouchGestureArbiterResetsOnFocusRegain()
+        {
+            TouchGestureArbiter.ResetForTesting();
+
+            TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 2); // 핀치 시작(억제 상태)
+            TouchGestureArbiter.Evaluate(isFocused: false, activeTouchCount: 2); // 포커스 잃음(값은 신뢰 안 함)
+
+            // 포커스를 되찾는 순간 낡은 억제 상태를 리셋해야 한다 - Character.PlayerManualMover의
+            // 포인터 눌림 고착 문제와 같은 이유(OS가 해제 이벤트를 놓쳤을 수 있음).
+            bool result = TouchGestureArbiter.Evaluate(isFocused: true, activeTouchCount: 1);
+
+            if (result)
+            {
+                throw new Exception("포커스를 되찾은 뒤에도 낡은 멀티터치 억제 상태가 남아있음");
             }
         }
 
