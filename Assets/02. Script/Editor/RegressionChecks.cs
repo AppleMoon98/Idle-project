@@ -197,6 +197,23 @@ namespace Editor
             Check("DeviceUptime_InEditor_AlwaysReportsUnavailable",
                 CheckDeviceUptimeUnavailableInEditor);
 
+            // --- GitHub 이슈 #67 - Enhancement.CostIncrementTier.CalculateTotal이 구간 배열의
+            // 순서를 무조건 신뢰하고(역순/중복 임계값이면 조용히 잘못된 결과), long 누산에
+            // 오버플로 보호가 없었다(음수로 반전 가능). Editor.ContentCostValidation도 원소별
+            // 음수 검사만 할 뿐 순서/중복/MaxLevel 초과 죽은 구간을 확인하지 않았고, GachaTableSO/
+            // SkillGachaTableSO의 CostIncrementTiers는 아예 검증 대상에서 빠져 있었다(이번에
+            // 함께 발견) ---
+            Check("CostIncrementTier_CalculateTotal_SaturatesInsteadOfOverflowingNegative",
+                CheckCostIncrementTierCalculateTotalSaturates);
+            Check("ContentCostValidation_ValidateCostIncrementTiers_RejectsReverseOrder",
+                CheckValidateCostIncrementTiersRejectsReverseOrder);
+            Check("ContentCostValidation_ValidateCostIncrementTiers_RejectsDuplicateThresholds",
+                CheckValidateCostIncrementTiersRejectsDuplicateThresholds);
+            Check("ContentCostValidation_ValidateCostIncrementTiers_RejectsTierBeyondMaxLevel",
+                CheckValidateCostIncrementTiersRejectsTierBeyondMaxLevel);
+            Check("ContentCostValidation_ValidateCostIncrementTiers_AcceptsValidBoundaryCases",
+                CheckValidateCostIncrementTiersAcceptsValidBoundaryCases);
+
             // --- 이슈 #20: PoolManager 미등록 시 던전/승급전 컨트롤러가 상태를 커밋하지 않음
             // (준비→생성→커밋 순서로 뒤집은 뒤에도 스폰 실패 경로가 여전히 안전한지) ---
             Check("RankPromotionBattleController_TrySpawnBoss_NoPoolManager_ReturnsFalse",
@@ -1115,6 +1132,136 @@ namespace Editor
             if (available || seconds != 0)
             {
                 throw new Exception($"에디터에서 신호가 있는 것처럼 보고됨: available={available}, seconds={seconds}");
+            }
+        }
+
+        // --- GitHub 이슈 #67: CostIncrementTier/ContentCostValidation 검증 ---
+
+        private static CostIncrementTier CreateCostIncrementTier(int levelThreshold, int increment)
+        {
+            var tier = (CostIncrementTier)Activator.CreateInstance(typeof(CostIncrementTier));
+            typeof(CostIncrementTier).GetField("levelThreshold", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(tier, levelThreshold);
+            typeof(CostIncrementTier).GetField("increment", BindingFlags.NonPublic | BindingFlags.Instance).SetValue(tier, increment);
+            return tier;
+        }
+
+        private static List<string> RunValidateCostIncrementTiers(CostIncrementTier[] tiers, int? maxLevel)
+        {
+            MethodInfo method = typeof(Editor.ContentCostValidation).GetMethod(
+                "ValidateCostIncrementTiers", BindingFlags.NonPublic | BindingFlags.Static);
+
+            if (method == null)
+            {
+                throw new Exception("ContentCostValidation.ValidateCostIncrementTiers 메서드를 찾지 못함 - 시그니처가 바뀌었는지 확인");
+            }
+
+            var errors = new List<string>();
+            method.Invoke(null, new object[] { errors, "TestAsset.asset", tiers, maxLevel });
+            return errors;
+        }
+
+        private static void CheckCostIncrementTierCalculateTotalSaturates()
+        {
+            // Increment/LevelThreshold/count가 전부 int라(둘의 곱은 최대 ~4.6e18로 long 범위
+            // 안에 항상 들어옴), 실제로 long 오버플로가 나려면 baseValue 자체가 long.MaxValue에
+            // 가까워야 한다 - 이 시나리오가 long 산술 안전망(SaturatingAdd/SaturatingMultiply)의
+            // 실질적인 발동 지점이다.
+            var tiers = new[] { CreateCostIncrementTier(0, 100) };
+
+            long result1 = CostIncrementTier.CalculateTotal(long.MaxValue - 5L, tiers, 100);
+            if (result1 != long.MaxValue)
+            {
+                throw new Exception($"baseValue가 long.MaxValue 근처일 때 포화되지 않음: {result1}");
+            }
+
+            long result2 = CostIncrementTier.CalculateTotal(long.MaxValue, tiers, 100);
+            if (result2 != long.MaxValue || result2 < 0)
+            {
+                throw new Exception($"baseValue가 이미 long.MaxValue일 때 음수로 반전됨: {result2}");
+            }
+
+            // 정상 범위에서는 여전히 정확한 값을 내야 한다(회귀 방지 - 포화 로직이 정상 계산까지
+            // 망가뜨리지 않았는지).
+            var normalTiers = new[] { CreateCostIncrementTier(0, 10), CreateCostIncrementTier(5, 20) };
+            long normalResult = CostIncrementTier.CalculateTotal(1000L, normalTiers, 10);
+            // [0,5): 5회 * 10 = 50. [5,10): 5회 * 20 = 100. 합계 150 + baseValue 1000 = 1150.
+            if (normalResult != 1150L)
+            {
+                throw new Exception($"정상 계단식 계산이 회귀됨: 기대=1150 실제={normalResult}");
+            }
+        }
+
+        private static void CheckValidateCostIncrementTiersRejectsReverseOrder()
+        {
+            var tiers = new[] { CreateCostIncrementTier(10, 100), CreateCostIncrementTier(5, 200) };
+            List<string> errors = RunValidateCostIncrementTiers(tiers, null);
+
+            if (errors.Count == 0)
+            {
+                throw new Exception("역순 임계값[10,5]이 통과됨");
+            }
+        }
+
+        private static void CheckValidateCostIncrementTiersRejectsDuplicateThresholds()
+        {
+            var tiers = new[] { CreateCostIncrementTier(10, 100), CreateCostIncrementTier(10, 200) };
+            List<string> errors = RunValidateCostIncrementTiers(tiers, null);
+
+            if (errors.Count == 0)
+            {
+                throw new Exception("중복 임계값[10,10]이 통과됨");
+            }
+        }
+
+        private static void CheckValidateCostIncrementTiersRejectsTierBeyondMaxLevel()
+        {
+            var tiers = new[] { CreateCostIncrementTier(0, 10), CreateCostIncrementTier(50, 20) };
+            List<string> errors = RunValidateCostIncrementTiers(tiers, 50);
+
+            if (errors.Count == 0)
+            {
+                throw new Exception("MaxLevel(50)과 같은 임계값(50, 절대 도달 불가한 죽은 구간)이 통과됨");
+            }
+        }
+
+        private static void CheckValidateCostIncrementTiersAcceptsValidBoundaryCases()
+        {
+            // 0개 구간(null/빈 배열) - 아무 오류도 없어야 함.
+            List<string> emptyErrors = RunValidateCostIncrementTiers(Array.Empty<CostIncrementTier>(), 100);
+            if (emptyErrors.Count != 0)
+            {
+                throw new Exception($"빈 구간 배열이 거부됨: {string.Join(" | ", emptyErrors)}");
+            }
+
+            List<string> nullErrors = RunValidateCostIncrementTiers(null, 100);
+            if (nullErrors.Count != 0)
+            {
+                throw new Exception($"null 구간 배열이 거부됨: {string.Join(" | ", nullErrors)}");
+            }
+
+            // 1개 구간 - 정상.
+            var single = new[] { CreateCostIncrementTier(0, 10) };
+            List<string> singleErrors = RunValidateCostIncrementTiers(single, 100);
+            if (singleErrors.Count != 0)
+            {
+                throw new Exception($"단일 구간이 거부됨: {string.Join(" | ", singleErrors)}");
+            }
+
+            // 경계: 임계값이 MaxLevel보다 정확히 1 작음(마지막 레벨 하나만 적용되는 구간) - 죽은
+            // 구간이 아니라 유효해야 함(>= 이 아니라 < 여야 함을 확인).
+            var boundary = new[] { CreateCostIncrementTier(0, 10), CreateCostIncrementTier(99, 20) };
+            List<string> boundaryErrors = RunValidateCostIncrementTiers(boundary, 100);
+            if (boundaryErrors.Count != 0)
+            {
+                throw new Exception($"MaxLevel-1 경계 임계값이 부당하게 거부됨: {string.Join(" | ", boundaryErrors)}");
+            }
+
+            // 대량 count/큰 값 - 오버플로 검사 자체가 정상 콘텐츠 규모에서 오작동하지 않는지.
+            var large = new[] { CreateCostIncrementTier(0, 1_000_000) };
+            List<string> largeErrors = RunValidateCostIncrementTiers(large, 2_000_000_000);
+            if (largeErrors.Count != 0)
+            {
+                throw new Exception($"대량 count(20억)에서 정상 구성이 부당하게 거부됨: {string.Join(" | ", largeErrors)}");
             }
         }
 

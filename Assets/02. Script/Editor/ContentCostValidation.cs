@@ -78,7 +78,7 @@ namespace Editor
                 CheckNonNegative(errors, path, "BaseCost", config.BaseCost);
                 CheckNonNegativeFinite(errors, path, "CostMultiplier", config.CostMultiplier, allowZero: false);
                 CheckNonNegative(errors, path, "MaxLevel", config.MaxLevel);
-                ValidateCostIncrementTiers(errors, path, config.CostIncrementTiers);
+                ValidateCostIncrementTiers(errors, path, config.CostIncrementTiers, config.MaxLevel);
             }
 
             return count;
@@ -104,11 +104,27 @@ namespace Editor
         {
             int count = 0;
 
+            // GachaTableSO.CostIncrementTiers는 public 프로퍼티가 없어(ValidateSkills의
+            // goldCostBase 필드와 같은 이유로) 리플렉션으로 읽는다 - GitHub 이슈 #67 스캔 중
+            // 이 필드가 지금까지 전혀 검증되지 않고 있었다는 것을 함께 발견했다.
+            FieldInfo tiersField = typeof(GachaTableSO).GetField("costIncrementTiers", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (tiersField == null)
+            {
+                errors.Add("GachaTableSO의 costIncrementTiers 필드를 찾지 못함 - 필드 이름이 바뀌었는지 확인 필요");
+            }
+
             foreach (var (path, table) in FindAssets<GachaTableSO>())
             {
                 count++;
                 CheckNonNegative(errors, path, "TicketCostPerPull", table.TicketCostPerPull);
                 CheckNonNegative(errors, path, "GoldCostPerPull", table.GoldCostPerPull);
+
+                if (tiersField != null)
+                {
+                    var tiers = (IReadOnlyList<CostIncrementTier>)tiersField.GetValue(table);
+                    ValidateCostIncrementTiers(errors, path, tiers);
+                }
             }
 
             return count;
@@ -118,11 +134,24 @@ namespace Editor
         {
             int count = 0;
 
+            FieldInfo tiersField = typeof(SkillGachaTableSO).GetField("costIncrementTiers", BindingFlags.NonPublic | BindingFlags.Instance);
+
+            if (tiersField == null)
+            {
+                errors.Add("SkillGachaTableSO의 costIncrementTiers 필드를 찾지 못함 - 필드 이름이 바뀌었는지 확인 필요");
+            }
+
             foreach (var (path, table) in FindAssets<SkillGachaTableSO>())
             {
                 count++;
                 CheckNonNegative(errors, path, "TicketCostPerPull", table.TicketCostPerPull);
                 CheckNonNegative(errors, path, "GoldCostPerPull", table.GoldCostPerPull);
+
+                if (tiersField != null)
+                {
+                    var tiers = (IReadOnlyList<CostIncrementTier>)tiersField.GetValue(table);
+                    ValidateCostIncrementTiers(errors, path, tiers);
+                }
             }
 
             return count;
@@ -177,9 +206,18 @@ namespace Editor
             return count;
         }
 
-        private static void ValidateCostIncrementTiers(List<string> errors, string assetPath, IReadOnlyList<CostIncrementTier> tiers)
+        /// <summary>
+        /// GitHub 이슈 #67 - 원소별 음수 검사만으로는 역순·중복 임계값, MaxLevel을 벗어나
+        /// 영원히 적용되지 않는 죽은 구간, 최대 레벨까지 누산 시 long 경계 오버플로를 전혀
+        /// 잡지 못했다. <paramref name="maxLevel"/>은 그 개념이 있는 콘텐츠(EnhancementConfigSO)만
+        /// 넘긴다 - 가챠 테이블처럼 누적 뽑기 횟수에 자연스러운 상한이 없는 콘텐츠는 null로
+        /// 넘겨 "죽은 구간"/"최대치 오버플로" 두 검사를 건너뛴다(런타임 CostIncrementTier.
+        /// CalculateTotal 자신의 포화 처리가 그 경우의 최종 안전망).
+        /// </summary>
+        private static void ValidateCostIncrementTiers(
+            List<string> errors, string assetPath, IReadOnlyList<CostIncrementTier> tiers, int? maxLevel = null)
         {
-            if (tiers == null)
+            if (tiers == null || tiers.Count == 0)
             {
                 return;
             }
@@ -188,6 +226,33 @@ namespace Editor
             {
                 CheckNonNegative(errors, assetPath, $"CostIncrementTiers[{i}].LevelThreshold", tiers[i].LevelThreshold);
                 CheckNonNegative(errors, assetPath, $"CostIncrementTiers[{i}].Increment", tiers[i].Increment);
+
+                if (i > 0 && tiers[i].LevelThreshold <= tiers[i - 1].LevelThreshold)
+                {
+                    errors.Add(
+                        $"{assetPath} - CostIncrementTiers[{i}].LevelThreshold = {tiers[i].LevelThreshold} " +
+                        $"(바로 이전 구간 CostIncrementTiers[{i - 1}].LevelThreshold = {tiers[i - 1].LevelThreshold} " +
+                        "보다 커야 함 - 역순 또는 중복된 임계값이라 구간이 항상 0 길이가 되거나 뒤 구간이 앞 구간을 덮어씀)");
+                }
+
+                if (maxLevel.HasValue && tiers[i].LevelThreshold >= maxLevel.Value)
+                {
+                    errors.Add(
+                        $"{assetPath} - CostIncrementTiers[{i}].LevelThreshold = {tiers[i].LevelThreshold} " +
+                        $"(MaxLevel = {maxLevel.Value} 이상이라 이 구간은 실제 레벨이 절대 도달할 수 없는 죽은 구간)");
+                }
+            }
+
+            if (maxLevel.HasValue)
+            {
+                long totalAtMaxLevel = CostIncrementTier.CalculateTotal(0, tiers, maxLevel.Value);
+
+                if (totalAtMaxLevel == long.MaxValue || totalAtMaxLevel == long.MinValue)
+                {
+                    errors.Add(
+                        $"{assetPath} - CostIncrementTiers가 MaxLevel({maxLevel.Value})까지 누산될 때 long 범위를 넘어 " +
+                        "포화됨(정상적인 강화 곡선이라면 나올 수 없는 규모) - Increment 값을 재검토할 것");
+                }
             }
         }
 
