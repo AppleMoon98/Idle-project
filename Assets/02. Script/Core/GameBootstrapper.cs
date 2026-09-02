@@ -39,6 +39,15 @@ namespace Core
         /// </summary>
         public static EventBus Events { get; private set; }
 
+        /// <summary>
+        /// Start()의 모든 초기화(세이브 복원, 오프라인 보상 계산 등)가 끝났는지 여부.
+        /// UI.TitleScreenController가 타이틀 화면의 "로딩 완료" 판정에 이 플래그를 읽는다 —
+        /// 지금은 모든 초기화가 동기적으로 한 프레임 안에 끝나 사실상 즉시 true가 되지만, 나중에
+        /// 진짜 비동기 초기화(Addressables 사전 다운로드 등)가 추가되면 이 플래그를 그 완료 시점으로
+        /// 옮기기만 하면 된다.
+        /// </summary>
+        public static bool IsReady { get; private set; }
+
         [SerializeField]
         private EnhancementConfigSO[] enhancementConfigs;
 
@@ -436,6 +445,8 @@ namespace Core
             // CaptureBudget()이 미리 확정해둔 경과 시간으로, 지금 이 순간의 유효 전투력 스냅샷을
             // 사용해 실제 오프라인 보상을 계산/적용한다(OfflineProgressService 클래스 doc 참고).
             _offlineProgressService?.ApplyCapturedReward();
+
+            IsReady = true;
         }
 
         /// <summary>
@@ -499,6 +510,7 @@ namespace Core
 
             Services = null;
             Events = null;
+            IsReady = false;
         }
     }
 }
