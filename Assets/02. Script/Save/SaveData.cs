@@ -193,6 +193,13 @@ namespace Save
         /// </summary>
         public long LastElapsedRealtimeSeconds { get; }
 
+        /// <summary>
+        /// 게임 최초 실행 인트로 스토리(Story.StorySO)를 끝까지 보거나 스킵해 완료했는지 여부.
+        /// 기록이 없으면 false(아직 안 봄) - Core.GameBootstrapper.Start()가 이 값이 false일 때만
+        /// 인트로 스토리를 재생한다.
+        /// </summary>
+        public bool HasSeenIntroStory { get; }
+
         public SaveData(
             BigNumber gold,
             int enhancementStones,
@@ -227,7 +234,8 @@ namespace Save
             string soldierGachaGoldPullCountsJson,
             string skillGachaGoldPullCountsJson,
             int bossTokenCount,
-            long lastElapsedRealtimeSeconds)
+            long lastElapsedRealtimeSeconds,
+            bool hasSeenIntroStory)
         {
             Gold = gold;
             EnhancementStones = enhancementStones;
@@ -263,6 +271,7 @@ namespace Save
             SkillGachaGoldPullCountsJson = skillGachaGoldPullCountsJson;
             BossTokenCount = bossTokenCount;
             LastElapsedRealtimeSeconds = lastElapsedRealtimeSeconds;
+            HasSeenIntroStory = hasSeenIntroStory;
         }
     }
 }

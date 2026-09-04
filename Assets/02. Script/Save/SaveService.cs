@@ -19,6 +19,7 @@ using Soldier;
 using Soldier.Events;
 using SoldierEnhancement.Events;
 using Stage.Events;
+using Story.Events;
 using UnityEngine;
 
 namespace Save
@@ -151,6 +152,7 @@ namespace Save
         private const string SoldierGachaGoldPullCountsJsonKey = "Save.SoldierGachaGoldPullCountsJson";
         private const string SkillGachaGoldPullCountsJsonKey = "Save.SkillGachaGoldPullCountsJson";
         private const string BossTokenCountKey = "Save.BossTokenCount";
+        private const string HasSeenIntroStoryKey = "Save.HasSeenIntroStory";
 
         /// <summary>
         /// GitHub 이슈 #56 - ResetProgress()가 삭제할 "진행 데이터" 키 전체 목록. 위 상수들과
@@ -170,7 +172,7 @@ namespace Save
             SoldierCriticalChanceLevelKey, SoldierCriticalDamageLevelKey, SkillLoadoutJsonKey,
             SkillEnabledJsonKey, SkillScrollCountKey, SkillCountsJsonKey,
             EquipmentGachaTicketCountKey, SquadTacticsJsonKey, SoldierGachaGoldPullCountsJsonKey,
-            SkillGachaGoldPullCountsJsonKey, BossTokenCountKey,
+            SkillGachaGoldPullCountsJsonKey, BossTokenCountKey, HasSeenIntroStoryKey,
         };
 
         private readonly EventBus _events;
@@ -219,6 +221,7 @@ namespace Save
         private string _soldierGachaGoldPullCountsJson = "";
         private string _skillGachaGoldPullCountsJson = "";
         private int _bossTokenCount;
+        private bool _hasSeenIntroStory;
         private bool _isDirty;
 
         /// <summary>
@@ -321,6 +324,7 @@ namespace Save
             _soldierGachaGoldPullCountsJson = save.SoldierGachaGoldPullCountsJson;
             _skillGachaGoldPullCountsJson = save.SkillGachaGoldPullCountsJson;
             _bossTokenCount = save.BossTokenCount;
+            _hasSeenIntroStory = save.HasSeenIntroStory;
 
             _events.Subscribe<GoldChangedEvent>(OnGoldChanged);
             _events.Subscribe<EnhancementStoneChangedEvent>(OnEnhancementStoneChanged);
@@ -345,6 +349,7 @@ namespace Save
             _events.Subscribe<SoldierPulledEvent>(OnSoldierPulled);
             _events.Subscribe<SkillPulledEvent>(OnSkillPulled);
             _events.Subscribe<BossTokenChangedEvent>(OnBossTokenChanged);
+            _events.Subscribe<IntroStoryCompletedEvent>(OnIntroStoryCompleted);
 
             TickerRegistration.Register(this);
         }
@@ -376,6 +381,7 @@ namespace Save
             _events.Unsubscribe<SoldierPulledEvent>(OnSoldierPulled);
             _events.Unsubscribe<SkillPulledEvent>(OnSkillPulled);
             _events.Unsubscribe<BossTokenChangedEvent>(OnBossTokenChanged);
+            _events.Unsubscribe<IntroStoryCompletedEvent>(OnIntroStoryCompleted);
         }
 
         /// <summary>
@@ -423,6 +429,7 @@ namespace Save
             string soldierGachaGoldPullCountsJson = PlayerPrefs.GetString(SoldierGachaGoldPullCountsJsonKey, "");
             string skillGachaGoldPullCountsJson = PlayerPrefs.GetString(SkillGachaGoldPullCountsJsonKey, "");
             int bossTokenCount = ClampNonNegative(PlayerPrefs.GetInt(BossTokenCountKey, 0));
+            bool hasSeenIntroStory = PlayerPrefs.GetInt(HasSeenIntroStoryKey, 0) != 0;
 
             return new SaveData(
                 gold,
@@ -458,7 +465,8 @@ namespace Save
                 soldierGachaGoldPullCountsJson,
                 skillGachaGoldPullCountsJson,
                 bossTokenCount,
-                lastElapsedRealtimeSeconds);
+                lastElapsedRealtimeSeconds,
+                hasSeenIntroStory);
         }
 
         /// <summary>
@@ -527,6 +535,7 @@ namespace Save
             PlayerPrefs.SetString(SoldierGachaGoldPullCountsJsonKey, _soldierGachaGoldPullCountsJson);
             PlayerPrefs.SetString(SkillGachaGoldPullCountsJsonKey, _skillGachaGoldPullCountsJson);
             PlayerPrefs.SetInt(BossTokenCountKey, _bossTokenCount);
+            PlayerPrefs.SetInt(HasSeenIntroStoryKey, _hasSeenIntroStory ? 1 : 0);
             PlayerPrefs.Save();
 
             _isDirty = false;
@@ -1065,6 +1074,12 @@ namespace Save
         private void OnBossTokenChanged(BossTokenChangedEvent evt)
         {
             _bossTokenCount = evt.CurrentTokens;
+            MarkDirty();
+        }
+
+        private void OnIntroStoryCompleted(IntroStoryCompletedEvent evt)
+        {
+            _hasSeenIntroStory = true;
             MarkDirty();
         }
 

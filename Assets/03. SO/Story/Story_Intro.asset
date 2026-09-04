@@ -1,0 +1,19 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8014731612cdb064cb76c9732e32cd4f, type: 3}
+  m_Name: Story_Intro
+  m_EditorClassIdentifier: Assembly-CSharp::Story.StorySO
+  displayName: Intro
+  cuts:
+  - {fileID: 11400000, guid: 2048f4781755a174584a79be70118d31, type: 2}
+  - {fileID: 11400000, guid: c001712d6cd813b43bfa145ec5ec1975, type: 2}
+  - {fileID: 11400000, guid: e5345c577bc322c4cb857139bc48b9c9, type: 2}

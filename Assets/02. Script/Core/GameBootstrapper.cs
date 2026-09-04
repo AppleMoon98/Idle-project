@@ -17,6 +17,8 @@ using Skill;
 using Soldier;
 using SoldierEnhancement;
 using Stage;
+using Story;
+using Story.Events;
 using UI;
 using UnityEngine;
 
@@ -125,6 +127,16 @@ namespace Core
         [SerializeField]
         private StageController stageController;
 
+        [SerializeField]
+        private StoryPopupUI storyPopupUI;
+
+        /// <summary>
+        /// 게임 최초 실행 시 재생할 인트로 스토리. null이면(콘텐츠 미비) 재생을 건너뛴다
+        /// (RankSO.PromotionStory와 동일한 콘텐츠 게이트 관례).
+        /// </summary>
+        [SerializeField]
+        private StorySO introStory;
+
         /// <summary>
         /// Awake에서 등록한 모든 IManager 인스턴스를 등록 순서대로 모아둔다. 각 서비스의 Shutdown()은
         /// 자기 자신의 이벤트 구독 해제/내부 상태 초기화만 하고 다른 서비스를 참조하지 않으므로
@@ -136,6 +148,7 @@ namespace Core
         private LootDropper _lootDropper;
         private DamageNumberSpawner _damageNumberSpawner;
         private RareGachaTicketDropService _rareGachaTicketDropService;
+        private RankPromotionStoryGate _rankPromotionStoryGate;
         private OfflineProgressService _offlineProgressService;
         private EnhancementService _enhancementService;
         private EquipmentStatService _equipmentStatService;
@@ -406,6 +419,7 @@ namespace Core
             _lootDropper = new LootDropper(Events, stageCatalog, stageDifficultyConfig, stageController);
             _damageNumberSpawner = new DamageNumberSpawner(Events, poolManager, damageNumberPrefab);
             _rareGachaTicketDropService = new RareGachaTicketDropService(Events, stageCatalog, equipmentGachaTicketService, soldierTicketService, skillScrollService);
+            _rankPromotionStoryGate = new RankPromotionStoryGate(Events, storyPopupUI);
         }
 
         private void Start()
@@ -445,6 +459,14 @@ namespace Core
             // CaptureBudget()이 미리 확정해둔 경과 시간으로, 지금 이 순간의 유효 전투력 스냅샷을
             // 사용해 실제 오프라인 보상을 계산/적용한다(OfflineProgressService 클래스 doc 참고).
             _offlineProgressService?.ApplyCapturedReward();
+
+            // 세이브에 시청 기록이 없을 때만(최초 실행) 재생한다 - introStory가 null이거나
+            // StoryPopupUI.Play 자체가 컷이 하나도 없으면 즉시 onComplete를 호출해 사실상
+            // no-op이 되므로, 콘텐츠가 아직 없어도 안전하게 항상 호출해둘 수 있다.
+            if (!_initialSave.HasSeenIntroStory)
+            {
+                storyPopupUI?.Play(introStory, () => Events.Publish(new IntroStoryCompletedEvent()));
+            }
 
             IsReady = true;
         }
@@ -497,6 +519,9 @@ namespace Core
 
             _rareGachaTicketDropService?.Dispose();
             _rareGachaTicketDropService = null;
+
+            _rankPromotionStoryGate?.Dispose();
+            _rankPromotionStoryGate = null;
 
             for (int i = 0; i < _managers.Count; i++)
             {

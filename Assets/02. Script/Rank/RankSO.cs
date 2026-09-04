@@ -1,4 +1,5 @@
 using Stage;
+using Story;
 using UnityEngine;
 
 namespace Rank
@@ -27,6 +28,9 @@ namespace Rank
 
         [SerializeField]
         private float playerStatBonusPercent;
+
+        [SerializeField]
+        private StorySO promotionStory;
 
         /// <summary>
         /// 화면에 표시할 랭크 이름.
@@ -71,5 +75,12 @@ namespace Rank
         /// SoldierEnhancementService/SoldierStatReceiver 트랙을 그대로 쓴다. 기본값 0(보너스 없음).
         /// </summary>
         public float PlayerStatBonusPercent => playerStatBonusPercent;
+
+        /// <summary>
+        /// 이 랭크로 승급할 때 재생할 만화 스토리. null이면(콘텐츠 미비) 재생을 건너뛰고
+        /// UI.RankUpPopupUI("랭크 승급!" 알림)가 곧바로 뜬다 - RequiredStage == null과 동일한
+        /// 콘텐츠 게이트 관례(Rank.RankPromotionStoryGate 참고).
+        /// </summary>
+        public StorySO PromotionStory => promotionStory;
     }
 }

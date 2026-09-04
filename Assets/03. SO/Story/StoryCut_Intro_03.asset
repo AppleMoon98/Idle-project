@@ -1,0 +1,17 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9c58fc3d3126eaf499db9550f8555649, type: 3}
+  m_Name: StoryCut_Intro_03
+  m_EditorClassIdentifier: Assembly-CSharp::Story.StoryCutSO
+  cutImage: {fileID: 0}
+  cutText: "(placeholder) \uCEF7 3 - \uC778\uD2B8\uB85C \uC2A4\uD1A0\uB9AC \uB9C8\uC9C0\uB9C9
+    \uC7A5\uBA74"
