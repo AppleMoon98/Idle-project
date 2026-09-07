@@ -90425,6 +90425,7 @@ GameObject:
   - component: {fileID: 1766137488}
   - component: {fileID: 1766137487}
   - component: {fileID: 1766137486}
+  - component: {fileID: 1766137490}
   m_Layer: 0
   m_Name: SkillCategoryButton
   m_TagString: Untagged
@@ -90554,6 +90555,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1766137484}
   m_CullTransparentMesh: 1
+--- !u!114 &1766137490
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1766137484}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8727e3dc71b1fa0408fafd40a1fcd11c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ShopCategoryTabButtonUI
+  category: 1
+  label: {fileID: 664562304}
 --- !u!1 &1768095096
 GameObject:
   m_ObjectHideFlags: 0
@@ -99608,6 +99623,7 @@ GameObject:
   - component: {fileID: 1997859886}
   - component: {fileID: 1997859885}
   - component: {fileID: 1997859884}
+  - component: {fileID: 1997859888}
   m_Layer: 0
   m_Name: SpecialCategoryButton
   m_TagString: Untagged
@@ -99712,7 +99728,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 0.84, b: 0, a: 1}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -99737,6 +99753,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1997859882}
   m_CullTransparentMesh: 1
+--- !u!114 &1997859888
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1997859882}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8727e3dc71b1fa0408fafd40a1fcd11c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ShopCategoryTabButtonUI
+  category: 2
+  label: {fileID: 1942391509}
 --- !u!1 &1998030098
 GameObject:
   m_ObjectHideFlags: 0
@@ -104908,6 +104938,7 @@ GameObject:
   - component: {fileID: 2125946149}
   - component: {fileID: 2125946148}
   - component: {fileID: 2125946147}
+  - component: {fileID: 2125946151}
   m_Layer: 0
   m_Name: EquipmentCategoryButton
   m_TagString: Untagged
@@ -105037,6 +105068,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 2125946145}
   m_CullTransparentMesh: 1
+--- !u!114 &2125946151
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2125946145}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8727e3dc71b1fa0408fafd40a1fcd11c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::UI.ShopCategoryTabButtonUI
+  category: 0
+  label: {fileID: 781353319}
 --- !u!1 &2127336690
 GameObject:
   m_ObjectHideFlags: 0
