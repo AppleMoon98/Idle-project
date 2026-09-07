@@ -18,6 +18,7 @@ using Loot.Events;
 using Offline;
 using Rank;
 using Save;
+using Shop;
 using Skill;
 using Skill.Events;
 using Soldier;
@@ -303,6 +304,10 @@ namespace Editor
             Check("BehaviorProfileCatalog_RealContent_NoDuplicateOrEmptyStableIds",
                 () => AssertNoDuplicateOrEmptyStableIds<BehaviorProfileCatalogSO, BehaviorProfileSO>(
                     c => c.Profiles, so => so.StableId));
+            Check("ShopCatalog_FindByStableId_RoundTripsAndRejectsUnknown", CheckShopCatalogFindByStableId);
+            Check("ShopCatalog_RealContent_NoDuplicateOrEmptyStableIds",
+                () => AssertNoDuplicateOrEmptyStableIds<ShopCatalogSO, ShopItemSO>(
+                    c => c.Items, so => so.StableId));
 
             // --- 이슈 #10: 가챠 결과 슬롯이 패널 비활성화 시 풀로 반납되어, 여러 컨트롤러가
             // 같은 풀을 공유해도 전체 인스턴스 수가 늘어나지 않고 재사용됨 ---
@@ -2346,6 +2351,37 @@ namespace Editor
             SetPrivateString(itemB, "stableId", "guid-b");
 
             var catalog = ScriptableObject.CreateInstance<EquipmentCatalogSO>();
+            SetPrivateField(catalog, "items", new[] { itemA, itemB });
+
+            if (catalog.FindByStableId("guid-b") != itemB)
+            {
+                throw new Exception("일치하는 StableId로 항목을 찾지 못함");
+            }
+
+            if (catalog.FindByStableId("guid-does-not-exist") != null)
+            {
+                throw new Exception("존재하지 않는 StableId가 항목을 반환함");
+            }
+
+            if (catalog.FindByStableId("") != null || catalog.FindByStableId(null) != null)
+            {
+                throw new Exception("빈/null StableId가 항목을 반환함");
+            }
+        }
+
+        /// <summary>
+        /// ShopCatalogSO.FindByStableId도 EquipmentCatalogSO와 동일하게 StableId 기준으로 정확히
+        /// 항목을 찾고, 빈 문자열/알 수 없는 값은 null을 반환하는지 확인한다.
+        /// </summary>
+        private static void CheckShopCatalogFindByStableId()
+        {
+            var itemA = ScriptableObject.CreateInstance<ShopItemSO>();
+            SetPrivateString(itemA, "stableId", "guid-a");
+
+            var itemB = ScriptableObject.CreateInstance<ShopItemSO>();
+            SetPrivateString(itemB, "stableId", "guid-b");
+
+            var catalog = ScriptableObject.CreateInstance<ShopCatalogSO>();
             SetPrivateField(catalog, "items", new[] { itemA, itemB });
 
             if (catalog.FindByStableId("guid-b") != itemB)

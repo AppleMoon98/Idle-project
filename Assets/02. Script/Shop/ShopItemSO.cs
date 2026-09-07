@@ -11,6 +11,9 @@ namespace Shop
     public sealed class ShopItemSO : ScriptableObject
     {
         [SerializeField]
+        private string stableId;
+
+        [SerializeField]
         private string displayName;
 
         [SerializeField]
@@ -18,6 +21,13 @@ namespace Shop
 
         [SerializeField]
         private ShopCategory category;
+
+        /// <summary>
+        /// 카탈로그 배열 순서와 무관하게 이 항목을 영구적으로 식별하는 GUID(EquipmentSO 등과
+        /// 동일한 관례, Editor.StableIdBackfill이 발급). 나중에 구매/보유를 저장하게 되면 배열
+        /// 인덱스 대신 이 값으로 식별해야 콘텐츠 재정렬/삭제에도 세이브가 안전하다(GitHub 이슈 #19).
+        /// </summary>
+        public string StableId => stableId;
 
         public string DisplayName => displayName;
 

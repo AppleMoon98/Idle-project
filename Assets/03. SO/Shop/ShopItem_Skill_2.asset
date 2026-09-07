@@ -12,6 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5e5518a284dc32f43a7efd2a2351bdac, type: 3}
   m_Name: ShopItem_Skill_2
   m_EditorClassIdentifier: Assembly-CSharp::Shop.ShopItemSO
+  stableId: ee45e633ada34f3c89cd82f18b2da0b4
   displayName: "\uC2A4\uD0AC \uC0C1\uD488 2"
   icon: {fileID: 0}
   category: 1
