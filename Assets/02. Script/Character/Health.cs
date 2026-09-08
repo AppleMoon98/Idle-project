@@ -120,10 +120,15 @@ namespace Character
         /// <summary>
         /// 사망 상태를 풀고 체력을 최대치로 되돌린다. 풀링되지 않는 캐릭터(Player 등)가
         /// 죽은 뒤 다시 전투에 나설 수 있도록 하는 명시적 API — OnSpawned는 PoolManager만 호출한다.
+        /// IsInvulnerable도 함께 초기화한다 — SetInvulnerable(true) 도중 강제 반납된 풀링 인스턴스가
+        /// 재사용 시 영구 무적으로 남는 것을 막는 안전망(현재 유일한 소비자인
+        /// Rank.Boss.PromotionBossController.OnSpawned()가 이미 같은 이유로 방어하고 있지만,
+        /// 향후 다른 소비자가 그 방어를 빠뜨려도 여기서 한 번 더 막는다).
         /// </summary>
         public void Revive()
         {
             IsDead = false;
+            IsInvulnerable = false;
             SetCurrent(_statsProvider.Stats.MaxHealth);
             _shieldGuard?.ResetShield();
         }
